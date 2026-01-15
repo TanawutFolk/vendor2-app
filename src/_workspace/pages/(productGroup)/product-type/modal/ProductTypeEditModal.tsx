@@ -1,0 +1,741 @@
+// React Imports
+import type { Dispatch, ReactElement, Ref, SetStateAction } from 'react'
+import { forwardRef, useState } from 'react'
+
+// MUI Imports
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Typography from '@mui/material/Typography'
+
+import type { SlideProps } from '@mui/material'
+import { Divider, Grid, Slide } from '@mui/material'
+import type { SubmitErrorHandler } from 'react-hook-form'
+import { Controller, useForm, useFormState } from 'react-hook-form'
+
+// Components Imports
+import { useQueryClient } from '@tanstack/react-query'
+
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+
+import CustomTextField from '@/@core/components/mui/TextField'
+import { PREFIX_QUERY_KEY, useUpdateProductType } from '@/_workspace/react-query/hooks/useProductTypeData'
+import { fetchAccountDepartmentCodeByLikeAccountDepartmentCodeAndInuse } from '@/_workspace/react-select/async-promise-load-options/account-department-code/fetchAccountDepartmentCode'
+import {
+  CustomerInvoiceToOption,
+  fetchCustomerInvoiceToByLikeCustomerInvoiceToAlphabet
+} from '@/_workspace/react-select/async-promise-load-options/customer/fetchCustomerInvoiceTo'
+import {
+  BomOption,
+  fetchByLikeBomCodeAndProductMainIdAndInuse
+} from '@/_workspace/react-select/async-promise-load-options/fetchBom'
+import { fetchItemCategoryCanBeSoldByLikeItemCategoryNameAndInuse } from '@/_workspace/react-select/async-promise-load-options/fetchItemCategory'
+import {
+  fetchProductCategoryByLikeProductCategoryNameAndInuse,
+  ProductCategoryOption
+} from '@/_workspace/react-select/async-promise-load-options/fetchProductCategory'
+import {
+  fetchProductMainByLikeProductMainNameAndInuse,
+  fetchProductMainByLikeProductMainNameAndProductCategoryIdAndInuse,
+  ProductMainOption
+} from '@/_workspace/react-select/async-promise-load-options/fetchProductMain'
+import {
+  fetchProductSubByLikeProductSubNameAndInuse,
+  fetchProductSubByLikeProductSubNameAndProductCategoryIdAndInuse,
+  fetchProductSubByLikeProductSubNameAndProductMainIdAndInuse
+} from '@/_workspace/react-select/async-promise-load-options/fetchProductSub'
+import { ProductTypeI } from '@/_workspace/types/productGroup/ProductType'
+import ConfirmModal from '@/components/ConfirmModal'
+import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
+import SelectCustom from '@/components/react-select/SelectCustom'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
+import StatusColumn from '@/libs/material-react-table/components/StatusOption'
+import StatusOptionForEdit from '@/libs/react-select/option/StatusOptionForEdit'
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { MRT_Row } from 'material-react-table'
+import { z } from 'zod'
+
+const Transition = forwardRef(function Transition(
+  props: SlideProps & { children?: ReactElement<any, any> },
+  ref: Ref<unknown>
+) {
+  return <Slide direction='up' ref={ref} {...props} />
+})
+
+export type FormData = z.infer<typeof schema>
+
+export const schema = z.object({
+  productCategory: z
+    .object({
+      PRODUCT_CATEGORY_ID: z.number({ required_error: 'Product Category ID must be a number' }),
+      PRODUCT_CATEGORY_NAME: z.string({ required_error: 'Product Category Name must be a string' })
+    })
+    .optional()
+    .nullable()
+    .refine(val => val !== null && val !== undefined, {
+      message: 'Please select a Product Category'
+    }),
+
+  productMain: z
+    .object({
+      PRODUCT_MAIN_ID: z.number({ required_error: 'Product Main ID must be a number' }),
+      PRODUCT_MAIN_NAME: z.string({ required_error: 'Product Main Name must be a string' })
+    })
+    .optional()
+    .nullable()
+    .refine(val => val !== null && val !== undefined, {
+      message: 'Please select a Product Main'
+    }),
+
+  productSub: z
+    .object({
+      PRODUCT_SUB_ID: z.number({ required_error: 'Product Sub ID must be a number' }),
+      PRODUCT_SUB_NAME: z.string({ required_error: 'Product Sub Name must be a string' })
+    })
+    .optional()
+    .nullable()
+    .refine(val => val !== null && val !== undefined, {
+      message: 'Please select a Product Sub'
+    }),
+
+  itemCategory: z
+    .object({
+      ITEM_CATEGORY_ID: z.number({ required_error: 'Please select an Item Category' }),
+      ITEM_CATEGORY_NAME: z.string({ required_error: 'Please enter the Item Category name' })
+    })
+    .optional()
+    .nullable()
+    .refine(val => val !== null && val !== undefined, {
+      message: 'Please select an Item Category'
+    }),
+
+  productTypeCodeAuto: z.string().optional(),
+
+  productTypeCode: z
+    .string({ required_error: 'Product Type Code must be a string' })
+    .refine(val => val.replace(/\s/g, '').length === 8, {
+      message: 'Product Type Code must be exactly 8 non-space characters'
+    }),
+
+  productTypeName: z
+    .string({ required_error: 'Product Type Name must be a string' })
+    .trim()
+    .min(3, 'Product Type Name must be at least 3 characters')
+    .max(200, 'Product Type Name must not exceed 200 characters'),
+
+  bom: z
+    .object({
+      BOM_ID: z.number({ required_error: 'BOM ID must be a number' }),
+      BOM_NAME: z.string({ required_error: 'BOM Name must be a string' })
+    })
+    .optional()
+    .nullable(),
+
+  customerInvoiceTo: z
+    .object({
+      CUSTOMER_INVOICE_TO_ID: z.number({ required_error: 'Customer Invoice To ID must be a number' }),
+      CUSTOMER_INVOICE_TO_NAME: z.string({ required_error: 'Customer Invoice To Name must be a string' })
+    })
+    .optional()
+    .nullable()
+    .refine(val => val !== null && val !== undefined, {
+      message: 'Please select a Customer Invoice To'
+    })
+})
+// productCategoryAlphabet: string(typeFieldMessage({ fieldName: 'Product Category Alphabet', typeName: 'String' }), [
+//   regex(/[A-Z]/, uppercaseFieldMessage({ fieldName: 'Product Category Alphabet' }))
+// ])
+
+interface ProductSubAddModalProps {
+  openModalEdit: boolean
+  setOpenModalEdit: Dispatch<SetStateAction<boolean>>
+  rowSelected: MRT_Row<ProductTypeI> | null
+  setIsEnableFetching: Dispatch<SetStateAction<boolean>>
+}
+const ProductTypeEditModal = ({
+  openModalEdit,
+  setOpenModalEdit,
+  rowSelected,
+  setIsEnableFetching
+}: ProductSubAddModalProps) => {
+  // useState
+
+  // States : Modal
+  // const [openAddModal, setOpenModalAdd] = useState<boolean>(false)
+  const [confirmModal, setConfirmModal] = useState(false)
+
+  const handleClose = () => {
+    setOpenModalEdit(false)
+    reset()
+  }
+
+  // Hooks : react-hook-form
+  const { control, handleSubmit, setValue, reset, getValues, watch } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      productCategory: {
+        PRODUCT_CATEGORY_ID: rowSelected?.original.PRODUCT_CATEGORY_ID,
+        PRODUCT_CATEGORY_NAME: rowSelected?.original.PRODUCT_CATEGORY_NAME
+      },
+      productMain: {
+        PRODUCT_MAIN_ID: rowSelected?.original.PRODUCT_MAIN_ID,
+        PRODUCT_MAIN_NAME: rowSelected?.original.PRODUCT_MAIN_NAME
+      },
+      productSub: {
+        PRODUCT_SUB_ID: rowSelected?.original.PRODUCT_SUB_ID,
+        PRODUCT_SUB_NAME: rowSelected?.original.PRODUCT_SUB_NAME
+      },
+      productTypeCodeAuto: rowSelected?.original.PRODUCT_TYPE_CODE,
+      itemCategory: {
+        ITEM_CATEGORY_ID: rowSelected?.original.ITEM_CATEGORY_ID,
+        ITEM_CATEGORY_NAME: rowSelected?.original.ITEM_CATEGORY_NAME
+      },
+      productTypeCode: rowSelected?.original.PRODUCT_TYPE_CODE_FOR_SCT,
+      productTypeName: rowSelected?.original.PRODUCT_TYPE_NAME,
+      bom:
+        rowSelected?.original?.BOM_ID !== null
+          ? {
+              BOM_ID: rowSelected?.original?.BOM_ID,
+              BOM_CODE: rowSelected?.original?.BOM_CODE,
+              BOM_NAME: rowSelected?.original?.BOM_NAME,
+              FLOW_ID: rowSelected?.original?.FLOW_ID
+            }
+          : null,
+      customerInvoiceTo: {
+        CUSTOMER_INVOICE_TO_ID: rowSelected?.original.CUSTOMER_INVOICE_TO_ID,
+        CUSTOMER_INVOICE_TO_NAME: rowSelected?.original.CUSTOMER_INVOICE_TO_NAME,
+        CUSTOMER_INVOICE_TO_ALPHABET: rowSelected?.original.CUSTOMER_INVOICE_TO_ALPHABET
+      },
+      accountDepartmentCode:
+        rowSelected?.original?.ACCOUNT_DEPARTMENT_CODE_ID !== null
+          ? {
+              ACCOUNT_DEPARTMENT_CODE_ID: rowSelected?.original?.ACCOUNT_DEPARTMENT_CODE_ID,
+              ACCOUNT_DEPARTMENT_CODE: rowSelected?.original?.ACCOUNT_DEPARTMENT_CODE,
+              ACCOUNT_DEPARTMENT_NAME: rowSelected?.original?.ACCOUNT_DEPARTMENT_NAME
+            }
+          : null,
+      status: StatusColumn.find(dataItem => dataItem.value === Number(rowSelected?.original.inuseForSearch))
+    }
+  })
+
+  // const { control, handleSubmit, setValue } = reactHookFormMethods
+
+  const { errors } = useFormState({
+    control
+  })
+
+  const onSubmit = () => {
+    setConfirmModal(true)
+  }
+
+  const onError: SubmitErrorHandler<FormData> = data => {
+    console.log('ERROR', data)
+  }
+
+  // Hooks : react-query
+  const queryClient = useQueryClient()
+
+  const handleEdit = () => {
+    setConfirmModal(false)
+
+    const dataItem = {
+      PRODUCT_TYPE_ID: rowSelected?.original.PRODUCT_TYPE_ID,
+      CUSTOMER_INVOICE_TO_ID: getValues('customerInvoiceTo').CUSTOMER_INVOICE_TO_ID || '',
+      ACCOUNT_DEPARTMENT_CODE_ID: getValues('accountDepartmentCode')?.ACCOUNT_DEPARTMENT_CODE_ID || '',
+      BOM_ID: getValues('bom')?.BOM_ID || '',
+      FLOW_ID: getValues('bom')?.FLOW_ID || '',
+      PRODUCT_TYPE_STATUS_PROGRESS_ID: 1,
+      PRODUCT_TYPE_STATUS_WORKING_ID: 1,
+      INUSE: 1,
+
+      CREATE_BY: getUserData()?.EMPLOYEE_CODE,
+      UPDATE_BY: getUserData()?.EMPLOYEE_CODE
+    }
+
+    mutation.mutate(dataItem)
+    // queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+  }
+
+  const onMutateSuccess = (data: any) => {
+    if (data.data && data.data.Status == true) {
+      const message = {
+        message: data.data.Message,
+        title: 'Add Product Sub'
+      }
+
+      ToastMessageSuccess(message)
+      setIsEnableFetching(true)
+      queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+      //reset()
+      handleClose()
+    } else {
+      const message = {
+        title: 'Add Product Sub',
+        message: data.data.Message
+      }
+
+      ToastMessageError(message)
+    }
+
+    console.log('onMutateSuccess')
+  }
+
+  const onMutateError = (e: any) => {
+    console.log('onMutateError', e)
+  }
+
+  const mutation = useUpdateProductType(onMutateSuccess, onMutateError)
+
+  return (
+    <>
+      <Dialog
+        maxWidth='md'
+        fullWidth={true}
+        onClose={(event, reason) => {
+          if (reason !== 'backdropClick') {
+            handleClose()
+          }
+        }}
+        TransitionComponent={Transition}
+        open={openModalEdit}
+        keepMounted
+        sx={{
+          '& .MuiDialog-paper': { overflow: 'visible' },
+          '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+        }}
+      >
+        <DialogTitle id='max-width-dialog-title'>
+          <Typography variant='h5' component='span'>
+            Edit Product Type
+          </Typography>
+          <DialogCloseButton onClick={handleClose} disableRipple>
+            <i className='tabler-x' />
+          </DialogCloseButton>
+        </DialogTitle>
+
+        <DialogContent>
+          <Grid item xs={12} sx={{ mb: 2 }}>
+            <Divider textAlign='left'>
+              <Typography variant='body2' color='primary'>
+                Product Group
+              </Typography>
+            </Divider>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            {/* Product Category */}
+            <Grid item xs={4}>
+              <Controller
+                name='productCategory'
+                control={control}
+                render={({ field: { onChange, ...fieldProps } }) => (
+                  <AsyncSelectCustom
+                    label='Product Category Name'
+                    inputId='productCategory'
+                    {...fieldProps}
+                    isClearable
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={inputValue => fetchProductCategoryByLikeProductCategoryNameAndInuse(inputValue, '1')}
+                    onChange={value => {
+                      onChange(value)
+                      setValue('productMain', null)
+                    }}
+                    getOptionLabel={data => data.PRODUCT_CATEGORY_NAME}
+                    getOptionValue={data => data.PRODUCT_CATEGORY_ID?.toString()}
+                    classNamePrefix='select'
+                    placeholder='Select Product Category ...'
+                    isDisabled
+                    {...(errors.productCategory && { error: true, helperText: errors.productCategory.message })}
+                  />
+                )}
+              />
+            </Grid>
+
+            {/* Product Main */}
+            <Grid item xs={4}>
+              <Controller
+                name='productMain'
+                control={control}
+                render={({ field: { onChange, ...fieldProps } }) => (
+                  <AsyncSelectCustom
+                    label='Product Main'
+                    inputId='productMain'
+                    {...fieldProps}
+                    isClearable
+                    cacheOptions
+                    defaultOptions
+                    key={watch('productCategory')?.PRODUCT_CATEGORY_ID}
+                    loadOptions={inputValue => {
+                      if (getValues('productCategory')) {
+                        return fetchProductMainByLikeProductMainNameAndProductCategoryIdAndInuse(
+                          inputValue,
+                          1,
+                          watch('productCategory')?.PRODUCT_CATEGORY_ID
+                        )
+                      } else {
+                        return fetchProductMainByLikeProductMainNameAndInuse(inputValue || '', 1)
+                      }
+                    }}
+                    onChange={value => {
+                      onChange(value)
+                      setValue('productSub', null)
+                    }}
+                    getOptionLabel={data => data.PRODUCT_MAIN_NAME}
+                    getOptionValue={data => data.PRODUCT_MAIN_ID?.toString()}
+                    classNamePrefix='select'
+                    placeholder='Select...'
+                    isDisabled
+                    {...(errors.productMain && { error: true, helperText: errors.productMain.message })}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <Controller
+                name='productSub'
+                control={control}
+                render={({ field: { onChange, ...fieldProps } }) => (
+                  <AsyncSelectCustom
+                    {...fieldProps}
+                    isClearable
+                    cacheOptions
+                    defaultOptions
+                    key={`${watch('productCategory')?.PRODUCT_CATEGORY_ID}_${watch('productMain')?.PRODUCT_MAIN_ID}`}
+                    loadOptions={inputValue => {
+                      if (getValues('productMain')) {
+                        return fetchProductSubByLikeProductSubNameAndProductMainIdAndInuse(
+                          inputValue,
+                          watch('productMain')?.PRODUCT_MAIN_ID,
+                          1
+                        )
+                      } else if (getValues('productCategory')) {
+                        return fetchProductSubByLikeProductSubNameAndProductCategoryIdAndInuse(
+                          inputValue || '',
+                          watch('productCategory')?.PRODUCT_CATEGORY_ID,
+                          1
+                        )
+                      } else {
+                        return fetchProductSubByLikeProductSubNameAndInuse(inputValue || '', 1)
+                      }
+                    }}
+                    onChange={value => {
+                      onChange(value)
+                    }}
+                    getOptionLabel={data => data?.PRODUCT_SUB_NAME || ''}
+                    getOptionValue={data => data?.PRODUCT_SUB_ID?.toString() || ''}
+                    classNamePrefix='select'
+                    label='Product Sub Name'
+                    placeholder='Enter...'
+                    isDisabled
+                    {...(errors.productSub && { error: true, helperText: errors.productSub.message })}
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid item xs={12} sx={{ mb: 2 }}>
+            <Divider textAlign='left'>
+              <Typography variant='body2' color='primary'>
+                Product Type
+              </Typography>
+            </Divider>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            <Grid item xs={4}>
+              <Controller
+                name='itemCategory'
+                control={control}
+                defaultValue={null}
+                render={({ field: { ref, ...fieldProps } }) => (
+                  <AsyncSelectCustom
+                    {...fieldProps}
+                    isClearable
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={inputValue => {
+                      return fetchItemCategoryCanBeSoldByLikeItemCategoryNameAndInuse({
+                        itemCategoryName: inputValue,
+                        inuse: 1
+                      })
+                    }}
+                    getOptionLabel={data => data?.ITEM_CATEGORY_NAME || ''}
+                    getOptionValue={data => data?.ITEM_CATEGORY_ID?.toString() || ''}
+                    classNamePrefix='select'
+                    label='Item Category Name'
+                    placeholder='Select...'
+                    isDisabled
+                    {...(errors.itemCategory && { error: true, helperText: errors.itemCategory.message })}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <Controller
+                name='productTypeCodeAuto'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    disabled
+                    label='Product Type Code (Auto)'
+                    placeholder='PD-T-XXXX'
+                    autoComplete='off'
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            <Grid item xs={4}>
+              <Controller
+                name='productTypeCode'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    label='Product Type Code for SCT'
+                    placeholder='Enter...'
+                    autoComplete='off'
+                    disabled
+                    {...(errors.productTypeCode && { error: true, helperText: errors.productTypeCode.message })}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={8}>
+              <Controller
+                name='productTypeName'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    label='Product Type Name'
+                    placeholder='Enter...'
+                    autoComplete='off'
+                    disabled
+                    {...(errors.productTypeName && { error: true, helperText: errors.productTypeName.message })}
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            <Grid item xs={4}>
+              <Controller
+                name='customerInvoiceTo'
+                control={control}
+                render={({ field: { ...fieldProps } }) => (
+                  <AsyncSelectCustom<CustomerInvoiceToOption>
+                    label='Customer Invoice To Alphabet'
+                    inputId='customerInvoiceTo'
+                    {...fieldProps}
+                    isClearable
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={inputValue => {
+                      return fetchCustomerInvoiceToByLikeCustomerInvoiceToAlphabet(inputValue, 1)
+                    }}
+                    getOptionLabel={data => data.CUSTOMER_INVOICE_TO_ALPHABET?.toString()}
+                    getOptionValue={data => data.CUSTOMER_INVOICE_TO_ID?.toString()}
+                    classNamePrefix='select'
+                    placeholder='Select...'
+                    isDisabled
+                    {...(errors.customerInvoiceTo && { error: true, helperText: errors.customerInvoiceTo.message })}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={8}>
+              <Controller
+                name='customerInvoiceToName'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    label='Customer Invoice To Name'
+                    placeholder='Enter...'
+                    autoComplete='off'
+                    value={watch('customerInvoiceTo')?.CUSTOMER_INVOICE_TO_NAME}
+                    disabled
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid item xs={12} sx={{ mb: 2 }}>
+            <Divider textAlign='left'>
+              <Typography variant='body2' color='primary'>
+                Matching with BOM (Actual)
+              </Typography>
+            </Divider>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            <Grid item xs={4}>
+              <Controller
+                name='bom'
+                control={control}
+                render={({ field: { onChange, ...fieldProps } }) => (
+                  <>
+                    <AsyncSelectCustom
+                      label='BOM (optional)'
+                      inputId='bom'
+                      {...fieldProps}
+                      isClearable
+                      cacheOptions
+                      defaultOptions
+                      key={`${watch('productMain')?.PRODUCT_MAIN_ID}`}
+                      loadOptions={inputValue => {
+                        return fetchByLikeBomCodeAndProductMainIdAndInuse(
+                          inputValue || '',
+                          1,
+                          watch('productMain')?.PRODUCT_MAIN_ID
+                        )
+                      }}
+                      onChange={value => {
+                        onChange(value)
+                        // setValue('process', null)
+                      }}
+                      getOptionLabel={data => data.BOM_CODE}
+                      getOptionValue={data => data.BOM_ID?.toString()}
+                      classNamePrefix='select'
+                      placeholder='Select...'
+                      {...(errors.bom && { error: true, helperText: errors.bom.message })}
+                    />
+                  </>
+                )}
+              />
+            </Grid>
+            <Grid item xs={8}>
+              <Controller
+                name='bomName'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    label='BOM Name'
+                    placeholder='Enter...'
+                    autoComplete='off'
+                    value={watch('bom')?.BOM_NAME || ''}
+                    disabled
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid item xs={12} sx={{ mb: 2 }}>
+            <Divider textAlign='left'>
+              <Typography variant='body2' color='primary'>
+                Select Account Code (optional)
+              </Typography>
+            </Divider>
+          </Grid>
+          <Grid container spacing={6} sx={{ mb: 5 }}>
+            <Grid item xs={4}>
+              <Controller
+                name='accountDepartmentCode'
+                control={control}
+                render={({ field: { ref, ...fieldProps } }) => (
+                  <>
+                    <AsyncSelectCustom
+                      label='Account Department Code (optional)'
+                      {...fieldProps}
+                      isClearable
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={inputValue => {
+                        return fetchAccountDepartmentCodeByLikeAccountDepartmentCodeAndInuse(inputValue, 1)
+                      }}
+                      getOptionLabel={data => data.ACCOUNT_DEPARTMENT_CODE}
+                      getOptionValue={data => data.ACCOUNT_DEPARTMENT_CODE_ID?.toString()}
+                      classNamePrefix='select'
+                      placeholder='Select...'
+                      {...(errors.accountDepartmentCode && {
+                        error: true,
+                        helperText: errors.accountDepartmentCode.message
+                      })}
+                    />
+                  </>
+                )}
+              />
+            </Grid>
+            <Grid item xs={8}>
+              <Controller
+                name='accountDepartmentName'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    label='Account Department Name'
+                    placeholder='Enter...'
+                    autoComplete='off'
+                    value={watch('accountDepartmentCode')?.ACCOUNT_DEPARTMENT_NAME || ''}
+                    disabled
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+          <Grid item xs={12} sx={{ mb: 2 }}>
+            <Divider textAlign='left'>
+              <Typography variant='body2' color='primary'>
+                Other
+              </Typography>
+            </Divider>
+          </Grid>
+          <Grid container spacing={6}>
+            <Grid item xs={4}>
+              <Controller
+                name='status'
+                control={control}
+                render={({ field: { ...fieldProps } }) => (
+                  <SelectCustom
+                    {...fieldProps}
+                    options={StatusOptionForEdit}
+                    isClearable
+                    label='Status'
+                    classNamePrefix='select'
+                    isDisabled
+                  />
+
+                  // <CustomTextField
+                  //   {...field}
+                  //   options={StatusOption}
+                  //   fullWidth
+                  //   label='Status'
+                  //   placeholder=''
+                  //   autoComplete='off'
+                  // />
+                )}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleSubmit(onSubmit, onError)()} variant='contained' color='success'>
+            Save & Complete
+          </Button>
+          <Button onClick={handleClose} variant='tonal' color='secondary'>
+            Close
+          </Button>
+        </DialogActions>
+        <ConfirmModal
+          show={confirmModal}
+          onConfirmClick={handleEdit}
+          onCloseClick={() => setConfirmModal(false)}
+          isDelete={false}
+        />
+      </Dialog>
+    </>
+  )
+}
+
+export default ProductTypeEditModal

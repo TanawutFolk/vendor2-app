@@ -1,0 +1,16 @@
+export interface StandardPriceI {
+  ITEM_M_S_PRICE_ID: number
+  ITEM_ID: string
+  ITEM_CODE_FOR_SUPPORT_MES: string
+  ITEM_INTERNAL_SHORT_NAME: string
+  PURCHASE_PRICE: number
+  IMPORT_FEE_RATE: number
+  EXCHANGE_RATE_VALUE: number
+  ITEM_M_S_PRICE_VALUE: string
+  PURCHASE_PRICE_CURRENCY_SYMBOL: string
+  UPDATE_DATE: string
+  UPDATE_BY: string
+  ITEM_M_O_PRICE_IMPORT_TYPE_HISTORY_VERSION_NO: number
+  ITEM_M_O_PRICE_IMPORT_TYPE_NAME: string
+  IS_CURRENT: number
+}

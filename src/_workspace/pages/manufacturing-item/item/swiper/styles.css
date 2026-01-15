@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[class^='number-slide'],
+[class*=' number-slide'] {
+  background: grey;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #fff;
+  font-weight: 500;
+  height: 200px;
+  max-height: 100vh;
+}
+
+.thumbnail .keen-slider__slide {
+  font-size: 20px;
+  margin-top: 5px;
+  height: 50px;
+}
+.thumbnail .keen-slider__slide {
+  cursor: pointer;
+}
+.thumbnail .keen-slider__slide.active {
+  border: 2px dashed 'var(--mui-palette-text-primary) !important';
+}
