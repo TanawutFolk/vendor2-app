@@ -132,11 +132,6 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
         []
     )
 
-    // Grid ready handler
-    const onGridReady = (params: GridReadyEvent) => {
-        // Auto-size columns to fit content
-        params.api.sizeColumnsToFit()
-    }
 
     return (
         <Card>
@@ -147,7 +142,7 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
                     rowData={data}
                     columnDefs={columnDefs}
                     defaultColDef={defaultColDef}
-                    onGridReady={onGridReady}
+
                     pagination={true}
                     paginationPageSize={20}
                     paginationPageSizeSelector={[10, 20, 50, 100]}
