@@ -70,6 +70,9 @@ const PCAdminPage = lazy(() => import('@/_workspace/pages/pc-admin/manufacturing
 /* Add Vendor */
 const AddVendorPage = lazy(() => import('@/_workspace/pages/_add-vendor/page'))
 
+/* Find Vendor */
+const FindVendorPage = lazy(() => import('@/_workspace/pages/_find-vendor/page'))
+
 export default (
   <>
     <Route path='/en/product-category' element={<ProductCategoryPage />} />
@@ -139,5 +142,8 @@ export default (
 
     {/* Add Vendor */}
     <Route path='/en/add-vendor' element={<AddVendorPage />} />
+
+    {/* Find Vendor */}
+    <Route path='/en/find-vendor' element={<FindVendorPage />} />
   </>
 )
