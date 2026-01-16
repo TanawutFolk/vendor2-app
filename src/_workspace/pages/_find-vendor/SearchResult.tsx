@@ -18,7 +18,7 @@ import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
-import EditVendorModal from './components/EditVendorModal'
+import EditVendorModal from './modal/EditVendorModal'
 
 // Theme configuration
 const agGridTheme = themeQuartz.withParams({
@@ -92,7 +92,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             {
                 field: 'company_name',
                 headerName: 'Company Name',
-                width: 320,
+                width: 290,
                 filter: 'agTextColumnFilter',
                 pinned: 'left'
             },
@@ -245,7 +245,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 const requestParams: FindVendorSearchRequestI = {
                     SearchFilters: [
                         { id: 'company_name', value: searchFilters.company_name || '' },
-                        { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value|| null },
+                        { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
                         { id: 'province', value: searchFilters.province?.value || '' },
                         { id: 'group_name', value: searchFilters.group_name?.value || '' },
                         { id: 'status', value: searchFilters.status?.value || '' },
@@ -264,6 +264,10 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     const response = await FindVendorServices.search(requestParams)
                     if (response.data.Status) {
                         const rowData = response.data.ResultOnDb
+                        // Debug: เช็ค rowId ที่จะใช้
+                        console.log('rowData:', rowData)
+                        console.log('rowIds:', rowData.map((r: any) => r.vendor_product_id ? `vp_${r.vendor_product_id}` : `v_${r.vendor_id}`))
+
                         // ถ้า TotalCountOnDb เป็น 0 แต่มีข้อมูล ให้ใช้ความยาวของ ResultOnDb
                         // หรือถ้ามีข้อมูลน้อยกว่า limit แสดงว่าเป็นหน้าสุดท้าย
                         const totalCount = response.data.TotalCountOnDb || rowData.length
@@ -321,13 +325,13 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     copyHeadersToClipboard={true}
                     onGridReady={onGridReady}
                     getRowId={(params) => {
-                        //ใช้ Primary Key จาก Database
-                        // ถ้ามี vendor_product_id: ใช้ vp_ + vendor_product_id (PK ของตารางลูก)
-                        // ถ้าไม่มี (NULL): ใช้ v_ + vendor_id (เป็น Vendor เปล่าไม่มีสินค้า)
-                        if (params.data.vendor_product_id) {
-                            return `vp_${params.data.vendor_product_id}`
-                        }
-                        return `v_${params.data.vendor_id}`
+                        // สร้าง unique key จาก combination ของหลาย fields
+                        const vendorId = params.data.vendor_id || 0
+                        const productId = params.data.vendor_product_id || 0
+                        const contactId = params.data.vendor_contact_id || 0
+
+                        // ใช้ combination เพื่อให้ unique ในทุกกรณี
+                        return `${vendorId}_${productId}_${contactId}`
                     }}
                 />
             </Box>

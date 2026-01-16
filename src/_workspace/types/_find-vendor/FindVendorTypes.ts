@@ -94,3 +94,43 @@ export interface DropdownResponseI {
     MethodOnDb: string
     Message: string
 }
+
+// Contact information interface
+export interface VendorContactI {
+    vendor_contact_id?: number
+    seller_name: string
+    position: string
+    tel_phone: string
+    email: string
+}
+
+// Product information interface  
+export interface VendorProductI {
+    vendor_product_id?: number
+    group_name: string
+    maker_name: string
+    product_name: string
+    model_list: string
+}
+
+// Comprehensive vendor data interface
+export interface VendorComprehensiveI {
+    vendor_id: number
+    fft_vendor_code?: string | null
+    fft_status?: string | null
+    company_name: string
+    vendor_type_id?: number
+    vendor_type_name: string
+    province: string
+    postal_code: string
+    website: string
+    address: string
+    tel_center: string
+    contacts: VendorContactI[]
+    products: VendorProductI[]
+    CREATE_BY: string
+    UPDATE_BY: string
+    CREATE_DATE: string
+    UPDATE_DATE: string
+    INUSE: number
+}
