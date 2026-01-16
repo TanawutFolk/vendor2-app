@@ -3,6 +3,9 @@
 // MUI Imports
 import Grid from '@mui/material/Grid'
 
+// React Imports
+import { useState } from 'react'
+
 // React-Hook-Form Imports
 import { FormProvider, useForm, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,10 +20,6 @@ import SkeletonCustom from '@components/SkeletonCustom'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 
-// React Query Hooks
-import { useFindVendor } from '@_workspace/react-query/hooks/vendor/useFindVendor'
-
-// My Validate Schema Imports
 import type { FindVendorFormData } from './validateSchema'
 import { FindVendorSchema, defaultFindVendorValues } from './validateSchema'
 
@@ -54,35 +53,13 @@ const InnerApp = () => {
     })
 
     // Build search params from form values
-    const searchFilters = getValues('searchFilters')
-    const searchParams = {
-        company_name: searchFilters.company_name || '',
-        vendor_type_id: searchFilters.vendor_type_id || undefined,
-        province: searchFilters.province || '',
-        status: searchFilters.status?.value || '',
-        Start: 0,
-        Limit: 100
-    }
-
-    // React Query - Search Vendors (enabled: true to auto-search on load)
-    const { data: vendorData, isLoading: isSearching, refetch } = useFindVendor(searchParams, true)
-
-    // Fetch data after initial defaultValues react-hook-form
-    useUpdateEffect(() => {
-        refetch()
-    }, [isLoadingReactHookForm])
-
-    // Reset fetching state after data is loaded
-    useUpdateEffect(() => {
-        if (!isSearching && isEnableFetching) {
-            setIsEnableFetching(false)
-        }
-    }, [isSearching])
+    // State for active search filters (updated on Search click)
+    const [activeSearchFilters, setActiveSearchFilters] = useState<any>(defaultFindVendorValues.searchFilters)
 
     // Handle search
     const handleSearch = () => {
-        setIsEnableFetching(true)
-        refetch()
+        const filters = getValues('searchFilters')
+        setActiveSearchFilters({ ...filters })
     }
 
     return (
@@ -107,8 +84,7 @@ const InnerApp = () => {
                             <SkeletonCustom />
                         ) : (
                             <SearchResult
-                                data={vendorData?.ResultOnDb || []}
-                                isLoading={isSearching}
+                                searchFilters={activeSearchFilters}
                             />
                         )}
                     </Grid>

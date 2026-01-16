@@ -1,4 +1,5 @@
-'use client'
+// React Imports
+import { useCallback } from 'react'
 
 // MUI Imports
 import Button from '@mui/material/Button'
@@ -10,21 +11,24 @@ import Grid from '@mui/material/Grid'
 // Components Imports
 import { Controller, useFormContext } from 'react-hook-form'
 import CustomTextField from '@components/mui/TextField'
-import SelectCustom from '@/components/react-select/SelectCustom'
-
-// libs Imports
-import StatusOption from '@libs/react-select/option/StatusOption'
+import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
+import SelectCustom from '@components/react-select/SelectCustom'
 
 // _template Imports
 import { useDxContext } from '@/_template/DxContextProvider'
 
-// Hooks
-import { useGetVendorTypes } from '@_workspace/react-query/hooks/vendor/useAddVendorMasterData'
+// react-query Imports
+import { useQueryClient } from '@tanstack/react-query'
+import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
+
+// Services
+import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 
 // Types
 import type { FindVendorFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
-import { useMemo } from 'react'
+import { MENU_ID } from './env'
 
 interface SearchFilterProps {
     onSearch: () => void
@@ -35,30 +39,113 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
     const { setIsEnableFetching } = useDxContext()
 
     // react-hook-form
-    const { setValue, control, handleSubmit } = useFormContext<FindVendorFormData>()
+    const { setValue, getValues, control } = useFormContext<FindVendorFormData>()
 
-    // React Query - Get Vendor Types for dropdown
-    const { data: vendorTypesData } = useGetVendorTypes(true)
+    // react-query
+    const queryClient = useQueryClient()
 
-    // Transform vendor types to options
-    const vendorTypeOptions = useMemo(() => {
-        if (!vendorTypesData?.ResultOnDb) return []
-        return vendorTypesData.ResultOnDb.map(item => ({
-            value: item.vendor_type_id,
-            label: item.name
-        }))
-    }, [vendorTypesData])
+    // USER profile setting save handlers
+    const onMutateSuccess = () => {
+        console.log('User profile setting saved successfully')
+    }
+
+    const onMutateError = (e: any) => {
+        console.log('User profile setting save error:', e)
+    }
+
+    const { mutate } = useCreate(onMutateSuccess, onMutateError)
+
+    // Save user profile setting
+    const handleAdd = () => {
+        const dataItem = {
+            USER_ID: getUserData().USER_ID,
+            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
+            MENU_ID: MENU_ID.toString(),
+            USER_PROFILE_SETTING_PROGRAM_DATA: {
+                searchFilters: {
+                    company_name: getValues('searchFilters.company_name') || '',
+                    vendor_type_id: getValues('searchFilters.vendor_type_id') || null,
+                    province: getValues('searchFilters.province') || null,
+                    group_name: getValues('searchFilters.group_name') || null,
+                    status: getValues('searchFilters.status') || null,
+                    product_name: getValues('searchFilters.product_name') || '',
+                    maker_name: getValues('searchFilters.maker_name') || '',
+                    model_list: getValues('searchFilters.model_list') || ''
+                },
+                searchResults: {
+                    pageSize: getValues('searchResults.pageSize') || 20,
+                    columnFilters: getValues('searchResults.columnFilters'),
+                    sorting: getValues('searchResults.sorting'),
+                    density: getValues('searchResults.density'),
+                    columnVisibility: getValues('searchResults.columnVisibility'),
+                    columnPinning: getValues('searchResults.columnPinning'),
+                    columnOrder: getValues('searchResults.columnOrder'),
+                    columnFilterFns: getValues('searchResults.columnFilterFns')
+                }
+            } as FindVendorFormData
+        }
+
+        mutate(dataItem)
+    }
 
     // Function
     const handleClear = () => {
         setValue('searchFilters', defaultSearchFilters)
         setIsEnableFetching(true)
+        handleAdd()
     }
 
     const handleSearch = () => {
         setIsEnableFetching(true)
         onSearch()
+        handleAdd()
     }
+
+    // Dropdown fetchers
+    const fetchVendorTypes = useCallback(async (inputValue: string) => {
+        try {
+            const response = await FindVendorServices.getVendorTypes()
+            if (response.data.Status) {
+                return response.data.ResultOnDb.filter(item =>
+                    item.label.toLowerCase().includes(inputValue.toLowerCase())
+                )
+            }
+            return []
+        } catch (error) {
+            console.error('Error fetching vendor types:', error)
+            return []
+        }
+    }, [])
+
+    const fetchProvinces = useCallback(async (inputValue: string) => {
+        try {
+            const response = await FindVendorServices.getProvinces()
+            if (response.data.Status) {
+                return response.data.ResultOnDb.filter(item =>
+                    item.label.toLowerCase().includes(inputValue.toLowerCase())
+                )
+            }
+            return []
+        } catch (error) {
+            console.error('Error fetching provinces:', error)
+            return []
+        }
+    }, [])
+
+    const fetchProductGroups = useCallback(async (inputValue: string) => {
+        try {
+            const response = await FindVendorServices.getProductGroups()
+            if (response.data.Status) {
+                return response.data.ResultOnDb.filter(item =>
+                    item.label.toLowerCase().includes(inputValue.toLowerCase())
+                )
+            }
+            return []
+        } catch (error) {
+            console.error('Error fetching product groups:', error)
+            return []
+        }
+    }, [])
 
     return (
         <Card style={{ overflow: 'visible', zIndex: 4 }}>
@@ -90,15 +177,14 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                             name='searchFilters.vendor_type_id'
                             control={control}
                             render={({ field }) => (
-                                <SelectCustom
-                                    value={vendorTypeOptions.find(opt => opt.value === field.value) || null}
-                                    onChange={(selected: any) => {
-                                        field.onChange(selected?.value || null)
-                                    }}
-                                    options={vendorTypeOptions}
-                                    isClearable
+                                <AsyncSelectCustom
+                                    {...field}
                                     label='Vendor Type'
-                                    placeholder='Select vendor type...'
+                                    placeholder='Select Type...'
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    loadOptions={fetchVendorTypes}
                                     classNamePrefix='select'
                                 />
                             )}
@@ -110,12 +196,34 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                             name='searchFilters.province'
                             control={control}
                             render={({ field }) => (
-                                <CustomTextField
+                                <AsyncSelectCustom
                                     {...field}
-                                    fullWidth
                                     label='Province'
-                                    placeholder='Enter province...'
-                                    autoComplete='off'
+                                    placeholder='Select Province...'
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    loadOptions={fetchProvinces}
+                                    classNamePrefix='select'
+                                />
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Controller
+                            name='searchFilters.group_name'
+                            control={control}
+                            render={({ field }) => (
+                                <AsyncSelectCustom
+                                    {...field}
+                                    label='Group Name'
+                                    placeholder='Select Group...'
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    loadOptions={fetchProductGroups}
+                                    classNamePrefix='select'
                                 />
                             )}
                         />
@@ -128,11 +236,62 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                             render={({ field }) => (
                                 <SelectCustom
                                     {...field}
-                                    options={StatusOption}
-                                    isClearable
                                     label='Status'
-                                    placeholder='Select status...'
+                                    placeholder='Select Status...'
+                                    isClearable
+                                    options={[
+                                        { value: 'Active', label: 'Active' },
+                                        { value: 'Inactive', label: 'Inactive' }
+                                    ]}
                                     classNamePrefix='select'
+                                />
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Controller
+                            name='searchFilters.product_name'
+                            control={control}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    fullWidth
+                                    label='Product Name'
+                                    placeholder='Enter product name...'
+                                    autoComplete='off'
+                                />
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Controller
+                            name='searchFilters.maker_name'
+                            control={control}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    fullWidth
+                                    label='Maker Name'
+                                    placeholder='Enter maker name...'
+                                    autoComplete='off'
+                                />
+                            )}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Controller
+                            name='searchFilters.model_list'
+                            control={control}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    fullWidth
+                                    label='Model Name'
+                                    placeholder='Enter model name...'
+                                    autoComplete='off'
                                 />
                             )}
                         />

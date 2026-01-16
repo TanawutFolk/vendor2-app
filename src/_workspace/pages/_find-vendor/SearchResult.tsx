@@ -1,7 +1,8 @@
 'use client'
 
 // React Imports
-import { useMemo } from 'react'
+// React Imports
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react'
 
 // MUI Imports
 import { Card, CardHeader, Chip, Box } from '@mui/material'
@@ -11,8 +12,13 @@ import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, GridReadyEvent, ICellRendererParams } from 'ag-grid-community'
 import { themeQuartz } from 'ag-grid-community'
 
-// Types
-import type { VendorResultI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+// Services & Types
+import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
+import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+
+// Custom Cell Renderers
+import ActionCellRenderer from './components/ActionCellRenderer'
+import EditVendorModal from './components/EditVendorModal'
 
 // Theme configuration
 const agGridTheme = themeQuartz.withParams({
@@ -21,8 +27,7 @@ const agGridTheme = themeQuartz.withParams({
 })
 
 interface SearchResultProps {
-    data: VendorResultI[]
-    isLoading?: boolean
+    searchFilters: any
 }
 
 // Status cell renderer
@@ -34,10 +39,56 @@ const StatusCellRenderer = (props: ICellRendererParams) => {
     return <Chip label={label} color={color} size='small' variant='filled' />
 }
 
-const SearchResult = ({ data, isLoading }: SearchResultProps) => {
+const SearchResult = ({ searchFilters }: SearchResultProps) => {
+    const gridApiRef = useRef<any>(null)
+    const [editModalOpen, setEditModalOpen] = useState(false)
+    const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+
+    // Handle edit click from ActionCellRenderer
+    const handleEditClick = useCallback((vendorId: number) => {
+        setSelectedVendorId(vendorId)
+        setEditModalOpen(true)
+    }, [])
+
+    const handleCloseEditModal = useCallback(() => {
+        setEditModalOpen(false)
+        setSelectedVendorId(null)
+    }, [])
+
+    const handleEditSuccess = useCallback(() => {
+        // Refresh grid after successful edit
+        if (gridApiRef.current) {
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [])
+
     // Column definitions - matching API response
     const columnDefs = useMemo<ColDef[]>(
         () => [
+            {
+                headerName: 'Edit',
+                field: 'actions',
+                width: 48,
+                pinned: 'left',
+                cellRenderer: ActionCellRenderer,
+                sortable: false,
+                filter: false,
+                floatingFilter: false
+            },
+            {
+                field: 'fft_vendor_code',
+                headerName: 'Vendor Code',
+                width: 100,
+                filter: 'agTextColumnFilter',
+                pinned: 'left'
+            },
+            {
+                field: 'fft_status',
+                headerName: 'Status',
+                width: 85,
+                filter: 'agTextColumnFilter',
+                pinned: 'left'
+            },
             {
                 field: 'company_name',
                 headerName: 'Company Name',
@@ -72,8 +123,33 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
             {
                 field: 'tel_center',
                 headerName: 'Tel Company',
+                width: 130,
+                filter: 'agTextColumnFilter'
+            },
+            {
+                field: 'group_name',
+                headerName: 'Group Name',
                 width: 150,
                 filter: 'agTextColumnFilter'
+            },
+            {
+                field: 'maker_name',
+                headerName: 'Maker Name',
+                width: 150,
+                filter: 'agTextColumnFilter'
+            },
+            {
+                field: 'product_name',
+                headerName: 'Product Name',
+                width: 180,
+                filter: 'agTextColumnFilter'
+            },
+            {
+                field: 'model_list',
+                headerName: 'Model List',
+                width: 180,
+                filter: 'agTextColumnFilter',
+                valueFormatter: (params) => params.value ? params.value.replace(/\n/g, ', ') : ''
             },
             {
                 field: 'seller_name',
@@ -84,7 +160,7 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
             {
                 field: 'tel_phone',
                 headerName: 'Tel. Contact',
-                width: 150,
+                width: 125,
                 filter: 'agTextColumnFilter'
             },
             {
@@ -97,25 +173,45 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
                 field: 'CREATE_BY',
                 headerName: 'Created By',
                 width: 120,
-                filter: 'agTextColumnFilter'
+                filter: 'agTextColumnFilter',
+                valueFormatter: (params) => params.value || 'N/A'
             },
             {
                 field: 'UPDATE_BY',
                 headerName: 'Updated By',
                 width: 120,
-                filter: 'agTextColumnFilter'
+                filter: 'agTextColumnFilter',
+                valueFormatter: (params) => params.value || 'N/A'
             },
             {
                 field: 'CREATE_DATE',
                 headerName: 'Created Date',
                 width: 150,
-                filter: 'agDateColumnFilter'
+                filter: 'agDateColumnFilter',
+                valueFormatter: (params) => {
+                    if (!params.value) return 'N/A'
+                    const date = new Date(params.value)
+                    return date.toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    })
+                }
             },
             {
                 field: 'UPDATE_DATE',
                 headerName: 'Updated Date',
                 width: 150,
-                filter: 'agDateColumnFilter'
+                filter: 'agDateColumnFilter',
+                valueFormatter: (params) => {
+                    if (!params.value) return 'N/A'
+                    const date = new Date(params.value)
+                    return date.toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    })
+                }
             }
         ],
         []
@@ -132,6 +228,72 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
         []
     )
 
+    // Server-side Datasource
+    const serverSideDatasource = useMemo(() => {
+        return {
+            getRows: async (params: any) => {
+                const { startRow, endRow, sortModel } = params.request
+
+                // Calculate pagination
+                const limit = endRow - startRow
+                const startPage = Math.floor(startRow / limit)
+
+                // Sort parameters
+                const sortField = sortModel.length > 0 ? sortModel[0].colId : 'company_name'
+                const sortOrder = sortModel.length > 0 ? sortModel[0].sort.toUpperCase() : 'ASC'
+
+                const requestParams: FindVendorSearchRequestI = {
+                    SearchFilters: [
+                        { id: 'company_name', value: searchFilters.company_name || '' },
+                        { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value|| null },
+                        { id: 'province', value: searchFilters.province?.value || '' },
+                        { id: 'group_name', value: searchFilters.group_name?.value || '' },
+                        { id: 'status', value: searchFilters.status?.value || '' },
+                        { id: 'product_name', value: searchFilters.product_name || '' },
+                        { id: 'maker_name', value: searchFilters.maker_name || '' },
+                        { id: 'model_list', value: searchFilters.model_list || '' },
+                        { id: 'inuseForSearch', value: '' }
+                    ],
+                    ColumnFilters: [],
+                    Limit: limit,
+                    Order: [{ id: sortField, desc: sortOrder === 'DESC' }],
+                    Start: startPage
+                }
+
+                try {
+                    const response = await FindVendorServices.search(requestParams)
+                    if (response.data.Status) {
+                        const rowData = response.data.ResultOnDb
+                        // ถ้า TotalCountOnDb เป็น 0 แต่มีข้อมูล ให้ใช้ความยาวของ ResultOnDb
+                        // หรือถ้ามีข้อมูลน้อยกว่า limit แสดงว่าเป็นหน้าสุดท้าย
+                        const totalCount = response.data.TotalCountOnDb || rowData.length
+                        params.success({
+                            rowData: rowData,
+                            rowCount: totalCount > 0 ? totalCount : rowData.length
+                        })
+                    } else {
+                        console.error('API Error:', response.data.Message)
+                        params.fail()
+                    }
+                } catch (error) {
+                    console.error('Error fetching vendors:', error)
+                    params.fail()
+                }
+            }
+        }
+    }, [searchFilters])
+
+    // Update datasource when filters change
+    useEffect(() => {
+        if (gridApiRef.current) {
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [serverSideDatasource])
+
+
+    const onGridReady = useCallback((params: GridReadyEvent) => {
+        gridApiRef.current = params.api
+    }, [])
 
     return (
         <Card>
@@ -139,23 +301,44 @@ const SearchResult = ({ data, isLoading }: SearchResultProps) => {
             <Box sx={{ height: 600, width: '100%', p: 2 }}>
                 <AgGridReact
                     theme={agGridTheme}
-                    rowData={data}
                     columnDefs={columnDefs}
                     defaultColDef={defaultColDef}
+                    context={{ onEditClick: handleEditClick }}
 
+                    // Server-side specific props
+                    rowModelType='serverSide'
+                    serverSideDatasource={serverSideDatasource}
                     pagination={true}
                     paginationPageSize={20}
                     paginationPageSizeSelector={[10, 20, 50, 100]}
+                    cacheBlockSize={20}
+
                     rowSelection='single'
                     animateRows={true}
-                    loading={isLoading}
                     overlayLoadingTemplate='<span class="ag-overlay-loading-center">Loading...</span>'
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
-                    suppressRowClickSelection={false}
                     enableCellTextSelection={true}
                     copyHeadersToClipboard={true}
+                    onGridReady={onGridReady}
+                    getRowId={(params) => {
+                        //ใช้ Primary Key จาก Database
+                        // ถ้ามี vendor_product_id: ใช้ vp_ + vendor_product_id (PK ของตารางลูก)
+                        // ถ้าไม่มี (NULL): ใช้ v_ + vendor_id (เป็น Vendor เปล่าไม่มีสินค้า)
+                        if (params.data.vendor_product_id) {
+                            return `vp_${params.data.vendor_product_id}`
+                        }
+                        return `v_${params.data.vendor_id}`
+                    }}
                 />
             </Box>
+
+            {/* Edit Vendor Modal */}
+            <EditVendorModal
+                open={editModalOpen}
+                onClose={handleCloseEditModal}
+                vendorId={selectedVendorId}
+                onSuccess={handleEditSuccess}
+            />
         </Card>
     )
 }
