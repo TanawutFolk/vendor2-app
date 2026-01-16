@@ -16,13 +16,37 @@ import {
     Card,
     CardContent,
     Slide,
-    SlideProps
+    SlideProps,
+    Alert,
+    AlertTitle,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText
 } from '@mui/material'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import AddIcon from '@mui/icons-material/Add'
+import RemoveIcon from '@mui/icons-material/Remove'
+import EditIcon from '@mui/icons-material/Edit'
+
+interface ChangesSummary {
+    added: Array<{ type: string; description: string }>
+    removed: Array<{ type: string; description: string }>
+    modified: Array<{ type: string; description: string; before?: string; after?: string }>
+}
 
 interface UpdatedData {
     vendor?: any
     contacts?: any[]
     products?: any[]
+    updateSummary?: {
+        vendor: number
+        contacts: number
+        products: number
+        successful: number
+        total: number
+    }
+    changes?: ChangesSummary
 }
 
 interface SuccessModalProps {
@@ -43,202 +67,240 @@ const Transition = forwardRef(function Transition(
 const SuccessModal = ({
     open,
     onClose,
-    title = "บันทึกข้อมูลสำเร็จ",
-    message = "ข้อมูลถูกอัพเดทเรียบร้อยแล้ว",
+    title = "Save Successful",
+    message = "Data has been updated successfully",
     updatedData
 }: SuccessModalProps) => {
     return (
-        <Dialog
-            open={open}
-            onClose={(event, reason) => {
-                if (reason !== 'backdropClick') {
-                    onClose()
-                }
-            }}
+        <Dialog 
+            open={open} 
+            onClose={onClose}
             maxWidth="md"
             fullWidth
-            TransitionComponent={Transition}
-            sx={{
-                '& .MuiDialog-paper': { overflow: 'visible' },
-                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+            PaperProps={{
+                sx: { borderRadius: 2 }
             }}
         >
-            <DialogContent>
-                {/* Success Icon */}
-                <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
-                    <Box
-                        sx={{
-                            width: 70,
-                            height: 70,
-                            borderRadius: '50%',
-                            bgcolor: 'success.light',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
-                    >
-                        <i className='tabler-check' style={{ fontSize: 40, color: '#fff' }} />
-                    </Box>
-                </Box>
-
-                {/* Title & Message */}
-                <Box sx={{ mb: 2, textAlign: 'center' }}>
-                    <Typography variant='h4' color='success.main'>
+            <DialogTitle sx={{ pb: 1 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                    <CheckCircleIcon color="success" fontSize="large" />
+                    <Typography variant="h6" component="div" fontWeight="bold">
                         {title}
                     </Typography>
                 </Box>
-                <Box sx={{ mb: 3, textAlign: 'center' }}>
-                    <Typography variant='body1' sx={{ color: 'text.secondary' }}>
-                        {message}
-                    </Typography>
-                </Box>
+            </DialogTitle>
+            
+            <Divider />
+            
+            <DialogContent sx={{ py: 3 }}>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    {message}
+                </Typography>
 
-                {updatedData && (
-                    <Box sx={{ mt: 2 }}>
-                        <Divider sx={{ mb: 2 }}>
-                            <Typography variant='body2' color='primary'>
-                                ข้อมูลที่บันทึก
-                            </Typography>
-                        </Divider>
+                {/* Changes Summary */}
+                {updatedData?.changes && (
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Changes Summary
+                        </Typography>
 
-                        <Grid container spacing={2}>
-                            {/* Company Information */}
-                            {updatedData.vendor && (
-                                <Grid item xs={12}>
-                                    <Card variant='outlined' sx={{ bgcolor: 'action.hover' }}>
-                                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                            <Typography variant="subtitle2" color="success.main" gutterBottom>
-                                                <i className="tabler-building" style={{ marginRight: 8 }} />
-                                                ข้อมูลบริษัท
-                                            </Typography>
-                                            <Grid container spacing={1}>
-                                                <Grid item xs={12} sm={6}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        ชื่อบริษัท
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {updatedData.vendor.company_name}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid item xs={6} sm={3}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        จังหวัด
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {updatedData.vendor.province}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid item xs={6} sm={3}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        เว็บไซต์
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {updatedData.vendor.website || '-'}
-                                                    </Typography>
-                                                </Grid>
-                                            </Grid>
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            )}
+                        {/* Added Items */}
+                        {updatedData.changes.added.length > 0 && (
+                            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'success.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="success.main" gutterBottom>
+                                        <AddIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                        Added ({updatedData.changes.added.length})
+                                    </Typography>
+                                    <List dense>
+                                        {updatedData.changes.added.map((item, index) => (
+                                            <ListItem key={index} sx={{ py: 0 }}>
+                                                <ListItemIcon sx={{ minWidth: 30 }}>
+                                                    <AddIcon fontSize="small" color="success" />
+                                                </ListItemIcon>
+                                                <ListItemText 
+                                                    primary={item.description}
+                                                    secondary={item.type}
+                                                    primaryTypographyProps={{ fontSize: '0.875rem' }}
+                                                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                            {/* Contacts */}
-                            {updatedData.contacts && updatedData.contacts.length > 0 && (
-                                <Grid item xs={12} sm={6}>
-                                    <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
-                                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                            <Typography variant="subtitle2" color="info.main" gutterBottom>
-                                                <i className="tabler-users" style={{ marginRight: 8 }} />
-                                                ผู้ติดต่อ ({updatedData.contacts.length} คน)
-                                            </Typography>
-                                            {updatedData.contacts.map((contact, index) => (
-                                                <Box key={index} sx={{
-                                                    p: 1,
-                                                    mb: 1,
-                                                    bgcolor: 'background.paper',
-                                                    borderRadius: 1,
-                                                    border: '1px solid',
-                                                    borderColor: 'divider'
-                                                }}>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {index + 1}. {contact.seller_name || 'N/A'}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {contact.position && `${contact.position} • `}
-                                                        {contact.tel_phone && `📞 ${contact.tel_phone} • `}
-                                                        {contact.email && `✉️ ${contact.email}`}
-                                                    </Typography>
-                                                </Box>
-                                            ))}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            )}
+                        {/* Removed Items */}
+                        {updatedData.changes.removed.length > 0 && (
+                            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'error.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="error.main" gutterBottom>
+                                        <RemoveIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                        Removed ({updatedData.changes.removed.length})
+                                    </Typography>
+                                    <List dense>
+                                        {updatedData.changes.removed.map((item, index) => (
+                                            <ListItem key={index} sx={{ py: 0 }}>
+                                                <ListItemIcon sx={{ minWidth: 30 }}>
+                                                    <RemoveIcon fontSize="small" color="error" />
+                                                </ListItemIcon>
+                                                <ListItemText 
+                                                    primary={item.description}
+                                                    secondary={item.type}
+                                                    primaryTypographyProps={{ fontSize: '0.875rem' }}
+                                                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                            {/* Products */}
-                            {updatedData.products && updatedData.products.length > 0 && (
-                                <Grid item xs={12} sm={6}>
-                                    <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
-                                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                            <Typography variant="subtitle2" color="warning.main" gutterBottom>
-                                                <i className="tabler-package" style={{ marginRight: 8 }} />
-                                                สินค้า ({updatedData.products.length} รายการ)
-                                            </Typography>
-                                            {updatedData.products.map((product, index) => (
-                                                <Box key={index} sx={{
-                                                    p: 1,
-                                                    mb: 1,
-                                                    bgcolor: 'background.paper',
-                                                    borderRadius: 1,
-                                                    border: '1px solid',
-                                                    borderColor: 'divider'
-                                                }}>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {index + 1}. {product.product_name || 'N/A'}
+                        {/* Modified Items */}
+                        {updatedData.changes.modified.length > 0 && (
+                            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'warning.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                                        <EditIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                        Modified ({updatedData.changes.modified.length})
+                                    </Typography>
+                                    <List dense>
+                                        {updatedData.changes.modified.map((item, index) => (
+                                            <ListItem key={index} sx={{ py: 0 }}>
+                                                <ListItemIcon sx={{ minWidth: 30 }}>
+                                                    <EditIcon fontSize="small" color="warning" />
+                                                </ListItemIcon>
+                                                <ListItemText>
+                                                    <Typography variant="body2" fontSize="0.875rem">
+                                                        <strong>{item.description}</strong> ({item.type})
                                                     </Typography>
-                                                    <Typography variant="caption" color="text.secondary" component="div">
-                                                        {product.group_name && `Group: ${product.group_name} • `}
-                                                        Maker: {product.maker_name || '-'}
-                                                    </Typography>
-                                                    {product.model_list && (
-                                                        <Box sx={{ mt: 0.5 }}>
-                                                            {product.model_list.split('\n').filter((m: string) => m.trim()).map((model: string, idx: number) => (
-                                                                <Chip
-                                                                    key={idx}
-                                                                    label={model.trim()}
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                    sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem' }}
-                                                                />
-                                                            ))}
+                                                    {item.before && item.after && (
+                                                        <Box sx={{ mt: 0.5, pl: 1, borderLeft: 2, borderColor: 'grey.300' }}>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                Before: <span style={{ color: '#f44336' }}>{item.before}</span>
+                                                            </Typography>
+                                                            <br />
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                After: <span style={{ color: '#4caf50' }}>{item.after}</span>
+                                                            </Typography>
                                                         </Box>
                                                     )}
+                                                </ListItemText>
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </Box>
+                )}
+
+                {/* Current Data Preview (if no changes summary) */}
+                {!updatedData?.changes && updatedData && (
+                    <Box>
+                        {/* Company Information */}
+                        {updatedData.vendor && (
+                            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'success.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="success.main" gutterBottom>
+                                        <i className="tabler-building" style={{ marginRight: 8 }} />
+                                        Company Information
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12}>
+                                            <Typography variant="body2">
+                                                <strong>Company Name:</strong> {updatedData.vendor.company_name}
+                                            </Typography>
+                                        </Grid>
+                                        {updatedData.vendor.province && (
+                                            <Grid item xs={6}>
+                                                <Typography variant="body2">
+                                                    <strong>Province:</strong> {updatedData.vendor.province}
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                        {updatedData.vendor.website && (
+                                            <Grid item xs={6}>
+                                                <Typography variant="body2">
+                                                    <strong>Website:</strong> {updatedData.vendor.website}
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Contacts */}
+                        {updatedData.contacts && updatedData.contacts.length > 0 && (
+                            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'info.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="info.main" gutterBottom>
+                                        <i className="tabler-users" style={{ marginRight: 8 }} />
+                                        Contacts ({updatedData.contacts.length} persons)
+                                    </Typography>
+                                    {updatedData.contacts.map((contact, index) => (
+                                        <Box key={index} sx={{ mb: index < updatedData.contacts!.length - 1 ? 2 : 0 }}>
+                                            <Typography variant="body2">
+                                                <strong>{contact.seller_name || 'N/A'}</strong>
+                                                {contact.position && ` - ${contact.position}`}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {contact.tel_phone} | {contact.email}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Products */}
+                        {updatedData.products && updatedData.products.length > 0 && (
+                            <Card variant="outlined" sx={{ bgcolor: 'warning.light', opacity: 0.1 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                                        <i className="tabler-package" style={{ marginRight: 8 }} />
+                                        Products ({updatedData.products.length} items)
+                                    </Typography>
+                                    {updatedData.products.map((product, index) => (
+                                        <Box key={index} sx={{ mb: index < updatedData.products!.length - 1 ? 2 : 0 }}>
+                                            <Typography variant="body2">
+                                                <strong>{product.product_name || 'N/A'}</strong>
+                                                {product.maker_name && ` by ${product.maker_name}`}
+                                            </Typography>
+                                            {product.model_list && (
+                                                <Box sx={{ mt: 0.5 }}>
+                                                    {product.model_list.split('\n').filter((m: string) => m.trim()).map((model: string, idx: number) => (
+                                                        <Chip 
+                                                            key={idx}
+                                                            label={model.trim()}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem' }}
+                                                        />
+                                                    ))}
                                                 </Box>
-                                            ))}
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-                            )}
-                        </Grid>
+                                            )}
+                                        </Box>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
                     </Box>
                 )}
             </DialogContent>
-
-            <DialogActions
-                sx={{
-                    justifyContent: 'center',
-                    borderTop: 'none',
-                    mb: 3
-                }}
-            >
-                <Button
-                    variant="contained"
-                    color="success"
+            
+            <Divider />
+            
+            <DialogActions sx={{ p: 2 }}>
+                <Button 
+                    variant="contained" 
                     onClick={onClose}
-                    size='large'
                     sx={{ minWidth: 100 }}
                 >
-                    ตกลง
+                    Close
                 </Button>
             </DialogActions>
         </Dialog>

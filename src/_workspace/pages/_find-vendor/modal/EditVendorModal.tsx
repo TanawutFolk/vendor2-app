@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
     Dialog,
     DialogTitle,
@@ -24,16 +24,17 @@ import {
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import EditIcon from '@mui/icons-material/Edit'
+import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import ConfirmModal from './ConfirmModal'
 import SuccessModal from './SuccessModal'
 import ErrorModal from './ErrorModal'
-import type { 
-    VendorComprehensiveI, 
-    VendorContactI, 
+import type {
+    VendorComprehensiveI,
+    VendorContactI,
     VendorProductI,
-    VendorUpdateRequestI 
+    VendorUpdateRequestI
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 interface EditVendorModalProps {
@@ -50,7 +51,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
     const [vendorData, setVendorData] = useState<VendorComprehensiveI | null>(null)
     const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
     const [expandedSections, setExpandedSections] = useState<string[]>(['company', 'contacts', 'products'])
-    
+    const [originalData, setOriginalData] = useState<VendorComprehensiveI | null>(null)
+
     // Modal states
     const [confirmModalOpen, setConfirmModalOpen] = useState(false)
     const [successModalOpen, setSuccessModalOpen] = useState(false)
@@ -58,6 +60,22 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
     const [successData, setSuccessData] = useState<any>(null)
     const [errorMessage, setErrorMessage] = useState<string>('')
     const [errorDetails, setErrorDetails] = useState<string>('')
+
+    // Dropdown fetcher for vendor types (following SearchFilter.tsx pattern)
+    const fetchVendorTypes = useCallback(async (inputValue: string) => {
+        try {
+            const response = await FindVendorServices.getVendorTypes()
+            if (response.data.Status) {
+                return response.data.ResultOnDb.filter(item =>
+                    item.label.toLowerCase().includes(inputValue.toLowerCase())
+                )
+            }
+            return []
+        } catch (error) {
+            console.error('Error fetching vendor types:', error)
+            return []
+        }
+    }, [])
 
     // Fetch comprehensive vendor data when modal opens
     useEffect(() => {
@@ -77,7 +95,9 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
             try {
                 const response = await FindVendorServices.getComprehensiveById(vendorId)
                 if (response.data.Status) {
-                    setVendorData(response.data.ResultOnDb)
+                    const data = response.data.ResultOnDb
+                    setVendorData(data)
+                    setOriginalData(JSON.parse(JSON.stringify(data))) // Deep copy
                     return
                 }
             } catch (err) {
@@ -87,7 +107,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
             // Use search-based method to get all contacts and products of the company
             try {
                 const comprehensiveResult = await FindVendorServices.getComprehensiveByVendorId(vendorId)
-                
+
                 const { vendor: basicVendorData, contacts: contactRecords, products: productRecords } = comprehensiveResult
 
                 // Transform contacts to proper format
@@ -143,6 +163,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                 }
 
                 setVendorData(comprehensiveData)
+                setOriginalData(JSON.parse(JSON.stringify(comprehensiveData))) // Deep copy for comparison
                 return
 
             } catch (searchErr) {
@@ -153,7 +174,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
             const fallbackResponse = await FindVendorServices.getById(vendorId)
             if (fallbackResponse.data.Status) {
                 const basicData = fallbackResponse.data.ResultOnDb
-                setVendorData({
+                const fallbackData = {
                     vendor_id: basicData.vendor_id,
                     fft_vendor_code: basicData.fft_vendor_code,
                     fft_status: basicData.fft_status,
@@ -184,7 +205,9 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                     CREATE_DATE: basicData.CREATE_DATE,
                     UPDATE_DATE: basicData.UPDATE_DATE,
                     INUSE: basicData.INUSE
-                })
+                }
+                setVendorData(fallbackData)
+                setOriginalData(JSON.parse(JSON.stringify(fallbackData))) // Deep copy
             }
 
         } catch (err: any) {
@@ -222,16 +245,151 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
         setVendorData(prev => prev ? ({ ...prev, products: updatedProducts }) : null)
     }
 
+    // Compare data and generate changes summary
+    const generateChangesSummary = (original: VendorComprehensiveI, updated: VendorComprehensiveI) => {
+        const changes = {
+            added: [] as Array<{ type: string; description: string }>,
+            removed: [] as Array<{ type: string; description: string }>,
+            modified: [] as Array<{ type: string; description: string; before?: string; after?: string }>
+        }
+
+        // Compare vendor fields
+        const vendorFields = [
+            { key: 'company_name', label: 'ชื่อบริษัท' },
+            { key: 'province', label: 'จังหวัด' },
+            { key: 'postal_code', label: 'รหัสไปรษณีย์' },
+            { key: 'website', label: 'เว็บไซต์' },
+            { key: 'address', label: 'ที่อยู่' },
+            { key: 'tel_center', label: 'เบอร์โทรศัพท์' }
+        ]
+
+        vendorFields.forEach(field => {
+            const originalValue = (original as any)[field.key] || ''
+            const updatedValue = (updated as any)[field.key] || ''
+
+            if (originalValue !== updatedValue) {
+                changes.modified.push({
+                    type: 'บริษัท',
+                    description: field.label,
+                    before: originalValue,
+                    after: updatedValue
+                })
+            }
+        })
+
+        // Compare contacts
+        original.contacts.forEach((originalContact, index) => {
+            const updatedContact = updated.contacts[index]
+            if (updatedContact) {
+                const contactFields = [
+                    { key: 'seller_name', label: 'ชื่อ' },
+                    { key: 'position', label: 'ตำแหน่ง' },
+                    { key: 'tel_phone', label: 'เบอร์โทร' },
+                    { key: 'email', label: 'อีเมล' }
+                ]
+
+                contactFields.forEach(field => {
+                    const originalValue = (originalContact as any)[field.key] || ''
+                    const updatedValue = (updatedContact as any)[field.key] || ''
+
+                    if (originalValue !== updatedValue) {
+                        changes.modified.push({
+                            type: `ผู้ติดต่อ ${index + 1}`,
+                            description: field.label,
+                            before: originalValue,
+                            after: updatedValue
+                        })
+                    }
+                })
+            }
+        })
+
+        // Compare products
+        original.products.forEach((originalProduct, index) => {
+            const updatedProduct = updated.products[index]
+            if (updatedProduct) {
+                const productFields = [
+                    { key: 'product_name', label: 'ชื่อสินค้า' },
+                    { key: 'maker_name', label: 'ผู้ผลิต' },
+                    { key: 'group_name', label: 'กลุ่มสินค้า' },
+                    { key: 'model_list', label: 'รายการโมเดล' }
+                ]
+
+                productFields.forEach(field => {
+                    const originalValue = (originalProduct as any)[field.key] || ''
+                    const updatedValue = (updatedProduct as any)[field.key] || ''
+
+                    if (originalValue !== updatedValue) {
+                        changes.modified.push({
+                            type: `สินค้า ${index + 1}`,
+                            description: field.label,
+                            before: originalValue,
+                            after: updatedValue
+                        })
+                    }
+                })
+            }
+        })
+
+        return changes
+    }
+
     const toggleEditMode = () => {
         setEditingMode(prev => prev === 'view' ? 'edit' : 'view')
     }
 
     const handleAccordionChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
-        setExpandedSections(prev => 
-            isExpanded 
-                ? [...prev, panel] 
+        setExpandedSections(prev =>
+            isExpanded
+                ? [...prev, panel]
                 : prev.filter(section => section !== panel)
         )
+    }
+
+    // Helper: Check if vendor fields have changed
+    const hasVendorFieldsChanged = (original: VendorComprehensiveI, current: VendorComprehensiveI): boolean => {
+        const vendorFields = ['company_name', 'vendor_type_id', 'province', 'postal_code', 'website', 'address', 'tel_center']
+        return vendorFields.some(field => (original as any)[field] !== (current as any)[field])
+    }
+
+    // Helper: Get changed contacts
+    const getChangedContacts = (original: VendorContactI[], current: VendorContactI[]): VendorContactI[] => {
+        const changed: VendorContactI[] = []
+        current.forEach((currentContact, index) => {
+            const originalContact = original[index]
+            if (originalContact && currentContact.vendor_contact_id) {
+                const hasChanged = (
+                    currentContact.seller_name !== originalContact.seller_name ||
+                    currentContact.position !== originalContact.position ||
+                    currentContact.tel_phone !== originalContact.tel_phone ||
+                    currentContact.email !== originalContact.email
+                )
+                if (hasChanged) {
+                    changed.push(currentContact)
+                }
+            }
+        })
+        return changed
+    }
+
+    // Helper: Get changed products
+    const getChangedProducts = (original: VendorProductI[], current: VendorProductI[]): VendorProductI[] => {
+        const changed: VendorProductI[] = []
+        current.forEach((currentProduct, index) => {
+            const originalProduct = original[index]
+            if (originalProduct && currentProduct.vendor_product_id) {
+                const hasChanged = (
+                    currentProduct.group_name !== originalProduct.group_name ||
+                    currentProduct.maker_name !== originalProduct.maker_name ||
+                    currentProduct.product_name !== originalProduct.product_name ||
+                    currentProduct.model_list !== originalProduct.model_list
+                )
+                if (hasChanged) {
+                    changed.push(currentProduct)
+                }
+            }
+        })
+        return changed
     }
 
     // Modal handlers
@@ -245,61 +403,110 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
     }
 
     const performSave = async () => {
-        if (!vendorId || !vendorData) return
+        if (!vendorId || !vendorData || !originalData) return
 
         setSaving(true)
         setError(null)
 
         try {
-            // For now, we'll update the basic vendor info only
-            // In the future, this could be enhanced to update contacts and products
-            const primaryContact = vendorData.contacts[0] || {}
-            const primaryProduct = vendorData.products[0] || {}
+            const userCode = getUserData().EMPLOYEE_CODE || 'SYSTEM'
+            let updatedCount = 0
 
-            const updateData: VendorUpdateRequestI = {
-                vendor_id: vendorId,
-                company_name: vendorData.company_name,
-                vendor_type_id: vendorData.vendor_type_id,
-                province: vendorData.province,
-                postal_code: vendorData.postal_code,
-                website: vendorData.website,
-                address: vendorData.address,
-                tel_center: vendorData.tel_center,
-                group_name: primaryProduct.group_name,
-                maker_name: primaryProduct.maker_name,
-                product_name: primaryProduct.product_name,
-                model_list: primaryProduct.model_list,
-                vendor_contact_id: primaryContact.vendor_contact_id,
-                vendor_product_id: primaryProduct.vendor_product_id,
-                seller_name: primaryContact.seller_name,
-                tel_phone: primaryContact.tel_phone,
-                email: primaryContact.email,
-                position: primaryContact.position,
-                UPDATE_BY: getUserData().EMPLOYEE_CODE || 'ถ้าคุณเห็นข้อความนี้ติดต่อพี่มอส S524 ด่วน'
+            // 1. Check and update vendor fields if changed
+            if (hasVendorFieldsChanged(originalData, vendorData)) {
+                const vendorUpdateData: VendorUpdateRequestI = {
+                    vendor_id: vendorId,
+                    company_name: vendorData.company_name,
+                    vendor_type_id: vendorData.vendor_type_id,
+                    province: vendorData.province,
+                    postal_code: vendorData.postal_code,
+                    website: vendorData.website,
+                    address: vendorData.address,
+                    tel_center: vendorData.tel_center,
+                    UPDATE_BY: userCode
+                }
+
+                const vendorResponse = await FindVendorServices.update(vendorId, vendorUpdateData)
+                if (!vendorResponse.data.Status) {
+                    throw new Error(`Vendor update failed: ${vendorResponse.data.Message}`)
+                }
+                updatedCount++
             }
 
-            const response = await FindVendorServices.update(vendorId, updateData)
+            // 2. Update only changed contacts (sequential to prevent race conditions)
+            const changedContacts = getChangedContacts(originalData.contacts, vendorData.contacts)
+            for (const contact of changedContacts) {
+                const contactUpdateData: VendorUpdateRequestI = {
+                    vendor_id: vendorId,
+                    vendor_contact_id: contact.vendor_contact_id,
+                    seller_name: contact.seller_name,
+                    tel_phone: contact.tel_phone,
+                    email: contact.email,
+                    position: contact.position,
+                    UPDATE_BY: userCode
+                }
 
-            if (response.data.Status) {
-                // Show success modal with updated data
-                setSuccessData({
-                    vendor: vendorData,
-                    contacts: vendorData.contacts,
-                    products: vendorData.products
-                })
-                setSuccessModalOpen(true)
-                
-                onSuccess?.()
-                setEditingMode('view')
-                // Refresh data
-                fetchVendorData()
-            } else {
-                setErrorMessage(response.data.Message || 'ไม่สามารถบันทึกข้อมูลได้')
-                setErrorDetails(JSON.stringify(response.data, null, 2))
+                const contactResponse = await FindVendorServices.update(vendorId, contactUpdateData)
+                if (!contactResponse.data.Status) {
+                    throw new Error(`Contact update failed: ${contactResponse.data.Message}`)
+                }
+                updatedCount++
+            }
+
+            // 3. Update only changed products (sequential to prevent race conditions)
+            const changedProducts = getChangedProducts(originalData.products, vendorData.products)
+            for (const product of changedProducts) {
+                const productUpdateData: VendorUpdateRequestI = {
+                    vendor_id: vendorId,
+                    vendor_product_id: product.vendor_product_id,
+                    group_name: product.group_name,
+                    maker_name: product.maker_name,
+                    product_name: product.product_name,
+                    model_list: product.model_list,
+                    UPDATE_BY: userCode
+                }
+
+                const productResponse = await FindVendorServices.update(vendorId, productUpdateData)
+                if (!productResponse.data.Status) {
+                    throw new Error(`Product update failed: ${productResponse.data.Message}`)
+                }
+                updatedCount++
+            }
+
+            // Check if there were any changes
+            if (updatedCount === 0) {
+                setErrorMessage('No changes detected')
+                setErrorDetails('Please modify data before saving')
                 setErrorModalOpen(true)
+                return
             }
+
+            // Generate changes summary
+            const changes = generateChangesSummary(originalData, vendorData)
+
+            // Show success modal with updated data
+            setSuccessData({
+                vendor: vendorData,
+                contacts: vendorData.contacts,
+                products: vendorData.products,
+                updateSummary: {
+                    vendor: hasVendorFieldsChanged(originalData, vendorData) ? 1 : 0,
+                    contacts: changedContacts.length,
+                    products: changedProducts.length,
+                    successful: updatedCount,
+                    total: updatedCount
+                },
+                changes: changes
+            })
+            setSuccessModalOpen(true)
+
+            onSuccess?.()
+            setEditingMode('view')
+            // Refresh data
+            await fetchVendorData()
+
         } catch (err: any) {
-            setErrorMessage(err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
+            setErrorMessage(err?.message || 'Failed to save changes')
             setErrorDetails(err?.stack || err?.toString() || 'Unknown error')
             setErrorModalOpen(true)
         } finally {
@@ -331,29 +538,29 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         {editingMode === 'edit' ? 'Edit Vendor' : 'Vendor Details'}
                     </Typography>
                     {vendorData?.fft_vendor_code && (
-                        <Chip 
-                            label={`Code: ${vendorData.fft_vendor_code}`} 
-                            size="small" 
-                            color="primary" 
+                        <Chip
+                            label={`Code: ${vendorData.fft_vendor_code}`}
+                            size="small"
+                            color="primary"
                             variant="outlined"
                         />
                     )}
                     {vendorData?.fft_status && (
-                        <Chip 
-                            label={vendorData.fft_status} 
-                            size="small" 
+                        <Chip
+                            label={vendorData.fft_status}
+                            size="small"
                             color={vendorData.fft_status === 'Active' ? 'success' : 'error'}
                             variant="filled"
                         />
                     )}
                 </Box>
-                <IconButton 
-                    onClick={toggleEditMode} 
+                <IconButton
+                    onClick={toggleEditMode}
                     disabled={loading}
                     color={editingMode === 'edit' ? 'success' : 'primary'}
-                    sx={{ 
+                    sx={{
                         bgcolor: editingMode === 'edit' ? 'success.light' : 'primary.light',
-                        '&:hover': { 
+                        '&:hover': {
                             bgcolor: editingMode === 'edit' ? 'success.main' : 'primary.main',
                             color: 'white'
                         }
@@ -379,8 +586,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         {vendorData && (
                             <Box sx={{ mt: 2 }}>
                                 {/* Company Information */}
-                                <Accordion 
-                                    expanded={expandedSections.includes('company')} 
+                                <Accordion
+                                    expanded={expandedSections.includes('company')}
                                     onChange={handleAccordionChange('company')}
                                     defaultExpanded
                                 >
@@ -402,17 +609,27 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                             onChange={handleChange('company_name')}
                                                             size="small"
                                                             disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }}                                                            
+                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }}
                                                         />
                                                     </Grid>
                                                     <Grid item xs={12} md={6}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Vendor Type"
-                                                            value={vendorData.vendor_type_name || ''}
-                                                            size="small"
-                                                            disabled
-                                                            InputProps={{ readOnly: true }}
+                                                        <AsyncSelectCustom
+                                                            value={vendorData.vendor_type_id ? { value: vendorData.vendor_type_id, label: vendorData.vendor_type_name || '' } : null}
+                                                            label='Vendor Type'
+                                                            placeholder='Select Type...'
+                                                            defaultOptions
+                                                            cacheOptions
+                                                            isClearable
+                                                            loadOptions={fetchVendorTypes}
+                                                            classNamePrefix='select'
+                                                            onChange={(option: any) => {
+                                                                setVendorData(prev => prev ? ({
+                                                                    ...prev,
+                                                                    vendor_type_id: option?.value || null,
+                                                                    vendor_type_name: option?.label || ''
+                                                                }) : null)
+                                                            }}
+                                                            isDisabled={editingMode === 'view'}
                                                         />
                                                     </Grid>
                                                     <Grid item xs={6} md={3}>
@@ -423,7 +640,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                             onChange={handleChange('province')}
                                                             size="small"
                                                             disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }}                                                            sx={{ mb: 1 }}                                                        />
+                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
                                                     </Grid>
                                                     <Grid item xs={6} md={3}>
                                                         <TextField
@@ -433,7 +650,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                             onChange={handleChange('postal_code')}
                                                             size="small"
                                                             disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }}                                                            sx={{ mb: 1 }}                                                        />
+                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
                                                     </Grid>
                                                     <Grid item xs={6} md={3}>
                                                         <TextField
@@ -443,7 +660,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                             onChange={handleChange('website')}
                                                             size="small"
                                                             disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }}                                                            sx={{ mb: 1 }}                                                        />
+                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
                                                     </Grid>
                                                     <Grid item xs={6} md={3}>
                                                         <TextField
@@ -469,7 +686,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                             InputProps={{ readOnly: editingMode === 'view' }}
                                                         />
                                                     </Grid>
-                                                    
+
                                                     {/* Company Metadata */}
                                                     <Grid item xs={12}>
                                                         <Divider sx={{ my: 1 }}>
@@ -518,8 +735,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                                 {/* Contacts */}
                                 {vendorData.contacts && vendorData.contacts.length > 0 && (
-                                    <Accordion 
-                                        expanded={expandedSections.includes('contacts')} 
+                                    <Accordion
+                                        expanded={expandedSections.includes('contacts')}
                                         onChange={handleAccordionChange('contacts')}
                                         sx={{ mt: 1 }}
                                     >
@@ -547,7 +764,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                             onChange={handleContactChange(index, 'seller_name')}
                                                                             size="small"
                                                                             disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}                                                                            sx={{ mb: 1 }}                                                                        />
+                                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
                                                                     </Grid>
                                                                     <Grid item xs={12}>
                                                                         <TextField
@@ -557,7 +774,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                             onChange={handleContactChange(index, 'position')}
                                                                             size="small"
                                                                             disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}                                                                            sx={{ mb: 1 }}                                                                        />
+                                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
                                                                     </Grid>
                                                                     <Grid item xs={12}>
                                                                         <TextField
@@ -583,7 +800,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                             sx={{ mb: 1 }}
                                                                         />
                                                                     </Grid>
-                                                                    
+
                                                                     {/* Contact Metadata */}
                                                                     <Grid item xs={12}>
                                                                         <Divider sx={{ my: 1 }}>
@@ -636,8 +853,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                                 {/* Products */}
                                 {vendorData.products && vendorData.products.length > 0 && (
-                                    <Accordion 
-                                        expanded={expandedSections.includes('products')} 
+                                    <Accordion
+                                        expanded={expandedSections.includes('products')}
                                         onChange={handleAccordionChange('products')}
                                         sx={{ mt: 1 }}
                                     >
@@ -707,7 +924,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                             sx={{ mb: 2 }}
                                                                         />
                                                                     </Grid>
-                                                                    
+
                                                                     {/* Product Metadata */}
                                                                     <Grid item xs={12}>
                                                                         <Divider sx={{ my: 1 }}>
@@ -778,7 +995,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                     </Button>
                 )}
             </DialogActions>
-            
+
             {/* Confirm Modal */}
             <ConfirmModal
                 open={confirmModalOpen}
@@ -788,7 +1005,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                 title="Confirm Save Changes"
                 message="Do you want to save changes to this vendor?"
             />
-            
+
             {/* Success Modal */}
             <SuccessModal
                 open={successModalOpen}
@@ -797,7 +1014,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                 message="Vendor data has been updated."
                 updatedData={successData}
             />
-            
+
             {/* Error Modal */}
             <ErrorModal
                 open={errorModalOpen}

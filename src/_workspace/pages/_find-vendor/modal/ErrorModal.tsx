@@ -37,8 +37,8 @@ interface ErrorModalProps {
 const ErrorModal = ({
     open,
     onClose,
-    title = "เกิดข้อผิดพลาด",
-    message = "ไม่สามารถบันทึกข้อมูลได้",
+    title = "An Error Occurred",
+    message = "Unable to save data",
     errorDetails,
     onRetry
 }: ErrorModalProps) => {
@@ -96,7 +96,7 @@ const ErrorModal = ({
                                 onClick={() => setShowDetails(!showDetails)}
                                 endIcon={showDetails ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                             >
-                                {showDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียดเพิ่มเติม'}
+                                {showDetails ? 'Hide Details' : 'Show Details'}
                             </Button>
                         </Box>
 
@@ -139,7 +139,7 @@ const ErrorModal = ({
                         size='large'
                         sx={{ minWidth: 100 }}
                     >
-                        ลองใหม่
+                        Retry
                     </Button>
                 )}
                 <Button
@@ -149,7 +149,7 @@ const ErrorModal = ({
                     size='large'
                     sx={{ minWidth: 100 }}
                 >
-                    ปิด
+                    Close
                 </Button>
             </DialogActions>
         </Dialog>

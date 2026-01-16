@@ -34,8 +34,8 @@ const ConfirmModal = ({
     open,
     onClose,
     onConfirm,
-    title = "ยืนยันการบันทึกข้อมูล",
-    message = "คุณต้องการบันทึกการเปลี่ยนแปลงใช่หรือไม่?",
+    title = "Confirm Save",
+    message = "Do you want to save the changes?",
     loading = false
 }: ConfirmModalProps) => {
     return (
@@ -98,7 +98,7 @@ const ConfirmModal = ({
                     size='large'
                     sx={{ minWidth: 100 }}
                 >
-                    ยกเลิก
+                    Cancel
                 </Button>
                 <Button
                     variant="contained"
@@ -108,7 +108,7 @@ const ConfirmModal = ({
                     size='large'
                     sx={{ minWidth: 100 }}
                 >
-                    {loading ? 'กำลังบันทึก...' : 'ยืนยัน'}
+                    {loading ? 'Saving...' : 'Confirm'}
                 </Button>
             </DialogActions>
         </Dialog>
