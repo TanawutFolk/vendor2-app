@@ -18,26 +18,28 @@ import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
+import { FftStatusCellRenderer } from './components/fftStatus'
 import EditVendorModal from './modal/EditVendorModal'
 
-// Theme configuration
 const agGridTheme = themeQuartz.withParams({
     spacing: 6,
-    columnBorder: { style: 'solid', color: 'var(--mui-palette-TableCell-border)' }
+    columnBorder: { style: 'solid', color: 'var(--mui-palette-TableCell-border)' },
+    // Dark mode 
+    browserColorScheme: 'inherit',
+    backgroundColor: 'var(--mui-palette-background-paper)',
+    foregroundColor: 'var(--mui-palette-text-primary)',
+    headerBackgroundColor: 'var(--mui-palette-action-hover)',
+    headerTextColor: 'var(--mui-palette-text-primary)',
+    oddRowBackgroundColor: 'var(--mui-palette-action-hover)',
+    borderColor: 'var(--mui-palette-divider)'
 })
+
 
 interface SearchResultProps {
     searchFilters: any
 }
 
-// Status cell renderer
-const StatusCellRenderer = (props: ICellRendererParams) => {
-    const value = props.value
-    const label = value === 1 ? 'Active' : 'Inactive'
-    const color = value === 1 ? 'success' : 'error'
 
-    return <Chip label={label} color={color} size='small' variant='filled' />
-}
 
 const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const gridApiRef = useRef<any>(null)
@@ -68,9 +70,11 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             {
                 headerName: 'Edit',
                 field: 'actions',
-                width: 48,
+                width: 60,
                 pinned: 'left',
+                lockPosition: 'left',
                 cellRenderer: ActionCellRenderer,
+                cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
                 sortable: false,
                 filter: false,
                 floatingFilter: false
@@ -84,10 +88,12 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             },
             {
                 field: 'fft_status',
-                headerName: 'Status',
-                width: 85,
+                headerName: 'Prones Status',
+                width: 140,
                 filter: 'agTextColumnFilter',
-                pinned: 'left'
+                pinned: 'left',
+                cellRenderer: FftStatusCellRenderer,
+                cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
             },
             {
                 field: 'company_name',

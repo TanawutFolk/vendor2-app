@@ -16,13 +16,12 @@ import {
     Typography,
     Card,
     CardContent,
+    CardHeader,
     Chip,
     IconButton,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails
+    Collapse
 } from '@mui/material'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
@@ -255,12 +254,12 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
         // Compare vendor fields
         const vendorFields = [
-            { key: 'company_name', label: 'ชื่อบริษัท' },
-            { key: 'province', label: 'จังหวัด' },
-            { key: 'postal_code', label: 'รหัสไปรษณีย์' },
-            { key: 'website', label: 'เว็บไซต์' },
-            { key: 'address', label: 'ที่อยู่' },
-            { key: 'tel_center', label: 'เบอร์โทรศัพท์' }
+            { key: 'company_name', label: 'Company Name' },
+            { key: 'province', label: 'Province' },
+            { key: 'postal_code', label: 'Postal Code' },
+            { key: 'website', label: 'Website' },
+            { key: 'address', label: 'Address' },
+            { key: 'tel_center', label: 'Tel Center' }
         ]
 
         vendorFields.forEach(field => {
@@ -269,7 +268,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
             if (originalValue !== updatedValue) {
                 changes.modified.push({
-                    type: 'บริษัท',
+                    type: 'Company',
                     description: field.label,
                     before: originalValue,
                     after: updatedValue
@@ -282,10 +281,10 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
             const updatedContact = updated.contacts[index]
             if (updatedContact) {
                 const contactFields = [
-                    { key: 'seller_name', label: 'ชื่อ' },
-                    { key: 'position', label: 'ตำแหน่ง' },
-                    { key: 'tel_phone', label: 'เบอร์โทร' },
-                    { key: 'email', label: 'อีเมล' }
+                    { key: 'seller_name', label: 'Name' },
+                    { key: 'position', label: 'Position' },
+                    { key: 'tel_phone', label: 'Phone' },
+                    { key: 'email', label: 'Email' }
                 ]
 
                 contactFields.forEach(field => {
@@ -294,7 +293,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                     if (originalValue !== updatedValue) {
                         changes.modified.push({
-                            type: `ผู้ติดต่อ ${index + 1}`,
+                            type: `Contact ${index + 1}`,
                             description: field.label,
                             before: originalValue,
                             after: updatedValue
@@ -309,10 +308,10 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
             const updatedProduct = updated.products[index]
             if (updatedProduct) {
                 const productFields = [
-                    { key: 'product_name', label: 'ชื่อสินค้า' },
-                    { key: 'maker_name', label: 'ผู้ผลิต' },
-                    { key: 'group_name', label: 'กลุ่มสินค้า' },
-                    { key: 'model_list', label: 'รายการโมเดล' }
+                    { key: 'product_name', label: 'Product Name' },
+                    { key: 'maker_name', label: 'Maker' },
+                    { key: 'group_name', label: 'Product Group' },
+                    { key: 'model_list', label: 'Model List' }
                 ]
 
                 productFields.forEach(field => {
@@ -321,7 +320,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                     if (originalValue !== updatedValue) {
                         changes.modified.push({
-                            type: `สินค้า ${index + 1}`,
+                            type: `Product ${index + 1}`,
                             description: field.label,
                             before: originalValue,
                             after: updatedValue
@@ -338,13 +337,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
         setEditingMode(prev => prev === 'view' ? 'edit' : 'view')
     }
 
-    const handleAccordionChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
-        setExpandedSections(prev =>
-            isExpanded
-                ? [...prev, panel]
-                : prev.filter(section => section !== panel)
-        )
-    }
+
 
     // Helper: Check if vendor fields have changed
     const hasVendorFieldsChanged = (original: VendorComprehensiveI, current: VendorComprehensiveI): boolean => {
@@ -586,400 +579,441 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         {vendorData && (
                             <Box sx={{ mt: 2 }}>
                                 {/* Company Information */}
-                                <Accordion
-                                    expanded={expandedSections.includes('company')}
-                                    onChange={handleAccordionChange('company')}
-                                    defaultExpanded
-                                >
-                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                        <Typography variant="h6" color="primary">
-                                            <i className="tabler-building" style={{ marginRight: 8 }} />
-                                            Company Details
-                                        </Typography>
-                                    </AccordionSummary>
-                                    <AccordionDetails>
-                                        <Card variant="outlined" sx={{ bgcolor: 'action.hover' }}>
-                                            <CardContent>
-                                                <Grid container spacing={4}>
-                                                    <Grid item xs={12} md={6}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Company Name"
-                                                            value={vendorData.company_name || ''}
-                                                            onChange={handleChange('company_name')}
-                                                            size="small"
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={12} md={6}>
-                                                        <AsyncSelectCustom
-                                                            value={vendorData.vendor_type_id ? { value: vendorData.vendor_type_id, label: vendorData.vendor_type_name || '' } : null}
-                                                            label='Vendor Type'
-                                                            placeholder='Select Type...'
-                                                            defaultOptions
-                                                            cacheOptions
-                                                            isClearable
-                                                            loadOptions={fetchVendorTypes}
-                                                            classNamePrefix='select'
-                                                            onChange={(option: any) => {
-                                                                setVendorData(prev => prev ? ({
-                                                                    ...prev,
-                                                                    vendor_type_id: option?.value || null,
-                                                                    vendor_type_name: option?.label || ''
-                                                                }) : null)
-                                                            }}
-                                                            isDisabled={editingMode === 'view'}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={6} md={3}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Province"
-                                                            value={vendorData.province || ''}
-                                                            onChange={handleChange('province')}
-                                                            size="small"
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
-                                                    </Grid>
-                                                    <Grid item xs={6} md={3}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Postal Code"
-                                                            value={vendorData.postal_code || ''}
-                                                            onChange={handleChange('postal_code')}
-                                                            size="small"
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
-                                                    </Grid>
-                                                    <Grid item xs={6} md={3}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Website"
-                                                            value={vendorData.website || ''}
-                                                            onChange={handleChange('website')}
-                                                            size="small"
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
-                                                    </Grid>
-                                                    <Grid item xs={6} md={3}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Tel Company"
-                                                            value={vendorData.tel_center || ''}
-                                                            onChange={handleChange('tel_center')}
-                                                            size="small"
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={12}>
-                                                        <TextField
-                                                            fullWidth
-                                                            label="Address"
-                                                            value={vendorData.address || ''}
-                                                            onChange={handleChange('address')}
-                                                            size="small"
-                                                            multiline
-                                                            rows={2}
-                                                            disabled={editingMode === 'view'}
-                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                        />
-                                                    </Grid>
-
-                                                    {/* Company Metadata */}
-                                                    <Grid item xs={12}>
-                                                        <Divider sx={{ my: 1 }}>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                Company Info
-                                                            </Typography>
-                                                        </Divider>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Created By
-                                                        </Typography>
-                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                            {vendorData.CREATE_BY || 'N/A'}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Updated By
-                                                        </Typography>
-                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                            {vendorData.UPDATE_BY || 'N/A'}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Created Date
-                                                        </Typography>
-                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                            {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Last Update
-                                                        </Typography>
-                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                            {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                        </Typography>
-                                                    </Grid>
+                                <Card sx={{ mb: 2 }}>
+                                    <CardHeader
+                                        title={
+                                            <Typography variant="h6" color="primary">
+                                                <i className="tabler-building" style={{ marginRight: 8 }} />
+                                                Company Details
+                                            </Typography>
+                                        }
+                                        action={
+                                            <IconButton size='small' onClick={() => {
+                                                setExpandedSections(prev =>
+                                                    prev.includes('company')
+                                                        ? prev.filter(s => s !== 'company')
+                                                        : [...prev, 'company']
+                                                )
+                                            }}>
+                                                <i className={classNames(
+                                                    expandedSections.includes('company') ? 'tabler-chevron-up' : 'tabler-chevron-down',
+                                                    'text-xl'
+                                                )} />
+                                            </IconButton>
+                                        }
+                                        sx={{ pb: 0 }}
+                                    />
+                                    <Collapse in={expandedSections.includes('company')}>
+                                        <CardContent>
+                                            <Grid container spacing={4}>
+                                                <Grid item xs={12} md={6}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Company Name"
+                                                        value={vendorData.company_name || ''}
+                                                        onChange={handleChange('company_name')}
+                                                        size="small"
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }}
+                                                    />
                                                 </Grid>
-                                            </CardContent>
-                                        </Card>
-                                    </AccordionDetails>
-                                </Accordion>
+                                                <Grid item xs={12} md={6}>
+                                                    <AsyncSelectCustom
+                                                        value={vendorData.vendor_type_id ? { value: vendorData.vendor_type_id, label: vendorData.vendor_type_name || '' } : null}
+                                                        placeholder='Select Type...'
+                                                        defaultOptions
+                                                        cacheOptions
+                                                        isClearable
+                                                        loadOptions={fetchVendorTypes}
+                                                        classNamePrefix='select'
+                                                        onChange={(option: any) => {
+                                                            setVendorData(prev => prev ? ({
+                                                                ...prev,
+                                                                vendor_type_id: option?.value || null,
+                                                                vendor_type_name: option?.label || ''
+                                                            }) : null)
+                                                        }}
+                                                        isDisabled={editingMode === 'view'}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Province"
+                                                        value={vendorData.province || ''}
+                                                        onChange={handleChange('province')}
+                                                        size="small"
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Postal Code"
+                                                        value={vendorData.postal_code || ''}
+                                                        onChange={handleChange('postal_code')}
+                                                        size="small"
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Website"
+                                                        value={vendorData.website || ''}
+                                                        onChange={handleChange('website')}
+                                                        size="small"
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
+                                                </Grid>
+                                                <Grid item xs={6} md={3}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Tel Company"
+                                                        value={vendorData.tel_center || ''}
+                                                        onChange={handleChange('tel_center')}
+                                                        size="small"
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Address"
+                                                        value={vendorData.address || ''}
+                                                        onChange={handleChange('address')}
+                                                        size="small"
+                                                        multiline
+                                                        rows={2}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
+                                                    />
+                                                </Grid>
+
+                                                {/* Company Metadata */}
+                                                <Grid item xs={12}>
+                                                    <Divider sx={{ my: 1 }}>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Company Info
+                                                        </Typography>
+                                                    </Divider>
+                                                </Grid>
+                                                <Grid item xs={6}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Created By
+                                                    </Typography>
+                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                        {vendorData.CREATE_BY || 'N/A'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={6}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Updated By
+                                                    </Typography>
+                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                        {vendorData.UPDATE_BY || 'N/A'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={6}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Created Date
+                                                    </Typography>
+                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                        {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={6}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Last Update
+                                                    </Typography>
+                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                        {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                    </Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </CardContent>
+                                    </Collapse>
+                                </Card>
 
                                 {/* Contacts */}
                                 {vendorData.contacts && vendorData.contacts.length > 0 && (
-                                    <Accordion
-                                        expanded={expandedSections.includes('contacts')}
-                                        onChange={handleAccordionChange('contacts')}
-                                        sx={{ mt: 1 }}
-                                    >
-                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                            <Typography variant="h6" color="primary">
-                                                <i className="tabler-users" style={{ marginRight: 8 }} />
-                                                Contacts ({vendorData.contacts.length})
-                                            </Typography>
-                                        </AccordionSummary>
-                                        <AccordionDetails>
-                                            <Grid container spacing={2}>
-                                                {vendorData.contacts.map((contact, index) => (
-                                                    <Grid item xs={12} md={6} key={index}>
-                                                        <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
-                                                            <CardContent>
-                                                                <Typography variant="subtitle2" gutterBottom>
-                                                                    Contact {index + 1}
-                                                                </Typography>
-                                                                <Grid container spacing={1}>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Name"
-                                                                            value={contact.seller_name || ''}
-                                                                            onChange={handleContactChange(index, 'seller_name')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Position"
-                                                                            value={contact.position || ''}
-                                                                            onChange={handleContactChange(index, 'position')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Phone"
-                                                                            value={contact.tel_phone || ''}
-                                                                            onChange={handleContactChange(index, 'tel_phone')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                            sx={{ mb: 1 }}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Email"
-                                                                            value={contact.email || ''}
-                                                                            onChange={handleContactChange(index, 'email')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                            sx={{ mb: 1 }}
-                                                                        />
-                                                                    </Grid>
+                                    <Card sx={{ mt: 1 }}>
+                                        <CardHeader
+                                            title={
+                                                <Typography variant="h6" color="primary">
+                                                    <i className="tabler-users" style={{ marginRight: 8 }} />
+                                                    Contacts ({vendorData.contacts.length})
+                                                </Typography>
+                                            }
+                                            action={
+                                                <IconButton size='small' onClick={() => {
+                                                    setExpandedSections(prev =>
+                                                        prev.includes('contacts')
+                                                            ? prev.filter(s => s !== 'contacts')
+                                                            : [...prev, 'contacts']
+                                                    )
+                                                }}>
+                                                    <i className={classNames(
+                                                        expandedSections.includes('contacts') ? 'tabler-chevron-up' : 'tabler-chevron-down',
+                                                        'text-xl'
+                                                    )} />
+                                                </IconButton>
+                                            }
+                                            sx={{ pb: 0 }}
+                                        />
+                                        <Collapse in={expandedSections.includes('contacts')}>
+                                            <CardContent>
+                                                <Grid container spacing={2}>
+                                                    {vendorData.contacts.map((contact, index) => (
+                                                        <Grid item xs={12} md={6} key={index}>
+                                                            <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
+                                                                <CardContent>
+                                                                    <Typography variant="subtitle2" gutterBottom>
+                                                                        Contact {index + 1}
+                                                                    </Typography>
+                                                                    <Grid container spacing={1}>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Name"
+                                                                                value={contact.seller_name || ''}
+                                                                                onChange={handleContactChange(index, 'seller_name')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
+                                                                        </Grid>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Position"
+                                                                                value={contact.position || ''}
+                                                                                onChange={handleContactChange(index, 'position')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }} />
+                                                                        </Grid>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Phone"
+                                                                                value={contact.tel_phone || ''}
+                                                                                onChange={handleContactChange(index, 'tel_phone')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                sx={{ mb: 1 }}
+                                                                            />
+                                                                        </Grid>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Email"
+                                                                                value={contact.email || ''}
+                                                                                onChange={handleContactChange(index, 'email')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                sx={{ mb: 1 }}
+                                                                            />
+                                                                        </Grid>
 
-                                                                    {/* Contact Metadata */}
-                                                                    <Grid item xs={12}>
-                                                                        <Divider sx={{ my: 1 }}>
+                                                                        {/* Contact Metadata */}
+                                                                        <Grid item xs={12}>
+                                                                            <Divider sx={{ my: 1 }}>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    Contact Info
+                                                                                </Typography>
+                                                                            </Divider>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
                                                                             <Typography variant="caption" color="text.secondary">
-                                                                                Contact Info
+                                                                                Created By
                                                                             </Typography>
-                                                                        </Divider>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.CREATE_BY || 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Updated By
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.UPDATE_BY || 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Created Date
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Last Update
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
                                                                     </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Created By
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.CREATE_BY || 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Updated By
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.UPDATE_BY || 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Created Date
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Last Update
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                </Grid>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </Grid>
-                                                ))}
-                                            </Grid>
-                                        </AccordionDetails>
-                                    </Accordion>
+                                                                </CardContent>
+                                                            </Card>
+                                                        </Grid>
+                                                    ))}
+                                                </Grid>
+                                            </CardContent>
+                                        </Collapse>
+                                    </Card>
                                 )}
 
                                 {/* Products */}
                                 {vendorData.products && vendorData.products.length > 0 && (
-                                    <Accordion
-                                        expanded={expandedSections.includes('products')}
-                                        onChange={handleAccordionChange('products')}
-                                        sx={{ mt: 1 }}
-                                    >
-                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                            <Typography variant="h6" color="primary">
-                                                <i className="tabler-package" style={{ marginRight: 8 }} />
-                                                Products ({vendorData.products.length})
-                                            </Typography>
-                                        </AccordionSummary>
-                                        <AccordionDetails>
-                                            <Grid container spacing={2}>
-                                                {vendorData.products.map((product, index) => (
-                                                    <Grid item xs={12} md={6} key={index}>
-                                                        <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
-                                                            <CardContent>
-                                                                <Typography variant="subtitle2" gutterBottom>
-                                                                    Product {index + 1}
-                                                                </Typography>
-                                                                <Grid container spacing={1}>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Product Name"
-                                                                            value={product.product_name || ''}
-                                                                            onChange={handleProductChange(index, 'product_name')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                            sx={{ mb: 1 }}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Group"
-                                                                            value={product.group_name || ''}
-                                                                            onChange={handleProductChange(index, 'group_name')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Maker"
-                                                                            value={product.maker_name || ''}
-                                                                            onChange={handleProductChange(index, 'maker_name')}
-                                                                            size="small"
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                            sx={{ mb: 1 }}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
-                                                                        <TextField
-                                                                            fullWidth
-                                                                            label="Models"
-                                                                            value={product.model_list || ''}
-                                                                            onChange={handleProductChange(index, 'model_list')}
-                                                                            size="small"
-                                                                            multiline
-                                                                            rows={3}
-                                                                            disabled={editingMode === 'view'}
-                                                                            InputProps={{ readOnly: editingMode === 'view' }}
-                                                                            helperText="Separate models with new lines"
-                                                                            sx={{ mb: 2 }}
-                                                                        />
-                                                                    </Grid>
+                                    <Card sx={{ mt: 1 }}>
+                                        <CardHeader
+                                            title={
+                                                <Typography variant="h6" color="primary">
+                                                    <i className="tabler-package" style={{ marginRight: 8 }} />
+                                                    Products ({vendorData.products.length})
+                                                </Typography>
+                                            }
+                                            action={
+                                                <IconButton size='small' onClick={() => {
+                                                    setExpandedSections(prev =>
+                                                        prev.includes('products')
+                                                            ? prev.filter(s => s !== 'products')
+                                                            : [...prev, 'products']
+                                                    )
+                                                }}>
+                                                    <i className={classNames(
+                                                        expandedSections.includes('products') ? 'tabler-chevron-up' : 'tabler-chevron-down',
+                                                        'text-xl'
+                                                    )} />
+                                                </IconButton>
+                                            }
+                                            sx={{ pb: 0 }}
+                                        />
+                                        <Collapse in={expandedSections.includes('products')}>
+                                            <CardContent>
+                                                <Grid container spacing={2}>
+                                                    {vendorData.products.map((product, index) => (
+                                                        <Grid item xs={12} md={6} key={index}>
+                                                            <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
+                                                                <CardContent>
+                                                                    <Typography variant="subtitle2" gutterBottom>
+                                                                        Product {index + 1}
+                                                                    </Typography>
+                                                                    <Grid container spacing={1}>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Product Name"
+                                                                                value={product.product_name || ''}
+                                                                                onChange={handleProductChange(index, 'product_name')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                sx={{ mb: 1 }}
+                                                                            />
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Group"
+                                                                                value={product.group_name || ''}
+                                                                                onChange={handleProductChange(index, 'group_name')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                            />
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Maker"
+                                                                                value={product.maker_name || ''}
+                                                                                onChange={handleProductChange(index, 'maker_name')}
+                                                                                size="small"
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                sx={{ mb: 1 }}
+                                                                            />
+                                                                        </Grid>
+                                                                        <Grid item xs={12}>
+                                                                            <TextField
+                                                                                fullWidth
+                                                                                label="Models"
+                                                                                value={product.model_list || ''}
+                                                                                onChange={handleProductChange(index, 'model_list')}
+                                                                                size="small"
+                                                                                multiline
+                                                                                rows={3}
+                                                                                disabled={editingMode === 'view'}
+                                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                helperText="Separate models with new lines"
+                                                                                sx={{ mb: 2 }}
+                                                                            />
+                                                                        </Grid>
 
-                                                                    {/* Product Metadata */}
-                                                                    <Grid item xs={12}>
-                                                                        <Divider sx={{ my: 1 }}>
+                                                                        {/* Product Metadata */}
+                                                                        <Grid item xs={12}>
+                                                                            <Divider sx={{ my: 1 }}>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    Product Info
+                                                                                </Typography>
+                                                                            </Divider>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
                                                                             <Typography variant="caption" color="text.secondary">
-                                                                                Product Info
+                                                                                Created By
                                                                             </Typography>
-                                                                        </Divider>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.CREATE_BY || 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Updated By
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.UPDATE_BY || 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Created Date
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
+                                                                        <Grid item xs={6}>
+                                                                            <Typography variant="caption" color="text.secondary">
+                                                                                Last Update
+                                                                            </Typography>
+                                                                            <Typography variant="body2" fontSize="0.75rem">
+                                                                                {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                            </Typography>
+                                                                        </Grid>
                                                                     </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Created By
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.CREATE_BY || 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Updated By
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.UPDATE_BY || 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Created Date
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                    <Grid item xs={6}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Last Update
-                                                                        </Typography>
-                                                                        <Typography variant="body2" fontSize="0.75rem">
-                                                                            {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                        </Typography>
-                                                                    </Grid>
-                                                                </Grid>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </Grid>
-                                                ))}
-                                            </Grid>
-                                        </AccordionDetails>
-                                    </Accordion>
+                                                                </CardContent>
+                                                            </Card>
+                                                        </Grid>
+                                                    ))}
+                                                </Grid>
+                                            </CardContent>
+                                        </Collapse>
+                                    </Card>
                                 )}
 
                             </Box>
                         )}
                     </>
-                )}
-            </DialogContent>
+                )
+                }
+            </DialogContent >
             <DialogActions sx={{ justifyContent: 'space-between', p: 3 }}>
                 <Button onClick={handleClose} disabled={saving}>
                     Close
@@ -1024,7 +1058,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                 message={errorMessage}
                 errorDetails={errorDetails}
             />
-        </Dialog>
+        </Dialog >
     )
 }
 

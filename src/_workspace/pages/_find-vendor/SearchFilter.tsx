@@ -1,12 +1,15 @@
-// React Imports
-import { useCallback } from 'react'
-
 // MUI Imports
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
+import Collapse from '@mui/material/Collapse'
 import Grid from '@mui/material/Grid'
+import IconButton from '@mui/material/IconButton'
+
+// Third-party Imports
+import classNames from 'classnames'
+import { useState } from 'react'
 
 // Components Imports
 import { Controller, useFormContext } from 'react-hook-form'
@@ -22,8 +25,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
-// Services
-import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
+// Fetch functions
+import {
+    fetchVendorTypes,
+    fetchProvinces,
+    fetchProductGroups
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
 
 // Types
 import type { FindVendorFormData } from './validateSchema'
@@ -35,6 +42,9 @@ interface SearchFilterProps {
 }
 
 const SearchFilter = ({ onSearch }: SearchFilterProps) => {
+    // States
+    const [collapse, setCollapse] = useState(false)
+
     // Context
     const { setIsEnableFetching } = useDxContext()
 
@@ -101,221 +111,184 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
         handleAdd()
     }
 
-    // Dropdown fetchers
-    const fetchVendorTypes = useCallback(async (inputValue: string) => {
-        try {
-            const response = await FindVendorServices.getVendorTypes()
-            if (response.data.Status) {
-                return response.data.ResultOnDb.filter(item =>
-                    item.label.toLowerCase().includes(inputValue.toLowerCase())
-                )
-            }
-            return []
-        } catch (error) {
-            console.error('Error fetching vendor types:', error)
-            return []
-        }
-    }, [])
 
-    const fetchProvinces = useCallback(async (inputValue: string) => {
-        try {
-            const response = await FindVendorServices.getProvinces()
-            if (response.data.Status) {
-                return response.data.ResultOnDb.filter(item =>
-                    item.label.toLowerCase().includes(inputValue.toLowerCase())
-                )
-            }
-            return []
-        } catch (error) {
-            console.error('Error fetching provinces:', error)
-            return []
-        }
-    }, [])
-
-    const fetchProductGroups = useCallback(async (inputValue: string) => {
-        try {
-            const response = await FindVendorServices.getProductGroups()
-            if (response.data.Status) {
-                return response.data.ResultOnDb.filter(item =>
-                    item.label.toLowerCase().includes(inputValue.toLowerCase())
-                )
-            }
-            return []
-        } catch (error) {
-            console.error('Error fetching product groups:', error)
-            return []
-        }
-    }, [])
 
     return (
         <Card style={{ overflow: 'visible', zIndex: 4 }}>
             <CardHeader
                 title='Search Filters'
+                action={
+                    <IconButton size='small' aria-label='collapse' onClick={() => setCollapse(!collapse)}>
+                        <i className={classNames(collapse ? 'tabler-chevron-down' : 'tabler-chevron-up', 'text-xl')} />
+                    </IconButton>
+                }
                 titleTypographyProps={{ variant: 'h5' }}
                 sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
             />
-            <CardContent>
-                <Grid container spacing={4}>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.company_name'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Company Name'
-                                    placeholder='Enter company name...'
-                                    autoComplete='off'
-                                />
-                            )}
-                        />
-                    </Grid>
+            <Collapse in={!collapse}>
+                <CardContent>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.company_name'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Company Name'
+                                        placeholder='Enter company name...'
+                                        autoComplete='off'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.vendor_type_id'
-                            control={control}
-                            render={({ field }) => (
-                                <AsyncSelectCustom
-                                    {...field}
-                                    label='Vendor Type'
-                                    placeholder='Select Type...'
-                                    defaultOptions
-                                    cacheOptions
-                                    isClearable
-                                    loadOptions={fetchVendorTypes}
-                                    classNamePrefix='select'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.vendor_type_id'
+                                control={control}
+                                render={({ field }) => (
+                                    <AsyncSelectCustom
+                                        {...field}
+                                        label='Vendor Type'
+                                        placeholder='Select Type...'
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        loadOptions={inputValue => fetchVendorTypes(inputValue)}
+                                        classNamePrefix='select'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.province'
-                            control={control}
-                            render={({ field }) => (
-                                <AsyncSelectCustom
-                                    {...field}
-                                    label='Province'
-                                    placeholder='Select Province...'
-                                    defaultOptions
-                                    cacheOptions
-                                    isClearable
-                                    loadOptions={fetchProvinces}
-                                    classNamePrefix='select'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.province'
+                                control={control}
+                                render={({ field }) => (
+                                    <AsyncSelectCustom
+                                        {...field}
+                                        label='Province'
+                                        placeholder='Select Province...'
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        loadOptions={inputValue => fetchProvinces(inputValue)}
+                                        classNamePrefix='select'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.group_name'
-                            control={control}
-                            render={({ field }) => (
-                                <AsyncSelectCustom
-                                    {...field}
-                                    label='Group Name'
-                                    placeholder='Select Group...'
-                                    defaultOptions
-                                    cacheOptions
-                                    isClearable
-                                    loadOptions={fetchProductGroups}
-                                    classNamePrefix='select'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.group_name'
+                                control={control}
+                                render={({ field }) => (
+                                    <AsyncSelectCustom
+                                        {...field}
+                                        label='Product Group'
+                                        placeholder='Select Group...'
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        loadOptions={inputValue => fetchProductGroups(inputValue)}
+                                        classNamePrefix='select'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.status'
-                            control={control}
-                            render={({ field }) => (
-                                <SelectCustom
-                                    {...field}
-                                    label='Status'
-                                    placeholder='Select Status...'
-                                    isClearable
-                                    options={[
-                                        { value: 'Active', label: 'Active' },
-                                        { value: 'Inactive', label: 'Inactive' }
-                                    ]}
-                                    classNamePrefix='select'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.status'
+                                control={control}
+                                render={({ field }) => (
+                                    <SelectCustom
+                                        {...field}
+                                        label='Status'
+                                        placeholder='Select Status...'
+                                        isClearable
+                                        options={[
+                                            { value: 'Active', label: 'Active' },
+                                            { value: 'Inactive', label: 'Inactive' }
+                                        ]}
+                                        classNamePrefix='select'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.product_name'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Product Name'
-                                    placeholder='Enter product name...'
-                                    autoComplete='off'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.product_name'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Product Name'
+                                        placeholder='Enter product name...'
+                                        autoComplete='off'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.maker_name'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Maker Name'
-                                    placeholder='Enter maker name...'
-                                    autoComplete='off'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.maker_name'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Maker Name'
+                                        placeholder='Enter maker name...'
+                                        autoComplete='off'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                            name='searchFilters.model_list'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Model Name'
-                                    placeholder='Enter model name...'
-                                    autoComplete='off'
-                                />
-                            )}
-                        />
-                    </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.model_list'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Model Name'
+                                        placeholder='Enter model name...'
+                                        autoComplete='off'
+                                    />
+                                )}
+                            />
+                        </Grid>
 
-                    <Grid item xs={12} className='flex gap-3'>
-                        <Button
-                            onClick={handleSearch}
-                            variant='contained'
-                            type='button'
-                        >
-                            Search
-                        </Button>
-                        <Button
-                            variant='tonal'
-                            color='secondary'
-                            type='reset'
-                            onClick={handleClear}
-                        >
-                            Clear
-                        </Button>
+                        <Grid item xs={12} className='flex gap-3'>
+                            <Button
+                                onClick={handleSearch}
+                                variant='contained'
+                                type='button'
+                            >
+                                Search
+                            </Button>
+                            <Button
+                                variant='tonal'
+                                color='secondary'
+                                type='reset'
+                                onClick={handleClear}
+                            >
+                                Clear
+                            </Button>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </CardContent>
+                </CardContent>
+            </Collapse>
         </Card>
     )
 }
