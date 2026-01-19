@@ -66,6 +66,7 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
     const { mutate } = useCreate(onMutateSuccess, onMutateError)
 
     // Save user profile setting
+    // Save user profile setting
     const handleAdd = () => {
         const dataItem = {
             USER_ID: getUserData().USER_ID,
@@ -73,17 +74,17 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
             MENU_ID: MENU_ID.toString(),
             USER_PROFILE_SETTING_PROGRAM_DATA: {
                 searchFilters: {
-                    company_name: getValues('searchFilters.company_name') || '',
-                    vendor_type_id: getValues('searchFilters.vendor_type_id') || null,
-                    province: getValues('searchFilters.province') || null,
-                    group_name: getValues('searchFilters.group_name') || null,
-                    status: getValues('searchFilters.status') || null,
-                    product_name: getValues('searchFilters.product_name') || '',
-                    maker_name: getValues('searchFilters.maker_name') || '',
-                    model_list: getValues('searchFilters.model_list') || ''
+                    company_name: getValues('searchFilters.company_name'),
+                    vendor_type_id: getValues('searchFilters.vendor_type_id'),
+                    province: getValues('searchFilters.province'),
+                    group_name: getValues('searchFilters.group_name'),
+                    status: getValues('searchFilters.status'),
+                    product_name: getValues('searchFilters.product_name'),
+                    maker_name: getValues('searchFilters.maker_name'),
+                    model_list: getValues('searchFilters.model_list')
                 },
                 searchResults: {
-                    pageSize: getValues('searchResults.pageSize') || 20,
+                    pageSize: getValues('searchResults.pageSize'),
                     columnFilters: getValues('searchResults.columnFilters'),
                     sorting: getValues('searchResults.sorting'),
                     density: getValues('searchResults.density'),
@@ -92,7 +93,7 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                     columnOrder: getValues('searchResults.columnOrder'),
                     columnFilterFns: getValues('searchResults.columnFilterFns')
                 }
-            } as FindVendorFormData
+            }
         }
 
         mutate(dataItem)
@@ -212,8 +213,8 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                                         placeholder='Select Status...'
                                         isClearable
                                         options={[
-                                            { value: 'Active', label: 'Active' },
-                                            { value: 'Inactive', label: 'Inactive' }
+                                            { value: '1', label: 'Registered' },
+                                            { value: '0', label: 'Not Registered' }
                                         ]}
                                         classNamePrefix='select'
                                     />

@@ -28,15 +28,6 @@ export default class FindVendorServices {
         })
     }
 
-    // Get comprehensive vendor data by ID (all contacts and products)
-    static getComprehensiveById(vendor_id: number): Promise<AxiosResponse<FindVendorApiResponseI<VendorComprehensiveI>>> {
-        return axiosRequest<FindVendorApiResponseI<VendorComprehensiveI>>({
-            url: `${FindVendorAPI.API_ROOT_URL}/getComprehensiveById`,
-            data: { vendor_id },
-            method: 'POST'
-        })
-    }
-
     // Get all contacts of a vendor
     static getVendorContacts(vendor_id: number): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI[]>>({
@@ -99,9 +90,9 @@ export default class FindVendorServices {
         if (!vendorResponse.data.Status) {
             throw new Error('Vendor not found')
         }
-        
+
         const vendorData = vendorResponse.data.ResultOnDb
-        
+
         // Search for all records with the same company name to get all contacts and products
         const searchResponse = await this.search({
             SearchFilters: [
@@ -120,13 +111,13 @@ export default class FindVendorServices {
             Order: [{ id: 'company_name', desc: false }],
             Start: 0
         })
-        
+
         if (!searchResponse.data.Status) {
             throw new Error('Failed to search comprehensive data')
         }
-        
+
         const allRecords = searchResponse.data.ResultOnDb
-        
+
         // Extract unique contacts (by contact info)
         const contactsMap = new Map<string, VendorResultI>()
         allRecords.forEach(record => {
@@ -137,7 +128,7 @@ export default class FindVendorServices {
                 }
             }
         })
-        
+
         // Extract unique products (by product info)
         const productsMap = new Map<string, VendorResultI>()
         allRecords.forEach(record => {
@@ -148,7 +139,7 @@ export default class FindVendorServices {
                 }
             }
         })
-        
+
         return {
             vendor: vendorData,
             contacts: Array.from(contactsMap.values()),

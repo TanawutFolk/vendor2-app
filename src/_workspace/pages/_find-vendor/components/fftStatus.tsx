@@ -9,9 +9,13 @@ const FFT_STATUS_CONFIG = {
     0: { label: 'Not Registered', color: 'error' as const }
 }
 
-// FFT Status Cell Renderer for AG Grid
-export const FftStatusCellRenderer = (props: ICellRendererParams) => {
-    const value = props.value
+// Base FFT Status Chip component
+interface FftStatusChipProps {
+    value: number | string | undefined
+    variant?: 'filled' | 'tonal'
+}
+
+export const FftStatusChip = ({ value, variant = 'filled' }: FftStatusChipProps) => {
     const status = FFT_STATUS_CONFIG[value as keyof typeof FFT_STATUS_CONFIG] || FFT_STATUS_CONFIG[0]
 
     return (
@@ -19,10 +23,15 @@ export const FftStatusCellRenderer = (props: ICellRendererParams) => {
             label={status.label}
             color={status.color}
             size='small'
-            variant='tonal'
+            variant={variant}
             sx={{ fontWeight: 500 }}
         />
     )
+}
+
+// FFT Status Cell Renderer for AG Grid (wrapper around FftStatusChip)
+export const FftStatusCellRenderer = (props: ICellRendererParams) => {
+    return <FftStatusChip value={props.value} variant='tonal' />
 }
 
 // Export config for use elsewhere

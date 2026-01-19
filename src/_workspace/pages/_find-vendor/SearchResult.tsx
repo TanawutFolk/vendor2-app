@@ -23,15 +23,19 @@ import EditVendorModal from './modal/EditVendorModal'
 
 const agGridTheme = themeQuartz.withParams({
     spacing: 6,
-    columnBorder: { style: 'solid', color: 'var(--mui-palette-TableCell-border)' },
+    columnBorder: { style: 'solid', color: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)' },
     // Dark mode 
     browserColorScheme: 'inherit',
     backgroundColor: 'var(--mui-palette-background-paper)',
     foregroundColor: 'var(--mui-palette-text-primary)',
-    headerBackgroundColor: 'var(--mui-palette-action-hover)',
+    // Softer header color (matching MRT pattern)
+    headerBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.12)',
     headerTextColor: 'var(--mui-palette-text-primary)',
-    oddRowBackgroundColor: 'var(--mui-palette-action-hover)',
-    borderColor: 'var(--mui-palette-divider)'
+    // Softer odd row color (matching MRT pattern) 
+    oddRowBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.04)',
+    borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)',
+    // Row hover color
+    rowHoverColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.08)'
 })
 
 

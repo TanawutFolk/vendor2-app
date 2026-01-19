@@ -29,6 +29,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import ConfirmModal from './ConfirmModal'
 import SuccessModal from './SuccessModal'
 import ErrorModal from './ErrorModal'
+import { FftStatusChip } from '../components/fftStatus'
 import type {
     VendorComprehensiveI,
     VendorContactI,
@@ -90,19 +91,6 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
         setError(null)
 
         try {
-            // Try comprehensive API first
-            try {
-                const response = await FindVendorServices.getComprehensiveById(vendorId)
-                if (response.data.Status) {
-                    const data = response.data.ResultOnDb
-                    setVendorData(data)
-                    setOriginalData(JSON.parse(JSON.stringify(data))) // Deep copy
-                    return
-                }
-            } catch (err) {
-                console.log('Comprehensive API not available, using search-based method')
-            }
-
             // Use search-based method to get all contacts and products of the company
             try {
                 const comprehensiveResult = await FindVendorServices.getComprehensiveByVendorId(vendorId)
@@ -538,13 +526,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                             variant="outlined"
                         />
                     )}
-                    {vendorData?.fft_status && (
-                        <Chip
-                            label={vendorData.fft_status}
-                            size="small"
-                            color={vendorData.fft_status === 'Active' ? 'success' : 'error'}
-                            variant="filled"
-                        />
+                    {vendorData?.fft_status !== undefined && (
+                        <FftStatusChip value={vendorData.fft_status} />
                     )}
                 </Box>
                 <IconButton
@@ -579,7 +562,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         {vendorData && (
                             <Box sx={{ mt: 2 }}>
                                 {/* Company Information */}
-                                <Card sx={{ mb: 2 }}>
+                                <Card sx={{ mb: 2 }} style={{ overflow: 'visible', zIndex: 4 }}>
                                     <CardHeader
                                         title={
                                             <Typography variant="h6" color="primary">
@@ -601,7 +584,6 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                 )} />
                                             </IconButton>
                                         }
-                                        sx={{ pb: 0 }}
                                     />
                                     <Collapse in={expandedSections.includes('company')}>
                                         <CardContent>
@@ -738,7 +720,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                                 {/* Contacts */}
                                 {vendorData.contacts && vendorData.contacts.length > 0 && (
-                                    <Card sx={{ mt: 1 }}>
+                                    <Card sx={{ mt: 1 }} style={{ overflow: 'visible', zIndex: 3 }}>
                                         <CardHeader
                                             title={
                                                 <Typography variant="h6" color="primary">
@@ -760,7 +742,6 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                     )} />
                                                 </IconButton>
                                             }
-                                            sx={{ pb: 0 }}
                                         />
                                         <Collapse in={expandedSections.includes('contacts')}>
                                             <CardContent>
@@ -871,7 +852,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
 
                                 {/* Products */}
                                 {vendorData.products && vendorData.products.length > 0 && (
-                                    <Card sx={{ mt: 1 }}>
+                                    <Card sx={{ mt: 1 }} style={{ overflow: 'visible', zIndex: 2 }}>
                                         <CardHeader
                                             title={
                                                 <Typography variant="h6" color="primary">
@@ -893,7 +874,6 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                     )} />
                                                 </IconButton>
                                             }
-                                            sx={{ pb: 0 }}
                                         />
                                         <Collapse in={expandedSections.includes('products')}>
                                             <CardContent>
