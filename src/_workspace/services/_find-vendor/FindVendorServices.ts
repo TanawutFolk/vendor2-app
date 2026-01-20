@@ -79,6 +79,16 @@ export default class FindVendorServices {
         })
     }
 
+    // Download file for export (Excel)
+    static downloadFileForExport(data: any): Promise<AxiosResponse<Blob>> {
+        return axiosRequest<Blob>({
+            url: `${FindVendorAPI.API_ROOT_URL}/downloadFileForExport`,
+            method: 'POST',
+            data: data,
+            responseType: 'blob'
+        })
+    }
+
     // Get comprehensive vendor data by searching all records of a company
     static async getComprehensiveByVendorId(vendor_id: number): Promise<{
         vendor: VendorResultI,

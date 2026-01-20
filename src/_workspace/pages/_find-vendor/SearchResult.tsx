@@ -1,16 +1,19 @@
 'use client'
 
 // React Imports
-// React Imports
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Chip, Box } from '@mui/material'
+import { Card, CardHeader, Chip, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
+import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, GridReadyEvent, ICellRendererParams } from 'ag-grid-community'
 import { themeQuartz } from 'ag-grid-community'
+
+// File Saver
+import { saveAs } from 'file-saver'
 
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
@@ -49,6 +52,98 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const gridApiRef = useRef<any>(null)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+
+    // Export Excel states
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+    const [isExporting, setIsExporting] = useState(false)
+    const openExportMenu = Boolean(anchorEl)
+
+    const handleExportMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget)
+    }
+
+    const handleExportMenuClose = () => {
+        setAnchorEl(null)
+    }
+
+    // Shared search parameters (same as used in server-side datasource)
+    const paramForSearch: FindVendorSearchRequestI = useMemo(() => ({
+        SearchFilters: [
+            { id: 'company_name', value: searchFilters.company_name || '' },
+            { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
+            { id: 'province', value: searchFilters.province?.value || '' },
+            { id: 'group_name', value: searchFilters.group_name?.value || '' },
+            { id: 'status', value: searchFilters.status?.value || '' },
+            { id: 'product_name', value: searchFilters.product_name || '' },
+            { id: 'maker_name', value: searchFilters.maker_name || '' },
+            { id: 'model_list', value: searchFilters.model_list || '' },
+            { id: 'inuseForSearch', value: '' }
+        ],
+        ColumnFilters: [],
+        Order: [{ id: 'company_name', desc: false }],
+        Start: 0,
+        Limit: 20
+    }), [searchFilters])
+
+    // Export current page data (uses backend API)
+    const handleExportCurrentPage = async () => {
+        setIsExporting(true)
+        handleExportMenuClose()
+
+        try {
+            const dataItem = {
+                DataForFetch: paramForSearch,
+                TYPE: 'currentPage'
+            }
+
+            const file = await FindVendorServices.downloadFileForExport(dataItem)
+
+            // Generate filename with timestamp
+            const now = new Date()
+            const pad = (n: number) => n.toString().padStart(2, '0')
+            const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+            const filename = `Vendor_List_${timestamp}.xlsx`
+
+            saveAs(file.data, filename)
+            handleExportMenuClose()
+
+        } catch (error) {
+            console.error('Export current page failed:', error)
+            alert('Export failed. Please try again.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
+    // Export all data (uses backend API)
+    const handleExportAllData = async () => {
+        setIsExporting(true)
+        handleExportMenuClose()
+
+        try {
+            const dataItem = {
+                DataForFetch: paramForSearch,
+                TYPE: 'AllPage'
+            }
+
+            const file = await FindVendorServices.downloadFileForExport(dataItem)
+
+            // Generate filename with timestamp
+            const now = new Date()
+            const pad = (n: number) => n.toString().padStart(2, '0')
+            const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+            const filename = `Vendor_List_All_${timestamp}.xlsx`
+
+            saveAs(file.data, filename)
+            handleExportMenuClose()
+
+        } catch (error) {
+            console.error('Export all data failed:', error)
+            alert('Export failed. Please try again.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
     // Handle edit click from ActionCellRenderer
     const handleEditClick = useCallback((vendorId: number) => {
@@ -311,7 +406,42 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
 
     return (
         <Card>
-            <CardHeader title='Search Result' titleTypographyProps={{ variant: 'h5' }} />
+            <CardHeader
+                title='Search Result'
+                titleTypographyProps={{ variant: 'h5' }}
+                action={
+                    <>
+                        <Button
+                            variant='outlined'
+                            color='primary'
+                            startIcon={isExporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+                            onClick={handleExportMenuClick}
+                            disabled={isExporting}
+                            sx={{ borderRadius: '20px' }}
+                        >
+                            {isExporting ? 'Exporting...' : 'Export to Excel'}
+                        </Button>
+                        <Menu
+                            anchorEl={anchorEl}
+                            open={openExportMenu}
+                            onClose={handleExportMenuClose}
+                        >
+                            <MenuItem onClick={handleExportCurrentPage} disabled={isExporting}>
+                                <ListItemIcon>
+                                    <FileDownloadIcon fontSize='small' />
+                                </ListItemIcon>
+                                <ListItemText>Export Current Page</ListItemText>
+                            </MenuItem>
+                            <MenuItem onClick={handleExportAllData} disabled={isExporting}>
+                                <ListItemIcon>
+                                    <FileDownloadIcon fontSize='small' />
+                                </ListItemIcon>
+                                <ListItemText>Export All</ListItemText>
+                            </MenuItem>
+                        </Menu>
+                    </>
+                }
+            />
             <Box sx={{ height: 600, width: '100%', p: 2 }}>
                 <AgGridReact
                     theme={agGridTheme}

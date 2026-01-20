@@ -24,6 +24,7 @@ import {
 import classNames from 'classnames'
 import EditIcon from '@mui/icons-material/Edit'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
+import CustomTextField from '@components/mui/TextField'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import ConfirmModal from './ConfirmModal'
@@ -589,18 +590,18 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                         <CardContent>
                                             <Grid container spacing={4}>
                                                 <Grid item xs={12} md={6}>
-                                                    <TextField
+                                                    <CustomTextField
                                                         fullWidth
                                                         label="Company Name"
                                                         value={vendorData.company_name || ''}
                                                         onChange={handleChange('company_name')}
-                                                        size="small"
                                                         disabled={editingMode === 'view'}
-                                                        InputProps={{ readOnly: editingMode === 'view' }} sx={{ mb: 1 }}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
                                                 </Grid>
                                                 <Grid item xs={12} md={6}>
                                                     <AsyncSelectCustom
+                                                        label='Vendor Type'
                                                         value={vendorData.vendor_type_id ? { value: vendorData.vendor_type_id, label: vendorData.vendor_type_name || '' } : null}
                                                         placeholder='Select Type...'
                                                         defaultOptions
@@ -994,10 +995,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                 )
                 }
             </DialogContent >
-            <DialogActions sx={{ justifyContent: 'space-between', p: 3 }}>
-                <Button onClick={handleClose} disabled={saving}>
-                    Close
-                </Button>
+            <DialogActions sx={{ justifyContent: 'flex-start', p: 3, gap: 2 }}>
                 {editingMode === 'edit' && (
                     <Button
                         onClick={handleSubmit}
@@ -1005,9 +1003,17 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         disabled={loading || saving}
                         startIcon={saving ? <CircularProgress size={16} /> : null}
                     >
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving ? 'Saving...' : 'Save'}
                     </Button>
                 )}
+                <Button
+                    onClick={handleClose}
+                    disabled={saving}
+                    variant="tonal"
+                    color="secondary"
+                >
+                    {editingMode === 'edit' ? 'Cancel' : 'Close'}
+                </Button>
             </DialogActions>
 
             {/* Confirm Modal */}

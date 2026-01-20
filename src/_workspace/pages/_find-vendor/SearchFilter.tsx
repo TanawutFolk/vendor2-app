@@ -66,7 +66,6 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
     const { mutate } = useCreate(onMutateSuccess, onMutateError)
 
     // Save user profile setting
-    // Save user profile setting
     const handleAdd = () => {
         const dataItem = {
             USER_ID: getUserData().USER_ID,
