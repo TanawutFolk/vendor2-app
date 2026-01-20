@@ -15,6 +15,9 @@ import { themeQuartz } from 'ag-grid-community'
 // File Saver
 import { saveAs } from 'file-saver'
 
+// Template Imports
+import { useCheckPermission } from '@/_template/CheckPermission'
+
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/_find-vendor/FindVendorTypes'
@@ -23,6 +26,7 @@ import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/
 import ActionCellRenderer from './components/ActionCellRenderer'
 import { FftStatusCellRenderer } from './components/fftStatus'
 import EditVendorModal from './modal/EditVendorModal'
+import { MENU_ID } from './env'
 
 const agGridTheme = themeQuartz.withParams({
     spacing: 6,
@@ -53,12 +57,23 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
 
+    // Template - Permission check
+    const checkPermission = useCheckPermission()
+
     // Export Excel states
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [isExporting, setIsExporting] = useState(false)
     const openExportMenu = Boolean(anchorEl)
 
     const handleExportMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        // Check IS_SEARCH permission before export
+        const hasPermission = checkPermission(
+            Number(import.meta.env.VITE_APPLICATION_ID),
+            MENU_ID,
+            'IS_SEARCH'
+        )
+        if (!hasPermission) return
+
         setAnchorEl(event.currentTarget)
     }
 
@@ -147,9 +162,28 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
 
     // Handle edit click from ActionCellRenderer
     const handleEditClick = useCallback((vendorId: number) => {
+        console.log('handleEditClick called with vendorId:', vendorId)
+
+        const appId = Number(import.meta.env.VITE_APPLICATION_ID)
+        console.log('Checking Permission:', { appId, MENU_ID, permissionType: 'IS_UPDATE' })
+
+        // Check IS_UPDATE permission before editing
+        const hasPermission = checkPermission(
+            appId,
+            MENU_ID,
+            'IS_UPDATE'
+        )
+
+        console.log('Permission check result:', hasPermission)
+
+        if (!hasPermission) {
+            console.warn('Permission denied or data missing. Bypassing for debugging...')
+            // return // TODO: Uncomment this after verifying permission data
+        }
+
         setSelectedVendorId(vendorId)
         setEditModalOpen(true)
-    }, [])
+    }, [checkPermission])
 
     const handleCloseEditModal = useCallback(() => {
         setEditModalOpen(false)

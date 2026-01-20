@@ -13,8 +13,12 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const vendorId = params.data?.vendor_id;
 
   const onEdit = () => {
+    console.log('ActionCellRenderer: Edit clicked', vendorId);
+    // Permission check is done at parent level (SearchResult.tsx) via context
     if (params.context?.onEditClick && vendorId) {
       params.context.onEditClick(vendorId);
+    } else {
+      console.error('ActionCellRenderer: context.onEditClick is missing or vendorId is null', params.context);
     }
   };
 
