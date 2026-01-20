@@ -58,7 +58,8 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
 
     // Template - Permission check
-    const checkPermission = useCheckPermission()
+    // const checkPermission = useCheckPermission()
+
 
     // Export Excel states
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -66,13 +67,14 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const openExportMenu = Boolean(anchorEl)
 
     const handleExportMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        // Check IS_SEARCH permission before export
-        const hasPermission = checkPermission(
-            Number(import.meta.env.VITE_APPLICATION_ID),
-            MENU_ID,
-            'IS_SEARCH'
-        )
-        if (!hasPermission) return
+        // // Check IS_SEARCH permission before export (Commented out for debug)
+        // const hasPermission = checkPermission(
+        //     Number(import.meta.env.VITE_APPLICATION_ID),
+        //     MENU_ID,
+        //     'IS_SEARCH'
+        // )
+        // if (!hasPermission) return
+
 
         setAnchorEl(event.currentTarget)
     }
@@ -164,26 +166,28 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const handleEditClick = useCallback((vendorId: number) => {
         console.log('handleEditClick called with vendorId:', vendorId)
 
-        const appId = Number(import.meta.env.VITE_APPLICATION_ID)
-        console.log('Checking Permission:', { appId, MENU_ID, permissionType: 'IS_UPDATE' })
+        // const appId = Number(import.meta.env.VITE_APPLICATION_ID)
+        // console.log('Checking Permission:', { appId, MENU_ID, permissionType: 'IS_UPDATE' })
 
-        // Check IS_UPDATE permission before editing
-        const hasPermission = checkPermission(
-            appId,
-            MENU_ID,
-            'IS_UPDATE'
-        )
+        // // Check IS_UPDATE permission before editing
+        // const hasPermission = checkPermission(
+        //     appId,
+        //     MENU_ID,
+        //     'IS_UPDATE'
+        // )
 
-        console.log('Permission check result:', hasPermission)
+        // console.log('Permission check result:', hasPermission)
 
-        if (!hasPermission) {
-            console.warn('Permission denied or data missing. Bypassing for debugging...')
-            // return // TODO: Uncomment this after verifying permission data
-        }
+        // if (!hasPermission) {
+        //     console.warn('Permission denied or data missing. Bypassing for debugging...')
+        //     // return // TODO: Uncomment this after verifying permission data
+        // }
+
+
 
         setSelectedVendorId(vendorId)
         setEditModalOpen(true)
-    }, [checkPermission])
+    }, []) // checkPermission
 
     const handleCloseEditModal = useCallback(() => {
         setEditModalOpen(false)
@@ -205,7 +209,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 field: 'actions',
                 width: 60,
                 pinned: 'left',
-                lockPosition: 'left',
+                // lockPosition: 'left',
                 cellRenderer: ActionCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
                 sortable: false,
@@ -361,8 +365,8 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         () => ({
             sortable: true,
             resizable: true,
-            filter: true,
-            floatingFilter: true
+            filter: false,
+            floatingFilter: false
         }),
         []
     )

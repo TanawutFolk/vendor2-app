@@ -1,4 +1,5 @@
 // React Imports
+import { useState } from 'react'
 import { Controller, useFormContext, useFormState } from 'react-hook-form'
 
 // MUI Imports
@@ -7,20 +8,57 @@ import { Grid, Button, CircularProgress, Alert, Chip } from '@mui/material'
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 
+// React Query Imports
+import { useCheckVendorDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
+
 // Types
 import type { AddVendorFormData } from './validateSchema'
 
 interface SectionCheckProps {
-    onVerify: () => void
+    onVerifyChange: (isVerified: boolean, errorMessage?: string) => void
     isVerified: boolean
-    isLoading: boolean
-    verifyError: string | null
 }
 
-const SectionCheck = ({ onVerify, isVerified, isLoading, verifyError }: SectionCheckProps) => {
+const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
+    // States
+    const [verifyError, setVerifyError] = useState<string | null>(null)
+
     // Hooks : react-hook-form
-    const { control } = useFormContext<AddVendorFormData>()
+    const { control, trigger, getValues } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
+
+    // Hooks : React Query - Check Duplicate
+    const { mutate: checkDuplicate, isPending: isLoading } = useCheckVendorDuplicate(
+        data => {
+            if (data.isDuplicate) {
+                const errorMsg = `Vendor already exists! (ID: ${data.existingVendorId})`
+                setVerifyError(errorMsg)
+                onVerifyChange(false, errorMsg)
+            } else {
+                setVerifyError(null)
+                onVerifyChange(true)
+            }
+        },
+        (error: Error) => {
+            const msg = error?.message || 'Failed to verify vendor'
+            setVerifyError(msg)
+            onVerifyChange(false, msg)
+        }
+    )
+
+    // Functions
+    const handleVerify = async () => {
+        setVerifyError(null)
+        const isValid = await trigger(['company_name', 'province', 'postal_code'])
+        if (isValid) {
+            const values = getValues()
+            checkDuplicate({
+                company_name: values.company_name,
+                province: values.province,
+                postal_code: values.postal_code
+            })
+        }
+    }
 
     return (
         <Grid container spacing={4}>
@@ -91,7 +129,7 @@ const SectionCheck = ({ onVerify, isVerified, isLoading, verifyError }: SectionC
                         <Button
                             variant='contained'
                             color={isVerified ? 'success' : 'primary'}
-                            onClick={onVerify}
+                            onClick={handleVerify}
                             disabled={isLoading || isVerified}
                             startIcon={isLoading ? <CircularProgress size={16} color='inherit' /> : null}
                         >
@@ -106,13 +144,14 @@ const SectionCheck = ({ onVerify, isVerified, isLoading, verifyError }: SectionC
                 </Grid>
             </Grid>
 
-            {verifyError && (
+            {/* {verifyError && (
                 <Grid item xs={12}>
                     <Alert severity='error'>{verifyError}</Alert>
                 </Grid>
-            )}
+            )} */}
         </Grid>
     )
 }
 
 export default SectionCheck
+

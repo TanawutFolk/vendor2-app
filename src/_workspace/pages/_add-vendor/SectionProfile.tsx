@@ -6,17 +6,19 @@ import { Grid } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
-import SelectCustom from '@/components/react-select/SelectCustom'
+import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
+
+// Fetch functions
+import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
 
 interface SectionProfileProps {
     isDisabled: boolean
-    vendorTypeOptions: { value: number; label: string }[]
 }
 
-const SectionProfile = ({ isDisabled, vendorTypeOptions }: SectionProfileProps) => {
+const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
     // Hooks : react-hook-form
     const { control, setValue } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
@@ -86,22 +88,20 @@ const SectionProfile = ({ isDisabled, vendorTypeOptions }: SectionProfileProps) 
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
                 <Controller
-                    name='vendor_type_id'
+                    name='vendor_type'
                     control={control}
                     render={({ field }) => (
-                        <SelectCustom
+                        <AsyncSelectCustom
+                            {...field}
                             label='Vendor Type'
-                            value={vendorTypeOptions.find(opt => opt.value === field.value) || null}
-                            onChange={(selected: any) => {
-                                field.onChange(selected?.value || 0)
-                                setValue('vendor_type_name', selected?.label || '')
-                            }}
-                            options={vendorTypeOptions}
+                            loadOptions={inputValue => fetchVendorTypes(inputValue)}
+                            defaultOptions
+                            cacheOptions
                             isClearable
                             isDisabled={isDisabled}
                             placeholder='Select vendor type...'
                             classNamePrefix='select'
-                            {...(errors.vendor_type_id && {
+                            {...(errors.vendor_type && {
                                 error: true,
                                 helperText: 'Vendor Type is required'
                             })}

@@ -1,5 +1,5 @@
 // React Imports
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 
 // MUI Imports
 import {
@@ -33,9 +33,7 @@ import SuccessModal from './modal/SuccessModal'
 import ErrorModal from './modal/ErrorModal'
 
 // React Query Imports
-import { useCheckVendorDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
 import { useCreateVendor } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
-import { useGetVendorTypes, useGetProductGroups } from '@_workspace/react-query/hooks/vendor/useAddVendorMasterData'
 
 // Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -66,49 +64,8 @@ const AddVendorPage = () => {
         mode: 'onChange'
     })
 
-    const { trigger, handleSubmit, reset, getValues } = methods
 
-    // Hooks : React Query - Master Data
-    const { data: vendorTypesData } = useGetVendorTypes(true)
-    const { data: productGroupsData } = useGetProductGroups(true)
-
-    // Transform master data to options
-    const vendorTypeOptions = useMemo(() => {
-        if (!vendorTypesData?.ResultOnDb) return []
-        return vendorTypesData.ResultOnDb.map(item => ({
-            value: item.vendor_type_id,
-            label: item.name
-        }))
-    }, [vendorTypesData])
-
-    const productGroupOptions = useMemo(() => {
-        if (!productGroupsData?.ResultOnDb) return []
-        return productGroupsData.ResultOnDb.map(item => ({
-            value: item.product_group_id,
-            label: item.group_name
-        }))
-    }, [productGroupsData])
-
-    // Hooks : React Query - Check Duplicate
-    const { mutate: checkDuplicate, isPending: isCheckingDuplicate } = useCheckVendorDuplicate(
-        data => {
-            if (data.isDuplicate) {
-                setVerifyError(`Vendor already exists! (ID: ${data.existingVendorId})`)
-                setErrorMessage(`Vendor already exists! (ID: ${data.existingVendorId})`)
-                setErrorModal(true)
-                setIsVerified(false)
-            } else {
-                setVerifyError(null)
-                setIsVerified(true)
-            }
-        },
-        (error: Error) => {
-            const msg = error?.message || 'Failed to verify vendor'
-            setVerifyError(msg)
-            setErrorMessage(msg)
-            setErrorModal(true)
-        }
-    )
+    const { handleSubmit, reset, getValues } = methods
 
     // Hooks : React Query - Create Vendor
     const { mutate: saveVendor, isPending: isSaving } = useCreateVendor(
@@ -131,23 +88,19 @@ const AddVendorPage = () => {
     )
 
     // Functions
-    const handleVerify = async () => {
-        setVerifyError(null)
-        const isValid = await trigger(['company_name', 'province', 'postal_code'])
-        if (isValid) {
-            const values = getValues()
-            checkDuplicate({
-                company_name: values.company_name,
-                province: values.province,
-                postal_code: values.postal_code
-            })
+    const handleVerifyChange = (verified: boolean, errorMsg?: string) => {
+        setIsVerified(verified)
+        setVerifyError(errorMsg || null)
+        if (errorMsg) {
+            setErrorMessage(errorMsg)
+            setErrorModal(true)
         }
     }
 
     const handleReset = () => {
         reset({
             ...defaultAddVendorValues,
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
+            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ติดต่อ S524'
         })
         setIsVerified(false)
         setVerifyError(null)
@@ -162,25 +115,25 @@ const AddVendorPage = () => {
 
     const handleConfirmSave = () => {
         setConfirmModal(false)
-        const values = getValues()
-        saveVendor({
-            company_name: values.company_name,
-            province: values.province,
-            postal_code: values.postal_code,
-            vendor_type_id: values.vendor_type_id,
-            website: values.website,
-            tel_center: values.tel_center,
-            address: values.address,
-            note: values.note,
+
+        const dataItem = {
+            company_name: getValues('company_name'),
+            province: getValues('province'),
+            postal_code: getValues('postal_code'),
+            vendor_type_id: getValues('vendor_type')?.value || 0,
+            website: getValues('website'),
+            tel_center: getValues('tel_center'),
+            address: getValues('address'),
+            note: getValues('note'),
             CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ถ้าคุณเห็นข้อความนี้ ติดต่อ S524',
-            contacts: values.contacts.map(c => ({
+            contacts: getValues('contacts').map(c => ({
                 seller_name: c.seller_name,
                 tel_phone: c.tel_phone,
                 email: c.email,
                 position: c.position
             })),
-            products: values.products.map(p => ({
-                product_group_id: p.product_group_id,
+            products: getValues('products').map(p => ({
+                product_group_id: p.product_group?.value || 0,
                 maker_name: p.maker_name,
                 product_name: p.product_name,
                 // Convert newlines to comma ใส่ , ระหว่างข้อมูล 
@@ -188,7 +141,9 @@ const AddVendorPage = () => {
                     ? p.model_list.split('\n').map(m => m.trim()).filter(m => m).join(', ')
                     : ''
             }))
-        })
+        }
+
+        saveVendor(dataItem)
     }
 
     const handleSuccessClose = () => {
@@ -236,10 +191,8 @@ const AddVendorPage = () => {
                         <Divider />
                         <CardContent>
                             <SectionCheck
-                                onVerify={handleVerify}
+                                onVerifyChange={handleVerifyChange}
                                 isVerified={isVerified}
-                                isLoading={isCheckingDuplicate}
-                                verifyError={verifyError}
                             />
                         </CardContent>
                     </Card>
@@ -251,7 +204,7 @@ const AddVendorPage = () => {
                         <CardHeader title='2. Vendor Profile' titleTypographyProps={{ variant: 'h5' }} />
                         <Divider />
                         <CardContent>
-                            <SectionProfile isDisabled={isSectionsDisabled} vendorTypeOptions={vendorTypeOptions} />
+                            <SectionProfile isDisabled={isSectionsDisabled} />
                         </CardContent>
                     </Card>
                 </Grid>
@@ -273,7 +226,7 @@ const AddVendorPage = () => {
                         <CardHeader title='4. Products' titleTypographyProps={{ variant: 'h5' }} />
                         <Divider />
                         <CardContent>
-                            <SectionProducts isDisabled={isSectionsDisabled} productGroupOptions={productGroupOptions} />
+                            <SectionProducts isDisabled={isSectionsDisabled} />
                         </CardContent>
                     </Card>
                 </Grid>
@@ -286,7 +239,7 @@ const AddVendorPage = () => {
                             color='primary'
                             size='large'
                             disabled={isSaving || isSectionsDisabled}
-                            startIcon={isSaving ? <CircularProgress size={16} color='inherit' /> : null}
+                            startIcon={isSaving ? <CircularProgress size={16} color='primary' /> : null}
                             onClick={handleSubmit(onSubmit)}
                         >
                             {isSaving ? 'Saving...' : 'Add Vendor Information'}
@@ -321,7 +274,7 @@ const AddVendorPage = () => {
             <ErrorModal
                 show={errorModal}
                 title='This vendor is already in the system.'
-                message={"Please check the vendor name and try again. Or Edit the vendor On Revise Menu."}
+                message={"Please check the vendor name and try again. Or Edit Menu."}
                 onCloseClick={handleErrorClose}
             />
         </Grid>

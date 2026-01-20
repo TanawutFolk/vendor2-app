@@ -12,7 +12,7 @@ export interface ProvinceOption {
 }
 
 export interface ProductGroupOption {
-    value: string
+    value: number
     label: string
 }
 

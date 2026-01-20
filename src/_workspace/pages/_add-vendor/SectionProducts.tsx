@@ -3,12 +3,15 @@ import { useState } from 'react'
 import { Controller, useFormContext, useFormState, useFieldArray } from 'react-hook-form'
 
 // MUI Imports
-import { Grid, Button, IconButton, Typography, Card, CardContent, Divider } from '@mui/material'
+import { Grid, Button, IconButton, Typography, Card, CardContent, Divider, Box } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
-import SelectCustom from '@/components/react-select/SelectCustom'
+import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import AddProductGroupModal from './modal/AddProductGroupModal'
+
+// Fetch functions
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -16,13 +19,12 @@ import { defaultProductValues } from './validateSchema'
 
 interface SectionProductsProps {
     isDisabled: boolean
-    productGroupOptions: { value: number; label: string }[]
-    onProductGroupAdded?: () => void
 }
 
-const SectionProducts = ({ isDisabled, productGroupOptions, onProductGroupAdded }: SectionProductsProps) => {
+const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
     // States
     const [showAddProductGroupModal, setShowAddProductGroupModal] = useState(false)
+    const [productGroupRefreshKey, setProductGroupRefreshKey] = useState(0)
 
     // Hooks : react-hook-form
     const { control, setValue } = useFormContext<AddVendorFormData>()
@@ -39,7 +41,8 @@ const SectionProducts = ({ isDisabled, productGroupOptions, onProductGroupAdded 
     }
 
     const handleProductGroupAdded = () => {
-        onProductGroupAdded?.()
+        // Increment key to force AsyncSelect to reload options
+        setProductGroupRefreshKey(prev => prev + 1)
     }
 
     return (
@@ -69,30 +72,41 @@ const SectionProducts = ({ isDisabled, productGroupOptions, onProductGroupAdded 
                                         <Divider sx={{ mt: 1, mb: 2 }} />
                                     </Grid>
 
-                                    <Grid item xs={12} sm={6} md={3}>
-                                        <Controller
-                                            name={`products.${index}.product_group_id`}
-                                            control={control}
-                                            render={({ field: fieldCtrl }) => (
-                                                <SelectCustom
-                                                    label='Product Group'
-                                                    value={productGroupOptions.find(opt => opt.value === fieldCtrl.value) || null}
-                                                    onChange={(selected: any) => {
-                                                        fieldCtrl.onChange(selected?.value || 0)
-                                                        setValue(`products.${index}.product_group_name`, selected?.label || '')
-                                                    }}
-                                                    options={productGroupOptions}
-                                                    isClearable
-                                                    isDisabled={isDisabled}
-                                                    placeholder='Select group...'
-                                                    classNamePrefix='select'
-                                                    {...(errors.products?.[index]?.product_group_id && {
-                                                        error: true,
-                                                        helperText: 'Product Group is required'
-                                                    })}
-                                                />
-                                            )}
-                                        />
+                                    <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Controller
+                                                name={`products.${index}.product_group`}
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <AsyncSelectCustom
+                                                        {...field}
+                                                        key={`product-group-${index}-${productGroupRefreshKey}`}
+                                                        label='Product Group'
+                                                        loadOptions={inputValue => fetchProductGroups(inputValue)}
+                                                        defaultOptions
+                                                        cacheOptions={false}
+                                                        isClearable
+                                                        isDisabled={isDisabled}
+                                                        placeholder='Select group...'
+                                                        classNamePrefix='select'
+                                                        {...(errors.products?.[index]?.product_group && {
+                                                            error: true,
+                                                            helperText: 'Product Group is required'
+                                                        })}
+                                                    />
+                                                )}
+                                            />
+                                        </Box>
+                                        <Button
+                                            variant='tonal'
+                                            color='secondary'
+                                            onClick={() => setShowAddProductGroupModal(true)}
+                                            disabled={isDisabled}
+                                            sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0 }}
+                                            title='Add Product Group'
+                                        >
+                                            <i className='tabler-plus' />
+                                        </Button>
                                     </Grid>
 
                                     <Grid item xs={12} sm={6} md={3}>
@@ -146,9 +160,9 @@ const SectionProducts = ({ isDisabled, productGroupOptions, onProductGroupAdded 
                                                     {...field}
                                                     fullWidth
                                                     multiline
-                                                    rows={3}
+                                                    // rows={0.5}
                                                     label='Model List'
-                                                    placeholder='Enter each model on a new line...'
+                                                    placeholder='Enter each model...'
                                                     autoComplete='off'
                                                     disabled={isDisabled}
                                                     {...(errors.products?.[index]?.model_list && {
@@ -158,17 +172,6 @@ const SectionProducts = ({ isDisabled, productGroupOptions, onProductGroupAdded 
                                                 />
                                             )}
                                         />
-                                    </Grid>
-                                    <Grid item>
-                                        <Button
-                                            variant='tonal'
-                                            color='secondary'
-                                            onClick={() => setShowAddProductGroupModal(true)}
-                                            disabled={isDisabled}
-                                            startIcon={<i className='tabler-folder-plus' />}
-                                        >
-                                            Add Product Group
-                                        </Button>
                                     </Grid>
                                 </Grid>
                             </CardContent>

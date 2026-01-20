@@ -39,12 +39,14 @@ export const ContactSchema = z.object({
 })
 
 // --- Product Schema (สำหรับ vendor_products table) ---
+// Option object type for AsyncSelectCustom
+const ProductGroupOptionSchema = z.object({
+    value: z.number(),
+    label: z.string()
+}).nullable().optional()
+
 export const ProductSchema = z.object({
-    product_group_id: z.number({
-        required_error: requiredFieldMessage({ fieldName: 'Product Group' }),
-        invalid_type_error: typeFieldMessage({ fieldName: 'Product Group', typeName: 'Number' })
-    }),
-    product_group_name: z.string().optional(), // For display only
+    product_group: ProductGroupOptionSchema,
     maker_name: z
         .string({
             required_error: requiredFieldMessage({ fieldName: 'Maker Name' }),
@@ -88,10 +90,11 @@ export const AddVendorSchema = z.object({
         .max(10, maxLengthFieldMessage({ fieldName: 'Postal Code', maxLength: 10 })),
 
     // Profile Section
-    vendor_type_id: z.number({
-        required_error: requiredFieldMessage({ fieldName: 'Vendor Type' }),
-        invalid_type_error: typeFieldMessage({ fieldName: 'Vendor Type', typeName: 'Number' })
-    }),
+    // Profile Section
+    vendor_type: z.object({
+        value: z.number(),
+        label: z.string()
+    }).nullable().optional(),
     vendor_type_name: z.string().optional(), // For display only
     website: z
         .string({
@@ -142,8 +145,7 @@ export const defaultContactValues: ContactFormData = {
 }
 
 export const defaultProductValues: ProductFormData = {
-    product_group_id: 0,
-    product_group_name: '',
+    product_group: null,
     maker_name: '',
     product_name: '',
     model_list: ''
@@ -153,7 +155,7 @@ export const defaultAddVendorValues: AddVendorFormData = {
     company_name: '',
     province: '',
     postal_code: '',
-    vendor_type_id: 0,
+    vendor_type: null,
     vendor_type_name: '',
     website: '',
     tel_center: '',

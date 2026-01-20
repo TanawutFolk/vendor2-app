@@ -87,170 +87,253 @@ const SuccessModal = ({
                         </Typography>
                     </Box>
 
-                    {/* Vendor Data Summary */}
-                    {vendorData && (
-                        <Box sx={{ mt: 2 }}>
-                            <Divider sx={{ mb: 2 }}>
-                                <Typography variant='body2' color='primary'>
-                                    Saved Information
-                                </Typography>
-                            </Divider>
-
-                            <Grid container spacing={2}>
-                                {/* Company Info */}
-                                <Grid item xs={12}>
-                                    <Card variant='outlined' sx={{ bgcolor: 'action.hover' }}>
-                                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                            <Typography variant='subtitle2' color='primary' gutterBottom>
-                                                <i className='tabler-building me-2' />
-                                                Company Details
-                                            </Typography>
-                                            <Grid container spacing={1}>
-                                                <Grid item xs={12} sm={6}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Company Name
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.company_name}
-                                                    </Typography>
+                    <Grid container spacing={2}>
+                        {/* Company Info */}
+                        <Grid item xs={12}>
+                            <Card variant='outlined' sx={{ bgcolor: 'action.hover' }}>
+                                <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                                    <Typography variant='subtitle2' color='primary' gutterBottom>
+                                        <i className='tabler-building me-2' />
+                                        Company Details
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Company Name</Typography>
                                                 </Grid>
-                                                <Grid item xs={6} sm={3}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Province
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.province}
-                                                    </Typography>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' fontWeight={500}>{vendorData?.company_name}</Typography>
                                                 </Grid>
-                                                <Grid item xs={6} sm={3}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Postal Code
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.postal_code}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid item xs={6} sm={4}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Vendor Type
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.vendor_type_name || '-'}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid item xs={6} sm={4}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Website
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.website || '-'}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid item xs={6} sm={4}>
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        Tel Center
-                                                    </Typography>
-                                                    <Typography variant='body2'>
-                                                        {vendorData.tel_center || '-'}
-                                                    </Typography>
-                                                </Grid>
-                                                {vendorData.address && (
-                                                    <Grid item xs={12}>
-                                                        <Typography variant='caption' color='text.secondary'>
-                                                            Address
-                                                        </Typography>
-                                                        <Typography variant='body2'>
-                                                            {vendorData.address}
-                                                        </Typography>
-                                                    </Grid>
-                                                )}
                                             </Grid>
-                                        </CardContent>
-                                    </Card>
-                                </Grid>
-
-                                {/* Contacts */}
-                                {vendorData.contacts && vendorData.contacts.length > 0 && (
-                                    <Grid item xs={12} sm={6}>
-                                        <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
-                                            <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                                <Typography variant='subtitle2' color='primary' gutterBottom>
-                                                    <i className='tabler-users me-2' />
-                                                    Contacts ({vendorData.contacts.length})
-                                                </Typography>
-                                                {vendorData.contacts.map((contact, index) => (
-                                                    <Box
-                                                        key={index}
-                                                        sx={{
-                                                            p: 1,
-                                                            mb: 1,
-                                                            bgcolor: 'background.paper',
-                                                            borderRadius: 1,
-                                                            border: '1px solid',
-                                                            borderColor: 'divider'
-                                                        }}
-                                                    >
-                                                        <Typography variant='body2' fontWeight={500}>
-                                                            {index + 1}. {contact.seller_name}
-                                                        </Typography>
-                                                        <Typography variant='caption' color='text.secondary'>
-                                                            {contact.position && `${contact.position} • `}
-                                                            {contact.tel_phone && `📞 ${contact.tel_phone} • `}
-                                                            {contact.email && `✉️ ${contact.email}`}
-                                                        </Typography>
-                                                    </Box>
-                                                ))}
-                                            </CardContent>
-                                        </Card>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Province</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' fontWeight={500}>{vendorData?.province}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Postal Code</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' fontWeight={500}>{vendorData?.postal_code}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Vendor Type</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' fontWeight={500}>{vendorData?.vendor_type?.label || '-'}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Website</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' sx={{ wordBreak: 'break-all' }} fontWeight={500}>{vendorData?.website || '-'}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <Grid container>
+                                                <Grid item xs={12} sm={4}>
+                                                    <Typography variant='body2' color='text.secondary'>Tel Center</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={8}>
+                                                    <Typography variant='body2' fontWeight={500}>{vendorData?.tel_center || '-'}</Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                        {vendorData?.address && (
+                                            <Grid item xs={12}>
+                                                <Grid container>
+                                                    <Grid item xs={12} sm={2}>
+                                                        <Typography variant='body2' color='text.secondary'>Address</Typography>
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={10}>
+                                                        <Typography variant='body2' fontWeight={500} sx={{ whiteSpace: 'pre-line' }}>{vendorData?.address}</Typography>
+                                                    </Grid>
+                                                </Grid>
+                                            </Grid>
+                                        )}
                                     </Grid>
-                                )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
 
-                                {/* Products */}
-                                {vendorData.products && vendorData.products.length > 0 && (
-                                    <Grid item xs={12} sm={6}>
-                                        <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
-                                            <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                                                <Typography variant='subtitle2' color='primary' gutterBottom>
-                                                    <i className='tabler-package me-2' />
-                                                    Products ({vendorData.products.length})
-                                                </Typography>
-                                                {vendorData.products.map((product, index) => (
-                                                    <Box
-                                                        key={index}
-                                                        sx={{
-                                                            p: 1,
-                                                            mb: 1,
-                                                            bgcolor: 'background.paper',
-                                                            borderRadius: 1,
-                                                            border: '1px solid',
-                                                            borderColor: 'divider'
-                                                        }}
-                                                    >
-                                                        <Typography variant='body2' fontWeight={500}>
-                                                            {index + 1}. {product.product_name}
-                                                        </Typography>
-                                                        <Typography variant='caption' color='text.secondary' component='div'>
-                                                            Group: {product.product_group_name || '-'} • Maker: {product.maker_name}
-                                                        </Typography>
-                                                        {product.model_list && (
-                                                            <Typography
-                                                                variant='caption'
-                                                                color='text.secondary'
-                                                                component='div'
-                                                                sx={{ whiteSpace: 'pre-line', mt: 0.5 }}
-                                                            >
-                                                                Models: {product.model_list.split('\n').join(', ')}
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
-                                                ))}
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
-                                )}
+                        {/* Contacts */}
+                        {vendorData?.contacts && vendorData?.contacts.length > 0 && (
+                            <Grid item xs={12} md={6}>
+                                <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
+                                    <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                                        <Typography variant='subtitle2' color='primary' gutterBottom>
+                                            <i className='tabler-users me-2' />
+                                            Contacts ({vendorData?.contacts.length})
+                                        </Typography>
+                                        {vendorData?.contacts.map((contact, index) => (
+                                            <Box
+                                                key={index}
+                                                sx={{
+                                                    p: 2,
+                                                    mb: 1,
+                                                    bgcolor: 'background.paper',
+                                                    borderRadius: 1,
+                                                    border: '1px solid',
+                                                    borderColor: 'divider'
+                                                }}
+                                            >
+                                                <Grid container spacing={1}>
+                                                    <Grid item xs={12}>
+                                                        <Grid container spacing={2}>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={3}>
+                                                                        <Typography variant='caption' color='text.secondary'>Name</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={9}>
+                                                                        <Typography variant='body2' fontWeight={500}>{contact.seller_name}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={3}>
+                                                                        <Typography variant='caption' color='text.secondary'>Phone</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={9}>
+                                                                        <Typography variant='body2' fontWeight={500}>{contact.tel_phone || '-'}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                    <Grid item xs={12}>
+                                                        <Grid container spacing={2}>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={3}>
+                                                                        <Typography variant='caption' color='text.secondary'>Position</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={9}>
+                                                                        <Typography variant='body2' fontWeight={500}>{contact.position || '-'}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={3}>
+                                                                        <Typography variant='caption' color='text.secondary'>Email</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={9}>
+                                                                        <Typography variant='body2' fontWeight={500} sx={{ wordBreak: 'break-all' }}>{contact.email || '-'}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Grid>
+                                            </Box>
+                                        ))}
+                                    </CardContent>
+                                </Card>
                             </Grid>
-                        </Box>
-                    )}
+                        )}
+
+                        {/* Products */}
+                        {vendorData?.products && vendorData?.products.length > 0 && (
+                            <Grid item xs={12} md={6}>
+                                <Card variant='outlined' sx={{ bgcolor: 'action.hover', height: '100%' }}>
+                                    <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                                        <Typography variant='subtitle2' color='primary' gutterBottom>
+                                            <i className='tabler-package me-2' />
+                                            Products ({vendorData?.products.length})
+                                        </Typography>
+                                        {vendorData?.products.map((product, index) => (
+                                            <Box
+                                                key={index}
+                                                sx={{
+                                                    p: 2,
+                                                    mb: 1,
+                                                    bgcolor: 'background.paper',
+                                                    borderRadius: 1,
+                                                    border: '1px solid',
+                                                    borderColor: 'divider'
+                                                }}
+                                            >
+                                                <Grid container spacing={1}>
+                                                    <Grid item xs={12}>
+                                                        <Grid container spacing={2}>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <Typography variant='caption' color='text.secondary'>Product Name</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={8}>
+                                                                        <Typography variant='body2' fontWeight={500}>{product.product_name}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <Typography variant='caption' color='text.secondary'>Group</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={8}>
+                                                                        <Typography variant='body2' fontWeight={500}>
+                                                                            {product.product_group?.label || '-'}
+                                                                        </Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                    <Grid item xs={12}>
+                                                        <Grid container spacing={2}>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <Typography variant='caption' color='text.secondary'>Maker</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={8}>
+                                                                        <Typography variant='body2' fontWeight={500}>{product.maker_name || '-'}</Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                            <Grid item xs={12} sm={6}>
+                                                                <Grid container>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <Typography variant='caption' color='text.secondary'>Models</Typography>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={8}>
+                                                                        <Typography variant='body2' fontWeight={500} sx={{ whiteSpace: 'pre-line' }}>
+                                                                            {product.model_list ? product.model_list.split('\n').join(', ') : '-'}
+                                                                        </Typography>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Grid>
+                                            </Box>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        )}
+                    </Grid>
                 </DialogContent>
 
                 <DialogActions

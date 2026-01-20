@@ -82,6 +82,9 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
             }}
             maxWidth='xs'
             fullWidth
+            sx={{
+                '& .MuiDialog-paper': { overflow: 'visible' }
+            }}
         >
             <DialogTitle>
                 <Typography variant='h5' component='span'>
@@ -113,7 +116,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
             <DialogActions>
                 <Button
                     variant='contained'
-                    color='success'
+                    color='primary'
                     onClick={handleSave}
                     disabled={isPending}
                     startIcon={isPending ? <CircularProgress size={16} color='inherit' /> : null}
