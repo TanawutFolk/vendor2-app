@@ -13,7 +13,7 @@ import {
 } from '@mui/material'
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
-import { useCreateProductGroup } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
+import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { ToastMessageSuccess, ToastMessageError } from '@/components/ToastMessage'
 
@@ -29,7 +29,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
     const [error, setError] = useState<string | null>(null)
 
     // Hooks
-    const { mutate, isPending } = useCreateProductGroup(
+    const { mutate, isPending } = useCreate(
         (data) => {
             if (data.Status) {
                 ToastMessageSuccess({

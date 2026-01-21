@@ -33,7 +33,7 @@ import SuccessModal from './modal/SuccessModal'
 import ErrorModal from './modal/ErrorModal'
 
 // React Query Imports
-import { useCreateVendor } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
+import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
 
 // Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -68,7 +68,7 @@ const AddVendorPage = () => {
     const { handleSubmit, reset, getValues } = methods
 
     // Hooks : React Query - Create Vendor
-    const { mutate: saveVendor, isPending: isSaving } = useCreateVendor(
+    const { mutate: saveVendor, isPending: isSaving } = useCreate(
         data => {
             setConfirmModal(false)
             if (data.Status) {
@@ -274,7 +274,7 @@ const AddVendorPage = () => {
             <ErrorModal
                 show={errorModal}
                 title='This vendor is already in the system.'
-                message={"Please check the vendor name and try again. Or Edit Menu."}
+                message={"Please check the vendor name and try again. Or Edit Existing."}
                 onCloseClick={handleErrorClose}
             />
         </Grid>

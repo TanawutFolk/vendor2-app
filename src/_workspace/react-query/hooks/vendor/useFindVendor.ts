@@ -1,17 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 import type { FindVendorSearchRequestI, FindVendorApiResponseI, VendorResultI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { AxiosResponse } from 'axios'
 
-export const PREFIX_FIND_VENDOR_KEY = 'FIND_VENDOR'
+export const PREFIX_QUERY_KEY = 'FIND_VENDOR'
 
-// Hook to search vendors
-export const useFindVendor = (params: FindVendorSearchRequestI, enabled: boolean = true) => {
-    return useQuery<FindVendorApiResponseI<VendorResultI[]>, Error>({
-        queryKey: [PREFIX_FIND_VENDOR_KEY, params],
-        queryFn: async () => {
-            const response = await FindVendorServices.search(params)
-            return response.data
-        },
-        enabled
+const useSearch = (params: FindVendorSearchRequestI, isFetchData: boolean) => {
+    return useQuery<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>, Error>({
+        queryKey: [PREFIX_QUERY_KEY, params],
+        queryFn: () => FindVendorServices.search(params),
+        placeholderData: keepPreviousData,
+        enabled: isFetchData
     })
 }
+
+export { useSearch }

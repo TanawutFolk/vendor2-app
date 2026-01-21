@@ -357,25 +357,6 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
         icon: 'tabler-circle',
         href: '/sct/sct-bom-explosion'
       },
-      // Vendor I00018
-      {
-        id: 528,
-        label: dictionary['navigation'].findVendor,
-        icon: 'tabler-search',
-        href: '/find-vendor'
-      },
-      {
-        id: 527,
-        label: dictionary['navigation'].addVendor,
-        icon: 'tabler-circle-plus',
-        href: '/add-vendor'
-      },
-      {
-        id: 529,
-        label: dictionary['navigation'].revise,
-        icon: 'tabler-edit',
-        href: '/revise'
-      }
       // {
       //   id: 445,
       //   label: dictionary['navigation'].reCalStandardCostBudget,
@@ -383,7 +364,19 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
       //   href: '/sct/re-cal'
       // }
     ]
-  }
+  },
+  {
+    label: dictionary['navigation'].findVendor,
+    icon: 'tabler-search',
+    id: 528,
+    href: '/find-vendor'
+  },
+  {
+    label: dictionary['navigation'].addVendor,
+    icon: 'tabler-circle-plus',
+    id: 527,
+    href: '/add-vendor'
+  },
   // {
   //   label: dictionary['navigation'].priceList,
   //   id: 375,

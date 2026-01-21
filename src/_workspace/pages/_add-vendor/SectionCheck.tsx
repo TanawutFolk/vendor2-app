@@ -7,9 +7,10 @@ import { Grid, Button, CircularProgress, Alert, Chip } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
+import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 
 // React Query Imports
-import { useCheckVendorDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
+import { useCheckDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -22,20 +23,24 @@ interface SectionCheckProps {
 const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
     // States
     const [verifyError, setVerifyError] = useState<string | null>(null)
+    const [existingVendorId, setExistingVendorId] = useState<number | null>(null)
+    const [editModalOpen, setEditModalOpen] = useState(false)
 
     // Hooks : react-hook-form
     const { control, trigger, getValues } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
 
     // Hooks : React Query - Check Duplicate
-    const { mutate: checkDuplicate, isPending: isLoading } = useCheckVendorDuplicate(
+    const { mutate: checkDuplicate, isPending: isLoading } = useCheckDuplicate(
         data => {
             if (data.isDuplicate) {
                 const errorMsg = `Vendor already exists! (ID: ${data.existingVendorId})`
                 setVerifyError(errorMsg)
+                setExistingVendorId(data.existingVendorId)
                 onVerifyChange(false, errorMsg)
             } else {
                 setVerifyError(null)
+                setExistingVendorId(null)
                 onVerifyChange(true)
             }
         },
@@ -141,14 +146,40 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                             <Chip label='Vendor is available for Adding' color='success' variant='outlined' />
                         </Grid>
                     )}
+                    {existingVendorId && (
+                        <Grid item>
+                            <Button
+                                variant='contained'
+                                color='warning'
+                                onClick={() => setEditModalOpen(true)}
+                                startIcon={<i className='tabler-edit' />}
+                            >
+                                Edit Existing Vendor
+                            </Button>
+                        </Grid>
+                    )}
                 </Grid>
             </Grid>
 
-            {/* {verifyError && (
+            {/* {verifyError && existingVendorId && (
                 <Grid item xs={12}>
-                    <Alert severity='error'>{verifyError}</Alert>
+                    <Alert severity='warning'>
+                        {verifyError} - You can edit the existing vendor instead.
+                    </Alert>
                 </Grid>
             )} */}
+
+            {/* Edit Vendor Modal */}
+            <EditVendorModal
+                open={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                vendorId={existingVendorId}
+                onSuccess={() => {
+                    setEditModalOpen(false)
+                    setExistingVendorId(null)
+                    setVerifyError(null)
+                }}
+            />
         </Grid>
     )
 }
