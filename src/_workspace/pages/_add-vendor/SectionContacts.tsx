@@ -16,16 +16,10 @@ interface SectionContactsProps {
 }
 
 const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
-    // Hooks : react-hook-form
     const { control } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
+    const { fields, append, remove } = useFieldArray({ control, name: 'contacts' })
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: 'contacts'
-    })
-
-    // Functions
     const handleAddContact = () => {
         append({ ...defaultContactValues })
     }
@@ -43,19 +37,13 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                             Contact #{index + 1}
                                         </Typography>
                                         {fields.length > 1 && (
-                                            <IconButton
-                                                size='small'
-                                                color='error'
-                                                onClick={() => remove(index)}
-                                                disabled={isDisabled}
-                                            >
+                                            <IconButton size='small' color='error' onClick={() => remove(index)} disabled={isDisabled}>
                                                 <i className='tabler-trash text-lg' />
                                             </IconButton>
                                         )}
                                     </Grid>
                                     <Divider sx={{ mt: 1, mb: 2 }} />
                                 </Grid>
-
                                 <Grid item xs={12} sm={6} md={3}>
                                     <Controller
                                         name={`contacts.${index}.seller_name`}
@@ -76,7 +64,6 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                         )}
                                     />
                                 </Grid>
-
                                 <Grid item xs={12} sm={6} md={3}>
                                     <Controller
                                         name={`contacts.${index}.tel_phone`}
@@ -97,7 +84,6 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                         )}
                                     />
                                 </Grid>
-
                                 <Grid item xs={12} sm={6} md={3}>
                                     <Controller
                                         name={`contacts.${index}.email`}
@@ -119,7 +105,6 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                         )}
                                     />
                                 </Grid>
-
                                 <Grid item xs={12} sm={6} md={3}>
                                     <Controller
                                         name={`contacts.${index}.position`}
@@ -145,7 +130,6 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                     </Card>
                 </Grid>
             ))}
-
             <Grid item xs={12}>
                 <Button
                     variant='outlined'

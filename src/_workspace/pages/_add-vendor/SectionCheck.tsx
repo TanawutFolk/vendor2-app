@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Controller, useFormContext, useFormState } from 'react-hook-form'
 
 // MUI Imports
-import { Grid, Button, CircularProgress, Alert, Chip } from '@mui/material'
+import { Grid, Button, CircularProgress, Chip } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -11,6 +11,7 @@ import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModa
 
 // React Query Imports
 import { useCheckDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
+import type { CheckDuplicateResponseI } from '@_workspace/types/_add-vendor/AddVendorTypes'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -21,18 +22,15 @@ interface SectionCheckProps {
 }
 
 const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
-    // States
     const [verifyError, setVerifyError] = useState<string | null>(null)
     const [existingVendorId, setExistingVendorId] = useState<number | null>(null)
     const [editModalOpen, setEditModalOpen] = useState(false)
 
-    // Hooks : react-hook-form
     const { control, trigger, getValues } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
 
-    // Hooks : React Query - Check Duplicate
     const { mutate: checkDuplicate, isPending: isLoading } = useCheckDuplicate(
-        data => {
+        (data: CheckDuplicateResponseI) => {
             if (data.isDuplicate) {
                 const errorMsg = `Vendor already exists! (ID: ${data.existingVendorId})`
                 setVerifyError(errorMsg)
@@ -51,7 +49,6 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
         }
     )
 
-    // Functions
     const handleVerify = async () => {
         setVerifyError(null)
         const isValid = await trigger(['company_name', 'province', 'postal_code'])
@@ -79,10 +76,7 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                             placeholder='Enter company name...'
                             autoComplete='off'
                             disabled={isVerified}
-                            {...(errors.company_name && {
-                                error: true,
-                                helperText: errors.company_name.message
-                            })}
+                            {...(errors.company_name && { error: true, helperText: errors.company_name.message })}
                         />
                     )}
                 />
@@ -99,10 +93,7 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                             placeholder='Enter province...'
                             autoComplete='off'
                             disabled={isVerified}
-                            {...(errors.province && {
-                                error: true,
-                                helperText: errors.province.message
-                            })}
+                            {...(errors.province && { error: true, helperText: errors.province.message })}
                         />
                     )}
                 />
@@ -119,10 +110,7 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                             placeholder='Enter postal code...'
                             autoComplete='off'
                             disabled={isVerified}
-                            {...(errors.postal_code && {
-                                error: true,
-                                helperText: errors.postal_code.message
-                            })}
+                            {...(errors.postal_code && { error: true, helperText: errors.postal_code.message })}
                         />
                     )}
                 />
@@ -161,15 +149,6 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                 </Grid>
             </Grid>
 
-            {/* {verifyError && existingVendorId && (
-                <Grid item xs={12}>
-                    <Alert severity='warning'>
-                        {verifyError} - You can edit the existing vendor instead.
-                    </Alert>
-                </Grid>
-            )} */}
-
-            {/* Edit Vendor Modal */}
             <EditVendorModal
                 open={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
@@ -185,4 +164,3 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
 }
 
 export default SectionCheck
-

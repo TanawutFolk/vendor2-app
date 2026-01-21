@@ -22,26 +22,18 @@ interface SectionProductsProps {
 }
 
 const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
-    // States
     const [showAddProductGroupModal, setShowAddProductGroupModal] = useState(false)
     const [productGroupRefreshKey, setProductGroupRefreshKey] = useState(0)
 
-    // Hooks : react-hook-form
-    const { control, setValue } = useFormContext<AddVendorFormData>()
+    const { control } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
+    const { fields, append, remove } = useFieldArray({ control, name: 'products' })
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: 'products'
-    })
-
-    // Functions
     const handleAddProduct = () => {
         append({ ...defaultProductValues })
     }
 
     const handleProductGroupAdded = () => {
-        // Increment key to force AsyncSelect to reload options
         setProductGroupRefreshKey(prev => prev + 1)
     }
 
@@ -59,19 +51,13 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                                 Product #{index + 1}
                                             </Typography>
                                             {fields.length > 1 && (
-                                                <IconButton
-                                                    size='small'
-                                                    color='error'
-                                                    onClick={() => remove(index)}
-                                                    disabled={isDisabled}
-                                                >
+                                                <IconButton size='small' color='error' onClick={() => remove(index)} disabled={isDisabled}>
                                                     <i className='tabler-trash text-lg' />
                                                 </IconButton>
                                             )}
                                         </Grid>
                                         <Divider sx={{ mt: 1, mb: 2 }} />
                                     </Grid>
-
                                     <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Controller
@@ -108,7 +94,6 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                             <i className='tabler-plus' />
                                         </Button>
                                     </Grid>
-
                                     <Grid item xs={12} sm={6} md={3}>
                                         <Controller
                                             name={`products.${index}.maker_name`}
@@ -129,7 +114,6 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                             )}
                                         />
                                     </Grid>
-
                                     <Grid item xs={12} sm={6} md={3}>
                                         <Controller
                                             name={`products.${index}.product_name`}
@@ -150,7 +134,6 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                             )}
                                         />
                                     </Grid>
-
                                     <Grid item xs={12} sm={6} md={3}>
                                         <Controller
                                             name={`products.${index}.model_list`}
@@ -160,7 +143,6 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                                     {...field}
                                                     fullWidth
                                                     multiline
-                                                    // rows={0.5}
                                                     label='Model List'
                                                     placeholder='Enter each model...'
                                                     autoComplete='off'
@@ -178,25 +160,18 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                         </Card>
                     </Grid>
                 ))}
-
                 <Grid item xs={12}>
-                    <Grid container spacing={2}>
-                        <Grid item>
-                            <Button
-                                variant='outlined'
-                                color='primary'
-                                onClick={handleAddProduct}
-                                disabled={isDisabled}
-                                startIcon={<i className='tabler-plus' />}
-                            >
-                                Add Product
-                            </Button>
-                        </Grid>
-                    </Grid>
+                    <Button
+                        variant='outlined'
+                        color='primary'
+                        onClick={handleAddProduct}
+                        disabled={isDisabled}
+                        startIcon={<i className='tabler-plus' />}
+                    >
+                        Add Product
+                    </Button>
                 </Grid>
             </Grid>
-
-            {/* Add Product Group Modal */}
             <AddProductGroupModal
                 open={showAddProductGroupModal}
                 onClose={() => setShowAddProductGroupModal(false)}

@@ -19,13 +19,11 @@ interface SectionProfileProps {
 }
 
 const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
-    // Hooks : react-hook-form
-    const { control, setValue } = useFormContext<AddVendorFormData>()
+    const { control } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
 
     return (
         <Grid container spacing={4}>
-            {/* Row 1 */}
             <Grid item xs={12} sm={6} md={4}>
                 <Controller
                     name='company_name'
@@ -38,10 +36,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             placeholder='Enter company name...'
                             autoComplete='off'
                             disabled={true}
-                            {...(errors.company_name && {
-                                error: true,
-                                helperText: errors.company_name.message
-                            })}
+                            {...(errors.company_name && { error: true, helperText: errors.company_name.message })}
                         />
                     )}
                 />
@@ -58,10 +53,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             placeholder='Enter province...'
                             autoComplete='off'
                             disabled={true}
-                            {...(errors.province && {
-                                error: true,
-                                helperText: errors.province.message
-                            })}
+                            {...(errors.province && { error: true, helperText: errors.province.message })}
                         />
                     )}
                 />
@@ -78,10 +70,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             placeholder='Enter postal code...'
                             autoComplete='off'
                             disabled={true}
-                            {...(errors.postal_code && {
-                                error: true,
-                                helperText: errors.postal_code.message
-                            })}
+                            {...(errors.postal_code && { error: true, helperText: errors.postal_code.message })}
                         />
                     )}
                 />
@@ -101,16 +90,11 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             isDisabled={isDisabled}
                             placeholder='Select vendor type...'
                             classNamePrefix='select'
-                            {...(errors.vendor_type && {
-                                error: true,
-                                helperText: 'Vendor Type is required'
-                            })}
+                            {...(errors.vendor_type && { error: true, helperText: 'Vendor Type is required' })}
                         />
                     )}
                 />
             </Grid>
-
-            {/* Row 2 */}
             <Grid item xs={12} sm={6} md={4}>
                 <Controller
                     name='website'
@@ -123,10 +107,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             placeholder='https://...'
                             autoComplete='off'
                             disabled={isDisabled}
-                            {...(errors.website && {
-                                error: true,
-                                helperText: errors.website.message
-                            })}
+                            {...(errors.website && { error: true, helperText: errors.website.message })}
                         />
                     )}
                 />
@@ -143,16 +124,11 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             placeholder='Enter phone number...'
                             autoComplete='off'
                             disabled={isDisabled}
-                            {...(errors.tel_center && {
-                                error: true,
-                                helperText: errors.tel_center.message
-                            })}
+                            {...(errors.tel_center && { error: true, helperText: errors.tel_center.message })}
                         />
                     )}
                 />
             </Grid>
-
-            {/* Row 3 */}
             <Grid item xs={12}>
                 <Controller
                     name='address'
@@ -167,16 +143,11 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             multiline
                             rows={2}
                             disabled={isDisabled}
-                            {...(errors.address && {
-                                error: true,
-                                helperText: errors.address.message
-                            })}
+                            {...(errors.address && { error: true, helperText: errors.address.message })}
                         />
                     )}
                 />
             </Grid>
-
-            {/* Row 4 */}
             <Grid item xs={12}>
                 <Controller
                     name='note'
@@ -191,10 +162,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                             multiline
                             rows={2}
                             disabled={isDisabled}
-                            {...(errors.note && {
-                                error: true,
-                                helperText: errors.note.message
-                            })}
+                            {...(errors.note && { error: true, helperText: errors.note.message })}
                         />
                     )}
                 />

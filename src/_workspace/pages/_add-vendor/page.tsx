@@ -1,39 +1,34 @@
 // React Imports
 import { useState } from 'react'
+import { useForm, FormProvider } from 'react-hook-form'
+import type { SubmitHandler } from 'react-hook-form'
 
 // MUI Imports
-import {
-    Grid,
-    Card,
-    CardHeader,
-    CardContent,
-    Divider,
-    Button,
-    Box,
-    CircularProgress,
-    Breadcrumbs,
-    Typography
-} from '@mui/material'
+import { Grid, Card, CardContent, Button, Typography, Divider, Box, CircularProgress } from '@mui/material'
 
 // Third-party Imports
-import { useForm, FormProvider, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// Schema & Types
-import { AddVendorSchema, defaultAddVendorValues } from './validateSchema'
-import type { AddVendorFormData } from './validateSchema'
+// Template Imports
+import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 
-// Components Imports
+// Section Components
 import SectionCheck from './SectionCheck'
 import SectionProfile from './SectionProfile'
 import SectionContacts from './SectionContacts'
 import SectionProducts from './SectionProducts'
+
+// Modal Components
 import ConfirmModal from '@components/ConfirmModal'
 import SuccessModal from './modal/SuccessModal'
 import ErrorModal from './modal/ErrorModal'
 
 // React Query Imports
 import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
+
+// Schema & Types
+import { AddVendorSchema, defaultAddVendorValues } from './validateSchema'
+import type { AddVendorFormData } from './validateSchema'
 
 // Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -44,10 +39,7 @@ import { MENU_NAME, breadcrumbNavigation } from './env'
 const AddVendorPage = () => {
     // States
     const [isVerified, setIsVerified] = useState(false)
-    const [verifyError, setVerifyError] = useState<string | null>(null)
     const [confirmModal, setConfirmModal] = useState(false)
-
-    // States : Success/Error Modals
     const [successModal, setSuccessModal] = useState(false)
     const [successVendorId, setSuccessVendorId] = useState<number | undefined>(undefined)
     const [successVendorData, setSuccessVendorData] = useState<AddVendorFormData | undefined>(undefined)
@@ -64,12 +56,11 @@ const AddVendorPage = () => {
         mode: 'onChange'
     })
 
-
     const { handleSubmit, reset, getValues } = methods
 
     // Hooks : React Query - Create Vendor
     const { mutate: saveVendor, isPending: isSaving } = useCreate(
-        data => {
+        (data: any) => {
             setConfirmModal(false)
             if (data.Status) {
                 setSuccessVendorId(data.vendorId)
@@ -90,7 +81,6 @@ const AddVendorPage = () => {
     // Functions
     const handleVerifyChange = (verified: boolean, errorMsg?: string) => {
         setIsVerified(verified)
-        setVerifyError(errorMsg || null)
         if (errorMsg) {
             setErrorMessage(errorMsg)
             setErrorModal(true)
@@ -100,10 +90,9 @@ const AddVendorPage = () => {
     const handleReset = () => {
         reset({
             ...defaultAddVendorValues,
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ติดต่อ S524'
+            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
         })
         setIsVerified(false)
-        setVerifyError(null)
         setConfirmModal(false)
         setSuccessModal(false)
         setErrorModal(false)
@@ -115,7 +104,6 @@ const AddVendorPage = () => {
 
     const handleConfirmSave = () => {
         setConfirmModal(false)
-
         const dataItem = {
             company_name: getValues('company_name'),
             province: getValues('province'),
@@ -125,7 +113,7 @@ const AddVendorPage = () => {
             tel_center: getValues('tel_center'),
             address: getValues('address'),
             note: getValues('note'),
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ถ้าคุณเห็นข้อความนี้ ติดต่อ S524',
+            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN',
             contacts: getValues('contacts').map(c => ({
                 seller_name: c.seller_name,
                 tel_phone: c.tel_phone,
@@ -136,148 +124,102 @@ const AddVendorPage = () => {
                 product_group_id: p.product_group?.value || 0,
                 maker_name: p.maker_name,
                 product_name: p.product_name,
-                // Convert newlines to comma ใส่ , ระหว่างข้อมูล 
-                model_list: p.model_list
-                    ? p.model_list.split('\n').map(m => m.trim()).filter(m => m).join(', ')
-                    : ''
+                model_list: p.model_list ? p.model_list.split('\n').map(m => m.trim()).filter(m => m).join(', ') : ''
             }))
         }
-
         saveVendor(dataItem)
-    }
-
-    const handleSuccessClose = () => {
-        setSuccessModal(false)
-        handleReset()
-    }
-
-    const handleErrorClose = () => {
-        setErrorModal(false)
     }
 
     const isSectionsDisabled = !isVerified
 
-    // Breadcrumbs
-    const breadcrumbs = breadcrumbNavigation.map((item, index) => (
-        <Typography
-            key={index}
-            sx={{
-                color:
-                    index === breadcrumbNavigation.length - 1
-                        ? 'var(--mui-palette-text-primary) !important'
-                        : 'var(--mui-palette-text-secondary) !important'
-            }}
-        >
-            {item.title}
-        </Typography>
-    ))
-
     return (
-        <Grid container spacing={6}>
-            <FormProvider {...methods}>
-                {/* Header Section */}
-                <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Typography variant='h4'>{MENU_NAME}</Typography>
-                    <Divider orientation='vertical' flexItem />
-                    <Breadcrumbs separator='›' aria-label='breadcrumb' sx={{ display: 'inline-block' }}>
-                        {breadcrumbs}
-                    </Breadcrumbs>
-                </Grid>
+        <>
+            <Grid container spacing={6}>
+                <FormProvider {...methods}>
+                    {/* Header */}
+                    <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
+                        <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+                    </Grid>
 
-                {/* Section 1: Check */}
-                <Grid item xs={12}>
-                    <Card>
-                        <CardHeader title='1. Check Vendor Duplicate' titleTypographyProps={{ variant: 'h5' }} />
-                        <Divider />
-                        <CardContent>
-                            <SectionCheck
-                                onVerifyChange={handleVerifyChange}
-                                isVerified={isVerified}
-                            />
-                        </CardContent>
-                    </Card>
-                </Grid>
+                    {/* All Sections in Single Card */}
+                    <Grid item xs={12}>
+                        <Card>
+                            <CardContent>
+                                {/* Section 1: Check */}
+                                <Typography variant='h5' sx={{ mb: 3 }}>1. Check Vendor Duplicate</Typography>
+                                <SectionCheck onVerifyChange={handleVerifyChange} isVerified={isVerified} />
 
-                {/* Section 2: Profile */}
-                <Grid item xs={12}>
-                    <Card sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                        <CardHeader title='2. Vendor Profile' titleTypographyProps={{ variant: 'h5' }} />
-                        <Divider />
-                        <CardContent>
-                            <SectionProfile isDisabled={isSectionsDisabled} />
-                        </CardContent>
-                    </Card>
-                </Grid>
+                                <Divider sx={{ my: 4 }} />
 
-                {/* Section 3: Contacts */}
-                <Grid item xs={12}>
-                    <Card sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                        <CardHeader title='3. Contacts' titleTypographyProps={{ variant: 'h5' }} />
-                        <Divider />
-                        <CardContent>
-                            <SectionContacts isDisabled={isSectionsDisabled} />
-                        </CardContent>
-                    </Card>
-                </Grid>
+                                {/* Section 2: Profile */}
+                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                                    <Typography variant='h5' sx={{ mb: 3 }}>2. Vendor Profile</Typography>
+                                    <SectionProfile isDisabled={isSectionsDisabled} />
+                                </Box>
 
-                {/* Section 4: Products */}
-                <Grid item xs={12}>
-                    <Card sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                        <CardHeader title='4. Products' titleTypographyProps={{ variant: 'h5' }} />
-                        <Divider />
-                        <CardContent>
-                            <SectionProducts isDisabled={isSectionsDisabled} />
-                        </CardContent>
-                    </Card>
-                </Grid>
+                                <Divider sx={{ my: 4 }} />
 
-                {/* Actions */}
-                <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start' }}>
-                        <Button
-                            variant='contained'
-                            color='primary'
-                            size='large'
-                            disabled={isSaving || isSectionsDisabled}
-                            startIcon={isSaving ? <CircularProgress size={16} color='primary' /> : null}
-                            onClick={handleSubmit(onSubmit)}
-                        >
-                            {isSaving ? 'Saving...' : 'Add Vendor Information'}
-                        </Button>
-                        <Button variant='tonal' color='secondary' onClick={handleReset} disabled={isSaving}>
-                            Cancel / Reset
-                        </Button>
-                    </Box>
-                </Grid>
-            </FormProvider>
+                                {/* Section 3: Contacts */}
+                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                                    <Typography variant='h5' sx={{ mb: 3 }}>3. Contacts</Typography>
+                                    <SectionContacts isDisabled={isSectionsDisabled} />
+                                </Box>
 
-            {/* Confirm Modal */}
-            <ConfirmModal
-                show={confirmModal}
-                onConfirmClick={handleConfirmSave}
-                onCloseClick={() => setConfirmModal(false)}
-                isDelete={false}
-                isLoading={isSaving}
-            />
+                                <Divider sx={{ my: 4 }} />
 
-            {/* Success Modal */}
-            <SuccessModal
-                show={successModal}
-                title='บันทึกสำเร็จ!'
-                message='เพิ่มข้อมูล Vendor ใหม่เรียบร้อยแล้ว'
-                vendorId={successVendorId}
-                vendorData={successVendorData}
-                onCloseClick={handleSuccessClose}
-            />
+                                {/* Section 4: Products */}
+                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                                    <Typography variant='h5' sx={{ mb: 3 }}>4. Products</Typography>
+                                    <SectionProducts isDisabled={isSectionsDisabled} />
+                                </Box>
 
-            {/* Error Modal */}
-            <ErrorModal
-                show={errorModal}
-                title='This vendor is already in the system.'
-                message={"Please check the vendor name and try again. Or Edit Existing."}
-                onCloseClick={handleErrorClose}
-            />
-        </Grid>
+                                <Divider sx={{ my: 4 }} />
+
+                                {/* Actions */}
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button
+                                        variant='contained'
+                                        color='primary'
+                                        size='large'
+                                        disabled={isSaving || isSectionsDisabled}
+                                        startIcon={isSaving ? <CircularProgress size={16} /> : null}
+                                        onClick={handleSubmit(onSubmit)}
+                                    >
+                                        {isSaving ? 'Saving...' : 'Add Vendor Information'}
+                                    </Button>
+                                    <Button variant='tonal' color='secondary' onClick={handleReset} disabled={isSaving}>
+                                        Cancel / Reset
+                                    </Button>
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </FormProvider>
+
+                {/* Modals */}
+                <ConfirmModal
+                    show={confirmModal}
+                    onConfirmClick={handleConfirmSave}
+                    onCloseClick={() => setConfirmModal(false)}
+                    isDelete={false}
+                    isLoading={isSaving}
+                />
+                <SuccessModal
+                    show={successModal}
+                    title='Saved Successfully!'
+                    message='New vendor information has been added.'
+                    vendorId={successVendorId}
+                    vendorData={successVendorData}
+                    onCloseClick={() => { setSuccessModal(false); handleReset(); }}
+                />
+                <ErrorModal
+                    show={errorModal}
+                    title='This vendor is already in the system.'
+                    message='Please check the vendor name and try again.'
+                    onCloseClick={() => setErrorModal(false)}
+                />
+            </Grid>
+        </>
     )
 }
 
