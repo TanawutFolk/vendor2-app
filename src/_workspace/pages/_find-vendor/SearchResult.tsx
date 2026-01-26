@@ -86,6 +86,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     // Shared search parameters (same as used in server-side datasource)
     const paramForSearch: FindVendorSearchRequestI = useMemo(() => ({
         SearchFilters: [
+            { id: 'global_search', value: searchFilters.global_search || '' },
             { id: 'company_name', value: searchFilters.company_name || '' },
             { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
             { id: 'province', value: searchFilters.province?.value || '' },
@@ -271,8 +272,8 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             },
             {
                 field: 'group_name',
-                headerName: 'Group Name',
-                width: 150,
+                headerName: 'Product group',
+                width: 165,
                 filter: 'agTextColumnFilter'
             },
             {
@@ -387,6 +388,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
 
                 const requestParams: FindVendorSearchRequestI = {
                     SearchFilters: [
+                        { id: 'global_search', value: searchFilters.global_search || '' },
                         { id: 'company_name', value: searchFilters.company_name || '' },
                         { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
                         { id: 'province', value: searchFilters.province?.value || '' },

@@ -21,7 +21,8 @@ export const SearchFiltersSchema = z.object({
     }).nullable().optional(),
     product_name: z.string().optional().or(z.literal('')),
     maker_name: z.string().optional().or(z.literal('')),
-    model_list: z.string().optional().or(z.literal(''))
+    model_list: z.string().optional().or(z.literal('')),
+    global_search: z.string().optional().or(z.literal(''))
 })
 
 // --- Search Results Schema ---
@@ -55,7 +56,8 @@ export const defaultSearchFilters: SearchFiltersFormData = {
     status: null,
     product_name: '',
     maker_name: '',
-    model_list: ''
+    model_list: '',
+    global_search: ''
 }
 
 export const defaultFindVendorValues: FindVendorFormData = {

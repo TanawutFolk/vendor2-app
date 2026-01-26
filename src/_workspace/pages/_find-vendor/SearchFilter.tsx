@@ -68,6 +68,7 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
             USER_PROFILE_SETTING_PROGRAM_DATA: {
                 searchFilters: {
                     company_name: getValues('searchFilters.company_name'),
+                    global_search: getValues('searchFilters.global_search'),
                     vendor_type_id: getValues('searchFilters.vendor_type_id'),
                     province: getValues('searchFilters.province'),
                     product_group_id: getValues('searchFilters.product_group_id'),
@@ -127,14 +128,14 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                             <Grid container>
                                 <Grid item xs={12} sm={4} md={8}>
                                     <Controller
-                                        name='searchFilters.company_name'
+                                        name='searchFilters.global_search'
                                         control={control}
                                         render={({ field }) => (
                                             <CustomTextField
                                                 {...field}
                                                 fullWidth
-                                                label='Search by แล้วแต่จะพิมพ์'
-                                                placeholder='Enter ...'
+                                                label='Global Search'
+                                                placeholder='Search by Company Name, Vendor Code, etc.'
                                                 autoComplete='off'
                                             />
                                         )}
