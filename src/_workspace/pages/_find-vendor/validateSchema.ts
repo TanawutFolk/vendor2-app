@@ -11,8 +11,8 @@ export const SearchFiltersSchema = z.object({
         value: z.string(),
         label: z.string()
     }).nullable().optional(),
-    group_name: z.object({
-        value: z.string(),
+    product_group_id: z.object({
+        value: z.number(),
         label: z.string()
     }).nullable().optional(),
     status: z.object({
@@ -51,7 +51,7 @@ export const defaultSearchFilters: SearchFiltersFormData = {
     company_name: '',
     vendor_type_id: null,
     province: null,
-    group_name: null,
+    product_group_id: null,
     status: null,
     product_name: '',
     maker_name: '',

@@ -89,7 +89,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             { id: 'company_name', value: searchFilters.company_name || '' },
             { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
             { id: 'province', value: searchFilters.province?.value || '' },
-            { id: 'group_name', value: searchFilters.group_name?.value || '' },
+            { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
             { id: 'status', value: searchFilters.status?.value || '' },
             { id: 'product_name', value: searchFilters.product_name || '' },
             { id: 'maker_name', value: searchFilters.maker_name || '' },
@@ -219,7 +219,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             {
                 field: 'fft_vendor_code',
                 headerName: 'Vendor Code',
-                width: 100,
+                width: 150,
                 filter: 'agTextColumnFilter',
                 pinned: 'left'
             },
@@ -390,7 +390,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                         { id: 'company_name', value: searchFilters.company_name || '' },
                         { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
                         { id: 'province', value: searchFilters.province?.value || '' },
-                        { id: 'group_name', value: searchFilters.group_name?.value || '' },
+                        { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
                         { id: 'status', value: searchFilters.status?.value || '' },
                         { id: 'product_name', value: searchFilters.product_name || '' },
                         { id: 'maker_name', value: searchFilters.maker_name || '' },

@@ -138,7 +138,7 @@ const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
                         <Grid item>
                             <Button
                                 variant='contained'
-                                color='warning'
+                                color='success'
                                 onClick={() => setEditModalOpen(true)}
                                 startIcon={<i className='tabler-edit' />}
                             >
