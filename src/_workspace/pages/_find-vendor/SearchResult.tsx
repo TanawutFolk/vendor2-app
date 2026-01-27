@@ -25,6 +25,7 @@ import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
 import { FftStatusCellRenderer } from './components/fftStatus'
+import EmailCellRenderer from './components/EmailCellRenderer' // New import
 import EditVendorModal from './modal/EditVendorModal'
 import { MENU_ID } from './env'
 
@@ -310,8 +311,9 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             {
                 field: 'email',
                 headerName: 'Email Contact',
-                width: 200,
-                filter: 'agTextColumnFilter'
+                width: 250,
+                filter: 'agTextColumnFilter',
+                cellRenderer: EmailCellRenderer
             },
             {
                 field: 'CREATE_BY',
