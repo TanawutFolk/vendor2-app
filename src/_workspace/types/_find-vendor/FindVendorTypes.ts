@@ -26,6 +26,16 @@ export interface VendorResultI {
     CREATE_DATE: string
     UPDATE_DATE: string
     INUSE: number
+
+    // Contact Audit
+    contact_create_by?: string
+    contact_update_by?: string
+    contact_create_date?: string
+    contact_update_date?: string
+
+    // Product Audit
+    product_update_by?: string
+    product_update_date?: string
 }
 
 // Vendor update request interface
@@ -102,6 +112,10 @@ export interface VendorContactI {
     position: string
     tel_phone: string
     email: string
+    CREATE_BY?: string
+    UPDATE_BY?: string
+    CREATE_DATE?: string
+    UPDATE_DATE?: string
 }
 
 // Product information interface  
@@ -111,6 +125,10 @@ export interface VendorProductI {
     maker_name: string
     product_name: string
     model_list: string
+    CREATE_BY?: string
+    UPDATE_BY?: string
+    CREATE_DATE?: string
+    UPDATE_DATE?: string
 }
 
 // Comprehensive vendor data interface

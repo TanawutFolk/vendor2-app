@@ -104,7 +104,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                     seller_name: record.seller_name || '',
                     position: record.position || '',
                     tel_phone: record.tel_phone || '',
-                    email: record.email || ''
+                    email: record.email || '',
+                    CREATE_BY: record.contact_create_by || '',
+                    UPDATE_BY: record.contact_update_by || '',
+                    CREATE_DATE: record.contact_create_date || '',
+                    UPDATE_DATE: record.contact_update_date || ''
                 }))
 
                 // Transform products to proper format  
@@ -113,7 +117,9 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                     group_name: record.group_name || '',
                     maker_name: record.maker_name || '',
                     product_name: record.product_name || '',
-                    model_list: record.model_list || ''
+                    model_list: record.model_list || '',
+                    UPDATE_BY: record.product_update_by || '',
+                    UPDATE_DATE: record.product_update_date || ''
                 }))
 
                 // Combine all data into comprehensive format
@@ -179,14 +185,20 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                         seller_name: basicData.seller_name || '',
                         position: basicData.position || '',
                         tel_phone: basicData.tel_phone || '',
-                        email: basicData.email || ''
+                        email: basicData.email || '',
+                        CREATE_BY: basicData.contact_create_by || '',
+                        UPDATE_BY: basicData.contact_update_by || '',
+                        CREATE_DATE: basicData.contact_create_date || '',
+                        UPDATE_DATE: basicData.contact_update_date || ''
                     }],
                     products: [{
                         vendor_product_id: basicData.vendor_product_id,
                         group_name: basicData.group_name || '',
                         maker_name: basicData.maker_name || '',
                         product_name: basicData.product_name || '',
-                        model_list: basicData.model_list || ''
+                        model_list: basicData.model_list || '',
+                        UPDATE_BY: basicData.product_update_by || '',
+                        UPDATE_DATE: basicData.product_update_date || ''
                     }],
                     CREATE_BY: basicData.CREATE_BY,
                     UPDATE_BY: basicData.UPDATE_BY,
@@ -813,7 +825,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Created By
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.CREATE_BY || 'N/A'}
+                                                                                {contact.CREATE_BY || 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -821,7 +833,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Updated By
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.UPDATE_BY || 'N/A'}
+                                                                                {contact.UPDATE_BY || 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -829,7 +841,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Created Date
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                {contact.CREATE_DATE ? new Date(contact.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -837,7 +849,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Last Update
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                {contact.UPDATE_DATE ? new Date(contact.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                     </Grid>
@@ -951,7 +963,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Created By
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.CREATE_BY || 'N/A'}
+                                                                                {product.CREATE_BY || 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -959,7 +971,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Updated By
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.UPDATE_BY || 'N/A'}
+                                                                                {product.UPDATE_BY || 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -967,7 +979,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Created Date
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.CREATE_DATE ? new Date(vendorData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                {product.CREATE_DATE ? new Date(product.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                         <Grid item xs={6}>
@@ -975,7 +987,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess }: EditVendorModal
                                                                                 Last Update
                                                                             </Typography>
                                                                             <Typography variant="body2" fontSize="0.75rem">
-                                                                                {vendorData.UPDATE_DATE ? new Date(vendorData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                {product.UPDATE_DATE ? new Date(product.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                             </Typography>
                                                                         </Grid>
                                                                     </Grid>

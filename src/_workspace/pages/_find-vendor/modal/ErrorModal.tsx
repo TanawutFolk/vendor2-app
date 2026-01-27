@@ -1,22 +1,16 @@
 'use client'
 
+// React Imports
 import type { ReactElement, Ref } from 'react'
-import { forwardRef, useState } from 'react'
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Typography,
-    Box,
-    Slide,
-    SlideProps,
-    Collapse,
-    IconButton
-} from '@mui/material'
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
+import { forwardRef } from 'react'
+
+// MUI Imports
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import type { SlideProps } from '@mui/material'
+import { Box, Slide, Typography } from '@mui/material'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -30,31 +24,31 @@ interface ErrorModalProps {
     onClose: () => void
     title?: string
     message?: string
-    errorDetails?: string
+    errorDetails?: string // Kept for compatibility but not displayed
     onRetry?: () => void
 }
 
 const ErrorModal = ({
     open,
     onClose,
-    title = "An Error Occurred",
-    message = "Unable to save data",
-    errorDetails,
+    title = 'Error!',
+    message = 'Something went wrong',
     onRetry
 }: ErrorModalProps) => {
-    const [showDetails, setShowDetails] = useState(false)
-
     return (
         <Dialog
+            maxWidth='xs'
+            fullWidth={true}
             open={open}
+            disableEscapeKeyDown
+            aria-labelledby='error-dialog-title'
+            aria-describedby='error-dialog-description'
+            TransitionComponent={Transition}
             onClose={(event, reason) => {
                 if (reason !== 'backdropClick') {
                     onClose()
                 }
             }}
-            maxWidth="xs"
-            fullWidth
-            TransitionComponent={Transition}
             sx={{
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
@@ -81,46 +75,11 @@ const ErrorModal = ({
                         {title}
                     </Typography>
                 </Box>
-                <Box sx={{ mb: 3, textAlign: 'center' }}>
+                <Box sx={{ mb: 2, textAlign: 'center' }}>
                     <Typography variant='body1' sx={{ color: 'text.secondary' }}>
                         {message}
                     </Typography>
                 </Box>
-
-                {errorDetails && (
-                    <Box sx={{ mt: 2, width: '100%' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            <Button
-                                size="small"
-                                color="inherit"
-                                onClick={() => setShowDetails(!showDetails)}
-                                endIcon={showDetails ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                            >
-                                {showDetails ? 'Hide Details' : 'Show Details'}
-                            </Button>
-                        </Box>
-
-                        <Collapse in={showDetails}>
-                            <Box
-                                sx={{
-                                    mt: 2,
-                                    bgcolor: 'grey.100',
-                                    p: 2,
-                                    borderRadius: 1,
-                                    fontFamily: 'monospace',
-                                    fontSize: '0.875rem',
-                                    maxHeight: 200,
-                                    overflow: 'auto',
-                                    wordBreak: 'break-all'
-                                }}
-                            >
-                                <Typography variant="caption" component="pre" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-                                    {errorDetails}
-                                </Typography>
-                            </Box>
-                        </Collapse>
-                    </Box>
-                )}
             </DialogContent>
 
             <DialogActions
@@ -132,23 +91,11 @@ const ErrorModal = ({
                 }}
             >
                 {onRetry && (
-                    <Button
-                        variant='contained'
-                        color='primary'
-                        onClick={onRetry}
-                        size='large'
-                        sx={{ minWidth: 100 }}
-                    >
-                        Retry
+                    <Button variant='contained' color='primary' onClick={onRetry} size='large'>
+                        Try Again
                     </Button>
                 )}
-                <Button
-                    variant='tonal'
-                    color='secondary'
-                    onClick={onClose}
-                    size='large'
-                    sx={{ minWidth: 100 }}
-                >
+                <Button variant='tonal' color='secondary' onClick={onClose} size='large'>
                     Close
                 </Button>
             </DialogActions>
