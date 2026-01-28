@@ -62,6 +62,7 @@ export interface VendorUpdateRequestI {
     email?: string
     position?: string
     UPDATE_BY?: string
+    INUSE?: number
 }
 
 // Search filter item interface

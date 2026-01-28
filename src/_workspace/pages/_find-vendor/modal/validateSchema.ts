@@ -9,6 +9,7 @@ export const editVendorSchema = z.object({
     website: z.string().nullable().optional(),
     tel_center: z.string().nullable().optional(),
     address: z.string().nullable().optional(),
+    INUSE: z.number().nullable().optional(), // 1=Active, 0=Inactive
     contacts: z.array(
         z.object({
             vendor_contact_id: z.number().optional(), // Hidden ID
@@ -16,6 +17,7 @@ export const editVendorSchema = z.object({
             email: z.string().email("Invalid email format").nullable().optional().or(z.literal('')),
             tel_phone: z.string().nullable().optional(),
             position: z.string().nullable().optional(),
+            INUSE: z.number().nullable().optional(),
             // Audit fields (optional, for display/preservation)
             CREATE_BY: z.string().nullable().optional(),
             UPDATE_BY: z.string().nullable().optional(),
@@ -31,6 +33,7 @@ export const editVendorSchema = z.object({
             group_name: z.string().nullable().optional(), // Ensure availability for display/state
             maker_name: z.string().nullable().optional(),
             model_list: z.string().nullable().optional(),
+            INUSE: z.number().nullable().optional(),
             // Audit fields
             CREATE_BY: z.string().nullable().optional(),
             UPDATE_BY: z.string().nullable().optional(),

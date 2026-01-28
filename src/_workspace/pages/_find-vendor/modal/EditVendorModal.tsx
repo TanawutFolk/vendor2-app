@@ -25,6 +25,9 @@ import {
     Collapse
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import MailOutlineIcon from '@mui/icons-material/MailOutline'
+import { InputAdornment, Tooltip } from '@mui/material'
 
 // Third-party Imports
 import classNames from 'classnames'
@@ -37,13 +40,15 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import ConfirmModal from './ConfirmModal'
 import SuccessModal from './SuccessModal'
 import ErrorModal from './ErrorModal'
+import { EmailActionButtons } from './EmailActionButtons'
 import AddProductGroupModal from '../../_add-vendor/modal/AddProductGroupModal'
 import { FftStatusChip } from '../components/fftStatus'
 
 // Services & Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchProductGroups, fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { FormControlLabel, Switch } from '@mui/material'
 
 // Types & Schema Imports
 import type {
@@ -73,17 +78,18 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         resolver: zodResolver(editVendorSchema),
         defaultValues: {
             company_name: '',
+            vendor_type_id: null,
             contacts: [],
             products: []
         }
     })
 
-    const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
+    const { fields: contactFields, append: appendContact, remove: removeContactField } = useFieldArray({
         control,
         name: 'contacts'
     })
 
-    const { fields: productFields, append: appendProduct, remove: removeProduct } = useFieldArray({
+    const { fields: productFields, append: appendProduct, remove: removeProductField } = useFieldArray({
         control,
         name: 'products'
     })
@@ -91,6 +97,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     const [originalData, setOriginalData] = useState<VendorComprehensiveI | null>(null)
     const [showAddProductGroupModal, setShowAddProductGroupModal] = useState(false)
     const [productGroupRefreshKey, setProductGroupRefreshKey] = useState(0)
+    const [deletedContactIds, setDeletedContactIds] = useState<number[]>([])
+    const [deletedProductIds, setDeletedProductIds] = useState<number[]>([])
 
     // Modal states
     const [confirmModalOpen, setConfirmModalOpen] = useState(false)
@@ -99,8 +107,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     const [successData, setSuccessData] = useState<any>(null)
     const [errorMessage, setErrorMessage] = useState<string>('')
     const [errorDetails, setErrorDetails] = useState<any>(null)
-    const [vendorFftCode, setVendorFftCode] = useState<string | undefined>(undefined)
-    const [vendorFftStatus, setVendorFftStatus] = useState<number | undefined>(undefined)
+    const [vendorFftCode, setVendorFftCode] = useState<string | null | undefined>(undefined)
+    const [vendorFftStatus, setVendorFftStatus] = useState<number | null | undefined>(undefined)
 
     // Watch for changes to display in header
     const watchedValues = watch()
@@ -205,7 +213,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                 setOriginalData(JSON.parse(JSON.stringify(comprehensiveData))) // Deep copy for comparison
                 reset(comprehensiveData) // RHF: Reset form with fetched data
                 setVendorFftCode(basicVendorData.fft_vendor_code)
-                setVendorFftStatus(basicVendorData.fft_status)
+                setVendorFftStatus(basicVendorData.fft_status != null ? Number(basicVendorData.fft_status) : null)
                 return
 
             } catch (searchErr) {
@@ -257,10 +265,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                 }
                 setOriginalData(JSON.parse(JSON.stringify(fallbackData))) // Deep copy
                 reset(fallbackData)
+                setDeletedContactIds([])
+                setDeletedProductIds([])
                 setVendorFftCode(basicData.fft_vendor_code)
-                setVendorFftStatus(basicData.fft_status)
+                setVendorFftStatus(basicData.fft_status != null ? Number(basicData.fft_status) : null)
             }
-
         } catch (err: any) {
             setError(err?.message || 'Failed to fetch vendor data')
         } finally {
@@ -292,8 +301,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
         // Helper: Check if vendor fields have changed
         const hasVendorFieldsChanged = (original: VendorComprehensiveI, current: EditVendorSchemaType): boolean => {
-            const vendorFields = ['company_name', 'vendor_type_id', 'province', 'postal_code', 'website', 'address', 'tel_center'] as const
-            return vendorFields.some(field => (original as any)[field] != (current as any)[field])
+            const vendorFields = ['company_name', 'province', 'postal_code', 'website', 'address', 'tel_center', 'INUSE'] as const
+            if (vendorFields.some(field => (original as any)[field] != (current as any)[field])) return true
+            // Special handling for object-based vendor_type_id
+            if (original.vendor_type_id !== ((current.vendor_type_id as any)?.value || null)) return true
+            return false
         }
 
         // Helper: Get changed contacts
@@ -328,7 +340,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                     const originalProduct = original.find(p => p.vendor_product_id === currentProduct.vendor_product_id)
                     if (originalProduct) {
                         const hasChanged = (
-                            currentProduct.product_group_id !== originalProduct.product_group_id ||
+                            (currentProduct.product_group_id as any)?.value !== originalProduct.product_group_id ||
                             currentProduct.maker_name !== originalProduct.maker_name ||
                             currentProduct.product_name !== originalProduct.product_name ||
                             currentProduct.model_list !== originalProduct.model_list
@@ -394,12 +406,13 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                 const vendorUpdateData: VendorUpdateRequestI = {
                     vendor_id: vendorId,
                     company_name: data.company_name,
-                    vendor_type_id: data.vendor_type_id,
+                    vendor_type_id: (data.vendor_type_id as any)?.value || null,
                     province: data.province ?? undefined,
                     postal_code: data.postal_code ?? undefined,
                     website: data.website ?? undefined,
                     address: data.address ?? undefined,
                     tel_center: data.tel_center ?? undefined,
+                    INUSE: data.INUSE ?? undefined,
                     UPDATE_BY: userCode
                 }
 
@@ -508,8 +521,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                 products: data.products,
                 updateSummary: {
                     vendor: hasVendorFieldsChanged(originalData, data) ? 1 : 0,
-                    contacts: changedContacts.length + getNewContacts(data.contacts).length,
-                    products: changedProducts.length + getNewProducts(data.products).length,
+                    contacts: changedContacts.length + getNewContacts(data.contacts).length + deletedContactIds.length,
+                    products: changedProducts.length + getNewProducts(data.products).length + deletedProductIds.length,
                     successful: updatedCount,
                     total: updatedCount
                 },
@@ -552,7 +565,25 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         reset()
         setEditingMode('view')
         setError(null)
+        setDeletedContactIds([])
+        setDeletedProductIds([])
         onClose()
+    }
+
+    const removeContact = (index: number) => {
+        const contact = getValues(`contacts.${index}`)
+        if (contact && contact.vendor_contact_id) {
+            setDeletedContactIds(prev => [...prev, contact.vendor_contact_id!])
+        }
+        removeContactField(index)
+    }
+
+    const removeProduct = (index: number) => {
+        const product = getValues(`products.${index}`)
+        if (product && product.vendor_product_id) {
+            setDeletedProductIds(prev => [...prev, product.vendor_product_id!])
+        }
+        removeProductField(index)
     }
 
     return (
@@ -571,9 +602,29 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                 variant="outlined"
                             />
                         )}
-                        {vendorFftStatus !== undefined && (
+                        {vendorFftStatus != null && (
                             <FftStatusChip value={vendorFftStatus} />
                         )}
+                        {/* Enable/Disable Switch */}
+                        <Controller
+                            name="INUSE"
+                            control={control}
+                            render={({ field }) => (
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={field.value === 1}
+                                            onChange={(e) => field.onChange(e.target.checked ? 1 : 0)}
+                                            color="success"
+                                            disabled={editingMode === 'view'}
+                                        />
+                                    }
+                                    label={field.value === 1 ? "Active" : "Inactive"}
+                                    labelPlacement="end"
+                                    sx={{ ml: 2, mr: 0 }}
+                                />
+                            )}
+                        />
                     </Box>
                     <IconButton
                         onClick={toggleEditMode}
@@ -650,17 +701,13 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                         render={({ field }) => (
                                                             <AsyncSelectCustom
                                                                 label='Vendor Type'
-                                                                value={field.value ? { value: field.value, label: (watchedValues as any).vendor_type_name || '' } : null}
+                                                                {...field}
                                                                 placeholder='Select Type...'
                                                                 defaultOptions
                                                                 cacheOptions
                                                                 isClearable
                                                                 loadOptions={fetchVendorTypes}
                                                                 classNamePrefix='select'
-                                                                onChange={(option: any) => {
-                                                                    field.onChange(option?.value || null)
-                                                                    // We might need to handle side-effect for label if needed for display, or just rely on ID
-                                                                }}
                                                                 isDisabled={editingMode === 'view'}
                                                             />
                                                         )}
@@ -825,24 +872,27 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                     />
                                     <Collapse in={expandedSections.includes('contacts')}>
                                         <CardContent>
-                                            <Grid container spacing={2}>
+                                            <Grid container spacing={4}>
                                                 {contactFields.map((contact, index) => (
-                                                    <Grid item xs={12} md={6} key={contact.id}>
+                                                    <Grid item xs={12} key={contact.id}>
                                                         <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%', position: 'relative' }}>
                                                             <CardContent>
-                                                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                                                    <Typography variant="subtitle2">
-                                                                        Contact {index + 1}
-                                                                        {!contact.vendor_contact_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
-                                                                    </Typography>
-                                                                    {!contact.vendor_contact_id && editingMode === 'edit' && (
-                                                                        <IconButton size="small" color="error" onClick={() => removeContact(index)}>
-                                                                            <i className="tabler-trash" />
-                                                                        </IconButton>
-                                                                    )}
-                                                                </Box>
-                                                                <Grid container spacing={1}>
+                                                                <Grid container spacing={3}>
                                                                     <Grid item xs={12}>
+                                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                                            <Typography variant="subtitle1" color="primary">
+                                                                                Contact {index + 1}
+                                                                                {!contact.vendor_contact_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
+                                                                            </Typography>
+                                                                            {!contact.vendor_contact_id && editingMode === 'edit' && (
+                                                                                <IconButton size="small" color="error" onClick={() => removeContact(index)}>
+                                                                                    <i className="tabler-trash" />
+                                                                                </IconButton>
+                                                                            )}
+                                                                        </Box>
+                                                                        <Divider sx={{ mt: 1, mb: 2 }} />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={6} md={3}>
                                                                         <Controller
                                                                             name={`contacts.${index}.contact_name`}
                                                                             control={control}
@@ -857,30 +907,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                     helperText={errors.contacts?.[index]?.contact_name?.message}
                                                                                     disabled={editingMode === 'view'}
                                                                                     InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    sx={{ mb: 1 }}
                                                                                 />
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12}>
-                                                                        <Controller
-                                                                            name={`contacts.${index}.position`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Position"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    sx={{ mb: 1 }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
+                                                                    <Grid item xs={12} sm={6} md={3}>
                                                                         <Controller
                                                                             name={`contacts.${index}.tel_phone`}
                                                                             control={control}
@@ -893,12 +924,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                     size="small"
                                                                                     disabled={editingMode === 'view'}
                                                                                     InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    sx={{ mb: 1 }}
                                                                                 />
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12}>
+                                                                    <Grid item xs={12} sm={6} md={3}>
                                                                         <Controller
                                                                             name={`contacts.${index}.email`}
                                                                             control={control}
@@ -911,9 +941,34 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                     size="small"
                                                                                     error={!!errors.contacts?.[index]?.email}
                                                                                     helperText={errors.contacts?.[index]?.email?.message}
+                                                                                    InputProps={{
+                                                                                        readOnly: editingMode === 'view',
+                                                                                        endAdornment: field.value && (
+                                                                                            <InputAdornment position="end">
+                                                                                                <EmailActionButtons
+                                                                                                    email={field.value}
+                                                                                                    contactName={getValues(`contacts.${index}.contact_name`)}
+                                                                                                />
+                                                                                            </InputAdornment>
+                                                                                        )
+                                                                                    }}
+                                                                                />
+                                                                            )}
+                                                                        />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                        <Controller
+                                                                            name={`contacts.${index}.position`}
+                                                                            control={control}
+                                                                            render={({ field }) => (
+                                                                                <CustomTextField
+                                                                                    {...field}
+                                                                                    fullWidth
+                                                                                    label="Position"
+                                                                                    value={field.value || ''}
+                                                                                    size="small"
                                                                                     disabled={editingMode === 'view'}
                                                                                     InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    sx={{ mb: 1 }}
                                                                                 />
                                                                             )}
                                                                         />
@@ -921,47 +976,35 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
                                                                     {/* Contact Metadata */}
                                                                     {contact.vendor_contact_id && (
-                                                                        <>
-                                                                            <Grid item xs={12}>
-                                                                                <Divider sx={{ my: 1 }}>
-                                                                                    <Typography variant="caption" color="text.secondary">
-                                                                                        Contact Info
+                                                                        <Grid item xs={12}>
+                                                                            <Divider sx={{ my: 1 }}>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    Contact Info
+                                                                                </Typography>
+                                                                            </Divider>
+                                                                            <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary' }}>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Created By</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">{contact.CREATE_BY || 'N/A'}</Typography>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Created Date</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                                                        {contact.CREATE_DATE ? new Date(contact.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                                     </Typography>
-                                                                                </Divider>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Created By
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {contact.CREATE_BY || 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Updated By
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {contact.UPDATE_BY || 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Created Date
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {contact.CREATE_DATE ? new Date(contact.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Last Update
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {contact.UPDATE_DATE ? new Date(contact.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                        </>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Last Update By</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">{contact.UPDATE_BY || 'N/A'}</Typography>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Last Update Date</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                                                        {contact.UPDATE_DATE ? new Date(contact.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                            </Box>
+                                                                        </Grid>
                                                                     )}
                                                                 </Grid>
                                                             </CardContent>
@@ -1011,24 +1054,80 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                     />
                                     <Collapse in={expandedSections.includes('products')}>
                                         <CardContent>
-                                            <Grid container spacing={2}>
+                                            <Grid container spacing={4}>
                                                 {productFields.map((product, index) => (
-                                                    <Grid item xs={12} md={6} key={product.id}>
+                                                    <Grid item xs={12} key={product.id}>
                                                         <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
                                                             <CardContent>
-                                                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                                                    <Typography variant="subtitle2">
-                                                                        Product {index + 1}
-                                                                        {!product.vendor_product_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
-                                                                    </Typography>
-                                                                    {!product.vendor_product_id && editingMode === 'edit' && (
-                                                                        <IconButton size="small" color="error" onClick={() => removeProduct(index)}>
-                                                                            <i className="tabler-trash" />
-                                                                        </IconButton>
-                                                                    )}
-                                                                </Box>
-                                                                <Grid container spacing={1}>
+                                                                <Grid container spacing={3}>
                                                                     <Grid item xs={12}>
+                                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                                            <Typography variant="subtitle1" color="primary">
+                                                                                Product {index + 1}
+                                                                                {!product.vendor_product_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
+                                                                            </Typography>
+                                                                            {editingMode === 'edit' && (
+                                                                                <IconButton size="small" color="error" onClick={() => removeProduct(index)}>
+                                                                                    <i className="tabler-trash" />
+                                                                                </IconButton>
+                                                                            )}
+                                                                        </Box>
+                                                                        <Divider sx={{ mt: 1, mb: 2 }} />
+                                                                    </Grid>
+
+                                                                    <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                            <Controller
+                                                                                name={`products.${index}.product_group_id`}
+                                                                                control={control}
+                                                                                render={({ field }) => (
+                                                                                    <AsyncSelectCustom
+                                                                                        key={`product-group-${index}-${productGroupRefreshKey}`}
+                                                                                        label='Product Group'
+                                                                                        {...field}
+                                                                                        loadOptions={(inputValue, callback) => {
+                                                                                            fetchProductGroups(inputValue).then(options => callback(options as any))
+                                                                                        }}
+                                                                                        defaultOptions
+                                                                                        cacheOptions={false}
+                                                                                        isClearable
+                                                                                        isDisabled={editingMode === 'view'}
+                                                                                        placeholder='Select group...'
+                                                                                        classNamePrefix='select'
+                                                                                    />
+                                                                                )}
+                                                                            />
+                                                                        </Box>
+                                                                        {editingMode === 'edit' && (
+                                                                            <Button
+                                                                                variant='tonal'
+                                                                                color='secondary'
+                                                                                onClick={() => setShowAddProductGroupModal(true)}
+                                                                                sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, mt: 0.5 }}
+                                                                                title='Add Product Group'
+                                                                            >
+                                                                                <i className='tabler-plus' />
+                                                                            </Button>
+                                                                        )}
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                        <Controller
+                                                                            name={`products.${index}.maker_name`}
+                                                                            control={control}
+                                                                            render={({ field }) => (
+                                                                                <CustomTextField
+                                                                                    {...field}
+                                                                                    fullWidth
+                                                                                    label="Maker Name"
+                                                                                    value={field.value || ''}
+                                                                                    size="small"
+                                                                                    disabled={editingMode === 'view'}
+                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
+                                                                                />
+                                                                            )}
+                                                                        />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={6} md={3}>
                                                                         <Controller
                                                                             name={`products.${index}.product_name`}
                                                                             control={control}
@@ -1043,67 +1142,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                     helperText={errors.products?.[index]?.product_name?.message}
                                                                                     disabled={editingMode === 'view'}
                                                                                     InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    sx={{ mb: 1 }}
                                                                                 />
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={6} sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', mb: 1 }}>
-                                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                                            <Controller
-                                                                                name={`products.${index}.product_group_id`}
-                                                                                control={control}
-                                                                                render={({ field }) => (
-                                                                                    <AsyncSelectCustom
-                                                                                        key={`product-group-${index}-${productGroupRefreshKey}`}
-                                                                                        label='Product Group'
-                                                                                        value={field.value ? { value: field.value, label: product.group_name || '' } : null} // Note: simplified label logic for now
-                                                                                        loadOptions={fetchProductGroups}
-                                                                                        defaultOptions
-                                                                                        cacheOptions={false}
-                                                                                        isClearable
-                                                                                        isDisabled={editingMode === 'view'}
-                                                                                        placeholder='Select group...'
-                                                                                        classNamePrefix='select'
-                                                                                        onChange={(option: any) => {
-                                                                                            field.onChange(option?.value || null)
-                                                                                            // Manually update group_name in form state for display purposes
-                                                                                            setValue(`products.${index}.group_name`, option?.label || '', { shouldDirty: true })
-                                                                                        }}
-                                                                                    />
-                                                                                )}
-                                                                            />
-                                                                        </Box>
-                                                                        {editingMode === 'edit' && (
-                                                                            <Button
-                                                                                variant='tonal'
-                                                                                color='secondary'
-                                                                                onClick={() => setShowAddProductGroupModal(true)}
-                                                                                sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0 }}
-                                                                                title='Add Product Group'
-                                                                            >
-                                                                                <i className='tabler-plus' />
-                                                                            </Button>
-                                                                        )}
-                                                                    </Grid>
-                                                                    <Grid item xs={6} sx={{ display: 'flex', alignItems: 'flex-end', mb: 1 }}>
-                                                                        <Controller
-                                                                            name={`products.${index}.maker_name`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Maker"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12}>
+                                                                    <Grid item xs={12} sm={6} md={3}>
                                                                         <Controller
                                                                             name={`products.${index}.model_list`}
                                                                             control={control}
@@ -1111,15 +1154,12 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                 <CustomTextField
                                                                                     {...field}
                                                                                     fullWidth
-                                                                                    label="Models"
+                                                                                    multiline
+                                                                                    label="Model List"
                                                                                     value={field.value || ''}
                                                                                     size="small"
-                                                                                    multiline
-                                                                                    rows={2}
                                                                                     disabled={editingMode === 'view'}
                                                                                     InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                    helperText="Separate models with new lines"
-                                                                                    sx={{ mb: 2 }}
                                                                                 />
                                                                             )}
                                                                         />
@@ -1127,47 +1167,35 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
                                                                     {/* Product Metadata */}
                                                                     {product.vendor_product_id && (
-                                                                        <>
-                                                                            <Grid item xs={12}>
-                                                                                <Divider sx={{ my: 1 }}>
-                                                                                    <Typography variant="caption" color="text.secondary">
-                                                                                        Product Info
+                                                                        <Grid item xs={12}>
+                                                                            <Divider sx={{ my: 1 }}>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    Product Info
+                                                                                </Typography>
+                                                                            </Divider>
+                                                                            <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary' }}>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Created By</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">{product.CREATE_BY || 'N/A'}</Typography>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Created Date</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                                                        {product.CREATE_DATE ? new Date(product.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                                                     </Typography>
-                                                                                </Divider>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Created By
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {product.CREATE_BY || 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Updated By
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {product.UPDATE_BY || 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Created Date
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {product.CREATE_DATE ? new Date(product.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                            <Grid item xs={6}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Last Update
-                                                                                </Typography>
-                                                                                <Typography variant="body2" fontSize="0.75rem">
-                                                                                    {product.UPDATE_DATE ? new Date(product.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                </Typography>
-                                                                            </Grid>
-                                                                        </>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Last Update By</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">{product.UPDATE_BY || 'N/A'}</Typography>
+                                                                                </Box>
+                                                                                <Box>
+                                                                                    <Typography variant="caption" display="block">Last Update Date</Typography>
+                                                                                    <Typography variant="body2" fontSize="0.75rem">
+                                                                                        {product.UPDATE_DATE ? new Date(product.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                            </Box>
+                                                                        </Grid>
                                                                     )}
                                                                 </Grid>
                                                             </CardContent>
@@ -1187,11 +1215,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                     </Grid>
                                                 )}
                                             </Grid>
-                                        </CardContent>
-                                    </Collapse>
-                                </Card>
+                                        </CardContent >
+                                    </Collapse >
+                                </Card >
 
-                            </Box>
+                            </Box >
                         </>
                     )
                     }
