@@ -204,7 +204,7 @@ const SuccessModal = ({
                                                                         <Typography variant='caption' color='text.secondary'>Name</Typography>
                                                                     </Grid>
                                                                     <Grid item xs={12} sm={9}>
-                                                                        <Typography variant='body2' fontWeight={500}>{contact.seller_name}</Typography>
+                                                                        <Typography variant='body2' fontWeight={500}>{contact.contact_name}</Typography>
                                                                     </Grid>
                                                                 </Grid>
                                                             </Grid>

@@ -131,8 +131,8 @@ export default class FindVendorServices {
         // Extract unique contacts (by contact info)
         const contactsMap = new Map<string, VendorResultI>()
         allRecords.forEach(record => {
-            if (record.seller_name || record.tel_phone || record.email) {
-                const contactKey = `${record.seller_name || ''}_${record.tel_phone || ''}_${record.email || ''}`
+            if (record.contact_name || record.tel_phone || record.email) {
+                const contactKey = `${record.contact_name || ''}_${record.tel_phone || ''}_${record.email || ''}`
                 if (!contactsMap.has(contactKey)) {
                     contactsMap.set(contactKey, record)
                 }
