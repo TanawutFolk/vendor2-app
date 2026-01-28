@@ -6,7 +6,7 @@ import type { ICellRendererParams } from 'ag-grid-community';
 
 export default function EmailCellRenderer(params: ICellRendererParams) {
     const email = params.value;
-    const contactName = params.data?.seller_name; // Get Contact Name
+    const contactName = params.data?.contact_name; // Get Contact Name
     const [copied, setCopied] = useState(false);
 
     if (!email) {

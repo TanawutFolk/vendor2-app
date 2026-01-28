@@ -1,6 +1,7 @@
-'use client'
+// React Imports
+import { useEffect } from 'react'
 
-import { useState } from 'react'
+// MUI Imports
 import {
     Dialog,
     DialogTitle,
@@ -11,11 +12,29 @@ import {
     Grid,
     CircularProgress
 } from '@mui/material'
+
+// Third-party Imports
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+// Components Imports
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
-import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { ToastMessageSuccess, ToastMessageError } from '@/components/ToastMessage'
+
+// React Query Imports
+import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
+
+// Utils Imports
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
+
+// Validation Schema
+const addProductGroupSchema = z.object({
+    group_name: z.string().min(1, 'Product Group Name is required')
+})
+
+type AddProductGroupFormData = z.infer<typeof addProductGroupSchema>
 
 interface AddProductGroupModalProps {
     open: boolean
@@ -24,13 +43,17 @@ interface AddProductGroupModalProps {
 }
 
 const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModalProps) => {
-    // States
-    const [groupName, setGroupName] = useState('')
-    const [error, setError] = useState<string | null>(null)
+    // Hooks : react-hook-form
+    const { control, handleSubmit, reset, formState: { errors } } = useForm<AddProductGroupFormData>({
+        resolver: zodResolver(addProductGroupSchema),
+        defaultValues: {
+            group_name: ''
+        }
+    })
 
-    // Hooks
+    // Hooks : React Query
     const { mutate, isPending } = useCreate(
-        (data) => {
+        (data: any) => {
             if (data.Status) {
                 ToastMessageSuccess({
                     title: 'Add Product Group',
@@ -45,7 +68,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
                 })
             }
         },
-        (error) => {
+        (error: any) => {
             ToastMessageError({
                 title: 'Add Product Group',
                 message: error?.message || 'Failed to create product group'
@@ -55,22 +78,23 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
 
     // Functions
     const handleClose = () => {
-        setGroupName('')
-        setError(null)
+        reset()
         onClose()
     }
 
-    const handleSave = () => {
-        if (!groupName.trim()) {
-            setError('Product Group Name is required')
-            return
-        }
-
+    const onSubmit = (data: AddProductGroupFormData) => {
         mutate({
-            group_name: groupName.trim(),
+            group_name: data.group_name.trim(),
             CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
         })
     }
+
+    // Reset form when modal opens
+    useEffect(() => {
+        if (open) {
+            reset({ group_name: '' })
+        }
+    }, [open, reset])
 
     return (
         <Dialog
@@ -97,18 +121,21 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
             <DialogContent>
                 <Grid container spacing={4} sx={{ pt: 2 }}>
                     <Grid item xs={12}>
-                        <CustomTextField
-                            fullWidth
-                            label='Product Group Name'
-                            placeholder='Enter product group name...'
-                            value={groupName}
-                            onChange={(e) => {
-                                setGroupName(e.target.value)
-                                setError(null)
-                            }}
-                            autoComplete='off'
-                            error={!!error}
-                            helperText={error}
+                        <Controller
+                            name="group_name"
+                            control={control}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    fullWidth
+                                    label='Product Group Name'
+                                    placeholder='Enter product group name...'
+                                    autoComplete='off'
+                                    error={!!errors.group_name}
+                                    helperText={errors.group_name?.message}
+                                    disabled={isPending}
+                                />
+                            )}
                         />
                     </Grid>
                 </Grid>
@@ -117,7 +144,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
                 <Button
                     variant='contained'
                     color='primary'
-                    onClick={handleSave}
+                    onClick={handleSubmit(onSubmit)}
                     disabled={isPending}
                     startIcon={isPending ? <CircularProgress size={16} color='inherit' /> : null}
                 >

@@ -115,7 +115,7 @@ const AddVendorPage = () => {
             note: getValues('note'),
             CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN',
             contacts: getValues('contacts').map(c => ({
-                seller_name: c.seller_name,
+                contact_name: c.contact_name,
                 tel_phone: c.tel_phone,
                 email: c.email,
                 position: c.position

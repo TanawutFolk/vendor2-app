@@ -46,7 +46,7 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                 </Grid>
                                 <Grid item xs={12} sm={6} md={3}>
                                     <Controller
-                                        name={`contacts.${index}.seller_name`}
+                                        name={`contacts.${index}.contact_name`}
                                         control={control}
                                         render={({ field }) => (
                                             <CustomTextField
@@ -56,9 +56,9 @@ const SectionContacts = ({ isDisabled }: SectionContactsProps) => {
                                                 placeholder='Enter name...'
                                                 autoComplete='off'
                                                 disabled={isDisabled}
-                                                {...(errors.contacts?.[index]?.seller_name && {
+                                                {...(errors.contacts?.[index]?.contact_name && {
                                                     error: true,
-                                                    helperText: errors.contacts[index]?.seller_name?.message
+                                                    helperText: errors.contacts[index]?.contact_name?.message
                                                 })}
                                             />
                                         )}

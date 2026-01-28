@@ -8,7 +8,7 @@ import {
 
 // --- Contact Schema (สำหรับ vendor_contacts table) ---
 export const ContactSchema = z.object({
-    seller_name: z
+    contact_name: z
         .string({
             required_error: requiredFieldMessage({ fieldName: 'Seller Name' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Seller Name', typeName: 'String' })
@@ -138,7 +138,7 @@ export type ProductFormData = z.infer<typeof ProductSchema>
 
 // --- Default Values ---
 export const defaultContactValues: ContactFormData = {
-    seller_name: '',
+    contact_name: '',
     tel_phone: '',
     email: '',
     position: ''

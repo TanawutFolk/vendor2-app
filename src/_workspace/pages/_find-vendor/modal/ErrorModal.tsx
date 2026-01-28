@@ -24,17 +24,20 @@ interface ErrorModalProps {
     onClose: () => void
     title?: string
     message?: string
-    errorDetails?: string // Kept for compatibility but not displayed
+    errorDetails?: any
     onRetry?: () => void
 }
 
 const ErrorModal = ({
     open,
     onClose,
-    title = 'Error!',
     message = 'Something went wrong',
+    errorDetails,
     onRetry
 }: ErrorModalProps) => {
+    // Extract ResultOnDb message if available
+    const dbMessage = errorDetails?.response?.data?.ResultOnDb?.[0]?.message || errorDetails?.ResultOnDb?.[0]?.message
+    const displayMessage = dbMessage || message
     return (
         <Dialog
             maxWidth='xs'
@@ -71,13 +74,13 @@ const ErrorModal = ({
                     </Box>
                 </Box>
                 <Box sx={{ mb: 2, textAlign: 'center' }}>
-                    <Typography variant='h4' color='error.main'>
-                        {title}
+                    <Typography variant='h5' color='error.main'>
+                        Please check the vendor information all required fields are correct.
                     </Typography>
                 </Box>
                 <Box sx={{ mb: 2, textAlign: 'center' }}>
                     <Typography variant='body1' sx={{ color: 'text.secondary' }}>
-                        {message}
+                        {displayMessage}
                     </Typography>
                 </Box>
             </DialogContent>
@@ -90,13 +93,13 @@ const ErrorModal = ({
                     gap: 2
                 }}
             >
-                {onRetry && (
-                    <Button variant='contained' color='primary' onClick={onRetry} size='large'>
-                        Try Again
-                    </Button>
-                )}
+                {/* 
+                <Button variant='contained' color='primary' onClick={onRetry} size='large'>
+                    Try Again
+                </Button> */}
+
                 <Button variant='tonal' color='secondary' onClick={onClose} size='large'>
-                    Close
+                    OK
                 </Button>
             </DialogActions>
         </Dialog>

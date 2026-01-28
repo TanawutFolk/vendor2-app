@@ -196,12 +196,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         setSelectedVendorId(null)
     }, [])
 
-    const handleEditSuccess = useCallback(() => {
-        // Refresh grid after successful edit
-        if (gridApiRef.current) {
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [])
+
 
     // Column definitions - matching API response
     const columnDefs = useMemo<ColDef[]>(
@@ -297,7 +292,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 valueFormatter: (params) => params.value ? params.value.replace(/\n/g, ', ') : ''
             },
             {
-                field: 'seller_name',
+                field: 'contact_name',
                 headerName: 'Contact Name',
                 width: 180,
                 filter: 'agTextColumnFilter'
@@ -411,16 +406,11 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     const response = await FindVendorServices.search(requestParams)
                     if (response.data.Status) {
                         const rowData = response.data.ResultOnDb
-                        // Debug: เช็ค rowId ที่จะใช้
-                        console.log('rowData:', rowData)
-                        console.log('rowIds:', rowData.map((r: any) => r.vendor_product_id ? `vp_${r.vendor_product_id}` : `v_${r.vendor_id}`))
+                        const totalCount = response.data.TotalCountOnDb
 
-                        // ถ้า TotalCountOnDb เป็น 0 แต่มีข้อมูล ให้ใช้ความยาวของ ResultOnDb
-                        // หรือถ้ามีข้อมูลน้อยกว่า limit แสดงว่าเป็นหน้าสุดท้าย
-                        const totalCount = response.data.TotalCountOnDb || rowData.length
                         params.success({
                             rowData: rowData,
-                            rowCount: totalCount > 0 ? totalCount : rowData.length
+                            rowCount: totalCount
                         })
                     } else {
                         console.error('API Error:', response.data.Message)
@@ -444,6 +434,13 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
 
     const onGridReady = useCallback((params: GridReadyEvent) => {
         gridApiRef.current = params.api
+    }, [])
+
+    // Refresh grid after successful edit
+    const handleEditSuccess = useCallback(() => {
+        if (gridApiRef.current) {
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
     }, [])
 
     return (

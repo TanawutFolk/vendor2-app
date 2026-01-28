@@ -17,7 +17,8 @@ export interface VendorResultI {
     model_list: string
     vendor_contact_id?: number
     vendor_product_id?: number
-    seller_name: string
+    product_group_id?: number
+    contact_name: string
     tel_phone: string
     email: string
     position: string
@@ -53,8 +54,10 @@ export interface VendorUpdateRequestI {
     product_name?: string
     model_list?: string
     vendor_contact_id?: number
+
     vendor_product_id?: number
-    seller_name?: string
+    product_group_id?: number
+    contact_name?: string
     tel_phone?: string
     email?: string
     position?: string
@@ -108,7 +111,7 @@ export interface DropdownResponseI {
 // Contact information interface
 export interface VendorContactI {
     vendor_contact_id?: number
-    seller_name: string
+    contact_name: string
     position: string
     tel_phone: string
     email: string
@@ -121,6 +124,7 @@ export interface VendorContactI {
 // Product information interface  
 export interface VendorProductI {
     vendor_product_id?: number
+    product_group_id?: number
     group_name: string
     maker_name: string
     product_name: string

@@ -14,7 +14,7 @@ export interface ProductGroupI {
 export interface VendorContactI {
     vendor_contact_id?: number
     vendor_id?: number
-    seller_name: string
+    contact_name: string
     tel_phone?: string
     email?: string
     position?: string
