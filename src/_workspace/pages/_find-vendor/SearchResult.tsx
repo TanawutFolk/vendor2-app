@@ -226,13 +226,14 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 width: 140,
                 filter: 'agTextColumnFilter',
                 pinned: 'left',
+                sort: 'desc',
                 cellRenderer: StatusCheckCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
             },
             {
                 field: 'prones_code',
                 headerName: 'Prones Code',
-                width: 150,
+                width: 130,
                 filter: 'agTextColumnFilter',
                 pinned: 'left',
                 valueFormatter: (params) => params.value || '-'
@@ -370,79 +371,69 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         []
     )
 
-    // Server-side Datasource
-    const serverSideDatasource = useMemo(() => {
-        return {
-            getRows: async (params: any) => {
-                const { startRow, endRow, sortModel } = params.request
+    const [rowData, setRowData] = useState<any[]>([])
+    const [loading, setLoading] = useState(false)
 
-                // Calculate pagination
-                const limit = endRow - startRow
-                const startPage = Math.floor(startRow / limit)
+    // Helper to fetch data
+    const fetchData = useCallback(async () => {
+        if (!gridApiRef.current) return
+        gridApiRef.current.showLoadingOverlay()
+        setLoading(true)
 
-                // Sort parameters
-                const sortField = sortModel.length > 0 ? sortModel[0].colId : 'company_name'
-                const sortOrder = sortModel.length > 0 ? sortModel[0].sort.toUpperCase() : 'ASC'
+        const requestParams: FindVendorSearchRequestI = {
+            SearchFilters: [
+                { id: 'global_search', value: searchFilters.global_search || '' },
+                { id: 'company_name', value: searchFilters.company_name || '' },
+                { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
+                { id: 'province', value: searchFilters.province?.value || '' },
+                { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
+                { id: 'status', value: searchFilters.status?.value || '' },
+                { id: 'product_name', value: searchFilters.product_name || '' },
+                { id: 'maker_name', value: searchFilters.maker_name || '' },
+                { id: 'model_list', value: searchFilters.model_list || '' },
+                { id: 'inuseForSearch', value: '' }
+            ],
+            ColumnFilters: [],
+            // Fetch all data for client-side pagination/sorting
+            Limit: 1000,
+            Order: [{ id: 'company_name', desc: false }],
+            Start: 0
+        }
 
-                const requestParams: FindVendorSearchRequestI = {
-                    SearchFilters: [
-                        { id: 'global_search', value: searchFilters.global_search || '' },
-                        { id: 'company_name', value: searchFilters.company_name || '' },
-                        { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
-                        { id: 'province', value: searchFilters.province?.value || '' },
-                        { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
-                        { id: 'status', value: searchFilters.status?.value || '' },
-                        { id: 'product_name', value: searchFilters.product_name || '' },
-                        { id: 'maker_name', value: searchFilters.maker_name || '' },
-                        { id: 'model_list', value: searchFilters.model_list || '' },
-                        { id: 'inuseForSearch', value: '' }
-                    ],
-                    ColumnFilters: [],
-                    Limit: limit,
-                    Order: [{ id: sortField, desc: sortOrder === 'DESC' }],
-                    Start: startPage
-                }
-
-                try {
-                    const response = await FindVendorServices.search(requestParams)
-                    if (response.data.Status) {
-                        const rowData = response.data.ResultOnDb
-                        const totalCount = response.data.TotalCountOnDb
-
-                        params.success({
-                            rowData: rowData,
-                            rowCount: totalCount
-                        })
-                    } else {
-                        console.error('API Error:', response.data.Message)
-                        params.fail()
-                    }
-                } catch (error) {
-                    console.error('Error fetching vendors:', error)
-                    params.fail()
-                }
+        try {
+            const response = await FindVendorServices.search(requestParams)
+            if (response.data.Status) {
+                setRowData(response.data.ResultOnDb)
+            } else {
+                console.error('API Error:', response.data.Message)
+                setRowData([])
+                gridApiRef.current.showNoRowsOverlay()
             }
+        } catch (error) {
+            console.error('Error fetching vendors:', error)
+            setRowData([])
+            gridApiRef.current.showNoRowsOverlay()
+        } finally {
+            setLoading(false)
+            if (gridApiRef.current) gridApiRef.current.hideOverlay()
         }
     }, [searchFilters])
 
-    // Update datasource when filters change
+    // Initial fetch and update when filters change
     useEffect(() => {
-        if (gridApiRef.current) {
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [serverSideDatasource])
+        fetchData()
+    }, [fetchData])
 
 
     const onGridReady = useCallback((params: GridReadyEvent) => {
         gridApiRef.current = params.api
-    }, [])
+        fetchData()
+    }, [fetchData])
 
     // Refresh grid after successful edit
     const handleEditSuccess = useCallback(() => {
-        if (gridApiRef.current) {
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [])
+        fetchData()
+    }, [fetchData])
 
     return (
         <Card>
@@ -489,13 +480,11 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     defaultColDef={defaultColDef}
                     context={{ onEditClick: handleEditClick }}
 
-                    // Server-side specific props
-                    rowModelType='serverSide'
-                    serverSideDatasource={serverSideDatasource}
+                    // Client-side props
+                    rowData={rowData}
                     pagination={true}
                     paginationPageSize={20}
                     paginationPageSizeSelector={[10, 20, 50, 100]}
-                    cacheBlockSize={20}
 
                     rowSelection='single'
                     animateRows={true}
