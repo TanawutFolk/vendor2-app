@@ -96,7 +96,8 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             { id: 'product_name', value: searchFilters.product_name || '' },
             { id: 'maker_name', value: searchFilters.maker_name || '' },
             { id: 'model_list', value: searchFilters.model_list || '' },
-            { id: 'inuseForSearch', value: '' }
+            { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
+            { id: 'inuse', value: searchFilters.inuse?.value ?? null }
         ],
         ColumnFilters: [],
         Order: [{ id: 'company_name', desc: false }],
@@ -391,7 +392,8 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 { id: 'product_name', value: searchFilters.product_name || '' },
                 { id: 'maker_name', value: searchFilters.maker_name || '' },
                 { id: 'model_list', value: searchFilters.model_list || '' },
-                { id: 'inuseForSearch', value: '' }
+                { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
+                { id: 'inuse', value: searchFilters.inuse?.value ?? null }
             ],
             ColumnFilters: [],
             // Fetch all data for client-side pagination/sorting

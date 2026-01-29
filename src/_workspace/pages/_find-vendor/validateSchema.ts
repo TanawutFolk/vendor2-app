@@ -19,9 +19,14 @@ export const SearchFiltersSchema = z.object({
         value: z.string(),
         label: z.string()
     }).nullable().optional(),
+    inuse: z.object({
+        value: z.number(),
+        label: z.string()
+    }).nullable().optional(),
     product_name: z.string().optional().or(z.literal('')),
     maker_name: z.string().optional().or(z.literal('')),
     model_list: z.string().optional().or(z.literal('')),
+    fft_vendor_code: z.string().optional().or(z.literal('')),
     global_search: z.string().optional().or(z.literal(''))
 })
 
@@ -54,9 +59,11 @@ export const defaultSearchFilters: SearchFiltersFormData = {
     province: null,
     product_group_id: null,
     status: null,
+    inuse: null,
     product_name: '',
     maker_name: '',
     model_list: '',
+    fft_vendor_code: '',
     global_search: ''
 }
 

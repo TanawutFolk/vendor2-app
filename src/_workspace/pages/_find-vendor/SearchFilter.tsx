@@ -73,6 +73,7 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                     province: getValues('searchFilters.province'),
                     product_group_id: getValues('searchFilters.product_group_id'),
                     status: getValues('searchFilters.status'),
+                    inuse: getValues('searchFilters.inuse'),
                     product_name: getValues('searchFilters.product_name'),
                     maker_name: getValues('searchFilters.maker_name'),
                     model_list: getValues('searchFilters.model_list')
@@ -270,6 +271,25 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                                 )}
                             />
                         </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.inuse'
+                                control={control}
+                                render={({ field }) => (
+                                    <SelectCustom
+                                        {...field}
+                                        label='Status ( Active / Inactive )'
+                                        placeholder='Select ...'
+                                        isClearable
+                                        options={[
+                                            { value: 1, label: 'Active' },
+                                            { value: 0, label: 'Inactive' }
+                                        ]}
+                                        classNamePrefix='select'
+                                    />
+                                )}
+                            />
+                        </Grid>
                         <Grid item xs={12}>
                             <Divider textAlign='left'>
                                 <Typography variant='body2' color='primary'>
@@ -279,13 +299,13 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                         </Grid>
                         <Grid item xs={12} sm={6} md={3}>
                             <Controller
-                                name='searchFilters.model_list'
+                                name='searchFilters.fft_vendor_code'
                                 control={control}
                                 render={({ field }) => (
                                     <CustomTextField
                                         {...field}
                                         fullWidth
-                                        label='Vendor Code'
+                                        label='Prones Code'
                                         placeholder='Enter ...'
                                         autoComplete='off'
                                     />
