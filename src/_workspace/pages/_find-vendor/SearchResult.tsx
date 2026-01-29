@@ -105,14 +105,34 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         Limit: 20
     }), [searchFilters])
 
+    // Helper to get current sort model
+    const getSortModel = () => {
+        if (!gridApiRef.current) return [{ id: 'company_name', desc: false }]
+
+        const sortModel = gridApiRef.current.getColumnState().filter((col: any) => col.sort !== null)
+
+        if (sortModel.length === 0) return [{ id: 'company_name', desc: false }]
+
+        return sortModel.map((col: any) => ({
+            id: col.colId,
+            desc: col.sort === 'desc'
+        }))
+    }
+
     // Export current page data (uses backend API)
     const handleExportCurrentPage = async () => {
         setIsExporting(true)
         handleExportMenuClose()
 
         try {
+            // Clone paramForSearch and inject current sort model
+            const exportParams = {
+                ...paramForSearch,
+                Order: getSortModel()
+            }
+
             const dataItem = {
-                DataForFetch: paramForSearch,
+                DataForFetch: exportParams,
                 TYPE: 'currentPage'
             }
 
@@ -141,8 +161,14 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         handleExportMenuClose()
 
         try {
+            // Clone paramForSearch and inject current sort model
+            const exportParams = {
+                ...paramForSearch,
+                Order: getSortModel()
+            }
+
             const dataItem = {
-                DataForFetch: paramForSearch,
+                DataForFetch: exportParams,
                 TYPE: 'AllPage'
             }
 
@@ -234,7 +260,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
             {
                 field: 'prones_code',
                 headerName: 'Prones Code',
-                width: 130,
+                width: 105,
                 filter: 'agTextColumnFilter',
                 pinned: 'left',
                 valueFormatter: (params) => params.value || '-'
