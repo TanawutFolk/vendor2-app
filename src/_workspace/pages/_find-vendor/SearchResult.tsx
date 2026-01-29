@@ -24,7 +24,7 @@ import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
-import { FftStatusCellRenderer } from './components/fftStatus'
+import { FftStatusCellRenderer, StatusCheckCellRenderer } from './components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer' // New import
 import EditVendorModal from './modal/EditVendorModal'
 import { MENU_ID } from './env'
@@ -214,27 +214,28 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 floatingFilter: false
             },
             {
-                field: 'fft_vendor_code',
-                headerName: 'Vendor Code',
-                width: 150,
-                filter: 'agTextColumnFilter',
-                pinned: 'left'
-            },
-            {
-                field: 'fft_status',
-                headerName: 'Prones Status',
-                width: 140,
-                filter: 'agTextColumnFilter',
-                pinned: 'left',
-                cellRenderer: FftStatusCellRenderer,
-                cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
-            },
-            {
                 field: 'company_name',
                 headerName: 'Company Name',
                 width: 290,
                 filter: 'agTextColumnFilter',
                 pinned: 'left'
+            },
+            {
+                field: 'status_check',
+                headerName: 'Prones Status',
+                width: 140,
+                filter: 'agTextColumnFilter',
+                pinned: 'left',
+                cellRenderer: StatusCheckCellRenderer,
+                cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
+            },
+            {
+                field: 'prones_code',
+                headerName: 'Prones Code',
+                width: 150,
+                filter: 'agTextColumnFilter',
+                pinned: 'left',
+                valueFormatter: (params) => params.value || '-'
             },
             {
                 field: 'vendor_type_name',
