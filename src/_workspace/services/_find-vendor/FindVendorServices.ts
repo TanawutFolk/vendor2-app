@@ -6,7 +6,9 @@ import type {
     FindVendorApiResponseI,
     VendorResultI,
     VendorUpdateRequestI,
-    VendorComprehensiveI
+    VendorComprehensiveI,
+    VendorContactI,
+    VendorProductI
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 export default class FindVendorServices {
@@ -81,7 +83,7 @@ export default class FindVendorServices {
 
     // Download file for export (Excel)
     static downloadFileForExport(data: any): Promise<AxiosResponse<Blob>> {
-        return axiosRequest<Blob>({
+        return axiosRequest({
             url: `${FindVendorAPI.API_ROOT_URL}/downloadFileForExport`,
             method: 'POST',
             data: data,
@@ -89,71 +91,5 @@ export default class FindVendorServices {
         })
     }
 
-    // Get comprehensive vendor data by searching all records of a company
-    static async getComprehensiveByVendorId(vendor_id: number): Promise<{
-        vendor: VendorResultI,
-        contacts: VendorResultI[],
-        products: VendorResultI[]
-    }> {
-        // Get basic vendor info first
-        const vendorResponse = await this.getById(vendor_id)
-        if (!vendorResponse.data.Status) {
-            throw new Error('Vendor not found')
-        }
 
-        const vendorData = vendorResponse.data.ResultOnDb
-
-        // Search for all records with the same company name to get all contacts and products
-        const searchResponse = await this.search({
-            SearchFilters: [
-                { id: 'company_name', value: vendorData.company_name },
-                { id: 'vendor_type_id', value: null },
-                { id: 'province', value: '' },
-                { id: 'group_name', value: '' },
-                { id: 'status', value: '' },
-                { id: 'product_name', value: '' },
-                { id: 'maker_name', value: '' },
-                { id: 'model_list', value: '' },
-                { id: 'inuseForSearch', value: '' }
-            ],
-            ColumnFilters: [],
-            Limit: 1000, // Get all records
-            Order: [{ id: 'company_name', desc: false }],
-            Start: 0
-        })
-
-        if (!searchResponse.data.Status) {
-            throw new Error('Failed to search comprehensive data')
-        }
-
-        const allRecords = searchResponse.data.ResultOnDb
-
-        // Extract unique contacts (by contact info)
-        const contactsMap = new Map<string, VendorResultI>()
-        allRecords.forEach(record => {
-            if (record.contact_name || record.tel_phone || record.email) {
-                const contactKey = `${record.contact_name || ''}_${record.tel_phone || ''}_${record.email || ''}`
-                if (!contactsMap.has(contactKey)) {
-                    contactsMap.set(contactKey, record)
-                }
-            }
-        })
-
-        // Extract unique products (by product info)
-        const productsMap = new Map<string, VendorResultI>()
-        allRecords.forEach(record => {
-            if (record.product_name || record.maker_name) {
-                const productKey = `${record.product_name || ''}_${record.maker_name || ''}`
-                if (!productsMap.has(productKey)) {
-                    productsMap.set(productKey, record)
-                }
-            }
-        })
-
-        return {
-            vendor: vendorData,
-            contacts: Array.from(contactsMap.values()),
-            products: Array.from(productsMap.values())
-        }
-    }
 }

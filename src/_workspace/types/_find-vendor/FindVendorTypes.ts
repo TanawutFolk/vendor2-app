@@ -157,3 +157,12 @@ export interface VendorComprehensiveI {
     UPDATE_DATE: string
     INUSE: number
 }
+
+export interface UpdateVendorParamsI {
+    vendorId: number
+    data: any // Using any to avoid circular dependency with Schema, or redefine needed fields
+    originalData: VendorComprehensiveI
+    deletedContactIds: number[]
+    deletedProductIds: number[]
+    userCode: string
+}

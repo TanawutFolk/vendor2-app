@@ -47,7 +47,9 @@ import { FftStatusChip } from '../components/fftStatus'
 // Services & Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import { fetchProductGroups, fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { useQueryClient } from '@tanstack/react-query'
+import { PREFIX_QUERY_KEY, useGetVendor, useUpdateVendor } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 import { FormControlLabel, Switch } from '@mui/material'
 
 // Types & Schema Imports
@@ -67,8 +69,31 @@ interface EditVendorModalProps {
 }
 
 const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: EditVendorModalProps) => {
-    const [loading, setLoading] = useState(false)
-    const [saving, setSaving] = useState(false)
+    // Hooks
+    const { data: vendorQueryData, isLoading: isLoadingVendor } = useGetVendor(vendorId)
+    const queryClient = useQueryClient()
+    const updateVendor = useUpdateVendor(
+        (data: any, variables: any) => {
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY, 'DETAIL', variables.vendorId] })
+            queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] }) // Refresh list as well
+
+            setSuccessData(data)
+            setSuccessModalOpen(true)
+            onSaveSuccess?.()
+            setEditingMode('view')
+        },
+        (err: any) => {
+            setErrorMessage(err?.message || 'Failed to save changes')
+            setErrorDetails(err)
+            setErrorModalOpen(true)
+        }
+    )
+
+    // Derived states
+    const loading = isLoadingVendor || (!!vendorId && !vendorQueryData) // Show loading if fetching or if we have ID but no data yet
+    const saving = updateVendor.isPending
+
     const [error, setError] = useState<string | null>(null)
     const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
     const [expandedSections, setExpandedSections] = useState<string[]>(['company', 'contacts', 'products'])
@@ -130,152 +155,22 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         }
     }, [])
 
-    // Fetch comprehensive vendor data when modal opens
+    // Populate form when data is available
     useEffect(() => {
-        if (open && vendorId) {
-            fetchVendorData()
+        if (vendorQueryData && open) {
+            const { comprehensive } = vendorQueryData
+
+            setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
+            reset(comprehensive)
+
+            setVendorFftCode(comprehensive.fft_vendor_code)
+            setVendorFftStatus(comprehensive.fft_status != null ? Number(comprehensive.fft_status) : null)
+
+            // Clear deletions tracking on fresh load
+            setDeletedContactIds([])
+            setDeletedProductIds([])
         }
-    }, [open, vendorId])
-
-    const fetchVendorData = async () => {
-        if (!vendorId) return
-
-        setLoading(true)
-        setError(null)
-
-        try {
-            // Use search-based method to get all contacts and products of the company
-            try {
-                const comprehensiveResult = await FindVendorServices.getComprehensiveByVendorId(vendorId)
-
-                const { vendor: basicVendorData, contacts: contactRecords, products: productRecords } = comprehensiveResult
-
-                // Transform contacts to proper format
-                const allContacts: VendorContactI[] = contactRecords.map(record => ({
-                    vendor_contact_id: record.vendor_contact_id,
-                    contact_name: record.contact_name || '',
-                    position: record.position || '',
-                    tel_phone: record.tel_phone || '',
-                    email: record.email || '',
-                    CREATE_BY: record.contact_create_by || '',
-                    UPDATE_BY: record.contact_update_by || '',
-                    CREATE_DATE: record.contact_create_date || '',
-                    UPDATE_DATE: record.contact_update_date || ''
-                }))
-
-                // Transform products to proper format  
-                const allProducts: VendorProductI[] = productRecords.map(record => ({
-                    vendor_product_id: record.vendor_product_id,
-                    product_group_id: record.product_group_id,
-                    group_name: record.group_name || '',
-                    maker_name: record.maker_name || '',
-                    product_name: record.product_name || '',
-                    model_list: record.model_list || '',
-                    UPDATE_BY: record.product_update_by || '',
-                    UPDATE_DATE: record.product_update_date || ''
-                }))
-
-                // Combine all data into comprehensive format
-                const comprehensiveData: VendorComprehensiveI = {
-                    vendor_id: basicVendorData.vendor_id,
-                    fft_vendor_code: basicVendorData.fft_vendor_code,
-                    fft_status: basicVendorData.fft_status,
-                    company_name: basicVendorData.company_name,
-                    vendor_type_id: basicVendorData.vendor_type_id,
-                    vendor_type_name: basicVendorData.vendor_type_name,
-                    province: basicVendorData.province,
-                    postal_code: basicVendorData.postal_code,
-                    website: basicVendorData.website,
-                    address: basicVendorData.address,
-                    tel_center: basicVendorData.tel_center,
-                    contacts: allContacts.length > 0 ? allContacts : [{
-                        vendor_contact_id: basicVendorData.vendor_contact_id,
-                        contact_name: basicVendorData.contact_name || '',
-                        position: basicVendorData.position || '',
-                        tel_phone: basicVendorData.tel_phone || '',
-                        email: basicVendorData.email || ''
-                    }],
-                    products: allProducts.length > 0 ? allProducts : [{
-                        vendor_product_id: basicVendorData.vendor_product_id,
-                        product_group_id: basicVendorData.product_group_id,
-                        group_name: basicVendorData.group_name || '',
-                        maker_name: basicVendorData.maker_name || '',
-                        product_name: basicVendorData.product_name || '',
-                        model_list: basicVendorData.model_list || ''
-                    }],
-                    CREATE_BY: basicVendorData.CREATE_BY,
-                    UPDATE_BY: basicVendorData.UPDATE_BY,
-                    CREATE_DATE: basicVendorData.CREATE_DATE,
-                    UPDATE_DATE: basicVendorData.UPDATE_DATE,
-                    INUSE: basicVendorData.INUSE
-                }
-
-                setOriginalData(JSON.parse(JSON.stringify(comprehensiveData))) // Deep copy for comparison
-                reset(comprehensiveData) // RHF: Reset form with fetched data
-                setVendorFftCode(basicVendorData.fft_vendor_code)
-                setVendorFftStatus(basicVendorData.fft_status != null ? Number(basicVendorData.fft_status) : null)
-                return
-
-            } catch (searchErr) {
-                console.error('Search-based comprehensive method failed:', searchErr)
-            }
-
-            // Final fallback: Use basic getById only
-            const fallbackResponse = await FindVendorServices.getById(vendorId)
-            if (fallbackResponse.data.Status) {
-                const basicData = fallbackResponse.data.ResultOnDb
-                const fallbackData = {
-                    vendor_id: basicData.vendor_id,
-                    fft_vendor_code: basicData.fft_vendor_code,
-                    fft_status: basicData.fft_status,
-                    company_name: basicData.company_name,
-                    vendor_type_id: basicData.vendor_type_id,
-                    vendor_type_name: basicData.vendor_type_name,
-                    province: basicData.province,
-                    postal_code: basicData.postal_code,
-                    website: basicData.website,
-                    address: basicData.address,
-                    tel_center: basicData.tel_center,
-                    contacts: [{
-                        vendor_contact_id: basicData.vendor_contact_id,
-                        contact_name: basicData.contact_name || '',
-                        position: basicData.position || '',
-                        tel_phone: basicData.tel_phone || '',
-                        email: basicData.email || '',
-                        CREATE_BY: basicData.contact_create_by || '',
-                        UPDATE_BY: basicData.contact_update_by || '',
-                        CREATE_DATE: basicData.contact_create_date || '',
-                        UPDATE_DATE: basicData.contact_update_date || ''
-                    }],
-                    products: [{
-                        vendor_product_id: basicData.vendor_product_id,
-                        product_group_id: basicData.product_group_id,
-                        group_name: basicData.group_name || '',
-                        maker_name: basicData.maker_name || '',
-                        product_name: basicData.product_name || '',
-                        model_list: basicData.model_list || '',
-                        UPDATE_BY: basicData.product_update_by || '',
-                        UPDATE_DATE: basicData.product_update_date || ''
-                    }],
-                    CREATE_BY: basicData.CREATE_BY,
-                    UPDATE_BY: basicData.UPDATE_BY,
-                    CREATE_DATE: basicData.CREATE_DATE,
-                    UPDATE_DATE: basicData.UPDATE_DATE,
-                    INUSE: basicData.INUSE
-                }
-                setOriginalData(JSON.parse(JSON.stringify(fallbackData))) // Deep copy
-                reset(fallbackData)
-                setDeletedContactIds([])
-                setDeletedProductIds([])
-                setVendorFftCode(basicData.fft_vendor_code)
-                setVendorFftStatus(basicData.fft_status != null ? Number(basicData.fft_status) : null)
-            }
-        } catch (err: any) {
-            setError(err?.message || 'Failed to fetch vendor data')
-        } finally {
-            setLoading(false)
-        }
-    }
+    }, [vendorQueryData, open, reset])
 
     const toggleEditMode = () => {
         setEditingMode(prev => prev === 'view' ? 'edit' : 'view')
@@ -293,255 +188,21 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     const onSubmit = async (data: EditVendorSchemaType) => {
         if (!vendorId) return
 
-        setSaving(true)
         setError(null)
 
         const userCode = getUserData().EMPLOYEE_CODE || 'SYSTEM'
-        let updatedCount = 0
-
-        // Helper: Check if vendor fields have changed
-        const hasVendorFieldsChanged = (original: VendorComprehensiveI, current: EditVendorSchemaType): boolean => {
-            const vendorFields = ['company_name', 'province', 'postal_code', 'website', 'address', 'tel_center', 'INUSE'] as const
-            if (vendorFields.some(field => (original as any)[field] != (current as any)[field])) return true
-            // Special handling for object-based vendor_type_id
-            if (original.vendor_type_id !== ((current.vendor_type_id as any)?.value || null)) return true
-            return false
-        }
-
-        // Helper: Get changed contacts
-        const getChangedContacts = (original: VendorContactI[], current: typeof data.contacts): VendorContactI[] => {
-            if (!current) return []
-            const changed: VendorContactI[] = []
-            current.forEach((currentContact) => {
-                if (currentContact.vendor_contact_id) {
-                    const originalContact = original.find(c => c.vendor_contact_id === currentContact.vendor_contact_id)
-                    if (originalContact) {
-                        const hasChanged = (
-                            currentContact.contact_name !== originalContact.contact_name ||
-                            currentContact.position !== originalContact.position ||
-                            currentContact.tel_phone !== originalContact.tel_phone ||
-                            currentContact.email !== originalContact.email
-                        )
-                        if (hasChanged) {
-                            changed.push({ ...originalContact, ...currentContact } as VendorContactI)
-                        }
-                    }
-                }
-            })
-            return changed
-        }
-
-        // Helper: Get changed products
-        const getChangedProducts = (original: VendorProductI[], current: typeof data.products): VendorProductI[] => {
-            if (!current) return []
-            const changed: VendorProductI[] = []
-            current.forEach((currentProduct) => {
-                if (currentProduct.vendor_product_id) {
-                    const originalProduct = original.find(p => p.vendor_product_id === currentProduct.vendor_product_id)
-                    if (originalProduct) {
-                        const hasChanged = (
-                            (currentProduct.product_group_id as any)?.value !== originalProduct.product_group_id ||
-                            currentProduct.maker_name !== originalProduct.maker_name ||
-                            currentProduct.product_name !== originalProduct.product_name ||
-                            currentProduct.model_list !== originalProduct.model_list
-                        )
-                        if (hasChanged) {
-                            changed.push({ ...originalProduct, ...currentProduct } as VendorProductI)
-                        }
-                    }
-                }
-            })
-            return changed
-        }
-
-        // Helper: Get new contacts (no ID)
-        const getNewContacts = (current: typeof data.contacts) => {
-            return current?.filter(c => !c.vendor_contact_id) || []
-        }
-
-        // Helper: Get new products (no ID)
-        const getNewProducts = (current: typeof data.products) => {
-            return current?.filter(p => !p.vendor_product_id) || []
-        }
-
-        // Helper: Generate summary
-        const generateChangesSummary = (original: VendorComprehensiveI, updated: EditVendorSchemaType) => {
-            const changes = {
-                added: [] as Array<{ type: string; description: string }>,
-                removed: [] as Array<{ type: string; description: string }>,
-                modified: [] as Array<{ type: string; description: string; before?: string; after?: string }>
-            }
-
-            // Vendor Fields
-            const vendorFields = [
-                { key: 'company_name', label: 'Company Name' },
-                { key: 'province', label: 'Province' },
-                { key: 'postal_code', label: 'Postal Code' },
-                { key: 'website', label: 'Website' },
-                { key: 'address', label: 'Address' },
-                { key: 'tel_center', label: 'Tel Center' }
-            ]
-
-            vendorFields.forEach(field => {
-                const originalValue = (original as any)[field.key] || ''
-                const updatedValue = (updated as any)[field.key] || ''
-                if (originalValue != updatedValue) {
-                    changes.modified.push({
-                        type: 'Company',
-                        description: field.label,
-                        before: originalValue,
-                        after: updatedValue
-                    })
-                }
-            })
-
-            return changes
-        }
 
         if (!originalData) return
 
-        try {
-            // 1. Check and update vendor fields if changed
-            if (hasVendorFieldsChanged(originalData, data)) {
-                const vendorUpdateData: VendorUpdateRequestI = {
-                    vendor_id: vendorId,
-                    company_name: data.company_name,
-                    vendor_type_id: (data.vendor_type_id as any)?.value || null,
-                    province: data.province ?? undefined,
-                    postal_code: data.postal_code ?? undefined,
-                    website: data.website ?? undefined,
-                    address: data.address ?? undefined,
-                    tel_center: data.tel_center ?? undefined,
-                    INUSE: data.INUSE ?? undefined,
-                    UPDATE_BY: userCode
-                }
-
-                const vendorResponse = await FindVendorServices.update(vendorId, vendorUpdateData)
-                if (!vendorResponse.data.Status) {
-                    throw new Error(`Vendor update failed: ${vendorResponse.data.Message}`)
-                }
-                updatedCount++
-            }
-
-            // 2. Update changed contacts
-            const changedContacts = getChangedContacts(originalData.contacts, data.contacts)
-            for (const contact of changedContacts) {
-                const contactUpdateData: VendorUpdateRequestI = {
-                    vendor_id: vendorId,
-                    vendor_contact_id: contact.vendor_contact_id,
-                    contact_name: contact.contact_name,
-                    tel_phone: contact.tel_phone ?? undefined,
-                    email: contact.email ?? undefined,
-                    position: contact.position ?? undefined,
-                    UPDATE_BY: userCode
-                }
-
-                const contactResponse = await FindVendorServices.update(vendorId, contactUpdateData)
-                if (!contactResponse.data.Status) {
-                    throw new Error(`Contact update failed: ${contactResponse.data.Message}`)
-                }
-                updatedCount++
-            }
-
-            // 3. Update only changed products (sequential to prevent race conditions)
-            const changedProducts = getChangedProducts(originalData.products, data.products)
-            for (const product of changedProducts) {
-                const productUpdateData: VendorUpdateRequestI = {
-                    vendor_id: vendorId,
-                    vendor_product_id: product.vendor_product_id,
-                    product_group_id: product.product_group_id ?? undefined,
-                    maker_name: product.maker_name ?? undefined,
-                    product_name: product.product_name,
-                    model_list: product.model_list ?? undefined,
-                    UPDATE_BY: userCode
-                }
-
-                const productResponse = await FindVendorServices.update(vendorId, productUpdateData)
-                if (!productResponse.data.Status) {
-                    throw new Error(`Product update failed: ${productResponse.data.Message}`)
-                }
-                updatedCount++
-            }
-
-            // 4. Create new contacts
-            const newContacts = getNewContacts(data.contacts)
-            for (const contact of newContacts) {
-                const contactCreateData: VendorUpdateRequestI = {
-                    vendor_id: vendorId,
-                    // No vendor_contact_id means create
-                    contact_name: contact.contact_name,
-                    tel_phone: contact.tel_phone ?? undefined,
-                    email: contact.email ?? undefined,
-                    position: contact.position ?? undefined,
-                    UPDATE_BY: userCode
-                }
-
-                const contactResponse = await FindVendorServices.update(vendorId, contactCreateData)
-                if (!contactResponse.data.Status) {
-                    throw new Error(`New contact creation failed: ${contactResponse.data.Message}`)
-                }
-                updatedCount++
-            }
-
-            // 5. Create new products
-            const newProducts = getNewProducts(data.products)
-            for (const product of newProducts) {
-                const productCreateData: VendorUpdateRequestI = {
-                    vendor_id: vendorId,
-                    // No vendor_product_id means create
-                    product_group_id: product.product_group_id ?? undefined,
-                    maker_name: product.maker_name ?? undefined,
-                    product_name: product.product_name,
-                    model_list: product.model_list ?? undefined,
-                    UPDATE_BY: userCode
-                }
-
-                const productResponse = await FindVendorServices.update(vendorId, productCreateData)
-                if (!productResponse.data.Status) {
-                    throw new Error(`New product creation failed: ${productResponse.data.Message}`)
-                }
-                updatedCount++
-            }
-
-            // Check if there were any changes
-            if (updatedCount === 0) {
-                setErrorMessage('No changes detected')
-                setErrorDetails('Please modify data before saving')
-                setErrorModalOpen(true)
-                return
-            }
-
-            // Generate changes summary
-            const changes = generateChangesSummary(originalData, data)
-
-            // Show success modal with updated data
-            setSuccessData({
-                vendor: data,
-                contacts: data.contacts,
-                products: data.products,
-                updateSummary: {
-                    vendor: hasVendorFieldsChanged(originalData, data) ? 1 : 0,
-                    contacts: changedContacts.length + getNewContacts(data.contacts).length + deletedContactIds.length,
-                    products: changedProducts.length + getNewProducts(data.products).length + deletedProductIds.length,
-                    successful: updatedCount,
-                    total: updatedCount
-                },
-                changes: changes
-            })
-            setSuccessModalOpen(true)
-
-            onSaveSuccess?.()
-            setEditingMode('view')
-            // Refresh data
-            await fetchVendorData()
-
-        } catch (err: any) {
-            setErrorMessage(err?.message || 'Failed to save changes')
-            setErrorDetails(err)
-            setErrorModalOpen(true)
-        } finally {
-            setSaving(false)
-        }
+        // We trigger mutation here. Success/Error are handled in the hook callbacks.
+        updateVendor.mutate({
+            vendorId,
+            data,
+            originalData,
+            deletedContactIds,
+            deletedProductIds,
+            userCode
+        })
     }
 
     const handleConfirmSave = async () => {

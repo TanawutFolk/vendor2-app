@@ -1,33 +1,39 @@
 'use client'
 
 // React Imports
-import { useMemo, useCallback, useRef, useEffect, useState } from 'react'
+import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Chip, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
+import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridReadyEvent, ICellRendererParams } from 'ag-grid-community'
+import type { ColDef, GridReadyEvent, ColumnState, SortModelItem } from 'ag-grid-community'
 import { themeQuartz } from 'ag-grid-community'
 
 // File Saver
 import { saveAs } from 'file-saver'
 
-// Template Imports
-import { useCheckPermission } from '@/_template/CheckPermission'
+// React Hook Form
+import { useFormContext } from 'react-hook-form'
+
+// Template Context
+import { useDxContext } from '@/_template/DxContextProvider'
 
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import type { VendorResultI, FindVendorSearchRequestI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { FindVendorSearchRequestI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { FindVendorFormData } from './validateSchema'
+
+// React Query Hooks
+import { useSearch } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
-import { FftStatusCellRenderer, StatusCheckCellRenderer } from './components/fftStatus'
-import EmailCellRenderer from './components/EmailCellRenderer' // New import
+import { StatusCheckCellRenderer } from './components/fftStatus'
+import EmailCellRenderer from './components/EmailCellRenderer'
 import EditVendorModal from './modal/EditVendorModal'
-import { MENU_ID } from './env'
 
 const agGridTheme = themeQuartz.withParams({
     spacing: 6,
@@ -46,21 +52,16 @@ const agGridTheme = themeQuartz.withParams({
     rowHoverColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.08)'
 })
 
+const SearchResult = () => {
+    // DxContext for managing fetch state
+    const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
-interface SearchResultProps {
-    searchFilters: any
-}
+    // React Hook Form
+    const { getValues, setValue } = useFormContext<FindVendorFormData>()
 
-
-
-const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const gridApiRef = useRef<any>(null)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
-
-    // Template - Permission check
-    // const checkPermission = useCheckPermission()
-
 
     // Export Excel states
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -68,15 +69,6 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     const openExportMenu = Boolean(anchorEl)
 
     const handleExportMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        // // Check IS_SEARCH permission before export (Commented out for debug)
-        // const hasPermission = checkPermission(
-        //     Number(import.meta.env.VITE_APPLICATION_ID),
-        //     MENU_ID,
-        //     'IS_SEARCH'
-        // )
-        // if (!hasPermission) return
-
-
         setAnchorEl(event.currentTarget)
     }
 
@@ -85,25 +77,72 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
     }
 
     // Shared search parameters (same as used in server-side datasource)
-    const paramForSearch: FindVendorSearchRequestI = useMemo(() => ({
-        SearchFilters: [
-            { id: 'global_search', value: searchFilters.global_search || '' },
-            { id: 'company_name', value: searchFilters.company_name || '' },
-            { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
-            { id: 'province', value: searchFilters.province?.value || '' },
-            { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
-            { id: 'status', value: searchFilters.status?.value || '' },
-            { id: 'product_name', value: searchFilters.product_name || '' },
-            { id: 'maker_name', value: searchFilters.maker_name || '' },
-            { id: 'model_list', value: searchFilters.model_list || '' },
-            { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
-            { id: 'inuse', value: searchFilters.inuse?.value ?? null }
-        ],
-        ColumnFilters: [],
-        Order: [{ id: 'company_name', desc: false }],
-        Start: 0,
-        Limit: 20
-    }), [searchFilters])
+    const paramForSearch: FindVendorSearchRequestI = useMemo(() => {
+        // We need to re-calculate params when fetch is enabled
+        // This dependency on isEnableFetching allows the useMemo to update "just in time" before the query runs
+        // effectively capturing the latest form values at the moment the search button was clicked.
+        // Note: In strict mode or some setups, simply depending on isEnableFetching might not be enough if it doesn't change frequently,
+        // but here isEnableFetching is toggled true when Search is clicked.
+        if (!isEnableFetching && !isExporting) {
+            // Return existing Memo or maybe just default? 
+            // Ideally we want the params to be "latched" when isEnableFetching becomes true.
+            // React Query will re-run when params change OR when enabled becomes true.
+            // If we want to capture form values ONLY when search is clicked, we rely on React Query's behavior.
+            // However, getValues() is not reactive. So we might need to rely on the fact that the parent re-renders 
+            // or that we're passing these params to the query.
+        }
+
+        const searchFilters = getValues('searchFilters')
+
+        // Get sorting from Form State (MRT format) -> convert to API format
+        const sorting = getValues('searchResults.sorting')
+        const orderParams = sorting && sorting.length > 0
+            ? sorting.map((sort: any) => ({ id: sort.id, desc: sort.desc }))
+            : [{ id: 'company_name', desc: false }]
+
+        return {
+            SearchFilters: [
+                { id: 'global_search', value: searchFilters.global_search || '' },
+                { id: 'company_name', value: searchFilters.company_name || '' },
+                { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
+                { id: 'province', value: searchFilters.province?.value || '' },
+                { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
+                { id: 'status', value: searchFilters.status?.value || '' },
+                { id: 'product_name', value: searchFilters.product_name || '' },
+                { id: 'maker_name', value: searchFilters.maker_name || '' },
+                { id: 'model_list', value: searchFilters.model_list || '' },
+                { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
+                { id: 'inuse', value: searchFilters.inuse?.value ?? null }
+            ],
+            ColumnFilters: [],
+            Order: orderParams,
+            Start: 0,
+            Limit: 1000 // Fetch all for client-side pagination
+        }
+    }, [isEnableFetching, isExporting, getValues]) // Add getValues to dependency (though it's stable) and isEnableFetching to trigger rebuild
+
+    // React Query Hook
+    const {
+        data: searchResult,
+        isLoading,
+        isFetching,
+        refetch
+    } = useSearch(paramForSearch, isEnableFetching)
+
+    // Reset isEnableFetching when fetching is done
+    useEffect(() => {
+        if (!isFetching && isEnableFetching) {
+            setIsEnableFetching(false)
+        }
+    }, [isFetching, isEnableFetching, setIsEnableFetching])
+
+
+    const rowData = useMemo(() => {
+        if (searchResult?.data?.Status) {
+            return searchResult.data.ResultOnDb
+        }
+        return []
+    }, [searchResult])
 
     // Helper to get current sort model
     const getSortModel = () => {
@@ -125,10 +164,31 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         handleExportMenuClose()
 
         try {
-            // Clone paramForSearch and inject current sort model
+            // Get Pagination State from Grid
+            const currentPage = gridApiRef.current?.paginationGetCurrentPage() || 0
+            const pageSize = gridApiRef.current?.paginationGetPageSize() || 20
+
+            // Collect Vendor IDs from current page (Sorted & Filtered)
+            const startRow = currentPage * pageSize
+            const endRow = startRow + pageSize
+            const vendorIds: number[] = []
+
+            gridApiRef.current?.forEachNodeAfterFilterAndSort((node: any, index: number) => {
+                if (index >= startRow && index < endRow && node.data) {
+                    vendorIds.push(node.data.vendor_id)
+                }
+            })
+
+            // Clone paramForSearch (filters/search needed for context? Actually IDs are enough for fetching, 
+            // but we might need filters if we were doing server-side. 
+            // Here we just send IDs + filters (just in case backend needs them for Prones match logic dependent on global search? 
+            // No, matchVendorsWithPrones uses fresh data.
+            // But we send paramForSearch to keep backend happy with types.
+
             const exportParams = {
                 ...paramForSearch,
-                Order: getSortModel()
+                vendor_ids: vendorIds, // Send Ordered IDs
+                Order: [] // No sort needed, we will sort by ID order in backend
             }
 
             const dataItem = {
@@ -193,39 +253,16 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
 
     // Handle edit click from ActionCellRenderer
     const handleEditClick = useCallback((vendorId: number) => {
-        console.log('handleEditClick called with vendorId:', vendorId)
-
-        // const appId = Number(import.meta.env.VITE_APPLICATION_ID)
-        // console.log('Checking Permission:', { appId, MENU_ID, permissionType: 'IS_UPDATE' })
-
-        // // Check IS_UPDATE permission before editing
-        // const hasPermission = checkPermission(
-        //     appId,
-        //     MENU_ID,
-        //     'IS_UPDATE'
-        // )
-
-        // console.log('Permission check result:', hasPermission)
-
-        // if (!hasPermission) {
-        //     console.warn('Permission denied or data missing. Bypassing for debugging...')
-        //     // return // TODO: Uncomment this after verifying permission data
-        // }
-
-
-
         setSelectedVendorId(vendorId)
         setEditModalOpen(true)
-    }, []) // checkPermission
+    }, [])
 
     const handleCloseEditModal = useCallback(() => {
         setEditModalOpen(false)
         setSelectedVendorId(null)
     }, [])
 
-
-
-    // Column definitions - matching API response
+    // Column definitions
     const columnDefs = useMemo<ColDef[]>(
         () => [
             {
@@ -233,12 +270,12 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 field: 'actions',
                 width: 60,
                 pinned: 'left',
-                // lockPosition: 'left',
                 cellRenderer: ActionCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
                 sortable: false,
                 filter: false,
-                floatingFilter: false
+                floatingFilter: false,
+                suppressMovable: true // Lock this column
             },
             {
                 field: 'company_name',
@@ -253,7 +290,6 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                 width: 140,
                 filter: 'agTextColumnFilter',
                 pinned: 'left',
-                sort: 'desc',
                 cellRenderer: StatusCheckCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
             },
@@ -398,70 +434,130 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
         []
     )
 
-    const [rowData, setRowData] = useState<any[]>([])
-    const [loading, setLoading] = useState(false)
-
-    // Helper to fetch data
-    const fetchData = useCallback(async () => {
-        if (!gridApiRef.current) return
-        gridApiRef.current.showLoadingOverlay()
-        setLoading(true)
-
-        const requestParams: FindVendorSearchRequestI = {
-            SearchFilters: [
-                { id: 'global_search', value: searchFilters.global_search || '' },
-                { id: 'company_name', value: searchFilters.company_name || '' },
-                { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
-                { id: 'province', value: searchFilters.province?.value || '' },
-                { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
-                { id: 'status', value: searchFilters.status?.value || '' },
-                { id: 'product_name', value: searchFilters.product_name || '' },
-                { id: 'maker_name', value: searchFilters.maker_name || '' },
-                { id: 'model_list', value: searchFilters.model_list || '' },
-                { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
-                { id: 'inuse', value: searchFilters.inuse?.value ?? null }
-            ],
-            ColumnFilters: [],
-            // Fetch all data for client-side pagination/sorting
-            Limit: 1000,
-            Order: [{ id: 'company_name', desc: false }],
-            Start: 0
-        }
-
-        try {
-            const response = await FindVendorServices.search(requestParams)
-            if (response.data.Status) {
-                setRowData(response.data.ResultOnDb)
-            } else {
-                console.error('API Error:', response.data.Message)
-                setRowData([])
-                gridApiRef.current.showNoRowsOverlay()
-            }
-        } catch (error) {
-            console.error('Error fetching vendors:', error)
-            setRowData([])
-            gridApiRef.current.showNoRowsOverlay()
-        } finally {
-            setLoading(false)
-            if (gridApiRef.current) gridApiRef.current.hideOverlay()
-        }
-    }, [searchFilters])
-
-    // Initial fetch and update when filters change
-    useEffect(() => {
-        fetchData()
-    }, [fetchData])
-
-
     const onGridReady = useCallback((params: GridReadyEvent) => {
         gridApiRef.current = params.api
-        fetchData()
-    }, [fetchData])
+
+        // --- Load state from Form Context (MRT format) -> Apply to AG Grid ---
+
+        // 1. Column Order & Visibility
+        const columnOrder = getValues('searchResults.columnOrder')
+        const columnVisibility = getValues('searchResults.columnVisibility')
+        const columnPinning = getValues('searchResults.columnPinning')
+        const sorting = getValues('searchResults.sorting')
+
+        if (columnOrder || columnVisibility || columnPinning || sorting) {
+            const columnState: ColumnState[] = []
+
+            // Get all current columns from grid
+            const allColumns = params.api.getColumns()
+            if (allColumns) {
+                // If we have strict column order, use it. Otherwise use grid default order.
+                // Note: The schema stores MRT columnOrder which might contain IDs not in AG Grid or vice versa.
+
+                // Strategy: Iterate over all grid columns, and for each find its state in the saved settings. 
+                // BUT order matters. So we should iterate over Saved Order first?
+                // AG Grid applyColumnState works best if you provide the state for all columns.
+
+                // Let's create a map of known columns for easy lookup
+                const colMap = new Map()
+                allColumns.forEach(c => colMap.set(c.getColId(), c))
+
+                // Build state based on Saved Order
+                if (columnOrder && columnOrder.length > 0) {
+                    let sortIndexCounter = 0
+                    columnOrder.forEach((colId: string) => {
+                        if (colMap.has(colId)) {
+                            const state: ColumnState = { colId }
+
+                            // Visibility
+                            if (columnVisibility && columnVisibility[colId] !== undefined) {
+                                state.hide = !columnVisibility[colId]
+                            }
+
+                            // Pinning (MRT stores as { left: [ids], right: [ids] })
+                            if (columnPinning) {
+                                if (columnPinning.left?.includes(colId)) state.pinned = 'left'
+                                else if (columnPinning.right?.includes(colId)) state.pinned = 'right'
+                                else state.pinned = null
+                            }
+
+                            // Sorting (MRT stores as [{ id, desc }])
+                            const sortItem = sorting?.find((s: any) => s.id === colId)
+                            if (sortItem) {
+                                state.sort = sortItem.desc ? 'desc' : 'asc'
+                                state.sortIndex = sortIndexCounter++
+                            }
+
+                            columnState.push(state)
+                            colMap.delete(colId) // Mark as handled
+                        }
+                    })
+                }
+
+                // Add remaining columns (newly added or missing from order)
+                colMap.forEach((col, colId) => {
+                    // For 'actions', we force it to be first? No, let the standard order handle it if available.
+                    // But if user messed up order, default 'actions' might be hidden or at end.
+                    // We'll just push them.
+                    const state: ColumnState = { colId }
+                    // Visibility
+                    if (columnVisibility && columnVisibility[colId] !== undefined) {
+                        state.hide = !columnVisibility[colId]
+                    }
+                    // Pinning
+                    if (columnPinning) {
+                        if (columnPinning.left?.includes(colId)) state.pinned = 'left'
+                        else if (columnPinning.right?.includes(colId)) state.pinned = 'right'
+                    }
+                    columnState.push(state)
+                })
+
+                params.api.applyColumnState({ state: columnState, applyOrder: !!columnOrder })
+            }
+        }
+
+    }, [getValues])
+
+    // --- State Sync Handlers (AG Grid Events -> Update Form w/ MRT format) ---
+    const handleStateChange = useCallback(() => {
+        if (!gridApiRef.current) return
+
+        // 1. Column Order & Visibility & Pinning & Sorting
+        const colState = gridApiRef.current.getColumnState()
+
+        const newColumnOrder: string[] = []
+        const newColumnVisibility: Record<string, boolean> = {}
+        const newColumnPinning: { left: string[]; right: string[] } = { left: [], right: [] }
+        const newSorting: any[] = []
+
+        colState.forEach((col: ColumnState) => {
+            const colId = col.colId
+            newColumnOrder.push(colId)
+            newColumnVisibility[colId] = !col.hide
+
+            if (col.pinned === 'left') newColumnPinning.left.push(colId)
+            if (col.pinned === 'right') newColumnPinning.right.push(colId)
+
+            if (col.sort) {
+                newSorting.push({
+                    id: colId,
+                    desc: col.sort === 'desc'
+                })
+            }
+        })
+
+        // Update Form
+        setValue('searchResults.columnOrder', newColumnOrder)
+        setValue('searchResults.columnVisibility', newColumnVisibility)
+        setValue('searchResults.columnPinning', newColumnPinning as any)
+        setValue('searchResults.sorting', newSorting)
+
+    }, [setValue])
 
     // Refresh grid after successful edit
     const handleEditSuccess = useCallback(() => {
-        fetchData()
-    }, [fetchData])
+        refetch()
+    }, [refetch])
 
     return (
         <Card>
@@ -507,6 +603,7 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     columnDefs={columnDefs}
                     defaultColDef={defaultColDef}
                     context={{ onEditClick: handleEditClick }}
+                    loading={isLoading || isFetching} // Pass loading state to grid
 
                     // Client-side props
                     rowData={rowData}
@@ -521,13 +618,18 @@ const SearchResult = ({ searchFilters }: SearchResultProps) => {
                     enableCellTextSelection={true}
                     copyHeadersToClipboard={true}
                     onGridReady={onGridReady}
+
+                    // State Sync Events
+                    onSortChanged={handleStateChange}
+                    onColumnMoved={handleStateChange}
+                    onColumnPinned={handleStateChange}
+                    onColumnVisible={handleStateChange}
+                    // onDragStopped={handleStateChange} // Maybe safer than onColumnMoved for extensive drags? but moved is fine.
+
                     getRowId={(params) => {
-                        // สร้าง unique key จาก combination ของหลาย fields
                         const vendorId = params.data.vendor_id || 0
                         const productId = params.data.vendor_product_id || 0
                         const contactId = params.data.vendor_contact_id || 0
-
-                        // ใช้ combination เพื่อให้ unique ในทุกกรณี
                         return `${vendorId}_${productId}_${contactId}`
                     }}
                 />
