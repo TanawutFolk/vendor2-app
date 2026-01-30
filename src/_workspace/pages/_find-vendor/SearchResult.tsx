@@ -111,13 +111,13 @@ const SearchResult = () => {
                 { id: 'product_name', value: searchFilters.product_name || '' },
                 { id: 'maker_name', value: searchFilters.maker_name || '' },
                 { id: 'model_list', value: searchFilters.model_list || '' },
-                { id: 'fft_vendor_code', value: searchFilters.fft_vendor_code || '' },
+                { id: 'prones_code', value: searchFilters.fft_vendor_code || '' },
                 { id: 'inuse', value: searchFilters.inuse?.value ?? null }
             ],
             ColumnFilters: [],
             Order: orderParams,
             Start: 0,
-            Limit: 1000 // Fetch all for client-side pagination
+            Limit: 10000 // Fetch all for client-side pagination
         }
     }, [isEnableFetching, isExporting, getValues]) // Add getValues to dependency (though it's stable) and isEnableFetching to trigger rebuild
 

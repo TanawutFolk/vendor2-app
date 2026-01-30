@@ -42,12 +42,12 @@ import SuccessModal from './SuccessModal'
 import ErrorModal from './ErrorModal'
 import { EmailActionButtons } from './EmailActionButtons'
 import AddProductGroupModal from '../../_add-vendor/modal/AddProductGroupModal'
-import { FftStatusChip } from '../components/fftStatus'
+import { FftStatusChip, StatusCheckChip } from '../components/fftStatus'
 
 // Services & Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 import { useQueryClient } from '@tanstack/react-query'
 import { PREFIX_QUERY_KEY, useGetVendor, useUpdateVendor } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 import { FormControlLabel, Switch } from '@mui/material'
@@ -99,7 +99,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     const [expandedSections, setExpandedSections] = useState<string[]>(['company', 'contacts', 'products'])
 
     // RHF Setup
-    const { control, handleSubmit, reset, watch, formState: { errors }, getValues, setValue } = useForm<EditVendorSchemaType>({
+    const { control, handleSubmit, reset, watch, formState: { errors }, getValues, setValue, trigger } = useForm<EditVendorSchemaType>({
         resolver: zodResolver(editVendorSchema),
         defaultValues: {
             company_name: '',
@@ -132,8 +132,9 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     const [successData, setSuccessData] = useState<any>(null)
     const [errorMessage, setErrorMessage] = useState<string>('')
     const [errorDetails, setErrorDetails] = useState<any>(null)
-    const [vendorFftCode, setVendorFftCode] = useState<string | null | undefined>(undefined)
-    const [vendorFftStatus, setVendorFftStatus] = useState<number | null | undefined>(undefined)
+    const [vendorFftCode, setVendorFftCode] = useState<string | null | undefined>(null)
+    const [vendorFftStatus, setVendorFftStatus] = useState<number | null>(null)
+    const [vendorStatusCheck, setVendorStatusCheck] = useState<string | undefined>(undefined)
 
     // Watch for changes to display in header
     const watchedValues = watch()
@@ -165,6 +166,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
             setVendorFftCode(comprehensive.fft_vendor_code)
             setVendorFftStatus(comprehensive.fft_status != null ? Number(comprehensive.fft_status) : null)
+            setVendorStatusCheck(comprehensive.status_check)
 
             // Clear deletions tracking on fresh load
             setDeletedContactIds([])
@@ -181,8 +183,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
     }
 
     // Modal handlers
-    const handleSaveClick = () => {
-        setConfirmModalOpen(true)
+    const handleSaveClick = async () => {
+        const isValid = await trigger()
+        if (isValid) {
+            setConfirmModalOpen(true)
+        }
     }
 
     const onSubmit = async (data: EditVendorSchemaType) => {
@@ -263,8 +268,8 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                 variant="outlined"
                             />
                         )}
-                        {vendorFftStatus != null && (
-                            <FftStatusChip value={vendorFftStatus} />
+                        {vendorStatusCheck && (
+                            <StatusCheckChip value={vendorStatusCheck} />
                         )}
                         {/* Enable/Disable Switch */}
                         <Controller
@@ -363,6 +368,13 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                             <AsyncSelectCustom
                                                                 label='Vendor Type'
                                                                 {...field}
+                                                                value={field.value ? { value: field.value, label: getValues('vendor_type_name') || 'Unknown' } : null}
+                                                                onChange={(val: any) => {
+                                                                    console.log('Selected Vendor Type:', val)
+                                                                    const newValue = val && val.value !== undefined ? val.value : null
+                                                                    field.onChange(newValue)
+                                                                    setValue('vendor_type_name', val?.label || null)
+                                                                }}
                                                                 placeholder='Select Type...'
                                                                 defaultOptions
                                                                 cacheOptions
@@ -508,7 +520,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                 </Card>
 
                                 {/* Contacts */}
-                                <Card sx={{ mt: 1 }} style={{ overflow: 'visible', zIndex: 3 }}>
+                                <Card sx={{ mt: 3 }} style={{ overflow: 'visible', zIndex: 3 }}>
                                     <CardHeader
                                         title={
                                             <Typography variant="h6" color="primary">
@@ -533,7 +545,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                     />
                                     <Collapse in={expandedSections.includes('contacts')}>
                                         <CardContent>
-                                            <Grid container spacing={4}>
+                                            <Grid container spacing={2}>
                                                 {contactFields.map((contact, index) => (
                                                     <Grid item xs={12} key={contact.id}>
                                                         <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%', position: 'relative' }}>
@@ -545,7 +557,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                 Contact {index + 1}
                                                                                 {!contact.vendor_contact_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
                                                                             </Typography>
-                                                                            {!contact.vendor_contact_id && editingMode === 'edit' && (
+                                                                            {editingMode === 'edit' && (
                                                                                 <IconButton size="small" color="error" onClick={() => removeContact(index)}>
                                                                                     <i className="tabler-trash" />
                                                                                 </IconButton>
@@ -553,7 +565,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                         </Box>
                                                                         <Divider sx={{ mt: 1, mb: 2 }} />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`contacts.${index}.contact_name`}
                                                                             control={control}
@@ -572,7 +584,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`contacts.${index}.tel_phone`}
                                                                             control={control}
@@ -589,7 +601,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`contacts.${index}.email`}
                                                                             control={control}
@@ -617,7 +629,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`contacts.${index}.position`}
                                                                             control={control}
@@ -690,7 +702,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                 </Card>
 
                                 {/* Products */}
-                                <Card sx={{ mt: 1 }} style={{ overflow: 'visible', zIndex: 2 }}>
+                                <Card sx={{ mt: 3 }} style={{ overflow: 'visible', zIndex: 2 }}>
                                     <CardHeader
                                         title={
                                             <Typography variant="h6" color="primary">
@@ -736,7 +748,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                         <Divider sx={{ mt: 1, mb: 2 }} />
                                                                     </Grid>
 
-                                                                    <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                                                    <Grid item xs={12} sm={6} md={6} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                                                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                             <Controller
                                                                                 name={`products.${index}.product_group_id`}
@@ -746,6 +758,11 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                         key={`product-group-${index}-${productGroupRefreshKey}`}
                                                                                         label='Product Group'
                                                                                         {...field}
+                                                                                        value={field.value ? { value: field.value, label: getValues(`products.${index}.group_name`) || 'Unknown' } : null}
+                                                                                        onChange={(val: any) => {
+                                                                                            field.onChange(val?.value)
+                                                                                            setValue(`products.${index}.group_name`, val?.label)
+                                                                                        }}
                                                                                         loadOptions={(inputValue, callback) => {
                                                                                             fetchProductGroups(inputValue).then(options => callback(options as any))
                                                                                         }}
@@ -764,14 +781,14 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                                 variant='tonal'
                                                                                 color='secondary'
                                                                                 onClick={() => setShowAddProductGroupModal(true)}
-                                                                                sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, mt: 0.5 }}
+                                                                                sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, mt: 5.4 }}
                                                                                 title='Add Product Group'
                                                                             >
                                                                                 <i className='tabler-plus' />
                                                                             </Button>
                                                                         )}
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`products.${index}.maker_name`}
                                                                             control={control}
@@ -788,7 +805,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`products.${index}.product_name`}
                                                                             control={control}
@@ -807,7 +824,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                                             )}
                                                                         />
                                                                     </Grid>
-                                                                    <Grid item xs={12} sm={6} md={3}>
+                                                                    <Grid item xs={12} sm={6} md={6}>
                                                                         <Controller
                                                                             name={`products.${index}.model_list`}
                                                                             control={control}
@@ -888,7 +905,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                 <DialogActions sx={{ justifyContent: 'flex-start', p: 3, gap: 2 }}>
                     {editingMode === 'edit' && (
                         <Button
-                            onClick={handleSubmit(onSubmit)}
+                            onClick={handleSaveClick}
                             variant="contained"
                             disabled={loading || saving}
                             startIcon={saving ? <CircularProgress size={16} /> : null}

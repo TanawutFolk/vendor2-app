@@ -11,7 +11,7 @@ import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import AddProductGroupModal from './modal/AddProductGroupModal'
 
 // Fetch functions
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -58,7 +58,7 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                         </Grid>
                                         <Divider sx={{ mt: 1, mb: 2 }} />
                                     </Grid>
-                                    <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+                                    <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', gap: 1 }}>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Controller
                                                 name={`products.${index}.product_group`}
@@ -77,7 +77,7 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                                         classNamePrefix='select'
                                                         {...(errors.products?.[index]?.product_group && {
                                                             error: true,
-                                                            helperText: 'Product Group is required'
+                                                            helperText: errors.products[index]?.product_group?.message || 'Product Group is required'
                                                         })}
                                                     />
                                                 )}
@@ -88,7 +88,7 @@ const SectionProducts = ({ isDisabled }: SectionProductsProps) => {
                                             color='secondary'
                                             onClick={() => setShowAddProductGroupModal(true)}
                                             disabled={isDisabled}
-                                            sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0 }}
+                                            sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, alignSelf: 'flex-start', mt: '20px' }}
                                             title='Add Product Group'
                                         >
                                             <i className='tabler-plus' />

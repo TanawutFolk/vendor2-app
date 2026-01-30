@@ -20,11 +20,9 @@ import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfile
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Fetch functions
-import {
-    fetchVendorTypes,
-    fetchProvinces,
-    fetchProductGroups
-} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
+import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 
 // Types
 import type { FindVendorFormData } from './validateSchema'
@@ -319,7 +317,7 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                                 render={({ field }) => (
                                     <SelectCustom
                                         {...field}
-                                        label='Status'
+                                        label='Prones Status'
                                         placeholder='Select ...'
                                         isClearable
                                         options={[

@@ -91,5 +91,23 @@ export default class FindVendorServices {
         })
     }
 
+    // Delete contact
+    static deleteContact(vendor_contact_id: number): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
+        return axiosRequest<FindVendorApiResponseI<boolean>>({
+            url: `${FindVendorAPI.API_ROOT_URL}/deleteContact`,
+            data: { vendor_contact_id },
+            method: 'POST'
+        })
+    }
+
+    // Delete product
+    static deleteProduct(vendor_product_id: number): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
+        return axiosRequest<FindVendorApiResponseI<boolean>>({
+            url: `${FindVendorAPI.API_ROOT_URL}/deleteProduct`,
+            data: { vendor_product_id },
+            method: 'POST'
+        })
+    }
+
 
 }

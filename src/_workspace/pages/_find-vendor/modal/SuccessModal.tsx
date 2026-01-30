@@ -109,7 +109,67 @@ const SuccessModal = ({
                     <Typography variant='body1' color='text.secondary'>{message}</Typography>
                 </Box>
 
-                {/* Changes Table - Before/After */}
+                {/* Added Items */}
+                {hasChanges && updatedData?.changes?.added && updatedData.changes.added.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                            <i className="tabler-plus" style={{ fontSize: 24, color: '#2e7d32' }} />
+                            <Typography variant="h6">Added Items</Typography>
+                            <Chip label={`${updatedData.changes.added.length} items`} size="small" color="success" />
+                        </Box>
+
+                        <Card variant="outlined">
+                            <Table size="small">
+                                <TableBody>
+                                    <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                        <TableCell sx={{ fontWeight: 'bold', width: '70%' }}>Description</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Type</TableCell>
+                                    </TableRow>
+                                    {updatedData.changes.added.map((item, index) => (
+                                        <TableRow key={index} sx={{ '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
+                                            <TableCell sx={{ fontWeight: 500, color: 'success.main' }}>{item.description}</TableCell>
+                                            <TableCell>
+                                                <Chip label={item.type} size="small" variant="outlined" color="success" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </Box>
+                )}
+
+                {/* Removed Items */}
+                {hasChanges && updatedData?.changes?.removed && updatedData.changes.removed.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                            <i className="tabler-trash" style={{ fontSize: 24, color: '#d32f2f' }} />
+                            <Typography variant="h6">Removed Items</Typography>
+                            <Chip label={`${updatedData.changes.removed.length} items`} size="small" color="error" />
+                        </Box>
+
+                        <Card variant="outlined">
+                            <Table size="small">
+                                <TableBody>
+                                    <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                        <TableCell sx={{ fontWeight: 'bold', width: '70%' }}>Description</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Type</TableCell>
+                                    </TableRow>
+                                    {updatedData.changes.removed.map((item, index) => (
+                                        <TableRow key={index} sx={{ '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
+                                            <TableCell sx={{ fontWeight: 500, color: 'error.main', textDecoration: 'line-through' }}>{item.description}</TableCell>
+                                            <TableCell>
+                                                <Chip label={item.type} size="small" variant="outlined" color="error" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </Box>
+                )}
+
+                {/* Modified Items */}
                 {hasChanges && updatedData?.changes?.modified && updatedData.changes.modified.length > 0 && (
                     <Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>

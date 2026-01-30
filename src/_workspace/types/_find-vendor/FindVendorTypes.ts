@@ -3,6 +3,7 @@ export interface VendorResultI {
     vendor_id: number
     fft_vendor_code?: string | null
     fft_status?: string | null
+    status_check?: string
     company_name: string
     vendor_type_id?: number
     vendor_type_name: string
@@ -141,6 +142,7 @@ export interface VendorComprehensiveI {
     vendor_id: number
     fft_vendor_code?: string | null
     fft_status?: string | null
+    status_check?: string
     company_name: string
     vendor_type_id?: number
     vendor_type_name: string

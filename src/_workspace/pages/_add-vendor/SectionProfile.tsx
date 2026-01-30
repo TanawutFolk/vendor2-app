@@ -9,7 +9,7 @@ import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 
 // Fetch functions
-import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchFindVendor'
+import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -120,7 +120,7 @@ const SectionProfile = ({ isDisabled }: SectionProfileProps) => {
                         <CustomTextField
                             {...field}
                             fullWidth
-                            label='Tel Center (Optional)'
+                            label='Tel Center'
                             placeholder='Enter phone number...'
                             autoComplete='off'
                             disabled={isDisabled}

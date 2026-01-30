@@ -43,10 +43,12 @@ export const ContactSchema = z.object({
 const ProductGroupOptionSchema = z.object({
     value: z.number(),
     label: z.string()
-}).nullable().optional()
+})
 
 export const ProductSchema = z.object({
-    product_group: ProductGroupOptionSchema,
+    product_group: ProductGroupOptionSchema.refine(val => val !== null && val !== undefined, {
+        message: requiredFieldMessage({ fieldName: 'Product Group' })
+    }),
     maker_name: z
         .string({
             required_error: requiredFieldMessage({ fieldName: 'Maker Name' }),
@@ -105,18 +107,18 @@ export const AddVendorSchema = z.object({
         .or(z.literal('')),
     tel_center: z
         .string({
+            required_error: requiredFieldMessage({ fieldName: 'Tel Center' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Tel Center', typeName: 'String' })
         })
-        .max(30, maxLengthFieldMessage({ fieldName: 'Tel Center', maxLength: 30 }))
-        .optional()
-        .or(z.literal('')),
+        .min(1, requiredFieldMessage({ fieldName: 'Tel Center' }))
+        .max(30, maxLengthFieldMessage({ fieldName: 'Tel Center', maxLength: 30 })),
     address: z
         .string({
+            required_error: requiredFieldMessage({ fieldName: 'Address' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Address', typeName: 'String' })
         })
-        .max(500, maxLengthFieldMessage({ fieldName: 'Address', maxLength: 500 }))
-        .optional()
-        .or(z.literal('')),
+        .min(5, minLengthFieldMessage({ fieldName: 'Address', minLength: 5 }))
+        .max(500, maxLengthFieldMessage({ fieldName: 'Address', maxLength: 500 })),
     note: z.string().optional().or(z.literal('')),
 
     // Contacts Array
@@ -145,7 +147,7 @@ export const defaultContactValues: ContactFormData = {
 }
 
 export const defaultProductValues: ProductFormData = {
-    product_group: null,
+    product_group: undefined as any, // Will be set by user
     maker_name: '',
     product_name: '',
     model_list: ''
@@ -155,7 +157,7 @@ export const defaultAddVendorValues: AddVendorFormData = {
     company_name: '',
     province: '',
     postal_code: '',
-    vendor_type: null,
+    vendor_type: undefined as any,
     vendor_type_name: '',
     website: '',
     tel_center: '',
