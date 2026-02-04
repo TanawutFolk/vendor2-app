@@ -95,6 +95,8 @@ export class EditVendorUtils {
             maker_name: record.maker_name || '',
             product_name: record.product_name || '',
             model_list: record.model_list || '',
+            CREATE_BY: record.product_create_by || '',
+            CREATE_DATE: record.product_create_date || '',
             UPDATE_BY: record.product_update_by || '',
             UPDATE_DATE: record.product_update_date || ''
         }))

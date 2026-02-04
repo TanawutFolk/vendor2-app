@@ -36,6 +36,8 @@ export interface VendorResultI {
     contact_update_date?: string
 
     // Product Audit
+    product_create_by?: string
+    product_create_date?: string
     product_update_by?: string
     product_update_date?: string
 }
