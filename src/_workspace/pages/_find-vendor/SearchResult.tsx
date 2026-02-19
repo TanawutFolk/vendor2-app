@@ -77,25 +77,12 @@ const SearchResult = () => {
     }
 
     // Shared search parameters (same as used in server-side datasource)
+    // NOTE: getValues() is not reactive, so params are captured at render time.
+    // isEnableFetching is NOT a dependency — this prevents queryKey churn.
+    const searchFilters = getValues('searchFilters')
+    const sorting = getValues('searchResults.sorting')
+
     const paramForSearch: FindVendorSearchRequestI = useMemo(() => {
-        // We need to re-calculate params when fetch is enabled
-        // This dependency on isEnableFetching allows the useMemo to update "just in time" before the query runs
-        // effectively capturing the latest form values at the moment the search button was clicked.
-        // Note: In strict mode or some setups, simply depending on isEnableFetching might not be enough if it doesn't change frequently,
-        // but here isEnableFetching is toggled true when Search is clicked.
-        if (!isEnableFetching && !isExporting) {
-            // Return existing Memo or maybe just default? 
-            // Ideally we want the params to be "latched" when isEnableFetching becomes true.
-            // React Query will re-run when params change OR when enabled becomes true.
-            // If we want to capture form values ONLY when search is clicked, we rely on React Query's behavior.
-            // However, getValues() is not reactive. So we might need to rely on the fact that the parent re-renders 
-            // or that we're passing these params to the query.
-        }
-
-        const searchFilters = getValues('searchFilters')
-
-        // Get sorting from Form State (MRT format) -> convert to API format
-        const sorting = getValues('searchResults.sorting')
         const orderParams = sorting && sorting.length > 0
             ? sorting.map((sort: any) => ({ id: sort.id, desc: sort.desc }))
             : [{ id: 'company_name', desc: false }]
@@ -117,9 +104,9 @@ const SearchResult = () => {
             ColumnFilters: [],
             Order: orderParams,
             Start: 0,
-            Limit: 10000 // Fetch all for client-side pagination
+            Limit: 3000 // Fetch all for client-side pagination
         }
-    }, [isEnableFetching, isExporting, getValues]) // Add getValues to dependency (though it's stable) and isEnableFetching to trigger rebuild
+    }, [searchFilters, sorting])
 
     // React Query Hook
     const {
@@ -131,10 +118,10 @@ const SearchResult = () => {
 
     // Reset isEnableFetching when fetching is done
     useEffect(() => {
-        if (!isFetching && isEnableFetching) {
+        if (isFetching === false) {
             setIsEnableFetching(false)
         }
-    }, [isFetching, isEnableFetching, setIsEnableFetching])
+    }, [isFetching])
 
 
     const rowData = useMemo(() => {

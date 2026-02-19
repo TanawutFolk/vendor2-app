@@ -60,14 +60,15 @@ const AddVendorPage = () => {
 
     // Hooks : React Query - Create Vendor
     const { mutate: saveVendor, isPending: isSaving } = useCreate(
-        (data: any) => {
+        (response: any) => {
+            const result = response.data || response
             setConfirmModal(false)
-            if (data.Status) {
-                setSuccessVendorId(data.vendorId)
+            if (result.Status) {
+                setSuccessVendorId(result.vendorId)
                 setSuccessVendorData(getValues())
                 setSuccessModal(true)
             } else {
-                setErrorMessage(data.Message || 'Failed to create vendor')
+                setErrorMessage(result.Message || 'Failed to create vendor')
                 setErrorModal(true)
             }
         },

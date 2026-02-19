@@ -25,7 +25,7 @@ export default class AddVendorServices {
     // Create new vendor with contacts and products
     static create(data: CreateVendorRequestI): Promise<AxiosResponse<CreateVendorResponseI>> {
         return axiosRequest<CreateVendorResponseI>({
-            url: `${AddVendorAPI.API_ROOT_URL}/create`,
+            url: `${AddVendorAPI.API_ROOT_URL}/CreateVendor`,
             data,
             method: 'POST'
         })
