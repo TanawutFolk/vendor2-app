@@ -11,13 +11,11 @@ import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SelectCustom from '@components/react-select/SelectCustom'
 
-// _template Imports
-import { useDxContext } from '@/_template/DxContextProvider'
-
 // react-query Imports
 import { useQueryClient } from '@tanstack/react-query'
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 
 // Fetch functions
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
@@ -29,16 +27,9 @@ import type { FindVendorFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
 import { MENU_ID } from './env'
 
-interface SearchFilterProps {
-    onSearch: () => void
-}
-
-const SearchFilter = ({ onSearch }: SearchFilterProps) => {
+const SearchFilter = () => {
     // States
     const [collapse, setCollapse] = useState(false)
-
-    // Context
-    const { setIsEnableFetching } = useDxContext()
 
     // react-hook-form
     const { setValue, getValues, control } = useFormContext<FindVendorFormData>()
@@ -46,14 +37,9 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
     // react-query
     const queryClient = useQueryClient()
 
-    // USER profile setting save handlers
-    const onMutateSuccess = () => {
-        console.log('User profile setting saved successfully')
-    }
+    const onMutateSuccess = () => { }
 
-    const onMutateError = (e: any) => {
-        console.log('User profile setting save error:', e)
-    }
+    const onMutateError = (e: any) => { }
 
     const { mutate } = useCreate(onMutateSuccess, onMutateError)
 
@@ -74,7 +60,8 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
                     inuse: getValues('searchFilters.inuse'),
                     product_name: getValues('searchFilters.product_name'),
                     maker_name: getValues('searchFilters.maker_name'),
-                    model_list: getValues('searchFilters.model_list')
+                    model_list: getValues('searchFilters.model_list'),
+                    fft_vendor_code: getValues('searchFilters.fft_vendor_code')
                 },
                 searchResults: {
                     pageSize: getValues('searchResults.pageSize'),
@@ -93,16 +80,14 @@ const SearchFilter = ({ onSearch }: SearchFilterProps) => {
     }
 
     // Function
-    const handleClear = () => {
-        setValue('searchFilters', defaultSearchFilters)
-        setIsEnableFetching(true)
-        onSearch()
+    const handleSearch = () => {
+        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         handleAdd()
     }
 
-    const handleSearch = () => {
-        setIsEnableFetching(true)
-        onSearch()
+    const handleClear = () => {
+        setValue('searchFilters', defaultSearchFilters)
+        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         handleAdd()
     }
 

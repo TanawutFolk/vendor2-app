@@ -377,6 +377,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     id: 527,
     href: '/add-vendor'
   },
+  {
+    label: dictionary['navigation'].requestHistory,
+    icon: 'tabler-history',
+    id: 534,
+    href: '/request-history'
+  },
   // {
   //   label: dictionary['navigation'].priceList,
   //   id: 375,

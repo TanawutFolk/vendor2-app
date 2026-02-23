@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
+import { useMemo, useCallback, useRef, useState } from 'react'
 
 // MUI Imports
 import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
@@ -17,9 +17,6 @@ import { saveAs } from 'file-saver'
 
 // React Hook Form
 import { useFormContext } from 'react-hook-form'
-
-// Template Context
-import { useDxContext } from '@/_template/DxContextProvider'
 
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
@@ -53,9 +50,6 @@ const agGridTheme = themeQuartz.withParams({
 })
 
 const SearchResult = () => {
-    // DxContext for managing fetch state
-    const { isEnableFetching, setIsEnableFetching } = useDxContext()
-
     // React Hook Form
     const { getValues, setValue } = useFormContext<FindVendorFormData>()
 
@@ -114,14 +108,7 @@ const SearchResult = () => {
         isLoading,
         isFetching,
         refetch
-    } = useSearch(paramForSearch, isEnableFetching)
-
-    // Reset isEnableFetching when fetching is done
-    useEffect(() => {
-        if (isFetching === false) {
-            setIsEnableFetching(false)
-        }
-    }, [isFetching])
+    } = useSearch(paramForSearch)
 
 
     const rowData = useMemo(() => {
