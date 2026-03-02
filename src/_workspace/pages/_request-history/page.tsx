@@ -10,12 +10,14 @@ import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 // Component Imports
 import StatusTimeline from './StatusTimeline'
 import VendorCard from './VendorCard'
+import SearchFilter, { defaultSearchFilterValues } from './SearchFilter'
 
 // Env Imports
 import { MENU_NAME, breadcrumbNavigation } from './env'
 
 // Types
 import type { VendorRegisterHistory } from './types'
+import type { SearchFilterValues } from './SearchFilter'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock Data
@@ -159,11 +161,15 @@ const StatusSummaryChip = ({ label, count, color }: { label: string; count: numb
 const RequestRegisterHistoryPage = () => {
     const [selectedId, setSelectedId] = useState<number>(MOCK_DATA[0].vendor_id)
     const [search, setSearch] = useState('')
+    const [activeFilters, setActiveFilters] = useState<SearchFilterValues>(defaultSearchFilterValues)
 
-    const filtered = MOCK_DATA.filter(v =>
-        v.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
-        v.tax_id.includes(search)
-    )
+    const filtered = MOCK_DATA.filter(v => {
+        const matchName = !activeFilters.vendor_name || v.vendor_name.toLowerCase().includes(activeFilters.vendor_name.toLowerCase())
+        const matchSubmittedBy = !activeFilters.submitted_by || v.submitted_by.toLowerCase().includes(activeFilters.submitted_by.toLowerCase())
+        const matchStatus = !activeFilters.overall_status || v.overall_status === activeFilters.overall_status.value
+        const matchSearch = !search || v.vendor_name.toLowerCase().includes(search.toLowerCase()) || v.tax_id.includes(search)
+        return matchName && matchSubmittedBy && matchStatus && matchSearch
+    })
 
     const selected = MOCK_DATA.find(v => v.vendor_id === selectedId)
     const completedSteps = selected ? selected.steps.filter(s => s.status === 'completed').length : 0
@@ -183,6 +189,17 @@ const RequestRegisterHistoryPage = () => {
                 {/* Header */}
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+                </Grid>
+
+                {/* Search Filter */}
+                <Grid item xs={12}>
+                    <SearchFilter
+                        onSearch={vals => setActiveFilters(vals)}
+                        onClear={() => {
+                            setActiveFilters(defaultSearchFilterValues)
+                            setSearch('')
+                        }}
+                    />
                 </Grid>
 
                 {/* Summary chips */}

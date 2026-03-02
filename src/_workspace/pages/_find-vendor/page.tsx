@@ -8,8 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 // Third-party Imports
 import { useUpdateEffect } from 'react-use'
 
-// react-query Imports
-import { useQueryClient } from '@tanstack/react-query'
 
 // Components Imports
 import SkeletonCustom from '@components/SkeletonCustom'
@@ -24,22 +22,26 @@ import { FindVendorSchema, fetchDefaultValues } from './validateSchema'
 import { breadcrumbNavigation, MENU_NAME } from './env'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useFindVendor'
+import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 
 function Page() {
-    return <InnerApp />
+    return (
+        <DxProvider>
+            <InnerApp />
+        </DxProvider>
+    )
 }
 
 
 
 const InnerApp = () => {
+    // DxContext — trigger initial fetch after form default values load
+    const { setIsEnableFetching } = useDxContext()
     // React Hook Form
     const reactHookFormMethods = useForm<FindVendorFormData>({
         resolver: zodResolver(FindVendorSchema),
         defaultValues: fetchDefaultValues
     })
-
-    const queryClient = useQueryClient()
 
     const { control } = reactHookFormMethods
 
@@ -47,9 +49,9 @@ const InnerApp = () => {
         control: control
     })
 
-    // Auto-fetch when form is ready (loading finishes)
+    // Fetch data after initial defaultValues finish loading — same as manufacturing-item & sct-for-product
     useUpdateEffect(() => {
-        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+        setIsEnableFetching(true)
     }, [isLoadingReactHookForm])
 
 

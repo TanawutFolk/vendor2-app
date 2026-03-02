@@ -9,7 +9,7 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/home'
   },
   {
-    label: dictionary['navigation'].menu,
+    label: dictionary['navigation'].menu1,
     isSection: true
   },
 
@@ -382,6 +382,45 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     icon: 'tabler-history',
     id: 534,
     href: '/request-register-history'
+  },
+  {
+    label: dictionary['navigation'].menu2,
+    isSection: true
+  },
+  {
+    label: dictionary['navigation'].requestRegister,
+    icon: 'tabler-history',
+    id: 539,
+    href: '/request-register'
+  },
+  {
+    label: dictionary['navigation'].menu3,
+    isSection: true
+  },
+  {
+    label: dictionary['navigation'].taskManager,
+    icon: 'tabler-device-desktop-cog',
+    id: 535,
+    children: [
+      {
+        id: 536,
+        label: dictionary['navigation'].task,
+        icon: 'tabler-checklist',
+        href: '/task'
+      },
+      {
+        id: 537,
+        label: dictionary['navigation'].employeePO,
+        icon: 'tabler-users',
+        href: '/employee-po'
+      },
+      {
+        id: 538,
+        label: dictionary['navigation'].approver,
+        icon: 'tabler-user-check',
+        href: '/approver'
+      },
+    ]
   },
   // {
   //   label: dictionary['navigation'].priceList,

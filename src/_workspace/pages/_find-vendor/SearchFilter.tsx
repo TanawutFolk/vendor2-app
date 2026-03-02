@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useFindVendor'
+import { useDxContext } from '@/_template/DxContextProvider'
 
 // Fetch functions
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
@@ -36,6 +37,9 @@ const SearchFilter = () => {
 
     // react-query
     const queryClient = useQueryClient()
+
+    // DxContext
+    const { setIsEnableFetching } = useDxContext()
 
     const onMutateSuccess = () => { }
 
@@ -81,12 +85,14 @@ const SearchFilter = () => {
 
     // Function
     const handleSearch = () => {
+        setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         handleAdd()
     }
 
     const handleClear = () => {
         setValue('searchFilters', defaultSearchFilters)
+        setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         handleAdd()
     }

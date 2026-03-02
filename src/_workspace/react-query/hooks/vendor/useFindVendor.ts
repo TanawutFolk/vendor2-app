@@ -13,12 +13,12 @@ import type {
 
 export const PREFIX_QUERY_KEY = 'FIND_VENDOR'
 
-export const useSearch = (params: FindVendorSearchRequestI) => {
+export const useSearch = (params: FindVendorSearchRequestI, enabled: boolean = true) => {
     return useQuery<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>, Error>({
         queryKey: [PREFIX_QUERY_KEY, params],
         queryFn: () => FindVendorServices.search(params),
         placeholderData: keepPreviousData,
-        enabled: true
+        enabled: enabled
     })
 }
 

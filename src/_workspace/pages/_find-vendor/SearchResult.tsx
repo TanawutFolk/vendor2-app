@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useMemo, useCallback, useRef, useState } from 'react'
+import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 
 // MUI Imports
 import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
@@ -25,6 +25,9 @@ import type { FindVendorFormData } from './validateSchema'
 
 // React Query Hooks
 import { useSearch } from '@_workspace/react-query/hooks/vendor/useFindVendor'
+
+// Context
+import { useDxContext } from '@/_template/DxContextProvider'
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
@@ -70,9 +73,11 @@ const SearchResult = () => {
         setAnchorEl(null)
     }
 
-    // Shared search parameters (same as used in server-side datasource)
-    // NOTE: getValues() is not reactive, so params are captured at render time.
-    // isEnableFetching is NOT a dependency — this prevents queryKey churn.
+    // DxContext: controls whether fetch is enabled (set true by Search/Clear button)
+    const { isEnableFetching, setIsEnableFetching } = useDxContext()
+
+    // Params snapshot from form values (getValues is fine here because fetch is
+    // gated by isEnableFetching — we only fetch after SearchFilter sets it true)
     const searchFilters = getValues('searchFilters')
     const sorting = getValues('searchResults.sorting')
 
@@ -98,18 +103,24 @@ const SearchResult = () => {
             ColumnFilters: [],
             Order: orderParams,
             Start: 0,
-            Limit: 3000 // Fetch all for client-side pagination
+            Limit: 3000
         }
-    }, [searchFilters, sorting])
+    }, [isEnableFetching]) // re-compute only when search is triggered
 
-    // React Query Hook
+    // React Query Hook — enabled only when SearchFilter triggers (isEnableFetching=true)
     const {
         data: searchResult,
         isLoading,
         isFetching,
         refetch
-    } = useSearch(paramForSearch)
+    } = useSearch(paramForSearch, isEnableFetching)
 
+    // Reset isEnableFetching after fetch completes — same pattern as manufacturing-item & sct-for-product
+    useEffect(() => {
+        if (isFetching === false) {
+            setIsEnableFetching(false)
+        }
+    }, [isFetching, setIsEnableFetching])
 
     const rowData = useMemo(() => {
         if (searchResult?.data?.Status) {
@@ -240,9 +251,9 @@ const SearchResult = () => {
     const columnDefs = useMemo<ColDef[]>(
         () => [
             {
-                headerName: 'Edit',
+                headerName: '',
                 field: 'actions',
-                width: 60,
+                width: 40,
                 pinned: 'left',
                 cellRenderer: ActionCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },

@@ -7,7 +7,9 @@
     "customerOrderFrom": "Customer Order From",
     "customerShipTo": "Customer Ship To",
     "customerInvoiceTo": "Customer Invoice To",
-    "menu": "MASTER DATA ",
+    "menu1": "Vendor",
+    "menu2": "Request",
+    "menu3": "Task Management",
     "processTimeStudySetting": "Master of the data",
     "productGroup": "Product Group",
     "productCategory": "Product Category",
@@ -65,6 +67,11 @@
     "sctBomExplosion": "SCT BOM Explosion",
     "findVendor": "Find Vendor",
     "addVendor": "Add Vendor",
-    "requestHistory": "Request Register history"
+    "requestHistory": "Request Register history",
+    "taskManager": "Task Manager",
+    "task": "Task",
+    "employeePO": "Employee PO",
+    "approver": "Approver",
+    "requestRegister": "Request Register"
   }
 }
