@@ -33,6 +33,12 @@ const statusConfig: Record<RegisterStatus, {
         color: 'error',
         accent: '#EA5455',
         bgGradient: 'linear-gradient(135deg, rgba(234,84,85,0.12) 0%, transparent 60%)'
+    },
+    skipped: {
+        label: 'Skipped',
+        color: 'default',
+        accent: '#8A8D99',
+        bgGradient: 'transparent'
     }
 }
 

@@ -1,4 +1,4 @@
-export type RegisterStatus = 'completed' | 'in_progress' | 'pending' | 'rejected'
+export type RegisterStatus = 'completed' | 'in_progress' | 'pending' | 'rejected' | 'skipped'
 
 export interface RegisterStep {
     step: number
@@ -8,6 +8,10 @@ export interface RegisterStep {
     updatedBy?: string
     updatedDate?: string
     remark?: string
+    // Branching support
+    isBranch?: boolean          // true = this node is a branch (sub-step of rejection path)
+    branchLabel?: string        // e.g. "ไม่ตกลง" to label the branch line
+    branchChildren?: RegisterStep[]  // sub-steps inside rejection branch
 }
 
 export interface VendorRegisterHistory {

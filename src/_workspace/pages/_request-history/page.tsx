@@ -33,45 +33,59 @@ const MOCK_DATA: VendorRegisterHistory[] = [
         steps: [
             {
                 step: 1,
-                title: 'Submit Registration Request',
-                description: 'Vendor information submitted by procurement team for review.',
+                title: 'Sent to PO',
+                description: 'Registration request sent to Procurement Officer for further processing.',
                 status: 'completed',
                 updatedBy: 'tanawut.pat',
                 updatedDate: '2025-02-10 09:30'
             },
             {
                 step: 2,
-                title: 'Document Verification',
-                description: 'Verify company registration documents, tax ID, and business license.',
+                title: 'PO Approved',
+                description: 'Procurement Officer reviewed and approved the vendor information.',
                 status: 'completed',
                 updatedBy: 'somchai.k',
-                updatedDate: '2025-02-11 14:20',
-                remark: 'All documents verified. Business license valid until 2027.'
+                updatedDate: '2025-02-11 10:15'
             },
             {
                 step: 3,
-                title: 'Procurement Department Approval',
-                description: 'Procurement manager reviews and approves the vendor profile.',
-                status: 'in_progress',
-                updatedBy: 'manager.proc',
-                updatedDate: '2025-02-12 10:00'
+                title: 'PO Requested Vendor Documents',
+                description: 'PO sent a document request form for the vendor to complete and return.',
+                status: 'completed',
+                updatedBy: 'somchai.k',
+                updatedDate: '2025-02-11 14:00'
             },
             {
                 step: 4,
-                title: 'Finance Department Approval',
-                description: 'Finance team validates payment terms and bank account details.',
-                status: 'pending'
+                title: 'Vendor Accepted GPR A',
+                description: 'Awaiting vendor confirmation to submit documents as requested in GPR A.',
+                status: 'in_progress',
+                updatedBy: 'vendor.abc',
+                updatedDate: '2025-02-12 09:00'
+                // No branch shown — vendor has not rejected yet
             },
             {
                 step: 5,
-                title: 'ERP System Registration',
-                description: 'Vendor code assigned and registered into the ERP system.',
+                title: 'PO Check Information / GPR',
+                description: 'PO verifies the accuracy of documents and GPR submitted by the vendor.',
                 status: 'pending'
             },
             {
                 step: 6,
-                title: 'Registration Complete',
-                description: 'Vendor is officially registered and active in the system.',
+                title: 'PO Manager Approval',
+                description: 'Procurement Manager reviews and gives final approval before MD.',
+                status: 'pending'
+            },
+            {
+                step: 7,
+                title: 'MD Approval',
+                description: 'Managing Director officially approves the vendor registration.',
+                status: 'pending'
+            },
+            {
+                step: 8,
+                title: 'Complete',
+                description: 'Vendor is fully registered in the system and ready for use.',
                 status: 'pending'
             }
         ]
@@ -84,38 +98,14 @@ const MOCK_DATA: VendorRegisterHistory[] = [
         submitted_date: '2025-02-05',
         overall_status: 'completed',
         steps: [
-            {
-                step: 1, title: 'Submit Registration Request',
-                description: 'Vendor information submitted by procurement team for review.',
-                status: 'completed', updatedBy: 'apinya.s', updatedDate: '2025-02-05 08:00'
-            },
-            {
-                step: 2, title: 'Document Verification',
-                description: 'Verify company registration documents, tax ID, and business license.',
-                status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-06 11:00'
-            },
-            {
-                step: 3, title: 'Procurement Department Approval',
-                description: 'Procurement manager reviews and approves the vendor profile.',
-                status: 'completed', updatedBy: 'manager.proc', updatedDate: '2025-02-07 09:30'
-            },
-            {
-                step: 4, title: 'Finance Department Approval',
-                description: 'Finance team validates payment terms and bank account details.',
-                status: 'completed', updatedBy: 'finance.team', updatedDate: '2025-02-08 14:00',
-                remark: 'Net 30 payment terms approved.'
-            },
-            {
-                step: 5, title: 'ERP System Registration',
-                description: 'Vendor code assigned and registered into the ERP system.',
-                status: 'completed', updatedBy: 'it.support', updatedDate: '2025-02-09 10:00',
-                remark: 'Vendor code: V-20250209-002 assigned.'
-            },
-            {
-                step: 6, title: 'Registration Complete',
-                description: 'Vendor is officially registered and active in the system.',
-                status: 'completed', updatedBy: 'system', updatedDate: '2025-02-09 10:05'
-            }
+            { step: 1, title: 'Sent to PO', description: 'Registration request sent to Procurement Officer.', status: 'completed', updatedBy: 'apinya.s', updatedDate: '2025-02-05 08:00' },
+            { step: 2, title: 'PO Approved', description: 'Procurement Officer reviewed and approved the vendor information.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-06 09:00' },
+            { step: 3, title: 'PO Requested Vendor Documents', description: 'PO sent document request form to the vendor.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-06 11:00' },
+            { step: 4, title: 'Vendor Accepted GPR A', description: 'Vendor confirmed and submitted all required documents (GPR A).', status: 'completed', updatedBy: 'vendor.xyz', updatedDate: '2025-02-07 08:30' },
+            { step: 5, title: 'PO Check Information / GPR', description: 'PO verified documents and GPR.', status: 'completed', updatedBy: 'manager.proc', updatedDate: '2025-02-07 14:00' },
+            { step: 6, title: 'PO Manager Approval', description: 'Procurement Manager approved.', status: 'completed', updatedBy: 'manager.proc', updatedDate: '2025-02-08 09:30' },
+            { step: 7, title: 'MD Approval', description: 'Managing Director officially approved the vendor registration.', status: 'completed', updatedBy: 'md.sign', updatedDate: '2025-02-09 10:00' },
+            { step: 8, title: 'Complete', description: 'Vendor successfully registered in the system.', status: 'completed', updatedBy: 'system', updatedDate: '2025-02-09 10:05' }
         ]
     },
     {
@@ -126,21 +116,30 @@ const MOCK_DATA: VendorRegisterHistory[] = [
         submitted_date: '2025-02-15',
         overall_status: 'rejected',
         steps: [
+            { step: 1, title: 'Sent to PO', description: 'Registration request sent to Procurement Officer.', status: 'completed', updatedBy: 'napat.w', updatedDate: '2025-02-15 13:00' },
+            { step: 2, title: 'PO Approved', description: 'Procurement Officer reviewed and approved the vendor information.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-15 15:00' },
+            { step: 3, title: 'PO Requested Vendor Documents', description: 'PO sent document request form to the vendor.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-16 09:00' },
             {
-                step: 1, title: 'Submit Registration Request',
-                description: 'Vendor information submitted by procurement team for review.',
-                status: 'completed', updatedBy: 'napat.w', updatedDate: '2025-02-15 13:00'
+                step: 4,
+                title: 'Vendor Declined GPR A',
+                description: 'Vendor declined GPR A — negotiation process initiated.',
+                status: 'rejected',
+                updatedBy: 'vendor.thai',
+                updatedDate: '2025-02-16 14:00',
+                remark: 'Vendor indicated that the terms in GPR A were not acceptable.',
+                branchLabel: 'Vendor Declined Path',
+                branchChildren: [
+                    { step: 1, title: 'Vendor Declined GPR A', description: 'Vendor rejected the offer in GPR A.', status: 'completed', updatedBy: 'vendor.thai', updatedDate: '2025-02-16 14:00' },
+                    { step: 2, title: 'Issue GPR B', description: 'Issued GPR B with revised terms for second-round negotiation.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-17 10:00' },
+                    { step: 3, title: 'Keep GPR B', description: 'Vendor acknowledged GPR B and is under consideration.', status: 'completed', updatedBy: 'vendor.thai', updatedDate: '2025-02-18 09:00' },
+                    { step: 4, title: 'Issue GPR C', description: 'Issued GPR C as the final offer.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-19 10:00' },
+                    { step: 5, title: 'Rejected', description: 'Case closed — vendor declined all offers.', status: 'rejected', updatedBy: 'manager.proc', updatedDate: '2025-02-19 16:00', remark: 'Vendor registration process terminated.' }
+                ]
             },
-            {
-                step: 2, title: 'Document Verification',
-                description: 'Verify company registration documents, tax ID, and business license.',
-                status: 'rejected', updatedBy: 'somchai.k', updatedDate: '2025-02-16 16:00',
-                remark: 'Company registration certificate has expired. Please resubmit with valid documents.'
-            },
-            { step: 3, title: 'Procurement Department Approval', description: 'Procurement manager reviews and approves the vendor profile.', status: 'pending' },
-            { step: 4, title: 'Finance Department Approval', description: 'Finance team validates payment terms and bank account details.', status: 'pending' },
-            { step: 5, title: 'ERP System Registration', description: 'Vendor code assigned and registered into the ERP system.', status: 'pending' },
-            { step: 6, title: 'Registration Complete', description: 'Vendor is officially registered and active in the system.', status: 'pending' }
+            { step: 5, title: 'PO Check Information / GPR', description: 'PO verifies documents and GPR.', status: 'pending' },
+            { step: 6, title: 'PO Manager Approval', description: 'Procurement Manager reviews and approves.', status: 'pending' },
+            { step: 7, title: 'MD Approval', description: 'Managing Director approves the registration.', status: 'pending' },
+            { step: 8, title: 'Complete', description: 'Vendor fully registered in the system.', status: 'pending' }
         ]
     }
 ]

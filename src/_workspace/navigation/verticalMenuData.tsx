@@ -389,7 +389,7 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
   },
   {
     label: dictionary['navigation'].requestRegister,
-    icon: 'tabler-history',
+    icon: 'tabler-checklist',
     id: 539,
     href: '/request-register'
   },
@@ -405,7 +405,7 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
       {
         id: 536,
         label: dictionary['navigation'].task,
-        icon: 'tabler-checklist',
+        icon: 'tabler-clipboard-copy',
         href: '/task'
       },
       {
