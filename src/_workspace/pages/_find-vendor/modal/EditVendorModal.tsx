@@ -96,7 +96,7 @@ interface EditVendorModalProps {
 
 const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: EditVendorModalProps) => {
     // Hooks
-    const { data: vendorQueryData, isLoading: isLoadingVendor } = useGetVendor(vendorId)
+    const { data: vendorQueryData, isLoading: isLoadingVendor, isFetching: isFetchingVendor } = useGetVendor(vendorId)
     const queryClient = useQueryClient()
     const updateVendor = useUpdateVendor(
         (data: any, variables: any) => {
@@ -116,8 +116,9 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         }
     )
 
-    // Derived states
-    const loading = isLoadingVendor || (!!vendorId && !vendorQueryData) // Show loading if fetching or if we have ID but no data yet
+    // Derived states — include isFetchingVendor so loading overlay shows on every refetch (not just first load)
+    // This prevents stale data from showing while new vendor data is being loaded in background
+    const loading = isLoadingVendor || isFetchingVendor || (!!vendorId && !vendorQueryData)
     const saving = updateVendor.isPending
 
     const [error, setError] = useState<string | null>(null)
@@ -180,6 +181,21 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
             return []
         }
     }, [])
+
+    // ─── Clear form immediately when vendorId changes ───────────────────────────
+    // This prevents stale data from showing while new vendor data is being fetched.
+    // Must run BEFORE the populate effect so the form is always clean on each open.
+    useEffect(() => {
+        if (!vendorId) return // Modal closing — do nothing (let onClose handle)
+        reset({ company_name: '', vendor_type_id: null, contacts: [], products: [] })
+        setOriginalData(null)
+        setVendorFftCode(null)
+        setVendorFftStatus(null)
+        setVendorStatusCheck(undefined)
+        setDeletedContactIds([])
+        setDeletedProductIds([])
+        setEditingMode('view')
+    }, [vendorId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Populate form when data is available
     useEffect(() => {

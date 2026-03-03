@@ -31,12 +31,12 @@ const InfoField = ({ label, value, fullWidth }: { label: string; value?: string;
 const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         <Box sx={{
-            width: 28, height: 28, borderRadius: 1.5,
-            bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            width: 28, height: 28, borderRadius: '50%',
+            bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-            <i className={icon} style={{ fontSize: 14, color: 'var(--mui-palette-primary-main)' }} />
+            <i className={icon} style={{ fontSize: 14 }} />
         </Box>
-        <Typography variant='overline' fontWeight={700} letterSpacing={1} color='text.secondary'>
+        <Typography variant='subtitle1' fontWeight={600} letterSpacing={0.5} color='primary.main'>
             {title}
         </Typography>
     </Box>
@@ -63,7 +63,7 @@ const RequestDetail = ({ request }: Props) => {
             {/* ── Top bar: meta info + action buttons ── */}
             <Box sx={{
                 px: 3, py: 2,
-                background: cfg.bgGradient,
+                bgcolor: 'background.paper',
                 borderBottom: '1px solid', borderColor: 'divider',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap'
             }}>
@@ -139,15 +139,15 @@ const RequestDetail = ({ request }: Props) => {
                 {(request.support_type || request.purchase_frequency) && (
                     <Box sx={{
                         display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2,
-                        px: 1.5, py: 1.5, borderRadius: 1,
-                        bgcolor: 'action.hover', border: '1px dashed', borderColor: 'divider'
+                        px: 1.5, py: 1.5, borderRadius: 1.5,
+                        bgcolor: 'background.paper', border: '1px solid', borderColor: 'primary.main'
                     }}>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                             <Box sx={{
-                                mt: 0.25, width: 24, height: 24, borderRadius: 1, flexShrink: 0,
-                                bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                mt: 0.25, width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                                bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
-                                <i className='tabler-tool' style={{ fontSize: 13, color: 'var(--mui-palette-primary-main)' }} />
+                                <i className='tabler-tool' style={{ fontSize: 13 }} />
                             </Box>
                             <Box>
                                 <Typography variant='caption' color='text.disabled' fontWeight={600} sx={{ display: 'block', lineHeight: 1.2 }}>
@@ -160,10 +160,10 @@ const RequestDetail = ({ request }: Props) => {
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                             <Box sx={{
-                                mt: 0.25, width: 24, height: 24, borderRadius: 1, flexShrink: 0,
-                                bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                mt: 0.25, width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                                bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
-                                <i className='tabler-calendar-repeat' style={{ fontSize: 13, color: 'var(--mui-palette-primary-main)' }} />
+                                <i className='tabler-calendar-repeat' style={{ fontSize: 13 }} />
                             </Box>
                             <Box>
                                 <Typography variant='caption' color='text.disabled' fontWeight={600} sx={{ display: 'block', lineHeight: 1.2 }}>
@@ -185,8 +185,8 @@ const RequestDetail = ({ request }: Props) => {
                         gridTemplateColumns: 'repeat(3, 1fr)',
                         gap: 2.5,
                         p: 2.5, borderRadius: 1.5,
-                        bgcolor: 'action.hover',
-                        border: '1px solid', borderColor: 'divider'
+                        bgcolor: 'background.paper',
+                        border: '1px solid', borderColor: 'primary.main'
                     }}>
                         <InfoField label='Company Name' value={request.company_name} />
                         <InfoField label='Vendor Type' value={request.vendor_type} />
@@ -208,15 +208,15 @@ const RequestDetail = ({ request }: Props) => {
                         {request.contacts.map((c, i) => (
                             <Box key={i} sx={{
                                 p: 2, borderRadius: 1.5,
-                                border: '1px solid', borderColor: 'divider',
+                                border: '1px solid', borderColor: 'primary.main',
                                 bgcolor: 'background.paper'
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                                     <Box sx={{
-                                        width: 30, height: 30, borderRadius: '50%',
-                                        bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        width: 26, height: 26, borderRadius: '50%',
+                                        bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
-                                        <Typography variant='caption' fontWeight={700} color='primary'>{i + 1}</Typography>
+                                        <Typography variant='caption' fontWeight={700} color='white'>{i + 1}</Typography>
                                     </Box>
                                     <Typography variant='subtitle2' fontWeight={700}>{c.contact_name}</Typography>
                                     {c.position && (
@@ -242,15 +242,15 @@ const RequestDetail = ({ request }: Props) => {
                         {request.products.map((p, i) => (
                             <Box key={i} sx={{
                                 px: 2, py: 1.5, borderRadius: 1.5,
-                                border: '1px solid', borderColor: 'divider',
+                                border: '1px solid', borderColor: 'primary.main',
                                 bgcolor: 'background.paper',
                                 display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap'
                             }}>
                                 <Box sx={{
-                                    width: 26, height: 26, borderRadius: 1.5, flexShrink: 0,
-                                    bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                                    bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                 }}>
-                                    <i className='tabler-box' style={{ fontSize: 13, color: 'var(--mui-palette-primary-main)' }} />
+                                    <i className='tabler-box' style={{ fontSize: 13 }} />
                                 </Box>
                                 <Box sx={{ flex: 1 }}>
                                     <Typography variant='body2' fontWeight={600}>{p.product_sub}</Typography>

@@ -4,7 +4,7 @@
 import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
+import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
@@ -251,9 +251,9 @@ const SearchResult = () => {
     const columnDefs = useMemo<ColDef[]>(
         () => [
             {
-                headerName: '',
+                headerName: 'Actions',
                 field: 'actions',
-                width: 40,
+                width: 94,
                 pinned: 'left',
                 cellRenderer: ActionCellRenderer,
                 cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
@@ -544,6 +544,31 @@ const SearchResult = () => {
         refetch()
     }, [refetch])
 
+
+    // --- On Row Click (Register Request) ---
+    const [registerModalOpen, setRegisterModalOpen] = useState(false)
+    const [selectedRegisterVendor, setSelectedRegisterVendor] = useState<any>(null)
+
+    // Not exposing row click for Register anymore based on user feedback. Using column button instead.
+
+    const handleConfirmRegister = () => {
+        // TODO: Call API to create a registration request or navigate to a form
+        alert(`Requesting Registration for: ${selectedRegisterVendor?.company_name}`)
+        setRegisterModalOpen(false)
+        setSelectedRegisterVendor(null)
+    }
+
+    const handleCloseRegisterModal = () => {
+        setRegisterModalOpen(false)
+        setSelectedRegisterVendor(null)
+    }
+
+    // Allow opening via context from cell renderer
+    const handleRegisterClick = useCallback((vendorId: number, data: any) => {
+        setSelectedRegisterVendor(data)
+        setRegisterModalOpen(true)
+    }, [])
+
     return (
         <Card>
             <CardHeader
@@ -587,7 +612,7 @@ const SearchResult = () => {
                     theme={agGridTheme}
                     columnDefs={columnDefs}
                     defaultColDef={defaultColDef}
-                    context={{ onEditClick: handleEditClick }}
+                    context={{ onEditClick: handleEditClick, onRegisterClick: handleRegisterClick }}
                     loading={isLoading || isFetching} // Pass loading state to grid
 
                     // Client-side props
@@ -603,6 +628,8 @@ const SearchResult = () => {
                     enableCellTextSelection={true}
                     copyHeadersToClipboard={true}
                     onGridReady={onGridReady}
+
+                    // Row Click for Registration Removed
 
                     // State Sync Events
                     onSortChanged={handleStateChange}
@@ -627,6 +654,28 @@ const SearchResult = () => {
                 vendorId={selectedVendorId}
                 onSuccess={handleEditSuccess}
             />
+
+            {/* Request Register Confirmation Dialog */}
+            {selectedRegisterVendor && (
+                <Dialog open={registerModalOpen} onClose={handleCloseRegisterModal} maxWidth="sm" fullWidth>
+                    <DialogTitle>Confirm Registration Request</DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ pt: 2 }}>
+                            <Typography>
+                                Are you sure you want to create a registration request for <b>{selectedRegisterVendor?.company_name}</b>?
+                            </Typography>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions sx={{ p: '1.25rem' }}>
+                        <Button onClick={handleCloseRegisterModal} color="secondary" variant="outlined">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirmRegister} color="primary" variant="contained">
+                            Create Request
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
         </Card>
     )
 }

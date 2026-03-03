@@ -12,7 +12,7 @@ const statusConfig: Record<
     {
         label: string
         color: 'success' | 'warning' | 'default' | 'error' | 'info'
-        gradient: string
+        bgColor: string
         iconBg: string
         connectorColor: string
         icon: string
@@ -22,8 +22,8 @@ const statusConfig: Record<
     completed: {
         label: 'Completed',
         color: 'success',
-        gradient: 'linear-gradient(135deg, rgba(40,199,111,0.08) 0%, rgba(40,199,111,0.02) 100%)',
-        iconBg: 'linear-gradient(135deg, #28C76F, #20a85c)',
+        bgColor: 'rgba(40,199,111,0.05)',
+        iconBg: '#28C76F',
         connectorColor: '#28C76F',
         icon: 'tabler-check',
         chipIcon: 'tabler-circle-check-filled'
@@ -31,8 +31,8 @@ const statusConfig: Record<
     in_progress: {
         label: 'In Progress',
         color: 'warning',
-        gradient: 'linear-gradient(135deg, rgba(255,159,67,0.1) 0%, rgba(255,159,67,0.02) 100%)',
-        iconBg: 'linear-gradient(135deg, #FF9F43, #e8893a)',
+        bgColor: 'rgba(255,159,67,0.05)',
+        iconBg: '#FF9F43',
         connectorColor: '#FF9F43',
         icon: 'tabler-loader-2',
         chipIcon: 'tabler-clock-filled'
@@ -40,8 +40,8 @@ const statusConfig: Record<
     pending: {
         label: 'Pending',
         color: 'default',
-        gradient: 'transparent',
-        iconBg: 'linear-gradient(135deg, #8A8D99, #6e7178)',
+        bgColor: 'transparent',
+        iconBg: '#8A8D99',
         connectorColor: 'rgba(138,141,153,0.3)',
         icon: 'tabler-point',
         chipIcon: 'tabler-clock'
@@ -49,8 +49,8 @@ const statusConfig: Record<
     rejected: {
         label: 'Rejected',
         color: 'error',
-        gradient: 'linear-gradient(135deg, rgba(234,84,85,0.08) 0%, rgba(234,84,85,0.02) 100%)',
-        iconBg: 'linear-gradient(135deg, #EA5455, #c94344)',
+        bgColor: 'rgba(234,84,85,0.05)',
+        iconBg: '#EA5455',
         connectorColor: '#EA5455',
         icon: 'tabler-x',
         chipIcon: 'tabler-circle-x-filled'
@@ -58,8 +58,8 @@ const statusConfig: Record<
     skipped: {
         label: 'Skipped',
         color: 'info',
-        gradient: 'transparent',
-        iconBg: 'linear-gradient(135deg, #00CFE8, #00b4cc)',
+        bgColor: 'transparent',
+        iconBg: '#00CFE8',
         connectorColor: 'rgba(0,207,232,0.25)',
         icon: 'tabler-minus',
         chipIcon: 'tabler-circle-minus'
@@ -76,9 +76,9 @@ const StepIcon = ({ status, step }: { status: RegisterStatus; step: number }) =>
             sx={{
                 width: 38,
                 height: 38,
-                background: cfg.iconBg,
+                bgcolor: cfg.iconBg,
                 boxShadow: status !== 'pending' && status !== 'skipped'
-                    ? `0 4px 14px ${cfg.iconBg.includes('28C76F') ? 'rgba(40,199,111,0.4)' : cfg.iconBg.includes('FF9F43') ? 'rgba(255,159,67,0.4)' : cfg.iconBg.includes('EA5455') ? 'rgba(234,84,85,0.4)' : 'none'}`
+                    ? `0 4px 14px ${cfg.iconBg === '#28C76F' ? 'rgba(40,199,111,0.4)' : cfg.iconBg === '#FF9F43' ? 'rgba(255,159,67,0.4)' : cfg.iconBg === '#EA5455' ? 'rgba(234,84,85,0.4)' : 'none'}`
                     : 'none',
                 flexShrink: 0,
                 zIndex: 1,
@@ -131,7 +131,7 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
                     px: 2,
                     py: 1.5,
                     borderRadius: 2.5,
-                    background: isPending || isSkipped ? 'var(--mui-palette-action-hover)' : cfg.gradient,
+                    bgcolor: isPending || isSkipped ? 'action.hover' : cfg.bgColor,
                     border: '1px solid',
                     borderColor: isPending || isSkipped ? 'divider' : step.status === 'rejected' ? 'rgba(234,84,85,0.2)' : 'rgba(234,84,85,0.15)',
                     opacity: isPending || isSkipped ? 0.6 : 1,
@@ -211,9 +211,9 @@ const StatusTimeline = ({ steps }: Props) => {
                                 sx={{
                                     p: 2.5,
                                     borderRadius: 3,
-                                    background: isPending
-                                        ? 'var(--mui-palette-action-hover)'
-                                        : cfg.gradient,
+                                    bgcolor: isPending
+                                        ? 'action.hover'
+                                        : cfg.bgColor,
                                     border: '1px solid',
                                     borderColor: isPending
                                         ? 'divider'
@@ -252,8 +252,8 @@ const StatusTimeline = ({ steps }: Props) => {
                                         {step.updatedBy && (
                                             <Tooltip title='Updated by' placement='top'>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <i className='tabler-user' style={{ fontSize: 10, color: 'var(--mui-palette-primary-main)' }} />
+                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <i className='tabler-user' style={{ fontSize: 10, color: 'var(--mui-palette-primary-contrastText)' }} />
                                                     </Box>
                                                     <Typography variant='caption' fontWeight={500} color='text.secondary'>{step.updatedBy}</Typography>
                                                 </Box>
@@ -262,8 +262,8 @@ const StatusTimeline = ({ steps }: Props) => {
                                         {step.updatedDate && (
                                             <Tooltip title='Updated date' placement='top'>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <i className='tabler-calendar' style={{ fontSize: 10, color: 'var(--mui-palette-primary-main)' }} />
+                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <i className='tabler-calendar' style={{ fontSize: 10, color: 'var(--mui-palette-primary-contrastText)' }} />
                                                     </Box>
                                                     <Typography variant='caption' fontWeight={500} color='text.secondary'>{step.updatedDate}</Typography>
                                                 </Box>
