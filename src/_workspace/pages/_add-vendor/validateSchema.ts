@@ -98,6 +98,7 @@ export const AddVendorSchema = z.object({
         label: z.string()
     }).nullable().optional(),
     vendor_type_name: z.string().optional(), // For display only
+    vendor_region: z.enum(['Local', 'Oversea']).default('Local'),
     website: z
         .string({
             invalid_type_error: typeFieldMessage({ fieldName: 'Website', typeName: 'String' })
@@ -112,6 +113,14 @@ export const AddVendorSchema = z.object({
         })
         .min(1, requiredFieldMessage({ fieldName: 'Tel Center' }))
         .max(30, maxLengthFieldMessage({ fieldName: 'Tel Center', maxLength: 30 })),
+    emailmain: z
+        .string({
+            invalid_type_error: typeFieldMessage({ fieldName: 'Email (Main)', typeName: 'String' })
+        })
+        .email('Invalid email format')
+        .max(100, maxLengthFieldMessage({ fieldName: 'Email (Main)', maxLength: 100 }))
+        .optional()
+        .or(z.literal('')),
     address: z
         .string({
             required_error: requiredFieldMessage({ fieldName: 'Address' }),
@@ -159,8 +168,10 @@ export const defaultAddVendorValues: AddVendorFormData = {
     postal_code: '',
     vendor_type: undefined as any,
     vendor_type_name: '',
+    vendor_region: 'Local',
     website: '',
     tel_center: '',
+    emailmain: '',
     address: '',
     note: '',
     contacts: [{ ...defaultContactValues }],

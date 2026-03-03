@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Controller, useFormContext, useFormState, useFieldArray } from 'react-hook-form'
 
 // MUI Imports
-import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, CardContent, Divider, Box } from '@mui/material'
+import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, CardContent, Divider, Box, ToggleButton, ToggleButtonGroup } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -262,6 +262,34 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                     <Controller
+                        name='vendor_region'
+                        control={control}
+                        render={({ field }) => (
+                            <Box>
+                                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                                    Vendor Region
+                                </Typography>
+                                <ToggleButtonGroup
+                                    value={field.value}
+                                    exclusive
+                                    onChange={(_, val) => { if (val !== null) field.onChange(val) }}
+                                    disabled={isDisabled}
+                                    size='small'
+                                    color='primary'
+                                >
+                                    <ToggleButton value='Local' sx={{ px: 3, fontWeight: 600 }}>
+                                        🏠 Local
+                                    </ToggleButton>
+                                    <ToggleButton value='Oversea' sx={{ px: 3, fontWeight: 600 }}>
+                                        ✈️ Oversea
+                                    </ToggleButton>
+                                </ToggleButtonGroup>
+                            </Box>
+                        )}
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                    <Controller
                         name='website'
                         control={control}
                         render={({ field }) => (
@@ -290,6 +318,24 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                                 autoComplete='off'
                                 disabled={isDisabled}
                                 {...(errors.tel_center && { error: true, helperText: errors.tel_center.message })}
+                            />
+                        )}
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                    <Controller
+                        name='emailmain'
+                        control={control}
+                        render={({ field }) => (
+                            <CustomTextField
+                                {...field}
+                                fullWidth
+                                label='Email (Main)'
+                                placeholder='vendor@company.com'
+                                autoComplete='off'
+                                type='email'
+                                disabled={isDisabled}
+                                {...(errors.emailmain && { error: true, helperText: errors.emailmain.message })}
                             />
                         )}
                     />

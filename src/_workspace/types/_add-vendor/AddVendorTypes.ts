@@ -37,9 +37,11 @@ export interface VendorI {
     province: string
     postal_code: string
     vendor_type_id: number
+    vendor_region?: 'Local' | 'Oversea'
     website?: string
     tel_center?: string
     address?: string
+    emailmain?: string
     note?: string
     fft_vendor_code?: string
     fft_status?: 'Active' | 'Inactive'
@@ -58,9 +60,11 @@ export interface CreateVendorRequestI {
     province: string
     postal_code: string
     vendor_type_id: number
+    vendor_region?: 'Local' | 'Oversea'
     website?: string
     tel_center?: string
     address?: string
+    emailmain?: string
     note?: string
     CREATE_BY: string
     contacts: VendorContactI[]

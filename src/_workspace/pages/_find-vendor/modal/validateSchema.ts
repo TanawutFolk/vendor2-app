@@ -4,10 +4,12 @@ export const editVendorSchema = z.object({
     company_name: z.string().min(3, 'Company Name is required at least 3 characters'),
     vendor_type_id: z.preprocess((val) => (val === '' || val === null || val === undefined ? null : Number(val)), z.number().nullable().optional()),
     vendor_type_name: z.string().nullable().optional(),
+    vendor_region: z.enum(['Local', 'Oversea']).nullable().optional(),
     province: z.string().nullable().optional(),
     postal_code: z.string().nullable().optional(),
     website: z.string().nullable().optional(),
     tel_center: z.string().nullable().optional(),
+    emailmain: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
     address: z.string().nullable().optional(),
     INUSE: z.coerce.number().nullable().optional(), // 1=Active, 0=Inactive
     contacts: z.array(

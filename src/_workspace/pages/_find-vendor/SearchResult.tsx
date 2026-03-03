@@ -293,6 +293,28 @@ const SearchResult = () => {
                 filter: 'agTextColumnFilter'
             },
             {
+                field: 'vendor_region',
+                headerName: 'Region',
+                width: 110,
+                filter: 'agTextColumnFilter',
+                cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
+                cellRenderer: (params: any) => {
+                    const val = params.value
+                    if (!val) return <span style={{ color: '#9e9e9e' }}>—</span>
+                    const isOversea = val === 'Oversea'
+                    return (
+                        <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600,
+                            background: isOversea ? 'rgb(var(--mui-palette-info-mainChannel) / 0.12)' : 'rgb(var(--mui-palette-success-mainChannel) / 0.12)',
+                            color: isOversea ? 'var(--mui-palette-info-main)' : 'var(--mui-palette-success-main)'
+                        }}>
+                            {isOversea ? '✈️' : '🏠'} {val}
+                        </span>
+                    )
+                }
+            },
+            {
                 field: 'province',
                 headerName: 'Province',
                 width: 150,
@@ -315,6 +337,13 @@ const SearchResult = () => {
                 headerName: 'Tel Company',
                 width: 130,
                 filter: 'agTextColumnFilter'
+            },
+            {
+                field: 'emailmain',
+                headerName: 'Email (Main)',
+                width: 220,
+                filter: 'agTextColumnFilter',
+                cellRenderer: EmailCellRenderer
             },
             {
                 field: 'group_name',

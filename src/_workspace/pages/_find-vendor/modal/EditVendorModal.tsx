@@ -16,7 +16,9 @@ import {
     Divider,
     Typography,
     Chip,
-    IconButton
+    IconButton,
+    ToggleButton,
+    ToggleButtonGroup
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -422,6 +424,39 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                 )}
                                             />
                                         </Grid>
+                                        <Grid item xs={12} md={6}>
+                                            <Controller
+                                                name="vendor_region"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <Box>
+                                                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                                                            Vendor Region
+                                                        </Typography>
+                                                        {editingMode === 'view' ? (
+                                                            <Chip
+                                                                label={field.value === 'Oversea' ? '✈️ Oversea' : '🏠 Local'}
+                                                                color={field.value === 'Oversea' ? 'info' : 'success'}
+                                                                size='small'
+                                                                variant='tonal'
+                                                                sx={{ fontWeight: 600 }}
+                                                            />
+                                                        ) : (
+                                                            <ToggleButtonGroup
+                                                                value={field.value || 'Local'}
+                                                                exclusive
+                                                                onChange={(_, val) => { if (val !== null) field.onChange(val) }}
+                                                                size='small'
+                                                                color='primary'
+                                                            >
+                                                                <ToggleButton value='Local' sx={{ px: 3, fontWeight: 600 }}>🏠 Local</ToggleButton>
+                                                                <ToggleButton value='Oversea' sx={{ px: 3, fontWeight: 600 }}>✈️ Oversea</ToggleButton>
+                                                            </ToggleButtonGroup>
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            />
+                                        </Grid>
                                         <Grid item xs={6} md={3}>
                                             <Controller
                                                 name="province"
@@ -492,6 +527,26 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                                                         size="small"
                                                         error={!!errors.tel_center}
                                                         helperText={errors.tel_center?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
+                                                    />
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6} md={3}>
+                                            <Controller
+                                                name="emailmain"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Email (Main)"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        type="email"
+                                                        error={!!errors.emailmain}
+                                                        helperText={errors.emailmain?.message}
                                                         disabled={editingMode === 'view'}
                                                         InputProps={{ readOnly: editingMode === 'view' }}
                                                     />

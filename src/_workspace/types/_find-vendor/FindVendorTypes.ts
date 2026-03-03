@@ -7,6 +7,7 @@ export interface VendorResultI {
     company_name: string
     vendor_type_id?: number
     vendor_type_name: string
+    vendor_region?: 'Local' | 'Oversea' | null
     province: string
     postal_code: string
     website: string
@@ -148,11 +149,13 @@ export interface VendorComprehensiveI {
     company_name: string
     vendor_type_id?: number
     vendor_type_name: string
+    vendor_region?: 'Local' | 'Oversea' | null
     province: string
     postal_code: string
     website: string
     address: string
     tel_center: string
+    emailmain?: string | null
     contacts: VendorContactI[]
     products: VendorProductI[]
     CREATE_BY: string
