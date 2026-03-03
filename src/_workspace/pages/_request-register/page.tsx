@@ -3,23 +3,44 @@ import { useState, useMemo } from 'react'
 
 // MUI Imports
 import {
-    Grid, Card, CardContent, Box, Typography, Chip, Divider
+    Grid, Card, CardContent, Box, Typography, Chip, Divider, Drawer, IconButton
 } from '@mui/material'
+
+// AG Grid Imports
+import { AgGridReact } from 'ag-grid-react'
+import type { ColDef } from 'ag-grid-community'
+import { themeQuartz } from 'ag-grid-community'
 
 // Template Imports
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 
 // Component Imports
-import RequestCard from './RequestCard'
 import RequestDetail from './RequestDetail'
 import SearchFilter from './SearchFilter'
 import type { SearchFilterValues } from './SearchFilter'
+import { statusConfig } from './RequestCard'
 
 // Env Imports
 import { MENU_NAME, breadcrumbNavigation } from './env'
 
 // Types
 import type { RegistrationRequest } from './types'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AG Grid Theme
+// ─────────────────────────────────────────────────────────────────────────────
+const agGridTheme = themeQuartz.withParams({
+    spacing: 6,
+    columnBorder: { style: 'solid', color: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)' },
+    browserColorScheme: 'inherit',
+    backgroundColor: 'var(--mui-palette-background-paper)',
+    foregroundColor: 'var(--mui-palette-text-primary)',
+    headerBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.12)',
+    headerTextColor: 'var(--mui-palette-text-primary)',
+    oddRowBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.04)',
+    borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)',
+    rowHoverColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.08)'
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock Data
@@ -148,7 +169,8 @@ const StatusSummaryChip = ({ label, count, color }: { label: string; count: numb
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
 const RequestRegisterPage = () => {
-    const [selectedId, setSelectedId] = useState<number>(MOCK_REQUESTS[0].request_id)
+    const [selectedId, setSelectedId] = useState<number | null>(null)
+    const [drawerOpen, setDrawerOpen] = useState(false)
     const [filterValues, setFilterValues] = useState<SearchFilterValues | null>(null)
 
     const filtered = useMemo(() =>
@@ -164,13 +186,64 @@ const RequestRegisterPage = () => {
         [filterValues]
     )
 
-    const selected = MOCK_REQUESTS.find(r => r.request_id === selectedId) ?? MOCK_REQUESTS[0]
+    const selected = MOCK_REQUESTS.find(r => r.request_id === selectedId) || null
 
-    // Auto-select first when filter changes and current selected is hidden
-    const isSelectedVisible = filtered.some(r => r.request_id === selectedId)
-    if (!isSelectedVisible && filtered.length > 0) {
-        setSelectedId(filtered[0].request_id)
-    }
+    // Column Definitions
+    const columnDefs = useMemo<ColDef<RegistrationRequest>[]>(() => [
+        {
+            headerName: 'Actions',
+            field: 'request_id',
+            width: 90,
+            pinned: 'left',
+            cellRenderer: (params: any) => (
+                <IconButton
+                    size='small'
+                    color='primary'
+                    onClick={() => {
+                        setSelectedId(params.value)
+                        setDrawerOpen(true)
+                    }}
+                >
+                    <i className='tabler-eye' style={{ fontSize: 18 }} />
+                </IconButton>
+            ),
+            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
+            sortable: false,
+            filter: false
+        },
+        { field: 'company_name', headerName: 'Company Name', width: 250, pinned: 'left' },
+        {
+            field: 'status',
+            headerName: 'Status',
+            width: 160,
+            cellRenderer: (params: any) => {
+                const cfg = statusConfig[params.value as keyof typeof statusConfig]
+                if (!cfg) return params.value
+                return (
+                    <Chip
+                        icon={<i className={cfg.icon} style={{ fontSize: 12 }} />}
+                        label={cfg.label}
+                        color={cfg.color}
+                        size='small'
+                        variant='tonal'
+                        sx={{ fontSize: '0.75rem', fontWeight: 600, height: 24, mt: 1 }}
+                    />
+                )
+            }
+        },
+        { field: 'vendor_type', headerName: 'Vendor Type', width: 160 },
+        { field: 'support_type', headerName: 'Support Type', width: 180 },
+        { field: 'purchase_frequency', headerName: 'Purchase Frequency', width: 180 },
+        { field: 'province', headerName: 'Province', width: 140 },
+        { field: 'submitted_by', headerName: 'Submitted By', width: 150 },
+        { field: 'submitted_date', headerName: 'Submitted Date', width: 150 }
+    ], [])
+
+    const defaultColDef = useMemo<ColDef>(() => ({
+        sortable: true,
+        filter: 'agTextColumnFilter',
+        resizable: true,
+    }), [])
 
     // Summary counts
     const counts = {
@@ -222,59 +295,50 @@ const RequestRegisterPage = () => {
 
                 {/* Main content */}
                 <Grid item xs={12}>
-                    <Card sx={{ overflow: 'hidden' }}>
-                        <Box sx={{ display: 'flex', height: 'calc(100vh - 320px)', minHeight: 600 }}>
-
-                            {/* ── Left panel: Request list ── */}
-                            <Box sx={{
-                                width: 340, flexShrink: 0,
-                                borderRight: '1px solid', borderColor: 'divider',
-                                display: 'flex', flexDirection: 'column', overflow: 'hidden'
-                            }}>
-                                {/* List */}
-                                <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                    {filtered.length === 0 ? (
-                                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1, py: 6 }}>
-                                            <i className='tabler-inbox-off' style={{ fontSize: 36, color: 'var(--mui-palette-text-disabled)' }} />
-                                            <Typography variant='body2' color='text.disabled'>No requests found</Typography>
-                                        </Box>
-                                    ) : (
-                                        filtered.map(r => (
-                                            <RequestCard
-                                                key={r.request_id}
-                                                request={r}
-                                                isSelected={r.request_id === selectedId}
-                                                onClick={() => setSelectedId(r.request_id)}
-                                            />
-                                        ))
-                                    )}
-                                </Box>
-
-                                {/* List footer */}
-                                <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                                    <Typography variant='caption' color='text.disabled'>
-                                        {filtered.length} of {MOCK_REQUESTS.length} requests
-                                    </Typography>
-                                </Box>
-                            </Box>
-
-                            {/* ── Right panel: Detail ── */}
-                            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                                {selected ? (
-                                    <RequestDetail key={selected.request_id} request={selected} />
-                                ) : (
-                                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1.5 }}>
-                                        <i className='tabler-hand-click' style={{ fontSize: 48, color: 'var(--mui-palette-text-disabled)' }} />
-                                        <Typography variant='body1' color='text.disabled'>Select a request to view details</Typography>
-                                    </Box>
-                                )}
-                            </Box>
-
+                    <Card>
+                        <Box sx={{ height: 'calc(100vh - 320px)', minHeight: 600, width: '100%', p: 2 }}>
+                            <AgGridReact
+                                theme={agGridTheme}
+                                rowData={filtered}
+                                columnDefs={columnDefs}
+                                defaultColDef={defaultColDef}
+                                pagination={true}
+                                paginationPageSize={20}
+                                paginationPageSizeSelector={[10, 20, 50]}
+                                animateRows={true}
+                                overlayLoadingTemplate='<span class="ag-overlay-loading-center">Loading...</span>'
+                                overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests found</span>'
+                            />
                         </Box>
                     </Card>
                 </Grid>
 
             </Grid>
+
+            {/* Request Detail Drawer */}
+            <Drawer
+                anchor='right'
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                PaperProps={{ sx: { width: { xs: '100%', sm: 500, md: 600 } } }}
+            >
+                {selected && (
+                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {/* Drawer Header with Close Button */}
+                        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant='h6' fontWeight={700}>Request Details</Typography>
+                            <IconButton size='small' onClick={() => setDrawerOpen(false)}>
+                                <i className='tabler-x' style={{ fontSize: 20 }} />
+                            </IconButton>
+                        </Box>
+
+                        {/* Request Detail Component Content */}
+                        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                            <RequestDetail key={selected.request_id} request={selected} />
+                        </Box>
+                    </Box>
+                )}
+            </Drawer>
         </>
     )
 }

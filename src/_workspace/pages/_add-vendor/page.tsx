@@ -13,10 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 
 // Section Components
-import SectionCheck from './SectionCheck'
-import SectionProfile from './SectionProfile'
-import SectionContacts from './SectionContacts'
-import SectionProducts from './SectionProducts'
+import { SectionCheck, SectionProfile, SectionContacts, SectionProducts } from './AddVendorSections'
 
 // Modal Components
 import ConfirmModal from '@components/ConfirmModal'

@@ -10,19 +10,13 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    TextField,
     Grid,
     CircularProgress,
-    Alert,
     Box,
     Divider,
     Typography,
-    Card,
-    CardContent,
-    CardHeader,
     Chip,
-    IconButton,
-    Collapse
+    IconButton
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -61,6 +55,38 @@ import type {
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { editVendorSchema, EditVendorSchemaType } from './validateSchema'
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared UI Components (matching RequestDetail.tsx)
+// ─────────────────────────────────────────────────────────────────────────────
+const InfoField = ({ label, value, fullWidth }: { label: string; value?: string | React.ReactNode; fullWidth?: boolean }) => (
+    <Box sx={{ ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
+        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', mb: 0.25, fontWeight: 600, letterSpacing: 0.3 }}>
+            {label}
+        </Typography>
+        {typeof value === 'string' ? (
+            <Typography variant='body2' sx={{ color: value ? 'text.primary' : 'text.disabled', fontStyle: value ? 'normal' : 'italic' }}>
+                {value || '—'}
+            </Typography>
+        ) : (
+            value || <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>—</Typography>
+        )}
+    </Box>
+)
+
+const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Box sx={{
+            width: 28, height: 28, borderRadius: 1.5,
+            bgcolor: 'primary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+            <i className={icon} style={{ fontSize: 14, color: 'var(--mui-palette-primary-main)' }} />
+        </Box>
+        <Typography variant='overline' fontWeight={700} letterSpacing={1} color='text.secondary'>
+            {title}
+        </Typography>
+    </Box>
+)
+
 interface EditVendorModalProps {
     open: boolean
     onClose: () => void
@@ -96,7 +122,6 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
     const [error, setError] = useState<string | null>(null)
     const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
-    const [expandedSections, setExpandedSections] = useState<string[]>(['company', 'contacts', 'products'])
 
     // RHF Setup
     const { control, handleSubmit, reset, watch, formState: { errors }, getValues, setValue, trigger } = useForm<EditVendorSchemaType>({
@@ -254,60 +279,74 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
     return (
         <>
-            <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="h5" component="div">
-                            {editingMode === 'edit' ? 'Edit Vendor' : 'Vendor Details'}
-                        </Typography>
-                        {vendorFftCode && (
-                            <Chip
-                                label={`Code: ${vendorFftCode}`}
-                                size="small"
-                                color="primary"
-                                variant="outlined"
-                            />
-                        )}
-                        {vendorStatusCheck && (
-                            <StatusCheckChip value={vendorStatusCheck} />
-                        )}
-                        {/* Enable/Disable Switch */}
-                        <Controller
-                            name="INUSE"
-                            control={control}
-                            render={({ field }) => (
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={field.value === 1}
-                                            onChange={(e) => field.onChange(e.target.checked ? 1 : 0)}
-                                            color="success"
-                                            disabled={editingMode === 'view'}
+            <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth PaperProps={{ sx: { bgcolor: 'background.default' } }}>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 0 }}>
+                    <Box sx={{
+                        width: '100%', px: 3, py: 2,
+                        bgcolor: 'background.paper',
+                        borderBottom: '1px solid', borderColor: 'divider',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap'
+                    }}>
+                        <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.25 }}>
+                                <Typography variant="h6" fontWeight={800}>
+                                    {originalData?.company_name || 'Vendor Details'}
+                                </Typography>
+                                {vendorFftCode && (
+                                    <Chip label={`Code: ${vendorFftCode}`} size="small" color="primary" variant="tonal" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+                                )}
+                                {vendorStatusCheck && (
+                                    <StatusCheckChip value={vendorStatusCheck} />
+                                )}
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <Controller
+                                    name="INUSE"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={field.value === 1}
+                                                    onChange={(e) => field.onChange(e.target.checked ? 1 : 0)}
+                                                    color="success"
+                                                    disabled={editingMode === 'view'}
+                                                    size="small"
+                                                />
+                                            }
+                                            label={<Typography variant='caption' fontWeight={600} color={field.value === 1 ? 'success.main' : 'text.disabled'}>{field.value === 1 ? 'Active' : 'Inactive'}</Typography>}
+                                            sx={{ m: 0 }}
                                         />
-                                    }
-                                    label={field.value === 1 ? "Active" : "Inactive"}
-                                    labelPlacement="end"
-                                    sx={{ ml: 2, mr: 0 }}
+                                    )}
                                 />
-                            )}
-                        />
+                                <Typography variant='caption' color='text.disabled'>·</Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                    <i className='tabler-user' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                    <Typography variant='caption' color='text.disabled'>Update By: {originalData?.UPDATE_BY || '-'}</Typography>
+                                </Box>
+                                <Typography variant='caption' color='text.disabled'>·</Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                    <i className='tabler-calendar' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                    <Typography variant='caption' color='text.disabled'>
+                                        Update Date: {originalData?.UPDATE_DATE ? new Date(originalData.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Box>
+
+                        <Button
+                            variant={editingMode === 'edit' ? 'contained' : 'tonal'}
+                            color={editingMode === 'edit' ? 'success' : 'primary'}
+                            onClick={toggleEditMode}
+                            disabled={loading}
+                            startIcon={editingMode === 'edit' ? <i className='tabler-check' /> : <i className='tabler-edit' />}
+                            sx={{ fontWeight: 700 }}
+                        >
+                            {editingMode === 'edit' ? 'Editing Mode' : 'Edit Mode'}
+                        </Button>
                     </Box>
-                    <IconButton
-                        onClick={toggleEditMode}
-                        disabled={loading}
-                        color={editingMode === 'edit' ? 'success' : 'primary'}
-                        sx={{
-                            bgcolor: editingMode === 'edit' ? 'success.light' : 'primary.light',
-                            '&:hover': {
-                                bgcolor: editingMode === 'edit' ? 'success.main' : 'primary.main',
-                                color: 'white'
-                            }
-                        }}
-                    >
-                        <EditIcon />
-                    </IconButton>
                 </DialogTitle>
-                <DialogContent dividers sx={{ p: 3, maxHeight: '70vh', overflow: 'auto' }}>
+                <DialogContent dividers sx={{ p: 3, maxHeight: '75vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {loading ? (
                         <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
                             <CircularProgress />
@@ -315,602 +354,520 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                         </Box>
                     ) : (
                         <>
-                            <Box sx={{ mt: 2 }}>
-                                {/* Company Information */}
-                                <Card sx={{ mb: 2 }} style={{ overflow: 'visible', zIndex: 4 }}>
-                                    <CardHeader
-                                        title={
-                                            <Typography variant="h6" color="primary">
-                                                <i className="tabler-building" style={{ marginRight: 8 }} />
-                                                Company Details
-                                            </Typography>
-                                        }
-                                        action={
-                                            <IconButton size='small' onClick={() => {
-                                                setExpandedSections(prev =>
-                                                    prev.includes('company')
-                                                        ? prev.filter(s => s !== 'company')
-                                                        : [...prev, 'company']
-                                                )
-                                            }}>
-                                                <i className={classNames(
-                                                    expandedSections.includes('company') ? 'tabler-chevron-up' : 'tabler-chevron-down',
-                                                    'text-xl'
-                                                )} />
-                                            </IconButton>
-                                        }
-                                    />
-                                    <Collapse in={expandedSections.includes('company')}>
-                                        <CardContent>
-                                            <Grid container spacing={4}>
-                                                <Grid item xs={12} md={6}>
-                                                    <Controller
-                                                        name="company_name"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Company Name"
-                                                                error={!!errors.company_name}
-                                                                helperText={errors.company_name?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                            {/* Company Information */}
+                            <Box sx={{ position: 'relative', zIndex: 4 }}>
+                                <SectionHeader icon="tabler-building-store" title="Company Profile" />
+                                <Box sx={{
+                                    p: 2.5, borderRadius: 1.5,
+                                    bgcolor: 'background.paper',
+                                    border: '1px solid', borderColor: 'primary.main'
+                                }}>
+                                    <Grid container spacing={4}>
+                                        <Grid item xs={12} md={6}>
+                                            <Controller
+                                                name="company_name"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Company Name"
+                                                        error={!!errors.company_name}
+                                                        helperText={errors.company_name?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={12} md={6}>
-                                                    <Controller
-                                                        name="vendor_type_id"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <AsyncSelectCustom
-                                                                label='Vendor Type'
-                                                                {...field}
-                                                                value={field.value ? { value: field.value, label: getValues('vendor_type_name') || 'Unknown' } : null}
-                                                                onChange={(val: any) => {
-                                                                    console.log('Selected Vendor Type:', val)
-                                                                    const newValue = val && val.value !== undefined ? val.value : null
-                                                                    field.onChange(newValue)
-                                                                    setValue('vendor_type_name', val?.label || null)
-                                                                }}
-                                                                placeholder='Select Type...'
-                                                                defaultOptions
-                                                                cacheOptions
-                                                                isClearable
-                                                                loadOptions={fetchVendorTypes}
-                                                                classNamePrefix='select'
-                                                                isDisabled={editingMode === 'view'}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} md={6}>
+                                            <Controller
+                                                name="vendor_type_id"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <AsyncSelectCustom
+                                                        label='Vendor Type'
+                                                        {...field}
+                                                        value={field.value ? { value: field.value, label: getValues('vendor_type_name') || 'Unknown' } : null}
+                                                        onChange={(val: any) => {
+                                                            console.log('Selected Vendor Type:', val)
+                                                            const newValue = val && val.value !== undefined ? val.value : null
+                                                            field.onChange(newValue)
+                                                            setValue('vendor_type_name', val?.label || null)
+                                                        }}
+                                                        placeholder='Select Type...'
+                                                        defaultOptions
+                                                        cacheOptions
+                                                        isClearable
+                                                        loadOptions={fetchVendorTypes}
+                                                        classNamePrefix='select'
+                                                        isDisabled={editingMode === 'view'}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Controller
-                                                        name="province"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Province"
-                                                                value={field.value || ''}
-                                                                size="small"
-                                                                error={!!errors.province}
-                                                                helperText={errors.province?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6} md={3}>
+                                            <Controller
+                                                name="province"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Province"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        error={!!errors.province}
+                                                        helperText={errors.province?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Controller
-                                                        name="postal_code"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Postal Code"
-                                                                value={field.value || ''}
-                                                                size="small"
-                                                                error={!!errors.postal_code}
-                                                                helperText={errors.postal_code?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6} md={3}>
+                                            <Controller
+                                                name="postal_code"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Postal Code"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        error={!!errors.postal_code}
+                                                        helperText={errors.postal_code?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Controller
-                                                        name="website"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Website"
-                                                                value={field.value || ''}
-                                                                size="small"
-                                                                error={!!errors.website}
-                                                                helperText={errors.website?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6} md={3}>
+                                            <Controller
+                                                name="website"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Website"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        error={!!errors.website}
+                                                        helperText={errors.website?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={6} md={3}>
-                                                    <Controller
-                                                        name="tel_center"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Tel Company"
-                                                                value={field.value || ''}
-                                                                size="small"
-                                                                error={!!errors.tel_center}
-                                                                helperText={errors.tel_center?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6} md={3}>
+                                            <Controller
+                                                name="tel_center"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Tel Company"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        error={!!errors.tel_center}
+                                                        helperText={errors.tel_center?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
-                                                <Grid item xs={12}>
-                                                    <Controller
-                                                        name="address"
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <CustomTextField
-                                                                {...field}
-                                                                fullWidth
-                                                                label="Address"
-                                                                value={field.value || ''}
-                                                                size="small"
-                                                                multiline
-                                                                rows={2}
-                                                                error={!!errors.address}
-                                                                helperText={errors.address?.message}
-                                                                disabled={editingMode === 'view'}
-                                                                InputProps={{ readOnly: editingMode === 'view' }}
-                                                            />
-                                                        )}
+                                                )}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Controller
+                                                name="address"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <CustomTextField
+                                                        {...field}
+                                                        fullWidth
+                                                        label="Address"
+                                                        value={field.value || ''}
+                                                        size="small"
+                                                        multiline
+                                                        rows={2}
+                                                        error={!!errors.address}
+                                                        helperText={errors.address?.message}
+                                                        disabled={editingMode === 'view'}
+                                                        InputProps={{ readOnly: editingMode === 'view' }}
                                                     />
-                                                </Grid>
+                                                )}
+                                            />
+                                        </Grid>
 
-                                                {/* Company Metadata */}
-                                                <Grid item xs={12}>
-                                                    <Divider sx={{ my: 1 }}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            Company Info
+                                        {/* Company Metadata */}
+                                        {originalData?.vendor_id && (
+                                            <Grid item xs={12}>
+                                                <Divider sx={{ my: 1 }}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Company Info
+                                                    </Typography>
+                                                </Divider>
+                                                <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary', flexWrap: 'wrap' }}>
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">Created By</Typography>
+                                                        <Typography variant="body2" fontSize="0.75rem">{originalData.CREATE_BY || 'N/A'}</Typography>
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">Created Date</Typography>
+                                                        <Typography variant="body2" fontSize="0.75rem">
+                                                            {originalData.CREATE_DATE ? new Date(originalData.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
                                                         </Typography>
-                                                    </Divider>
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">Last Update By</Typography>
+                                                        <Typography variant="body2" fontSize="0.75rem">{originalData.UPDATE_BY || 'N/A'}</Typography>
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">Last Update Date</Typography>
+                                                        <Typography variant="body2" fontSize="0.75rem">
+                                                            {originalData.UPDATE_DATE ? new Date(originalData.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </Box>
+                            </Box>
+
+                            <Divider />
+
+                            {/* Contacts */}
+                            <Box sx={{ position: 'relative', zIndex: 3 }}>
+                                <SectionHeader icon="tabler-users" title={`Contacts (${contactFields.length})`} />
+
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {contactFields.map((contact, index) => (
+                                        <Box key={contact.id} sx={{
+                                            p: 2.5, borderRadius: 1.5,
+                                            bgcolor: 'background.paper',
+                                            border: '1px solid', borderColor: 'primary.main',
+                                            position: 'relative'
+                                        }}>
+                                            <Grid container spacing={3}>
+                                                <Grid item xs={12}>
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Box sx={{
+                                                                width: 24, height: 24, borderRadius: '50%',
+                                                                bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                            }}>
+                                                                <Typography variant='caption' fontWeight={700}>{index + 1}</Typography>
+                                                            </Box>
+                                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                                Contact Info
+                                                            </Typography>
+                                                            {!contact.vendor_contact_id && <Chip label="New" size="small" color="success" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }} />}
+                                                        </Box>
+                                                        {editingMode === 'edit' && (
+                                                            <IconButton size="small" color="error" onClick={() => removeContact(index)}>
+                                                                <i className="tabler-trash" />
+                                                            </IconButton>
+                                                        )}
+                                                    </Box>
+                                                    <Divider sx={{ my: 2 }} />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`contacts.${index}.contact_name`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Name"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                error={!!errors.contacts?.[index]?.contact_name}
+                                                                helperText={errors.contacts?.[index]?.contact_name?.message}
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`contacts.${index}.tel_phone`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Phone"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`contacts.${index}.email`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Email"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                error={!!errors.contacts?.[index]?.email}
+                                                                helperText={errors.contacts?.[index]?.email?.message}
+                                                                InputProps={{
+                                                                    readOnly: editingMode === 'view',
+                                                                    endAdornment: field.value && (
+                                                                        <InputAdornment position="end">
+                                                                            <EmailActionButtons
+                                                                                email={field.value}
+                                                                                contactName={getValues(`contacts.${index}.contact_name`)}
+                                                                            />
+                                                                        </InputAdornment>
+                                                                    )
+                                                                }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`contacts.${index}.position`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Position"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+
+                                                {/* Contact Metadata */}
+                                                {contact.vendor_contact_id && (
+                                                    <Grid item xs={12}>
+                                                        <Divider sx={{ my: 1 }}>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                Contact Info
+                                                            </Typography>
+                                                        </Divider>
+                                                        <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary' }}>
+                                                            <Box>
+                                                                <Typography variant="caption" display="block">Created By</Typography>
+                                                                <Typography variant="body2" fontSize="0.75rem">{contact.CREATE_BY || 'N/A'}</Typography>
+                                                            </Box>
+                                                            <Box>
+                                                                <Typography variant="caption" display="block">Created Date</Typography>
+                                                                <Typography variant="body2" fontSize="0.75rem">
+                                                                    {contact.CREATE_DATE ? new Date(contact.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                </Typography>
+                                                            </Box>
+                                                            <Box>
+                                                                <Typography variant="caption" display="block">Last Update By</Typography>
+                                                                <Typography variant="body2" fontSize="0.75rem">{contact.UPDATE_BY || 'N/A'}</Typography>
+                                                            </Box>
+                                                            <Box>
+                                                                <Typography variant="caption" display="block">Last Update Date</Typography>
+                                                                <Typography variant="body2" fontSize="0.75rem">
+                                                                    {contact.UPDATE_DATE ? new Date(contact.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                                                </Typography>
+                                                            </Box>
+                                                        </Box>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        </Box>
+                                    ))}
+                                    {editingMode === 'edit' && (
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<i className="tabler-plus" />}
+                                            onClick={() => appendContact({ contact_name: '' })}
+                                            fullWidth
+                                            sx={{ borderStyle: 'dashed' }}
+                                        >
+                                            Add Contact
+                                        </Button>
+                                    )}
+                                </Box>
+                            </Box>
+
+                            <Divider sx={{ my: 3 }} />
+
+                            {/* Products */}
+                            <Box sx={{ position: 'relative', zIndex: 2 }}>
+                                <SectionHeader icon="tabler-package" title={`Products / Services (${productFields.length})`} />
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {productFields.map((product, index) => (
+                                        <Box key={product.id} sx={{
+                                            p: 2.5, borderRadius: 1.5,
+                                            bgcolor: 'background.paper',
+                                            border: '1px solid', borderColor: 'primary.main',
+                                            position: 'relative'
+                                        }}>
+                                            <Grid container spacing={3}>
+                                                <Grid item xs={12}>
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Box sx={{
+                                                                width: 24, height: 24, borderRadius: '50%',
+                                                                bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                            }}>
+                                                                <Typography variant='caption' fontWeight={700}>{index + 1}</Typography>
+                                                            </Box>
+                                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                                Product
+                                                            </Typography>
+                                                            {!product.vendor_product_id && <Chip label="New" size="small" color="success" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }} />}
+                                                        </Box>
+                                                        {editingMode === 'edit' && (
+                                                            <IconButton size="small" color="error" onClick={() => removeProduct(index)}>
+                                                                <i className="tabler-trash" />
+                                                            </IconButton>
+                                                        )}
+                                                    </Box>
+                                                    <Divider sx={{ my: 2 }} />
+                                                </Grid>
+
+                                                <Grid item xs={12} sm={6} md={6} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Controller
+                                                            name={`products.${index}.product_group_id`}
+                                                            control={control}
+                                                            render={({ field }) => (
+                                                                <AsyncSelectCustom
+                                                                    key={`product-group-${index}-${productGroupRefreshKey}`}
+                                                                    label='Product Group'
+                                                                    {...field}
+                                                                    value={field.value ? { value: field.value, label: getValues(`products.${index}.group_name`) || 'Unknown' } : null}
+                                                                    onChange={(val: any) => {
+                                                                        field.onChange(val?.value)
+                                                                        setValue(`products.${index}.group_name`, val?.label)
+                                                                    }}
+                                                                    loadOptions={(inputValue, callback) => {
+                                                                        fetchProductGroups(inputValue).then(options => callback(options as any))
+                                                                    }}
+                                                                    defaultOptions
+                                                                    cacheOptions={false}
+                                                                    isClearable
+                                                                    isDisabled={editingMode === 'view'}
+                                                                    placeholder='Select group...'
+                                                                    classNamePrefix='select'
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Box>
+                                                    {editingMode === 'edit' && (
+                                                        <Button
+                                                            variant='tonal'
+                                                            color='secondary'
+                                                            onClick={() => setShowAddProductGroupModal(true)}
+                                                            sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, mt: 5.4 }}
+                                                            title='Add Product Group'
+                                                        >
+                                                            <i className='tabler-plus' />
+                                                        </Button>
+                                                    )}
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`products.${index}.maker_name`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Maker Name"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`products.${index}.product_name`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                label="Product Name"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                error={!!errors.products?.[index]?.product_name}
+                                                                helperText={errors.products?.[index]?.product_name?.message}
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={6}>
+                                                    <Controller
+                                                        name={`products.${index}.model_list`}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <CustomTextField
+                                                                {...field}
+                                                                fullWidth
+                                                                multiline
+                                                                label="Model List"
+                                                                value={field.value || ''}
+                                                                size="small"
+                                                                disabled={editingMode === 'view'}
+                                                                InputProps={{ readOnly: editingMode === 'view' }}
+                                                            />
+                                                        )}
+                                                    />
                                                 </Grid>
                                             </Grid>
-                                            {/* Company Audit Info */}
-                                            <Box sx={{ mt: 2, display: 'flex', gap: 4, color: 'text.secondary' }}>
-                                                <Box>
-                                                    <Typography variant="caption" display="block">Created By</Typography>
-                                                    <Typography variant="body2">{originalData?.CREATE_BY || '-'}</Typography>
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="caption" display="block">Created Date</Typography>
-                                                    <Typography variant="body2">
-                                                        {originalData?.CREATE_DATE ? new Date(originalData.CREATE_DATE).toLocaleDateString('th-TH') : '-'}
-                                                    </Typography>
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="caption" display="block">Last Update By</Typography>
-                                                    <Typography variant="body2">{originalData?.UPDATE_BY || '-'}</Typography>
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="caption" display="block">Last Update Date</Typography>
-                                                    <Typography variant="body2">
-                                                        {originalData?.UPDATE_DATE ? new Date(originalData.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
-                                                    </Typography>
-                                                </Box>
-                                            </Box>    </CardContent>
-                                    </Collapse>
-                                </Card>
-
-                                {/* Contacts */}
-                                <Card sx={{ mt: 3 }} style={{ overflow: 'visible', zIndex: 3 }}>
-                                    <CardHeader
-                                        title={
-                                            <Typography variant="h6" color="primary">
-                                                <i className="tabler-users" style={{ marginRight: 8 }} />
-                                                Contacts ({contactFields.length})
-                                            </Typography>
-                                        }
-                                        action={
-                                            <IconButton size='small' onClick={() => {
-                                                setExpandedSections(prev =>
-                                                    prev.includes('contacts')
-                                                        ? prev.filter(s => s !== 'contacts')
-                                                        : [...prev, 'contacts']
-                                                )
-                                            }}>
-                                                <i className={classNames(
-                                                    expandedSections.includes('contacts') ? 'tabler-chevron-up' : 'tabler-chevron-down',
-                                                    'text-xl'
-                                                )} />
-                                            </IconButton>
-                                        }
-                                    />
-                                    <Collapse in={expandedSections.includes('contacts')}>
-                                        <CardContent>
-                                            <Grid container spacing={2}>
-                                                {contactFields.map((contact, index) => (
-                                                    <Grid item xs={12} key={contact.id}>
-                                                        <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%', position: 'relative' }}>
-                                                            <CardContent>
-                                                                <Grid container spacing={3}>
-                                                                    <Grid item xs={12}>
-                                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                                            <Typography variant="subtitle1" color="primary">
-                                                                                Contact {index + 1}
-                                                                                {!contact.vendor_contact_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
-                                                                            </Typography>
-                                                                            {editingMode === 'edit' && (
-                                                                                <IconButton size="small" color="error" onClick={() => removeContact(index)}>
-                                                                                    <i className="tabler-trash" />
-                                                                                </IconButton>
-                                                                            )}
-                                                                        </Box>
-                                                                        <Divider sx={{ mt: 1, mb: 2 }} />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`contacts.${index}.contact_name`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Name"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    error={!!errors.contacts?.[index]?.contact_name}
-                                                                                    helperText={errors.contacts?.[index]?.contact_name?.message}
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`contacts.${index}.tel_phone`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Phone"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`contacts.${index}.email`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Email"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    error={!!errors.contacts?.[index]?.email}
-                                                                                    helperText={errors.contacts?.[index]?.email?.message}
-                                                                                    InputProps={{
-                                                                                        readOnly: editingMode === 'view',
-                                                                                        endAdornment: field.value && (
-                                                                                            <InputAdornment position="end">
-                                                                                                <EmailActionButtons
-                                                                                                    email={field.value}
-                                                                                                    contactName={getValues(`contacts.${index}.contact_name`)}
-                                                                                                />
-                                                                                            </InputAdornment>
-                                                                                        )
-                                                                                    }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`contacts.${index}.position`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Position"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-
-                                                                    {/* Contact Metadata */}
-                                                                    {contact.vendor_contact_id && (
-                                                                        <Grid item xs={12}>
-                                                                            <Divider sx={{ my: 1 }}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Contact Info
-                                                                                </Typography>
-                                                                            </Divider>
-                                                                            <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary' }}>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Created By</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">{contact.CREATE_BY || 'N/A'}</Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Created Date</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">
-                                                                                        {contact.CREATE_DATE ? new Date(contact.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                    </Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Last Update By</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">{contact.UPDATE_BY || 'N/A'}</Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Last Update Date</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">
-                                                                                        {contact.UPDATE_DATE ? new Date(contact.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                    </Typography>
-                                                                                </Box>
-                                                                            </Box>
-                                                                        </Grid>
-                                                                    )}
-                                                                </Grid>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </Grid>
-                                                ))}
-                                                {editingMode === 'edit' && (
-                                                    <Grid item xs={12}>
-                                                        <Button
-                                                            variant="outlined"
-                                                            startIcon={<i className="tabler-plus" />}
-                                                            onClick={() => appendContact({ contact_name: '' })}
-                                                            fullWidth
-                                                        >
-                                                            Add Contact
-                                                        </Button>
-                                                    </Grid>
-                                                )}
-                                            </Grid>
-                                        </CardContent>
-                                    </Collapse>
-                                </Card>
-
-                                {/* Products */}
-                                <Card sx={{ mt: 3 }} style={{ overflow: 'visible', zIndex: 2 }}>
-                                    <CardHeader
-                                        title={
-                                            <Typography variant="h6" color="primary">
-                                                <i className="tabler-package" style={{ marginRight: 8 }} />
-                                                Products ({productFields.length})
-                                            </Typography>
-                                        }
-                                        action={
-                                            <IconButton size='small' onClick={() => {
-                                                setExpandedSections(prev =>
-                                                    prev.includes('products')
-                                                        ? prev.filter(s => s !== 'products')
-                                                        : [...prev, 'products']
-                                                )
-                                            }}>
-                                                <i className={classNames(
-                                                    expandedSections.includes('products') ? 'tabler-chevron-up' : 'tabler-chevron-down',
-                                                    'text-xl'
-                                                )} />
-                                            </IconButton>
-                                        }
-                                    />
-                                    <Collapse in={expandedSections.includes('products')}>
-                                        <CardContent>
-                                            <Grid container spacing={4}>
-                                                {productFields.map((product, index) => (
-                                                    <Grid item xs={12} key={product.id}>
-                                                        <Card variant="outlined" sx={{ bgcolor: 'background.paper', height: '100%' }}>
-                                                            <CardContent>
-                                                                <Grid container spacing={3}>
-                                                                    <Grid item xs={12}>
-                                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                                            <Typography variant="subtitle1" color="primary">
-                                                                                Product {index + 1}
-                                                                                {!product.vendor_product_id && <Chip label="New" size="small" color="success" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} />}
-                                                                            </Typography>
-                                                                            {editingMode === 'edit' && (
-                                                                                <IconButton size="small" color="error" onClick={() => removeProduct(index)}>
-                                                                                    <i className="tabler-trash" />
-                                                                                </IconButton>
-                                                                            )}
-                                                                        </Box>
-                                                                        <Divider sx={{ mt: 1, mb: 2 }} />
-                                                                    </Grid>
-
-                                                                    <Grid item xs={12} sm={6} md={6} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                                            <Controller
-                                                                                name={`products.${index}.product_group_id`}
-                                                                                control={control}
-                                                                                render={({ field }) => (
-                                                                                    <AsyncSelectCustom
-                                                                                        key={`product-group-${index}-${productGroupRefreshKey}`}
-                                                                                        label='Product Group'
-                                                                                        {...field}
-                                                                                        value={field.value ? { value: field.value, label: getValues(`products.${index}.group_name`) || 'Unknown' } : null}
-                                                                                        onChange={(val: any) => {
-                                                                                            field.onChange(val?.value)
-                                                                                            setValue(`products.${index}.group_name`, val?.label)
-                                                                                        }}
-                                                                                        loadOptions={(inputValue, callback) => {
-                                                                                            fetchProductGroups(inputValue).then(options => callback(options as any))
-                                                                                        }}
-                                                                                        defaultOptions
-                                                                                        cacheOptions={false}
-                                                                                        isClearable
-                                                                                        isDisabled={editingMode === 'view'}
-                                                                                        placeholder='Select group...'
-                                                                                        classNamePrefix='select'
-                                                                                    />
-                                                                                )}
-                                                                            />
-                                                                        </Box>
-                                                                        {editingMode === 'edit' && (
-                                                                            <Button
-                                                                                variant='tonal'
-                                                                                color='secondary'
-                                                                                onClick={() => setShowAddProductGroupModal(true)}
-                                                                                sx={{ minWidth: 38, width: 38, height: 38, p: 0, flexShrink: 0, mt: 5.4 }}
-                                                                                title='Add Product Group'
-                                                                            >
-                                                                                <i className='tabler-plus' />
-                                                                            </Button>
-                                                                        )}
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`products.${index}.maker_name`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Maker Name"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`products.${index}.product_name`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    label="Product Name"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    error={!!errors.products?.[index]?.product_name}
-                                                                                    helperText={errors.products?.[index]?.product_name?.message}
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-                                                                    <Grid item xs={12} sm={6} md={6}>
-                                                                        <Controller
-                                                                            name={`products.${index}.model_list`}
-                                                                            control={control}
-                                                                            render={({ field }) => (
-                                                                                <CustomTextField
-                                                                                    {...field}
-                                                                                    fullWidth
-                                                                                    multiline
-                                                                                    label="Model List"
-                                                                                    value={field.value || ''}
-                                                                                    size="small"
-                                                                                    disabled={editingMode === 'view'}
-                                                                                    InputProps={{ readOnly: editingMode === 'view' }}
-                                                                                />
-                                                                            )}
-                                                                        />
-                                                                    </Grid>
-
-                                                                    {/* Product Metadata */}
-                                                                    {product.vendor_product_id && (
-                                                                        <Grid item xs={12}>
-                                                                            <Divider sx={{ my: 1 }}>
-                                                                                <Typography variant="caption" color="text.secondary">
-                                                                                    Product Info
-                                                                                </Typography>
-                                                                            </Divider>
-                                                                            <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary' }}>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Created By</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">{product.CREATE_BY || 'N/A'}</Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Created Date</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">
-                                                                                        {product.CREATE_DATE ? new Date(product.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                    </Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Last Update By</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">{product.UPDATE_BY || 'N/A'}</Typography>
-                                                                                </Box>
-                                                                                <Box>
-                                                                                    <Typography variant="caption" display="block">Last Update Date</Typography>
-                                                                                    <Typography variant="body2" fontSize="0.75rem">
-                                                                                        {product.UPDATE_DATE ? new Date(product.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
-                                                                                    </Typography>
-                                                                                </Box>
-                                                                            </Box>
-                                                                        </Grid>
-                                                                    )}
-                                                                </Grid>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </Grid>
-                                                ))}
-                                                {editingMode === 'edit' && (
-                                                    <Grid item xs={12}>
-                                                        <Button
-                                                            variant="outlined"
-                                                            startIcon={<i className="tabler-plus" />}
-                                                            onClick={() => appendProduct({ product_name: '' })}
-                                                            fullWidth
-                                                        >
-                                                            Add Product
-                                                        </Button>
-                                                    </Grid>
-                                                )}
-                                            </Grid>
-                                        </CardContent >
-                                    </Collapse >
-                                </Card >
-
-                            </Box >
+                                        </Box>
+                                    ))}
+                                    {editingMode === 'edit' && (
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<i className="tabler-plus" />}
+                                            onClick={() => appendProduct({ product_name: '' })}
+                                            fullWidth
+                                            sx={{ borderStyle: 'dashed' }}
+                                        >
+                                            Add Product
+                                        </Button>
+                                    )}
+                                </Box>
+                            </Box>
                         </>
-                    )
-                    }
-                </DialogContent >
-                <DialogActions sx={{ justifyContent: 'flex-start', p: 3, gap: 2 }}>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'flex-start', p: 3, gap: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
                     {editingMode === 'edit' && (
                         <Button
                             onClick={handleSaveClick}
                             variant="contained"
                             disabled={loading || saving}
-                            startIcon={saving ? <CircularProgress size={16} /> : null}
+                            startIcon={saving ? <CircularProgress size={16} /> : <i className='tabler-device-floppy' />}
+                            sx={{ fontWeight: 700 }}
                         >
-                            {saving ? 'Saving...' : 'Save'}
+                            {saving ? 'Saving...' : 'Save Changes'}
                         </Button>
                     )}
                     <Button
@@ -918,6 +875,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                         disabled={saving}
                         variant="tonal"
                         color="secondary"
+                        sx={{ fontWeight: 700 }}
                     >
                         {editingMode === 'edit' ? 'Cancel' : 'Close'}
                     </Button>
@@ -951,7 +909,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
                     message={errorMessage}
                     errorDetails={errorDetails}
                 />
-            </Dialog >
+            </Dialog>
             <AddProductGroupModal
                 open={showAddProductGroupModal}
                 onClose={() => setShowAddProductGroupModal(false)}
