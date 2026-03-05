@@ -9,33 +9,28 @@ import { useState } from 'react'
 import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
 
-// Types
-import type { RequestStatus } from './types'
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 export interface SearchFilterValues {
-    company_name: string
+    vendor_name: string
     submitted_by: string
-    status: { value: RequestStatus; label: string } | null
+    overall_status: { value: string; label: string } | null
 }
 
 export const defaultSearchFilterValues: SearchFilterValues = {
-    company_name: '',
+    vendor_name: '',
     submitted_by: '',
-    status: null
+    overall_status: null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Status Options
+// Status Options (matching actual DB values from request_register_vendor)
 // ─────────────────────────────────────────────────────────────────────────────
-const statusOptions: { value: RequestStatus; label: string }[] = [
-    { value: 'new', label: 'New Request' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'pending_docs', label: 'Pending Documents' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' }
+const statusOptions = [
+    { value: 'Pending', label: 'Pending' },
+    { value: 'Approved', label: 'Approved' },
+    { value: 'Rejected', label: 'Rejected' },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,15 +75,15 @@ const SearchFilter = ({ onSearch, onClear }: SearchFilterProps) => {
                 <CardContent>
                     <Grid container spacing={4}>
 
-                        {/* Company Name */}
+                        {/* Vendor Name */}
                         <Grid item xs={12} sm={6} md={3}>
                             <CustomTextField
                                 fullWidth
-                                label='Company Name'
+                                label='Vendor Name'
                                 placeholder='Enter ...'
                                 autoComplete='off'
-                                value={values.company_name}
-                                onChange={e => handleChange('company_name', e.target.value)}
+                                value={values.vendor_name}
+                                onChange={e => handleChange('vendor_name', e.target.value)}
                             />
                         </Grid>
 
@@ -104,15 +99,15 @@ const SearchFilter = ({ onSearch, onClear }: SearchFilterProps) => {
                             />
                         </Grid>
 
-                        {/* Status */}
+                        {/* Overall Status */}
                         <Grid item xs={12} sm={6} md={3}>
                             <SelectCustom
                                 label='Status'
                                 placeholder='Select ...'
                                 isClearable
                                 options={statusOptions}
-                                value={values.status}
-                                onChange={(val: any) => handleChange('status', val)}
+                                value={values.overall_status}
+                                onChange={(val: any) => handleChange('overall_status', val)}
                                 classNamePrefix='select'
                             />
                         </Grid>

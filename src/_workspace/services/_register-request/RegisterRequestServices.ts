@@ -53,4 +53,13 @@ export default class RegisterRequestServices {
             method: 'POST'
         })
     }
+
+    // Send agreement email to vendor
+    static sendAgreementEmail(data: any): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/sendAgreementEmail`,
+            data,
+            method: 'POST'
+        })
+    }
 }

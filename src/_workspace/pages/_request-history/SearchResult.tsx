@@ -225,6 +225,22 @@ const DetailRenderer = ({ data }: { data: any }) => {
 
     const accent = statusAccent[data.request_status] || '#8A8D99'
 
+    const contacts: any[] = (() => {
+        try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
+    })().filter(Boolean)
+
+    const products: any[] = (() => {
+        try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
+    })().filter(Boolean)
+
+    const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <i className={icon} style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>{title}</Typography>
+            <Divider sx={{ flex: 1 }} />
+        </Box>
+    )
+
     return (
         <Box sx={{ p: 4, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}>
             <Card variant='outlined' sx={{ border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
@@ -243,14 +259,13 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 </Box>
                             </Box>
                             <Chip
-                                label={data.request_status}
-                                size='medium'
+                                label={data.request_status} size='medium'
                                 sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }}
                             />
                         </Box>
                     </Box>
 
-                    {/* Detail Grid */}
+                    {/* Request Info Grid */}
                     <Grid container spacing={3} sx={{ mb: 4 }}>
                         <Grid item xs={12} sm={6} md={3}>
                             <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Type</Typography>
@@ -278,6 +293,79 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         )}
                     </Grid>
 
+                    {/* Vendor Info */}
+                    <Box sx={{ mb: 4 }}>
+                        <SectionHeader icon='tabler-building-store' title='Vendor Info' />
+                        <Grid container spacing={2}>
+                            {[
+                                { label: 'Vendor Type', value: data.vendor_type_name },
+                                { label: 'Region', value: data.vendor_region },
+                                { label: 'FFT Vendor Code', value: data.fft_vendor_code },
+                                { label: 'FFT Status', value: data.fft_status },
+                                { label: 'Province', value: data.province },
+                                { label: 'Postal Code', value: data.postal_code },
+                                { label: 'Tel Center', value: data.tel_center },
+                                { label: 'Website', value: data.website },
+                                { label: 'Email (Main)', value: data.emailmain },
+                            ].map(({ label, value }) => (
+                                <Grid item xs={12} sm={6} md={4} key={label}>
+                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
+                                    <Typography variant='body2' fontWeight={600}>{value || '-'}</Typography>
+                                </Grid>
+                            ))}
+                            {data.address && (
+                                <Grid item xs={12}>
+                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
+                                    <Typography variant='body2' fontWeight={600}>{data.address}</Typography>
+                                </Grid>
+                            )}
+                        </Grid>
+                    </Box>
+
+                    {/* Contacts */}
+                    {contacts.length > 0 && (
+                        <Box sx={{ mb: 4 }}>
+                            <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
+                            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                    {['Name', 'Tel', 'Position', 'Email'].map(h => (
+                                        <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
+                                    ))}
+                                </Box>
+                                {contacts.map((c, i) => (
+                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                        <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* Products */}
+                    {products.length > 0 && (
+                        <Box sx={{ mb: 4 }}>
+                            <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
+                            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                    {['Group', 'Maker', 'Product Name', 'Model List'].map(h => (
+                                        <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
+                                    ))}
+                                </Box>
+                                {products.map((p, i) => (
+                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                        <Typography variant='body2' fontWeight={600}>{p.product_group || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                    )}
+
                     {/* Registration Steps Timeline */}
                     <Box sx={{ mb: 4 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -293,9 +381,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
                         <Divider sx={{ flex: 1 }} />
-                        <Button
-                            size='small'
-                            variant='tonal'
+                        <Button size='small' variant='tonal'
                             startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
                             onClick={() => setFileDialogOpen(true)}
                             disabled={files.length === 0}
@@ -304,15 +390,10 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         </Button>
                     </Box>
 
-                    {/* Preview chips */}
                     {files.length > 0 && (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                             {files.map((f, i) => (
-                                <Chip
-                                    key={i}
-                                    label={f.name}
-                                    size='small'
-                                    variant='outlined'
+                                <Chip key={i} label={f.name} size='small' variant='outlined'
                                     icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
                                     onClick={() => window.open(f.url, '_blank')}
                                     sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
@@ -327,6 +408,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
         </Box>
     )
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AG Grid Theme
