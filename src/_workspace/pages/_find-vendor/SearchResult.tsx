@@ -1,16 +1,18 @@
 'use client'
 
 // React Imports
-import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
+import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
-import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridReadyEvent, ColumnState, SortModelItem } from 'ag-grid-community'
-import { themeQuartz } from 'ag-grid-community'
+import type { ColDef, GridReadyEvent, ColumnState, IServerSideDatasource } from 'ag-grid-community'
+import type { GridApi } from 'ag-grid-community'
+
+// Common AG Grid Table
+import DxAGgridTable from '@/_template/DxAGgridTable'
 
 // File Saver
 import { saveAs } from 'file-saver'
@@ -18,13 +20,16 @@ import { saveAs } from 'file-saver'
 // React Hook Form
 import { useFormContext } from 'react-hook-form'
 
+// Axios
+import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+
+// Utils
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
+
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 import type { FindVendorSearchRequestI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { FindVendorFormData } from './validateSchema'
-
-// React Query Hooks
-import { useSearch } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -34,23 +39,8 @@ import ActionCellRenderer from './components/ActionCellRenderer'
 import { StatusCheckCellRenderer } from './components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer'
 import EditVendorModal from './modal/EditVendorModal'
+import RegisterConfirmModal from './register-request/RegisterConfirmModal'
 
-const agGridTheme = themeQuartz.withParams({
-    spacing: 6,
-    columnBorder: { style: 'solid', color: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)' },
-    // Dark mode 
-    browserColorScheme: 'inherit',
-    backgroundColor: 'var(--mui-palette-background-paper)',
-    foregroundColor: 'var(--mui-palette-text-primary)',
-    // Softer header color (matching MRT pattern)
-    headerBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.12)',
-    headerTextColor: 'var(--mui-palette-text-primary)',
-    // Softer odd row color (matching MRT pattern) 
-    oddRowBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.04)',
-    borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)',
-    // Row hover color
-    rowHoverColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.08)'
-})
 
 const SearchResult = () => {
     // React Hook Form
@@ -76,58 +66,74 @@ const SearchResult = () => {
     // DxContext: controls whether fetch is enabled (set true by Search/Clear button)
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
-    // Params snapshot from form values (getValues is fine here because fetch is
-    // gated by isEnableFetching — we only fetch after SearchFilter sets it true)
-    const searchFilters = getValues('searchFilters')
-    const sorting = getValues('searchResults.sorting')
+    // ── Server-Side Datasource ────────────────────────────────────────────────
+    // We read form values INSIDE getRows so we always use the latest filters at fetch time
+    const buildDatasource = useCallback((): IServerSideDatasource => ({
+        getRows: async (params) => {
+            try {
+                const { startRow, endRow } = params.request
+                const limit = (20) - (startRow ?? 0)
 
-    const paramForSearch: FindVendorSearchRequestI = useMemo(() => {
-        const orderParams = sorting && sorting.length > 0
-            ? sorting.map((sort: any) => ({ id: sort.id, desc: sort.desc }))
-            : [{ id: 'company_name', desc: false }]
+                // Read latest form values at fetch time (not stale closure)
+                const currentFilters = getValues('searchFilters')
+                const currentSorting = getValues('searchResults.sorting')
 
-        return {
-            SearchFilters: [
-                { id: 'global_search', value: searchFilters.global_search || '' },
-                { id: 'company_name', value: searchFilters.company_name || '' },
-                { id: 'vendor_type_id', value: searchFilters.vendor_type_id?.value || null },
-                { id: 'province', value: searchFilters.province?.value || '' },
-                { id: 'product_group_id', value: searchFilters.product_group_id?.value || null },
-                { id: 'status', value: searchFilters.status?.value || '' },
-                { id: 'product_name', value: searchFilters.product_name || '' },
-                { id: 'maker_name', value: searchFilters.maker_name || '' },
-                { id: 'model_list', value: searchFilters.model_list || '' },
-                { id: 'prones_code', value: searchFilters.fft_vendor_code || '' },
-                { id: 'inuse', value: searchFilters.inuse?.value ?? null }
-            ],
-            ColumnFilters: [],
-            Order: orderParams,
-            Start: 0,
-            Limit: 3000
-        }
-    }, [isEnableFetching]) // re-compute only when search is triggered
+                const orderParams = currentSorting && currentSorting.length > 0
+                    ? currentSorting.map((s: any) => ({ id: s.id, desc: s.desc }))
+                    : [{ id: 'company_name', desc: false }]
 
-    // React Query Hook — enabled only when SearchFilter triggers (isEnableFetching=true)
-    const {
-        data: searchResult,
-        isLoading,
-        isFetching,
-        refetch
-    } = useSearch(paramForSearch, isEnableFetching)
+                const searchParams = {
+                    SearchFilters: [
+                        { id: 'global_search', value: currentFilters?.global_search || '' },
+                        { id: 'company_name', value: currentFilters?.company_name || '' },
+                        { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
+                        { id: 'province', value: currentFilters?.province?.value || '' },
+                        { id: 'product_group_id', value: currentFilters?.product_group_id?.value || null },
+                        { id: 'status', value: currentFilters?.status?.value || '' },
+                        { id: 'product_name', value: currentFilters?.product_name || '' },
+                        { id: 'maker_name', value: currentFilters?.maker_name || '' },
+                        { id: 'model_list', value: currentFilters?.model_list || '' },
+                        { id: 'prones_code', value: currentFilters?.fft_vendor_code || '' },
+                        { id: 'inuse', value: currentFilters?.inuse?.value ?? null }
+                    ],
+                    ColumnFilters: [],
+                    Order: orderParams,
+                    Start: startRow ?? 0,
+                    Limit: limit
+                }
 
-    // Reset isEnableFetching after fetch completes — same pattern as manufacturing-item & sct-for-product
+                const res = await FindVendorServices.search(searchParams)
+                const result = res?.data
+
+                if (result?.Status) {
+                    params.success({
+                        rowData: result.ResultOnDb,
+                        rowCount: result.TotalCountOnDb // ← tells AG Grid the true total
+                    })
+                } else {
+                    params.fail()
+                }
+            } catch {
+                params.fail()
+            }
+            // NOTE: do NOT call setIsEnableFetching here — async setState causes extra renders
+        },
+        destroy: () => { /* cleanup if needed */ }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [getValues]) // getValues is stable ref from react-hook-form
+
+    // Stable datasource — created once, NOT recreated on filter changes.
+    // getRows() reads form values fresh via getValues() at call time, so no stale closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const datasource = useMemo(() => buildDatasource(), [])
+
+    // When search button is clicked: reset the flag synchronously THEN purge+refetch
     useEffect(() => {
-        if (isFetching === false) {
-            setIsEnableFetching(false)
+        if (isEnableFetching && gridApiRef.current) {
+            setIsEnableFetching(false) // reset synchronously before async getRows fires
+            gridApiRef.current.refreshServerSide({ purge: true })
         }
-    }, [isFetching, setIsEnableFetching])
-
-    const rowData = useMemo(() => {
-        if (searchResult?.data?.Status) {
-            return searchResult.data.ResultOnDb
-        }
-        return []
-    }, [searchResult])
+    }, [isEnableFetching, setIsEnableFetching])
 
     // Helper to get current sort model
     const getSortModel = () => {
@@ -164,16 +170,25 @@ const SearchResult = () => {
                 }
             })
 
-            // Clone paramForSearch (filters/search needed for context? Actually IDs are enough for fetching, 
-            // but we might need filters if we were doing server-side. 
-            // Here we just send IDs + filters (just in case backend needs them for Prones match logic dependent on global search? 
-            // No, matchVendorsWithPrones uses fresh data.
-            // But we send paramForSearch to keep backend happy with types.
-
+            // Build export params inline from current form values
+            const currentFilters = getValues('searchFilters')
             const exportParams = {
-                ...paramForSearch,
-                vendor_ids: vendorIds, // Send Ordered IDs
-                Order: [] // No sort needed, we will sort by ID order in backend
+                SearchFilters: [
+                    { id: 'global_search', value: currentFilters?.global_search || '' },
+                    { id: 'company_name', value: currentFilters?.company_name || '' },
+                    { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
+                    { id: 'province', value: currentFilters?.province?.value || '' },
+                    { id: 'product_group_id', value: currentFilters?.product_group_id?.value || null },
+                    { id: 'status', value: currentFilters?.status?.value || '' },
+                    { id: 'product_name', value: currentFilters?.product_name || '' },
+                    { id: 'maker_name', value: currentFilters?.maker_name || '' },
+                    { id: 'model_list', value: currentFilters?.model_list || '' },
+                    { id: 'prones_code', value: currentFilters?.fft_vendor_code || '' },
+                    { id: 'inuse', value: currentFilters?.inuse?.value ?? null }
+                ],
+                ColumnFilters: [],
+                Order: [] as any[],
+                vendor_ids: vendorIds
             }
 
             const dataItem = {
@@ -206,9 +221,23 @@ const SearchResult = () => {
         handleExportMenuClose()
 
         try {
-            // Clone paramForSearch and inject current sort model
+            // Build export params inline from current form values
+            const currentFiltersAll = getValues('searchFilters')
             const exportParams = {
-                ...paramForSearch,
+                SearchFilters: [
+                    { id: 'global_search', value: currentFiltersAll?.global_search || '' },
+                    { id: 'company_name', value: currentFiltersAll?.company_name || '' },
+                    { id: 'vendor_type_id', value: currentFiltersAll?.vendor_type_id?.value || null },
+                    { id: 'province', value: currentFiltersAll?.province?.value || '' },
+                    { id: 'product_group_id', value: currentFiltersAll?.product_group_id?.value || null },
+                    { id: 'status', value: currentFiltersAll?.status?.value || '' },
+                    { id: 'product_name', value: currentFiltersAll?.product_name || '' },
+                    { id: 'maker_name', value: currentFiltersAll?.maker_name || '' },
+                    { id: 'model_list', value: currentFiltersAll?.model_list || '' },
+                    { id: 'prones_code', value: currentFiltersAll?.fft_vendor_code || '' },
+                    { id: 'inuse', value: currentFiltersAll?.inuse?.value ?? null }
+                ],
+                ColumnFilters: [],
                 Order: getSortModel()
             }
 
@@ -437,16 +466,6 @@ const SearchResult = () => {
         []
     )
 
-    // Default column definition
-    const defaultColDef = useMemo<ColDef>(
-        () => ({
-            sortable: true,
-            resizable: true,
-            filter: false,
-            floatingFilter: false
-        }),
-        []
-    )
 
     const onGridReady = useCallback((params: GridReadyEvent) => {
         gridApiRef.current = params.api
@@ -532,12 +551,10 @@ const SearchResult = () => {
 
     }, [getValues])
 
-    // --- State Sync Handlers (AG Grid Events -> Update Form w/ MRT format) ---
-    const handleStateChange = useCallback(() => {
-        if (!gridApiRef.current) return
-
-        // 1. Column Order & Visibility & Pinning & Sorting
-        const colState = gridApiRef.current.getColumnState()
+    // --- State Sync: AG Grid Events -> Update Form w/ MRT format ---
+    const handleStateChange = useCallback((api: GridApi | null) => {
+        if (!api) return
+        const colState = api.getColumnState()
 
         const newColumnOrder: string[] = []
         const newColumnVisibility: Record<string, boolean> = {}
@@ -553,25 +570,22 @@ const SearchResult = () => {
             if (col.pinned === 'right') newColumnPinning.right.push(colId)
 
             if (col.sort) {
-                newSorting.push({
-                    id: colId,
-                    desc: col.sort === 'desc'
-                })
+                newSorting.push({ id: colId, desc: col.sort === 'desc' })
             }
         })
 
-        // Update Form
         setValue('searchResults.columnOrder', newColumnOrder)
         setValue('searchResults.columnVisibility', newColumnVisibility)
         setValue('searchResults.columnPinning', newColumnPinning as any)
         setValue('searchResults.sorting', newSorting)
-
     }, [setValue])
 
     // Refresh grid after successful edit
     const handleEditSuccess = useCallback(() => {
-        refetch()
-    }, [refetch])
+        if (gridApiRef.current) {
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [])
 
 
     // --- On Row Click (Register Request) ---
@@ -580,11 +594,31 @@ const SearchResult = () => {
 
     // Not exposing row click for Register anymore based on user feedback. Using column button instead.
 
-    const handleConfirmRegister = () => {
-        // TODO: Call API to create a registration request or navigate to a form
-        alert(`Requesting Registration for: ${selectedRegisterVendor?.company_name}`)
-        setRegisterModalOpen(false)
-        setSelectedRegisterVendor(null)
+    const handleConfirmRegister = async (formData?: any) => {
+        if (!selectedRegisterVendor) return
+
+        try {
+            const payload = new FormData()
+            payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
+            payload.append('support_type', formData?.supportType || '')
+            payload.append('purchase_frequency', formData?.purchaseFreq || '')
+            payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
+            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'ถ้าเห็นข้อความนี้แจ้งS524')
+
+            // Append each uploaded file
+            if (formData?.files && Array.isArray(formData.files)) {
+                formData.files.forEach((file: File) => {
+                    payload.append('files', file)
+                })
+            }
+
+            await RegisterRequestServices.create(payload)
+
+            setRegisterModalOpen(false)
+            setSelectedRegisterVendor(null)
+        } catch (error: any) {
+            console.error('Failed to create registration request:', error)
+        }
     }
 
     const handleCloseRegisterModal = () => {
@@ -636,45 +670,30 @@ const SearchResult = () => {
                     </>
                 }
             />
-            <Box sx={{ height: 600, width: '100%', p: 2 }}>
-                <AgGridReact
-                    theme={agGridTheme}
-                    columnDefs={columnDefs}
-                    defaultColDef={defaultColDef}
-                    context={{ onEditClick: handleEditClick, onRegisterClick: handleRegisterClick }}
-                    loading={isLoading || isFetching} // Pass loading state to grid
+            <DxAGgridTable
+                columnDefs={columnDefs}
+                serverSideDatasource={datasource}
+                height={600}
+                boxSx={{ p: 2 }}
+                context={{ onEditClick: handleEditClick, onRegisterClick: handleRegisterClick }}
 
-                    // Client-side props
-                    rowData={rowData}
-                    pagination={true}
-                    paginationPageSize={20}
-                    paginationPageSizeSelector={[10, 20, 50, 100]}
-
-                    rowSelection='single'
-                    animateRows={true}
-                    overlayLoadingTemplate='<span class="ag-overlay-loading-center">Loading...</span>'
-                    overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
-                    enableCellTextSelection={true}
-                    copyHeadersToClipboard={true}
-                    onGridReady={onGridReady}
-
-                    // Row Click for Registration Removed
-
-                    // State Sync Events
-                    onSortChanged={handleStateChange}
-                    onColumnMoved={handleStateChange}
-                    onColumnPinned={handleStateChange}
-                    onColumnVisible={handleStateChange}
-                    // onDragStopped={handleStateChange} // Maybe safer than onColumnMoved for extensive drags? but moved is fine.
-
-                    getRowId={(params) => {
-                        const vendorId = params.data.vendor_id || 0
-                        const productId = params.data.vendor_product_id || 0
-                        const contactId = params.data.vendor_contact_id || 0
-                        return `${vendorId}_${productId}_${contactId}`
-                    }}
-                />
-            </Box>
+                // AG Grid native events — go through ...rest spread to AgGridReact directly
+                onGridReady={(params: GridReadyEvent) => {
+                    gridApiRef.current = params.api
+                    onGridReady(params)
+                }}
+                onSortChanged={() => handleStateChange(gridApiRef.current)}
+                onColumnMoved={() => handleStateChange(gridApiRef.current)}
+                onColumnPinned={() => handleStateChange(gridApiRef.current)}
+                onColumnVisible={() => handleStateChange(gridApiRef.current)}
+                overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
+                getRowId={(params: any) => {
+                    const vendorId = params.data.vendor_id || 0
+                    const productId = params.data.vendor_product_id || 0
+                    const contactId = params.data.vendor_contact_id || 0
+                    return `${vendorId}_${productId}_${contactId}`
+                }}
+            />
 
             {/* Edit Vendor Modal */}
             <EditVendorModal
@@ -684,27 +703,12 @@ const SearchResult = () => {
                 onSuccess={handleEditSuccess}
             />
 
-            {/* Request Register Confirmation Dialog */}
-            {selectedRegisterVendor && (
-                <Dialog open={registerModalOpen} onClose={handleCloseRegisterModal} maxWidth="sm" fullWidth>
-                    <DialogTitle>Confirm Registration Request</DialogTitle>
-                    <DialogContent>
-                        <Box sx={{ pt: 2 }}>
-                            <Typography>
-                                Are you sure you want to create a registration request for <b>{selectedRegisterVendor?.company_name}</b>?
-                            </Typography>
-                        </Box>
-                    </DialogContent>
-                    <DialogActions sx={{ p: '1.25rem' }}>
-                        <Button onClick={handleCloseRegisterModal} color="secondary" variant="outlined">
-                            Cancel
-                        </Button>
-                        <Button onClick={handleConfirmRegister} color="primary" variant="contained">
-                            Create Request
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            )}
+            <RegisterConfirmModal
+                open={registerModalOpen}
+                vendorData={selectedRegisterVendor}
+                onClose={handleCloseRegisterModal}
+                onConfirm={handleConfirmRegister}
+            />
         </Card>
     )
 }

@@ -1,8 +1,12 @@
 // React Imports
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 
 // MUI Imports
-import { Grid, Card, CardContent, Box, Typography, Chip, Divider, Avatar } from '@mui/material'
+import {
+    Grid, Card, CardContent, Box, Typography, Chip, Divider,
+    IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
+    Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress
+} from '@mui/material'
 
 // AG Grid Imports
 import { AgGridReact } from 'ag-grid-react'
@@ -10,88 +14,38 @@ import type { ColDef } from 'ag-grid-community'
 import { themeQuartz } from 'ag-grid-community'
 import 'ag-grid-enterprise'
 
-// Component Imports
-import StatusTimeline from './StatusTimeline'
+// Services
+import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+
+// Utils
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Types
-import type { VendorRegisterHistory } from './types'
 import type { SearchFilterValues } from './SearchFilter'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mock Data
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const MOCK_DATA: VendorRegisterHistory[] = [
-    {
-        vendor_id: 1001,
-        vendor_name: 'ABC Supply Co., Ltd.',
-        tax_id: '0105563012345',
-        submitted_by: 'tanawut.pat',
-        submitted_date: '2025-02-10',
-        overall_status: 'in_progress',
-        steps: [
-            { step: 1, title: 'Sent to PO', description: 'Registration request sent to Procurement Officer for further processing.', status: 'completed', updatedBy: 'tanawut.pat', updatedDate: '2025-02-10 09:30' },
-            { step: 2, title: 'PO Approved', description: 'Procurement Officer reviewed and approved the vendor information.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-11 10:15' },
-            { step: 3, title: 'PO Requested Vendor Documents', description: 'PO sent a document request form for the vendor to complete and return.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-11 14:00' },
-            { step: 4, title: 'Vendor Accepted GPR A', description: 'Awaiting vendor confirmation to submit documents as requested in GPR A.', status: 'in_progress', updatedBy: 'vendor.abc', updatedDate: '2025-02-12 09:00' },
-            { step: 5, title: 'PO Check Information / GPR', description: 'PO verifies the accuracy of documents and GPR submitted by the vendor.', status: 'pending' },
-            { step: 6, title: 'PO Manager Approval', description: 'Procurement Manager reviews and gives final approval before MD.', status: 'pending' },
-            { step: 7, title: 'MD Approval', description: 'Managing Director officially approves the vendor registration.', status: 'pending' },
-            { step: 8, title: 'Complete', description: 'Vendor is fully registered in the system and ready for use.', status: 'pending' }
-        ]
-    },
-    {
-        vendor_id: 1002,
-        vendor_name: 'XYZ Components International',
-        tax_id: '0105564098765',
-        submitted_by: 'apinya.s',
-        submitted_date: '2025-02-05',
-        overall_status: 'completed',
-        steps: [
-            { step: 1, title: 'Sent to PO', description: 'Registration request sent to Procurement Officer.', status: 'completed', updatedBy: 'apinya.s', updatedDate: '2025-02-05 08:00' },
-            { step: 2, title: 'PO Approved', description: 'Procurement Officer reviewed and approved the vendor information.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-06 09:00' },
-            { step: 3, title: 'PO Requested Vendor Documents', description: 'PO sent document request form to the vendor.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-06 11:00' },
-            { step: 4, title: 'Vendor Accepted GPR A', description: 'Vendor confirmed and submitted all required documents (GPR A).', status: 'completed', updatedBy: 'vendor.xyz', updatedDate: '2025-02-07 08:30' },
-            { step: 5, title: 'PO Check Information / GPR', description: 'PO verified documents and GPR.', status: 'completed', updatedBy: 'manager.proc', updatedDate: '2025-02-07 14:00' },
-            { step: 6, title: 'PO Manager Approval', description: 'Procurement Manager approved.', status: 'completed', updatedBy: 'manager.proc', updatedDate: '2025-02-08 09:30' },
-            { step: 7, title: 'MD Approval', description: 'Managing Director officially approved the vendor registration.', status: 'completed', updatedBy: 'md.sign', updatedDate: '2025-02-09 10:00' },
-            { step: 8, title: 'Complete', description: 'Vendor successfully registered in the system.', status: 'completed', updatedBy: 'system', updatedDate: '2025-02-09 10:05' }
-        ]
-    },
-    {
-        vendor_id: 1003,
-        vendor_name: 'Thai Materials Group Co.',
-        tax_id: '0105565011122',
-        submitted_by: 'napat.w',
-        submitted_date: '2025-02-15',
-        overall_status: 'rejected',
-        steps: [
-            { step: 1, title: 'Sent to PO', description: 'Registration request sent to Procurement Officer.', status: 'completed', updatedBy: 'napat.w', updatedDate: '2025-02-15 13:00' },
-            { step: 2, title: 'PO Approved', description: 'Procurement Officer reviewed and approved the vendor information.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-15 15:00' },
-            { step: 3, title: 'PO Requested Vendor Documents', description: 'PO sent document request form to the vendor.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-16 09:00' },
-            {
-                step: 4,
-                title: 'Vendor Declined GPR A',
-                description: 'Vendor declined GPR A — negotiation process initiated.',
-                status: 'rejected',
-                updatedBy: 'vendor.thai',
-                updatedDate: '2025-02-16 14:00',
-                remark: 'Vendor indicated that the terms in GPR A were not acceptable.',
-                branchLabel: 'Vendor Declined Path',
-                branchChildren: [
-                    { step: 1, title: 'Vendor Declined GPR A', description: 'Vendor rejected the offer in GPR A.', status: 'completed', updatedBy: 'vendor.thai', updatedDate: '2025-02-16 14:00' },
-                    { step: 2, title: 'Issue GPR B', description: 'Issued GPR B with revised terms for second-round negotiation.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-17 10:00' },
-                    { step: 3, title: 'Keep GPR B', description: 'Vendor acknowledged GPR B and is under consideration.', status: 'completed', updatedBy: 'vendor.thai', updatedDate: '2025-02-18 09:00' },
-                    { step: 4, title: 'Issue GPR C', description: 'Issued GPR C as the final offer.', status: 'completed', updatedBy: 'somchai.k', updatedDate: '2025-02-19 10:00' },
-                    { step: 5, title: 'Rejected', description: 'Case closed — vendor declined all offers.', status: 'rejected', updatedBy: 'manager.proc', updatedDate: '2025-02-19 16:00', remark: 'Vendor registration process terminated.' }
-                ]
-            },
-            { step: 5, title: 'PO Check Information / GPR', description: 'PO verifies documents and GPR.', status: 'pending' },
-            { step: 6, title: 'PO Manager Approval', description: 'Procurement Manager reviews and approves.', status: 'pending' },
-            { step: 7, title: 'MD Approval', description: 'Managing Director approves the registration.', status: 'pending' },
-            { step: 8, title: 'Complete', description: 'Vendor fully registered in the system.', status: 'pending' }
-        ]
-    }
-]
+const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
+
+// Build accessible file URLs from comma-separated filenames stored in DB
+const buildFileUrls = (filePath: string | null): { name: string; url: string }[] => {
+    if (!filePath) return []
+    return filePath.split(',').map(name => ({
+        name: name.trim(),
+        url: `${API_BASE}/uploads/documents/${name.trim()}`
+    }))
+}
+
+const statusAccent: Record<string, string> = {
+    Approved: '#28C76F',
+    Pending: '#FF9F43',
+    Rejected: '#EA5455',
+    in_progress: '#FF9F43',
+    completed: '#28C76F',
+    rejected: '#EA5455',
+    pending: '#8A8D99'
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Summary Chip
@@ -102,6 +56,277 @@ const StatusSummaryChip = ({ label, count, color }: { label: string; count: numb
         <Typography variant='body2' color='text.secondary'>{label}</Typography>
     </Box>
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File Viewer Dialog
+// ─────────────────────────────────────────────────────────────────────────────
+const FileViewerDialog = ({ open, files, onClose }: {
+    open: boolean
+    files: { name: string; url: string }[]
+    onClose: () => void
+}) => {
+    const getFileIcon = (name: string) => {
+        const ext = name.split('.').pop()?.toLowerCase()
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'tabler-photo'
+        if (ext === 'pdf') return 'tabler-file-type-pdf'
+        if (['xls', 'xlsx'].includes(ext || '')) return 'tabler-file-type-xls'
+        if (['doc', 'docx'].includes(ext || '')) return 'tabler-file-type-doc'
+        return 'tabler-file'
+    }
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
+            <DialogTitle>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <i className='tabler-paperclip' style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }} />
+                    <Typography variant='h6'>Attached Files ({files.length})</Typography>
+                </Box>
+            </DialogTitle>
+            <DialogContent dividers>
+                {files.length === 0 ? (
+                    <Typography color='text.secondary' sx={{ py: 2, textAlign: 'center' }}>No files attached</Typography>
+                ) : (
+                    <List disablePadding>
+                        {files.map((file, idx) => (
+                            <ListItem
+                                key={idx}
+                                disablePadding
+                                sx={{
+                                    py: 1.5, px: 2, mb: 1, borderRadius: 2,
+                                    border: '1px solid', borderColor: 'divider',
+                                    '&:hover': { bgcolor: 'action.hover' }
+                                }}
+                                secondaryAction={
+                                    <Tooltip title='Open / Download'>
+                                        <IconButton
+                                            edge='end'
+                                            size='small'
+                                            onClick={() => window.open(file.url, '_blank')}
+                                            sx={{ color: 'primary.main' }}
+                                        >
+                                            <i className='tabler-external-link' style={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                }
+                            >
+                                <ListItemIcon sx={{ minWidth: 40 }}>
+                                    <i className={getFileIcon(file.name)} style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={
+                                        <Typography
+                                            variant='body2'
+                                            fontWeight={600}
+                                            sx={{
+                                                cursor: 'pointer', color: 'primary.main',
+                                                '&:hover': { textDecoration: 'underline' }
+                                            }}
+                                            onClick={() => window.open(file.url, '_blank')}
+                                        >
+                                            {file.name}
+                                        </Typography>
+                                    }
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose} variant='tonal' color='secondary'>Close</Button>
+            </DialogActions>
+        </Dialog>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status Timeline Component
+// ─────────────────────────────────────────────────────────────────────────────
+const StatusTimeline = ({ status }: { status: string }) => {
+    // Determine step states based on the single request_status
+    let submittedState: 'completed' | 'in_progress' | 'pending' = 'completed'
+    let progressState: 'completed' | 'in_progress' | 'pending' | 'rejected' = 'pending'
+    let finalState: 'completed' | 'in_progress' | 'pending' | 'rejected' = 'pending'
+
+    const s = status?.toLowerCase()
+
+    if (s === 'pending') {
+        progressState = 'in_progress'
+    } else if (s === 'in_progress' || s === 'in progress') {
+        progressState = 'in_progress'
+    } else if (s === 'approved' || s === 'completed') {
+        progressState = 'completed'
+        finalState = 'completed'
+    } else if (s === 'rejected') {
+        progressState = 'completed'
+        finalState = 'rejected'
+    }
+
+    const steps = [
+        { title: 'Request Submitted', state: submittedState, icon: 'tabler-file-upload' },
+        { title: 'In Review / Progress', state: progressState, icon: 'tabler-user-check' },
+        { title: finalState === 'rejected' ? 'Rejected' : 'Approved', state: finalState, icon: finalState === 'rejected' ? 'tabler-x' : 'tabler-check' }
+    ]
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative', ml: 1, mt: 2 }}>
+            <Box sx={{ position: 'absolute', left: 19, top: 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
+
+            {steps.map((step, idx) => {
+                const isCompleted = step.state === 'completed'
+                const isCurrent = step.state === 'in_progress'
+                const isRejected = step.state === 'rejected'
+
+                let color = 'text.disabled'
+                let bg = 'action.hover'
+
+                if (isCompleted) {
+                    color = 'success.main'
+                    bg = 'success.light'
+                } else if (isCurrent) {
+                    color = 'warning.main'
+                    bg = 'warning.light'
+                } else if (isRejected) {
+                    color = 'error.main'
+                    bg = 'error.light'
+                }
+
+                return (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === steps.length - 1 ? 0 : 3 }}>
+                        <Box sx={{
+                            width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            bgcolor: isCompleted || isCurrent || isRejected ? bg : 'background.paper',
+                            border: '2px solid',
+                            borderColor: isCompleted || isCurrent || isRejected ? 'transparent' : 'divider',
+                            boxShadow: isCurrent ? `0 0 0 4px rgba(255, 159, 67, 0.2)` : 'none'
+                        }}>
+                            <i className={step.icon} style={{ fontSize: 20, color: isCompleted || isCurrent || isRejected ? `var(--mui-palette-${color.replace('.main', '')}-main)` : 'inherit' }} />
+                        </Box>
+                        <Box sx={{ pt: 1 }}>
+                            <Typography variant='subtitle2' fontWeight={isCurrent ? 800 : 600} color={isCurrent || isCompleted || isRejected ? 'text.primary' : 'text.disabled'}>
+                                {step.title}
+                            </Typography>
+                        </Box>
+                    </Box>
+                )
+            })}
+        </Box>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Master-Detail Renderer
+// ─────────────────────────────────────────────────────────────────────────────
+const DetailRenderer = ({ data }: { data: any }) => {
+    const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    const files = buildFileUrls(data?.File_Path)
+
+    if (!data) return null
+
+    const accent = statusAccent[data.request_status] || '#8A8D99'
+
+    return (
+        <Box sx={{ p: 4, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Card variant='outlined' sx={{ border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
+                <CardContent sx={{ p: '24px !important' }}>
+
+                    {/* Header Banner */}
+                    <Box sx={{ p: 3, mb: 3, borderRadius: 3, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+                            <Box>
+                                <Typography variant='h5' fontWeight={800} sx={{ mb: 0.25 }}>{data.company_name}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <i className='tabler-user' style={{ fontSize: 13, color: 'var(--mui-palette-text-secondary)' }} />
+                                    <Typography variant='body2' color='text.secondary'>
+                                        {data.FULL_NAME || data.EMPLOYEE_CODE} · {data.EMPLOYEE_DEPT || ''}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                            <Chip
+                                label={data.request_status}
+                                size='medium'
+                                sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }}
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Detail Grid */}
+                    <Grid container spacing={3} sx={{ mb: 4 }}>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Type</Typography>
+                            <Typography variant='body2' fontWeight={600}>{data.supportProduct_Process || '-'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Purchase Frequency</Typography>
+                            <Typography variant='body2' fontWeight={600}>{data.purchase_frequency || '-'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Assigned To</Typography>
+                            <Typography variant='body2' fontWeight={600}>{data.assign_to || '-'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Submitted Date</Typography>
+                            <Typography variant='body2' fontWeight={600}>
+                                {data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : '-'}
+                            </Typography>
+                        </Grid>
+                        {data.requester_remark && (
+                            <Grid item xs={12}>
+                                <Typography variant='caption' color='text.disabled' fontWeight={600}>Remark</Typography>
+                                <Typography variant='body2'>{data.requester_remark}</Typography>
+                            </Grid>
+                        )}
+                    </Grid>
+
+                    {/* Registration Steps Timeline */}
+                    <Box sx={{ mb: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                            <i className='tabler-timeline' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Registration Steps</Typography>
+                            <Divider sx={{ flex: 1 }} />
+                        </Box>
+                        <StatusTimeline status={data.request_status} />
+                    </Box>
+
+                    {/* Attached Files */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                        <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
+                        <Divider sx={{ flex: 1 }} />
+                        <Button
+                            size='small'
+                            variant='tonal'
+                            startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
+                            onClick={() => setFileDialogOpen(true)}
+                            disabled={files.length === 0}
+                        >
+                            {files.length === 0 ? 'No Files' : `View ${files.length} File${files.length > 1 ? 's' : ''}`}
+                        </Button>
+                    </Box>
+
+                    {/* Preview chips */}
+                    {files.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                            {files.map((f, i) => (
+                                <Chip
+                                    key={i}
+                                    label={f.name}
+                                    size='small'
+                                    variant='outlined'
+                                    icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
+                                    onClick={() => window.open(f.url, '_blank')}
+                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </CardContent>
+            </Card>
+
+            <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
+        </Box>
+    )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AG Grid Theme
@@ -120,77 +345,6 @@ const agGridTheme = themeQuartz.withParams({
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Master-Detail Renderer
-// ─────────────────────────────────────────────────────────────────────────────
-const DetailRenderer = ({ data }: { data: VendorRegisterHistory }) => {
-    const selected = data
-    if (!selected) return null
-
-    const completedSteps = selected.steps.filter(s => s.status === 'completed').length
-    const progressPct = Math.round((completedSteps / selected.steps.length) * 100)
-
-    const statusAccent: Record<string, string> = {
-        completed: '#28C76F',
-        in_progress: '#FF9F43',
-        rejected: '#EA5455',
-        pending: '#8A8D99'
-    }
-
-    return (
-        <Box sx={{ p: 4, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Card variant='outlined' sx={{ border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
-                <CardContent sx={{ p: '24px !important' }}>
-                    <Box sx={{ p: 3, mb: 3, borderRadius: 3, bgcolor: `${statusAccent[selected.overall_status]}10`, border: '1px solid', borderColor: `${statusAccent[selected.overall_status]}25`, position: 'relative', overflow: 'hidden' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-                            <Box>
-                                <Typography variant='h5' fontWeight={800} sx={{ mb: 0.25 }}>{selected.vendor_name}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <i className='tabler-id' style={{ fontSize: 13, color: 'var(--mui-palette-text-secondary)' }} />
-                                    <Typography variant='body2' color='text.secondary'>TAX: {selected.tax_id}</Typography>
-                                </Box>
-                            </Box>
-                            <Chip label={selected.overall_status.replace('_', ' ').toUpperCase()} size='medium' sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: `${statusAccent[selected.overall_status]}20`, color: statusAccent[selected.overall_status], border: '1px solid', borderColor: `${statusAccent[selected.overall_status]}40` }} />
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 3, mt: 2, flexWrap: 'wrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                <Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main' }}>
-                                    <i className='tabler-user' style={{ fontSize: 12, color: 'var(--mui-palette-primary-contrastText)' }} />
-                                </Avatar>
-                                <Typography variant='caption' fontWeight={600} color='text.secondary'>{selected.submitted_by}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                <Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main' }}>
-                                    <i className='tabler-calendar' style={{ fontSize: 12, color: 'var(--mui-palette-primary-contrastText)' }} />
-                                </Avatar>
-                                <Typography variant='caption' fontWeight={600} color='text.secondary'>{selected.submitted_date}</Typography>
-                            </Box>
-                        </Box>
-                        <Box sx={{ mt: 2.5 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                                <Typography variant='caption' color='text.secondary' fontWeight={500}>Overall Progress</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                                    <Typography variant='body2' fontWeight={800} sx={{ color: statusAccent[selected.overall_status] }}>{progressPct}%</Typography>
-                                    <Typography variant='caption' color='text.disabled'>({completedSteps}/{selected.steps.length})</Typography>
-                                </Box>
-                            </Box>
-                            <Box sx={{ height: 10, borderRadius: 5, bgcolor: 'rgba(0,0,0,0.06)', overflow: 'hidden', position: 'relative' }}>
-                                <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progressPct}%`, borderRadius: 5, background: `${statusAccent[selected.overall_status]}`, boxShadow: `0 2px 8px ${statusAccent[selected.overall_status]}60`, transition: 'width 0.6s cubic-bezier(0.34,1.56,0.64,1)' }} />
-                            </Box>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                        <i className='tabler-timeline' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
-                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Registration Steps</Typography>
-                        <Divider sx={{ flex: 1 }} />
-                    </Box>
-                    <StatusTimeline steps={selected.steps} />
-                </CardContent>
-            </Card>
-        </Box>
-    )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
 interface SearchResultProps {
@@ -198,90 +352,186 @@ interface SearchResultProps {
 }
 
 export default function SearchResult({ activeFilters }: SearchResultProps) {
-    const filtered = MOCK_DATA.filter(v => {
-        const matchName = !activeFilters.vendor_name || v.vendor_name.toLowerCase().includes(activeFilters.vendor_name.toLowerCase())
-        const matchSubmittedBy = !activeFilters.submitted_by || v.submitted_by.toLowerCase().includes(activeFilters.submitted_by.toLowerCase())
-        const matchStatus = !activeFilters.overall_status || v.overall_status === activeFilters.overall_status.value
-        return matchName && matchSubmittedBy && matchStatus
-    })
+    const [rows, setRows] = useState<any[]>([])
+    const [loading, setLoading] = useState(false)
 
-    const colDefs = useMemo<ColDef<VendorRegisterHistory>[]>(() => [
+    const fetchData = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await RegisterRequestServices.getAll({
+                Request_By_EmployeeCode: getUserData()?.EMPLOYEE_CODE || ''
+            })
+            setRows(res.data?.ResultOnDb || [])
+        } catch (err) {
+            console.error('Failed to load request history:', err)
+        } finally {
+            setLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
+
+    // Client-side filter on top
+    const filtered = useMemo(() => {
+        return rows.filter(r => {
+            const matchName = !activeFilters.vendor_name || (r.company_name || '').toLowerCase().includes(activeFilters.vendor_name.toLowerCase())
+            const matchBy = !activeFilters.submitted_by || (r.FULL_NAME || r.EMPLOYEE_CODE || '').toLowerCase().includes(activeFilters.submitted_by.toLowerCase())
+            const matchStatus = !activeFilters.overall_status || r.request_status === activeFilters.overall_status.value
+            return matchName && matchBy && matchStatus
+        })
+    }, [rows, activeFilters])
+
+    const colDefs = useMemo<ColDef[]>(() => [
         {
-            field: 'vendor_name',
+            field: 'request_status',
+            headerName: 'Status',
+            flex: 0.9,
+            minWidth: 120,
+            cellRenderer: (params: any) => {
+                const val = params.value
+                if (!val) return null
+                let color: 'success' | 'warning' | 'error' | 'default' = 'default'
+                if (val === 'Approved' || val === 'completed') color = 'success'
+                if (val === 'Pending' || val === 'in_progress') color = 'warning'
+                if (val === 'Rejected' || val === 'rejected') color = 'error'
+                return <Chip label={val} color={color} size='small' variant='tonal' sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+            }
+        },
+        {
+            field: 'company_name',
             headerName: 'Company Name',
             flex: 1.5,
-            minWidth: 260,
+            minWidth: 220,
             cellRenderer: 'agGroupCellRenderer'
         },
-        { field: 'tax_id', headerName: 'Tax ID', flex: 1, minWidth: 150 },
-        { field: 'submitted_by', headerName: 'Submitted By', flex: 1, minWidth: 160 },
-        { field: 'submitted_date', headerName: 'Submitted Date', flex: 1, minWidth: 150 },
         {
-            field: 'overall_status',
-            headerName: 'Status',
+            field: 'supportProduct_Process',
+            headerName: 'Support Product / Process',
+            flex: 1,
+            minWidth: 150
+        },
+        {
+            field: 'purchase_frequency',
+            headerName: 'Purchase Freqency',
+            flex: 0.9,
+            minWidth: 130
+        },
+        {
+            field: 'FULL_NAME',
+            headerName: 'Submitted By Employee Name',
+            flex: 1.2,
+            minWidth: 200,
+            valueGetter: p => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
+        },
+        {
+            field: 'EMPLOYEE_CODE',
+            headerName: 'Employee Code',
+            flex: 0.8,
+            minWidth: 130
+        },
+        {
+            field: 'assign_to',
+            headerName: 'Assigned To',
+            flex: 1,
+            minWidth: 150
+        },
+        {
+            field: 'File_Path',
+            headerName: 'Files',
+            flex: 0.6,
+            minWidth: 90,
+            cellRenderer: (params: any) => {
+                const count = buildFileUrls(params.value).length
+                if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
+                return (
+                    <Chip
+                        label={`${count} file${count > 1 ? 's' : ''}`}
+                        size='small'
+                        color='primary'
+                        variant='tonal'
+                        icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
+                    />
+                )
+            }
+        },
+        {
+            field: 'CREATE_DATE',
+            headerName: 'Submitted Date',
             flex: 1,
             minWidth: 140,
-            cellRenderer: (params: any) => {
-                if (!params.value) return null
-                let color: 'success' | 'warning' | 'error' | 'default' = 'default'
-                if (params.value === 'completed') color = 'success'
-                if (params.value === 'in_progress') color = 'warning'
-                if (params.value === 'rejected') color = 'error'
-                return <Chip label={params.value.replace('_', ' ').toUpperCase()} color={color} size='small' variant='tonal' sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
-            }
+            valueFormatter: p => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
     ], [])
 
-    const defaultColDef = useMemo<ColDef>(() => ({
-        resizable: true,
-        sortable: true
-    }), [])
+
+    const defaultColDef = useMemo<ColDef>(() => ({ resizable: true, sortable: true }), [])
+
+    // Count by status
+    const countByStatus = (status: string) => rows.filter(r =>
+        r.request_status?.toLowerCase() === status.toLowerCase()
+    ).length
 
     return (
         <Grid container spacing={6}>
-            {/* Summary chips */}
+            {/* Summary Chips */}
             <Grid item xs={12}>
                 <Card>
                     <CardContent>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mr: 2 }}>
                                 <i className='tabler-history' style={{ fontSize: 22, color: 'var(--mui-palette-primary-main)' }} />
-                                <Typography variant='h6'>Registration Status Overview</Typography>
+                                <Typography variant='h6'>My Registration Requests</Typography>
                             </Box>
                             <Divider orientation='vertical' flexItem />
-                            <StatusSummaryChip label='All' count={MOCK_DATA.length} color='info' />
-                            <StatusSummaryChip label='Completed' count={MOCK_DATA.filter(v => v.overall_status === 'completed').length} color='success' />
-                            <StatusSummaryChip label='In Progress' count={MOCK_DATA.filter(v => v.overall_status === 'in_progress').length} color='warning' />
-                            <StatusSummaryChip label='Rejected' count={MOCK_DATA.filter(v => v.overall_status === 'rejected').length} color='error' />
-                            <StatusSummaryChip label='Pending' count={MOCK_DATA.filter(v => v.overall_status === 'pending').length} color='default' />
+                            <StatusSummaryChip label='All' count={rows.length} color='info' />
+                            <StatusSummaryChip label='Approved' count={countByStatus('Approved')} color='success' />
+                            <StatusSummaryChip label='Pending' count={countByStatus('Pending')} color='warning' />
+                            <StatusSummaryChip label='Rejected' count={countByStatus('Rejected')} color='error' />
                         </Box>
                     </CardContent>
                 </Card>
             </Grid>
 
-            {/* Main Content Grid */}
+            {/* AG Grid */}
             <Grid item xs={12}>
                 <Card>
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                             <Typography variant='subtitle1' fontWeight={700}>
-                                History Results ({filtered.length})
+                                Results ({filtered.length})
                             </Typography>
+                            <Button
+                                size='small'
+                                variant='tonal'
+                                startIcon={loading ? <CircularProgress size={14} /> : <i className='tabler-refresh' style={{ fontSize: 16 }} />}
+                                onClick={fetchData}
+                                disabled={loading}
+                            >
+                                Refresh
+                            </Button>
                         </Box>
 
-                        <Box sx={{ width: '100%', height: 600 }}>
-                            <AgGridReact
-                                rowData={filtered}
-                                columnDefs={colDefs}
-                                defaultColDef={defaultColDef}
-                                theme={agGridTheme}
-                                masterDetail={true}
-                                detailCellRenderer={DetailRenderer}
-                                detailRowAutoHeight={true}
-                                domLayout='normal'
-                                rowSelection='single'
-                            />
-                        </Box>
+                        {loading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : (
+                            <Box sx={{ width: '100%', height: 600 }}>
+                                <AgGridReact
+                                    rowData={filtered}
+                                    columnDefs={colDefs}
+                                    defaultColDef={defaultColDef}
+                                    theme={agGridTheme}
+                                    masterDetail={true}
+                                    detailCellRenderer={DetailRenderer}
+                                    detailRowAutoHeight={true}
+                                    domLayout='normal'
+                                    rowSelection='single'
+                                />
+                            </Box>
+                        )}
                     </CardContent>
                 </Card>
             </Grid>
