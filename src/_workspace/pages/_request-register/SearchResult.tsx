@@ -1,5 +1,5 @@
 // React Imports
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 
 // MUI Imports
 import {
@@ -10,8 +10,7 @@ import {
 } from '@mui/material'
 
 // AG Grid Imports
-import type { ColDef } from 'ag-grid-community'
-import 'ag-grid-enterprise'
+import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
 // Services
@@ -20,8 +19,15 @@ import RegisterRequestServices from '@_workspace/services/_register-request/Regi
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
-// Types
-import type { SearchFilterValues } from './SearchFilter'
+// React Hook Form
+import { useFormContext } from 'react-hook-form'
+import type { RequestRegisterFormData } from './validateSchema'
+
+// Context
+import { useDxContext } from '@/_template/DxContextProvider'
+
+// Status — colors from DB
+import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -36,20 +42,6 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
             url: `${API_BASE}/uploads/documents/${d.file_path}`
         }))
     } catch { return [] }
-}
-
-const statusAccent: Record<string, string> = {
-    Approved: '#28C76F',
-    Pending: '#FF9F43',
-    Rejected: '#EA5455',
-}
-
-const statusColor = (status: string): 'success' | 'warning' | 'error' | 'info' | 'default' => {
-    const s = (status || '').toLowerCase()
-    if (s === 'approved') return 'success'
-    if (s === 'pending') return 'warning'
-    if (s === 'rejected') return 'error'
-    return 'default'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,11 +128,12 @@ interface ActionDialogProps {
     open: boolean
     mode: 'approve' | 'reject'
     requestId: number | null
+    nextStatus: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -153,7 +146,7 @@ const ActionDialog = ({ open, mode, requestId, onClose, onSuccess }: ActionDialo
         try {
             await RegisterRequestServices.updateStatus({
                 request_id: requestId,
-                request_status: mode === 'approve' ? 'Approved' : 'Rejected',
+                request_status: mode === 'approve' ? nextStatus : 'Rejected',
                 approve_by: user?.EMPLOYEE_CODE || '',
                 approver_remark: remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
@@ -210,7 +203,7 @@ const ActionDialog = ({ open, mode, requestId, onClose, onSuccess }: ActionDialo
 // ─────────────────────────────────────────────────────────────────────────────
 interface DetailPanelProps {
     data: any
-    onApprove: () => void
+    onApprove: (nextStatus: string) => void
     onReject: () => void
     onEmailSent: () => void
 }
@@ -219,6 +212,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
     const [sendingEmail, setSendingEmail] = useState(false)
     const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    const { data: statusOptions = [] } = useRequestStatusOptions()
     const files = buildFileUrls(data?.documents)
     if (!data) return null
 
@@ -240,8 +234,23 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
         }
     }
 
-    const accent = statusAccent[data.request_status] || '#8A8D99'
-    const isPending = data.request_status === 'Pending'
+    const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
+
+    // Parse approval steps to determine if current user can act
+    const approvalSteps: any[] = (() => {
+        try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
+    })().filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
+
+    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+    const isActionable = !!currentStep
+
+    // Compute next status value for approve action
+    const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const computedNextStatus = (() => {
+        const targetDesc = nextStep?.DESCRIPTION || currentStep?.DESCRIPTION || ''
+        const match = statusOptions.find(so => so.label === targetDesc)
+        return match?.value || targetDesc
+    })()
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -356,6 +365,59 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                 </Box>
             )}
 
+            {/* Approval Steps */}
+            {(() => {
+                const steps: any[] = (() => {
+                    try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
+                })().filter(Boolean)
+                const logs: any[] = (() => {
+                    try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
+                })().filter(Boolean)
+                if (steps.length === 0) return null
+                return (
+                    <Box sx={{ mb: 3 }}>
+                        <SectionHeader icon='tabler-list-check' title={`Approval Steps (${steps.length})`} />
+                        <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                {['#', 'Description', 'Approver', 'Status', 'Updated'].map(h => (
+                                    <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
+                                ))}
+                            </Box>
+                            {steps.sort((a: any, b: any) => a.step_order - b.step_order).map((s: any, i: number) => {
+                                const stepLog = logs.find((l: any) => l.step_id === s.step_id)
+                                return (
+                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                        <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
+                                        <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
+                                        <Chip label={s.step_status || 'pending'} size='small' variant='tonal'
+                                            color={s.step_status === 'approved' ? 'success' : s.step_status === 'rejected' ? 'error' : 'default'}
+                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22 }}
+                                        />
+                                        <Typography variant='body2' color='text.secondary'>
+                                            {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
+                                        </Typography>
+                                    </Box>
+                                )
+                            })}
+                        </Box>
+                        {logs.length > 0 && (
+                            <Box sx={{ mt: 1.5 }}>
+                                <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
+                                {logs.map((l: any, i: number) => (
+                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                                        <i className='tabler-arrow-right' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                        <Typography variant='caption' color='text.secondary'>
+                                            <strong>{l.action_by}</strong> — {l.action_type} {l.remark ? `(${l.remark})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        )}
+                    </Box>
+                )
+            })()}
+
             {/* Decision Info */}
             {(data.approve_by || data.approver_remark) && (
                 <Box sx={{ mb: 3 }}>
@@ -392,8 +454,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                 )}
             </Box>
 
-            {/* Email Agreement Section (Pending only) */}
-            {isPending && (
+            {/* Email Agreement Section (actionable status only) */}
+            {isActionable && (
                 <Box sx={{
                     mb: 3, p: 2, borderRadius: 2,
                     bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'primary.light' : 'rgba(115, 103, 240, 0.12)',
@@ -425,12 +487,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                 </Box>
             )}
 
-            {/* Approve / Reject Buttons (Pending only) */}
-            {isPending && (
+            {/* Approve / Reject Buttons (actionable status only) */}
+            {isActionable && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button variant='contained' color='success' fullWidth
                         startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={onApprove}
+                        onClick={() => onApprove(computedNextStatus)}
                     >Approve</Button>
                     <Button variant='contained' color='error' fullWidth
                         startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
@@ -448,13 +510,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
-interface SearchResultProps {
-    activeFilters: SearchFilterValues
-}
+export default function SearchResult() {
+    const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
+    const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const { data: statusOptions = [] } = useRequestStatusOptions()
 
-export default function SearchResult({ activeFilters }: SearchResultProps) {
-    const [rows, setRows] = useState<any[]>([])
-    const [loading, setLoading] = useState(false)
+    const [totalCount, setTotalCount] = useState(0)
+    const gridApiRef = useRef<any>(null)
 
     // Drawer state
     const [drawerOpen, setDrawerOpen] = useState(false)
@@ -463,45 +525,59 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
     // Action dialog state
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
+    const [nextStatus, setNextStatus] = useState('')
 
     const user = getUserData()
-    const empCode = user?.EMPLOYEE_CODE 
+    const empCode = user?.EMPLOYEE_CODE
 
-    const fetchData = useCallback(async () => {
-        setLoading(true)
-        try {
-            const res = await RegisterRequestServices.getAll({
-                assign_to: empCode,
-                SearchFilters: [],
-                ColumnFilters: [],
-                Limit: 1000,
-                Order: [{ id: 'request_id', desc: true }],
-                Start: 0
-            })
-            setRows(res.data?.ResultOnDb || [])
-        } catch (err) {
-            console.error('Failed to load assigned requests:', err)
-        } finally {
-            setLoading(false)
+    // ── Server-Side Datasource ────────────────────────────────────────────────
+    const datasource = useMemo<IServerSideDatasource>(() => ({
+        getRows: async (params) => {
+            const f = getValues('searchFilters')
+            const { startRow, endRow } = params.request
+            const order = params.request.sortModel?.length > 0
+                ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
+                : [{ id: 'request_id', desc: true }]
+            try {
+                const res = await RegisterRequestServices.getAll({
+                    assign_to: empCode,
+                    SearchFilters: [
+                        { id: 'company_name', value: f.vendor_name || null },
+                        { id: 'Request_By_EmployeeCode', value: f.submitted_by || null },
+                        { id: 'request_status', value: f.overall_status?.value || null }
+                    ].filter((x: any) => x.value !== null && x.value !== ''),
+                    ColumnFilters: [],
+                    Order: order,
+                    Start: startRow ?? 0,
+                    Limit: (endRow ?? 50) - (startRow ?? 0)
+                })
+                if (res.data?.Status) {
+                    setTotalCount(res.data.TotalCountOnDb)
+                    params.success({ rowData: res.data.ResultOnDb, rowCount: res.data.TotalCountOnDb })
+                } else {
+                    params.fail()
+                }
+            } catch {
+                params.fail()
+            }
         }
-    }, [empCode])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [empCode]) // getValues is a stable ref — no need to re-create datasource
 
-    useEffect(() => { fetchData() }, [fetchData])
+    // Trigger refresh when Search / Clear button sets isEnableFetching = true
+    useEffect(() => {
+        if (isEnableFetching && gridApiRef.current) {
+            setIsEnableFetching(false)
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [isEnableFetching, setIsEnableFetching])
 
-    // Client-side filter from SearchFilter
-    const filtered = useMemo(() => {
-        return rows.filter(r => {
-            const matchName = !activeFilters.vendor_name ||
-                (r.company_name || '').toLowerCase().includes(activeFilters.vendor_name.toLowerCase())
-            const matchBy = !activeFilters.submitted_by ||
-                (r.FULL_NAME || r.EMPLOYEE_CODE || '').toLowerCase().includes(activeFilters.submitted_by.toLowerCase())
-            const matchStatus = !activeFilters.overall_status ||
-                r.request_status === activeFilters.overall_status.value
-            return matchName && matchBy && matchStatus
-        })
-    }, [rows, activeFilters])
+    // ── Column / Grid State Persistence ──────────────────────────────────────
+    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const countByStatus = (status: string) => rows.filter(r => r.request_status === status).length
+    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
+        setValue('searchResults.agGridState', e.state)
+    }, [setValue])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -523,12 +599,16 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
         {
             field: 'request_status',
             headerName: 'Status',
-            width: 130,
-            cellRenderer: (params: any) => (
-                <Chip label={params.value || '-'} color={statusColor(params.value)} size='small' variant='tonal'
-                    sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24, mt: 1 }}
-                />
-            )
+            flex: 1.2,
+            minWidth: 210,
+            cellRenderer: (params: any) => {
+                const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                return (
+                    <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
+                        sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24, mt: 1 }}
+                    />
+                )
+            }
         },
         { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210, cellRenderer: 'agGroupCellRenderer' },
         { field: 'supportProduct_Process', headerName: 'Support Product / Process', flex: 1, minWidth: 180 },
@@ -560,12 +640,10 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
             width: 150,
             valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [])
-
-    const defaultColDef = useMemo<ColDef>(() => ({ resizable: true, sortable: true }), [])
+    ], [statusOptions])
 
     const handleActionSuccess = () => {
-        fetchData()
+        gridApiRef.current?.refreshServerSide({ purge: true })
         setDrawerOpen(false)
         setSelectedData(null)
     }
@@ -586,12 +664,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                                 </Box>
                             </Box>
                             <Divider orientation='vertical' flexItem />
-                            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                                <StatusSummaryChip label='All' count={rows.length} color='info' />
-                                <StatusSummaryChip label='Pending' count={countByStatus('Pending')} color='warning' />
-                                <StatusSummaryChip label='Approved' count={countByStatus('Approved')} color='success' />
-                                <StatusSummaryChip label='Rejected' count={countByStatus('Rejected')} color='error' />
-                            </Box>
+                            <StatusSummaryChip label='All' count={totalCount} color='info' />
                         </Box>
                     </CardContent>
                 </Card>
@@ -603,40 +676,28 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                     <CardContent sx={{ p: '24px !important' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                             <Typography variant='subtitle1' fontWeight={700}>
-                                Results ({filtered.length})
+                                Results ({totalCount})
                             </Typography>
                             <Button
                                 size='small'
                                 variant='tonal'
-                                startIcon={loading ? <CircularProgress size={14} /> : <i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                                onClick={fetchData}
-                                disabled={loading}
+                                startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
+                                onClick={() => gridApiRef.current?.refreshServerSide({ purge: true })}
                             >
                                 Refresh
                             </Button>
                         </Box>
 
-                        {loading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                                <CircularProgress />
-                            </Box>
-                        ) : (
-                            <Box sx={{ width: '100%', height: 600 }}>
-                                <DxAGgridTable
-                                    rowData={filtered}
-                                    columnDefs={colDefs}
-                                    defaultColDef={defaultColDef}
-                                    masterDetail={true}
-                                    detailRowAutoHeight={true}
-                                    domLayout='normal'
-                                    pagination={true}
-                                    paginationPageSize={20}
-                                    paginationPageSizeSelector={[10, 20, 50, 100]}
-                                    animateRows={true}
-                                    overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
-                                />
-                            </Box>
-                        )}
+                        <DxAGgridTable
+                            columnDefs={colDefs}
+                            serverSideDatasource={datasource}
+                            height={600}
+                            overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
+                            getRowId={(p: any) => String(p.data.request_id)}
+                            onGridReady={(p: any) => { gridApiRef.current = p.api }}
+                            initialState={savedGridState}
+                            onStateUpdated={handleStateUpdated}
+                        />
                     </CardContent>
                 </Card>
             </Grid>
@@ -665,9 +726,9 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                         <DialogContent dividers sx={{ p: 0 }}>
                             <DetailPanel
                                 data={selectedData}
-                                onApprove={() => { setActionMode('approve'); setActionDialogOpen(true) }}
+                                onApprove={(status: string) => { setNextStatus(status); setActionMode('approve'); setActionDialogOpen(true) }}
                                 onReject={() => { setActionMode('reject'); setActionDialogOpen(true) }}
-                                onEmailSent={() => fetchData()}
+                                onEmailSent={() => gridApiRef.current?.refreshServerSide({ purge: true })}
                             />
                         </DialogContent>
                     </>
@@ -679,6 +740,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                 open={actionDialogOpen}
                 mode={actionMode}
                 requestId={selectedData?.request_id || null}
+                nextStatus={nextStatus}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />

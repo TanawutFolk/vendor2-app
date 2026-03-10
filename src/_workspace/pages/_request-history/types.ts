@@ -1,4 +1,4 @@
-export type RegisterStatus = 'completed' | 'in_progress' | 'pending' | 'rejected' | 'skipped'
+export type RegisterStatus = string
 
 export interface RegisterStep {
     step: number
@@ -14,6 +14,26 @@ export interface RegisterStep {
     branchChildren?: RegisterStep[]  // sub-steps inside rejection branch
 }
 
+export interface ApprovalStepRecord {
+    step_id: number
+    step_order: number
+    approver_id: string
+    step_status: string
+    DESCRIPTION: string
+    CREATE_DATE: string
+    UPDATE_BY: string
+    UPDATE_DATE: string
+}
+
+export interface ApprovalLogRecord {
+    log_id: number
+    step_id: number
+    action_by: string
+    action_type: string
+    remark: string
+    action_date: string
+}
+
 export interface VendorRegisterHistory {
     vendor_id: number
     vendor_name: string
@@ -22,4 +42,6 @@ export interface VendorRegisterHistory {
     submitted_date: string
     overall_status: RegisterStatus
     steps: RegisterStep[]
+    approval_steps: ApprovalStepRecord[]
+    approval_logs: ApprovalLogRecord[]
 }

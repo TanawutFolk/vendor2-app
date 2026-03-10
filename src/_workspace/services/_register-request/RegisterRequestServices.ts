@@ -24,7 +24,7 @@ export default class RegisterRequestServices {
     // Get all registration requests (optionally filtered)
     static getAll(data?: Record<string, any>): Promise<AxiosResponse<RegisterRequestResponseI<any[]>>> {
         return axiosRequest<RegisterRequestResponseI<any[]>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/getAll`,
+            url: `${RegisterRequestAPI.API_ROOT_URL}/searchRequest`,
             data: data || {},
             method: 'POST'
         })
@@ -62,4 +62,95 @@ export default class RegisterRequestServices {
             method: 'POST'
         })
     }
+
+    // Get all active status options from m_request_status
+    static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
+        return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/getStatusOptions`,
+            method: 'GET'
+        })
+    }
+
+    // Get approval steps for a request
+    static getApprovalSteps(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalStep[]>>> {
+        return axiosRequest<RegisterRequestResponseI<ApprovalStep[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalSteps`,
+            data: { request_id },
+            method: 'POST'
+        })
+    }
+
+    // Get approval logs for a request
+    static getApprovalLogs(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalLog[]>>> {
+        return axiosRequest<RegisterRequestResponseI<ApprovalLog[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalLogs`,
+            data: { request_id },
+            method: 'POST'
+        })
+    }
+
+    // Create an approval step
+    static createApprovalStep(data: {
+        request_id: number
+        step_order: number
+        approver_id: string
+        step_status: string
+        DESCRIPTION: string
+        CREATE_BY: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<{ step_id: number }>>> {
+        return axiosRequest<RegisterRequestResponseI<{ step_id: number }>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/createApprovalStep`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    // Update an approval step and log the action
+    static updateApprovalStep(data: {
+        step_id: number
+        request_id: number
+        step_status: string
+        action_by?: string
+        action_type?: string
+        remark?: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/updateApprovalStep`,
+            data,
+            method: 'POST'
+        })
+    }
+}
+
+export interface StatusOption {
+    value: string
+    label: string
+    chipColor: string
+    accent: string
+    sortOrder: number
+}
+
+export interface ApprovalStep {
+    step_id: number
+    request_id: number
+    step_order: number
+    approver_id: string
+    step_status: string
+    DESCRIPTION: string
+    CREATE_DATE: string
+    UPDATE_BY: string
+    UPDATE_DATE: string
+    approver_name?: string
+}
+
+export interface ApprovalLog {
+    log_id: number
+    request_id: number
+    step_id: number
+    action_by: string
+    action_type: string
+    remark: string
+    action_date: string
+    action_by_name?: string
 }

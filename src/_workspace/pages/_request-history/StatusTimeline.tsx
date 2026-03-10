@@ -2,7 +2,7 @@
 import { Box, Typography, Chip, Tooltip, Avatar } from '@mui/material'
 
 // Types
-import type { RegisterStep, RegisterStatus } from './types'
+import type { RegisterStep, RegisterStatus, ApprovalStepRecord, ApprovalLogRecord } from './types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -172,14 +172,41 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
 // ─────────────────────────────────────────────────────────────────────────────
 interface Props {
     steps: RegisterStep[]
+    approvalSteps?: ApprovalStepRecord[]
+    approvalLogs?: ApprovalLogRecord[]
 }
 
-const StatusTimeline = ({ steps }: Props) => {
+const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
+    // If real approval steps exist, map them to RegisterStep format
+    const effectiveSteps: RegisterStep[] = (approvalSteps && approvalSteps.length > 0)
+        ? approvalSteps
+            .filter(Boolean)
+            .sort((a, b) => a.step_order - b.step_order)
+            .map(s => {
+                const statusMap: Record<string, RegisterStatus> = {
+                    'approved': 'completed', 'completed': 'completed',
+                    'in_progress': 'in_progress', 'current': 'in_progress',
+                    'rejected': 'rejected', 'pending': 'pending',
+                    'skipped': 'skipped'
+                }
+                const log = approvalLogs?.find(l => l.step_id === s.step_id)
+                return {
+                    step: s.step_order,
+                    title: s.DESCRIPTION || `Step ${s.step_order}`,
+                    description: s.approver_id ? `Approver: ${s.approver_id}` : '',
+                    status: statusMap[s.step_status] || 'pending',
+                    updatedBy: log?.action_by || s.UPDATE_BY || undefined,
+                    updatedDate: log?.action_date ? new Date(log.action_date).toLocaleString('th-TH') : s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleString('th-TH') : undefined,
+                    remark: log?.remark || undefined,
+                } as RegisterStep
+            })
+        : steps
+
     return (
         <Box sx={{ position: 'relative' }}>
-            {steps.map((step, index) => {
+            {effectiveSteps.map((step, index) => {
                 const cfg = statusConfig[step.status]
-                const isLast = index === steps.length - 1
+                const isLast = index === effectiveSteps.length - 1
                 const isPending = step.status === 'pending'
                 const hasBranch = step.branchChildren && step.branchChildren.length > 0
 
@@ -197,7 +224,7 @@ const StatusTimeline = ({ steps }: Props) => {
                                         my: 1,
                                         borderRadius: 1,
                                         background: step.status === 'completed'
-                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${statusConfig[steps[index + 1].status].connectorColor})`
+                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${statusConfig[effectiveSteps[index + 1].status].connectorColor})`
                                             : `linear-gradient(to bottom, ${cfg.connectorColor}, rgba(138,141,153,0.15))`
                                     }}
                                 />

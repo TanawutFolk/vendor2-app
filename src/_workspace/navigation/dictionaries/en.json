@@ -72,6 +72,7 @@
     "task": "Task",
     "employeePO": "Employee PO",
     "approver": "Approver",
-    "requestRegister": "Request Register"
+    "requestRegister": "Request Register",
+    "SupplierOutsourcingSelectionSheet": "Supplier / Outsourcing Selection Sheet"
   }
 }

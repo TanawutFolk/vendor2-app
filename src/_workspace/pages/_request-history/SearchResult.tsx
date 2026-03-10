@@ -1,16 +1,15 @@
 // React Imports
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 
 // MUI Imports
 import {
     Grid, Card, CardContent, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress
+    Button, List, ListItem, ListItemIcon, ListItemText
 } from '@mui/material'
 
 // AG Grid Imports
-import type { ColDef } from 'ag-grid-community'
-import 'ag-grid-enterprise'
+import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
 // Services
@@ -19,8 +18,16 @@ import RegisterRequestServices from '@_workspace/services/_register-request/Regi
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
-// Types
-import type { SearchFilterValues } from './SearchFilter'
+// React Hook Form
+import { useFormContext } from 'react-hook-form'
+import type { RequestHistoryFormData } from './validateSchema'
+
+// Context
+import { useDxContext } from '@/_template/DxContextProvider'
+
+// Status — icons from code, everything else from DB
+import { STATUS_ICON_MAP } from '@_workspace/constants/requestStatus'
+import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -36,16 +43,6 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
             url: `${API_BASE}/uploads/documents/${d.file_path}`
         }))
     } catch { return [] }
-}
-
-const statusAccent: Record<string, string> = {
-    Approved: '#28C76F',
-    Pending: '#FF9F43',
-    Rejected: '#EA5455',
-    in_progress: '#FF9F43',
-    completed: '#28C76F',
-    rejected: '#EA5455',
-    pending: '#8A8D99'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,71 +138,182 @@ const FileViewerDialog = ({ open, files, onClose }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Status Timeline Component
+// Status Timeline Component  (steps from request_approval_step + fallback to DB status options)
 // ─────────────────────────────────────────────────────────────────────────────
-const StatusTimeline = ({ status }: { status: string }) => {
-    // Determine step states based on the single request_status
-    let submittedState: 'completed' | 'in_progress' | 'pending' = 'completed'
-    let progressState: 'completed' | 'in_progress' | 'pending' | 'rejected' = 'pending'
-    let finalState: 'completed' | 'in_progress' | 'pending' | 'rejected' = 'pending'
+const StatusTimeline = ({ status, approvalSteps, approvalLogs }: { status: string; approvalSteps?: any[]; approvalLogs?: any[] }) => {
+    const { data: statusOptions = [] } = useRequestStatusOptions()
 
-    const s = status?.toLowerCase()
+    // Parse approval_steps & approval_logs from JSON if needed
+    const steps: any[] = useMemo(() => {
+        try {
+            const raw = typeof approvalSteps === 'string' ? JSON.parse(approvalSteps) : (approvalSteps || [])
+            return raw.filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
+        } catch { return [] }
+    }, [approvalSteps])
 
-    if (s === 'pending') {
-        progressState = 'in_progress'
-    } else if (s === 'in_progress' || s === 'in progress') {
-        progressState = 'in_progress'
-    } else if (s === 'approved' || s === 'completed') {
-        progressState = 'completed'
-        finalState = 'completed'
-    } else if (s === 'rejected') {
-        progressState = 'completed'
-        finalState = 'rejected'
+    const logs: any[] = useMemo(() => {
+        try {
+            const raw = typeof approvalLogs === 'string' ? JSON.parse(approvalLogs) : (approvalLogs || [])
+            return raw.filter(Boolean)
+        } catch { return [] }
+    }, [approvalLogs])
+
+    // If we have real approval steps, use those; otherwise fall back to status-based workflow
+    const hasRealSteps = steps.length > 0
+
+    // Fallback: Build workflow steps from DB (old behavior)
+    const workflowSteps = useMemo(() => {
+        if (hasRealSteps) return []
+        const submitted = { label: 'Request Submitted', value: null as string | null, icon: 'tabler-file-upload' }
+        const s = statusOptions
+            .filter(s => s.value !== 'Rejected')
+            .map(s => ({ label: s.label, value: s.value as string | null, icon: STATUS_ICON_MAP[s.value] || 'tabler-file' }))
+        return [submitted, ...s]
+    }, [statusOptions, hasRealSteps])
+
+    const isRejected = status === 'Rejected'
+
+    // ── Real steps view (from request_approval_step) ──
+    if (hasRealSteps) {
+        return (
+            <Box sx={{ position: 'relative', ml: 1, mt: 1 }}>
+                {isRejected && (
+                    <Box sx={{ mb: 2, p: 1.5, borderRadius: 1.5, bgcolor: 'error.light', display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <i className='tabler-circle-x' style={{ fontSize: 18, color: 'var(--mui-palette-error-main)' }} />
+                        <Typography variant='body2' color='error.main' fontWeight={700}>Request Rejected</Typography>
+                    </Box>
+                )}
+
+                {/* vertical connector line */}
+                <Box sx={{ position: 'absolute', left: 19, top: isRejected ? 62 : 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
+
+                {steps.map((step: any, idx: number) => {
+                    const stepStatus = step.step_status || 'pending'
+                    const isCompleted = stepStatus === 'approved' || stepStatus === 'completed'
+                    const isCurrent = stepStatus === 'in_progress' || stepStatus === 'current'
+                    const isStepRejected = stepStatus === 'rejected'
+                    const isSkipped = stepStatus === 'skipped'
+                    const isPending = !isCompleted && !isCurrent && !isStepRejected && !isSkipped
+
+                    const iconColor = isCompleted
+                        ? 'var(--mui-palette-success-main)'
+                        : isCurrent
+                            ? 'var(--mui-palette-warning-main)'
+                            : isStepRejected
+                                ? 'var(--mui-palette-error-main)'
+                                : isSkipped
+                                    ? 'var(--mui-palette-info-main)'
+                                    : 'inherit'
+
+                    const stepIcon = isCompleted ? 'tabler-check'
+                        : isCurrent ? 'tabler-loader-2'
+                        : isStepRejected ? 'tabler-x'
+                        : isSkipped ? 'tabler-minus'
+                        : STATUS_ICON_MAP[step.DESCRIPTION] || 'tabler-point'
+
+                    const stepLog = logs.find((l: any) => l.step_id === step.step_id)
+
+                    return (
+                        <Box key={idx}
+                            sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === steps.length - 1 ? 0 : 3 }}
+                        >
+                            <Box sx={{
+                                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                bgcolor: isCompleted ? 'success.light' : isCurrent ? 'warning.light' : isStepRejected ? 'error.light' : isSkipped ? 'info.light' : 'background.paper',
+                                border: '2px solid',
+                                borderColor: isCompleted || isCurrent || isStepRejected || isSkipped ? 'transparent' : 'divider',
+                                boxShadow: isCurrent ? '0 0 0 4px rgba(255, 159, 67, 0.2)' : 'none',
+                            }}>
+                                <i className={stepIcon} style={{ fontSize: 20, color: iconColor }} />
+                            </Box>
+                            <Box sx={{ pt: 0.5, flex: 1 }}>
+                                <Typography
+                                    variant='subtitle2'
+                                    fontWeight={isCurrent ? 800 : isCompleted ? 600 : 500}
+                                    color={isPending || isSkipped ? 'text.disabled' : 'text.primary'}
+                                >
+                                    {step.DESCRIPTION || `Step ${step.step_order}`}
+                                </Typography>
+                                {step.approver_id && (
+                                    <Typography variant='caption' color='text.secondary'>
+                                        Approver: {step.approver_id}
+                                    </Typography>
+                                )}
+                                {stepLog && (
+                                    <Box sx={{ mt: 0.5 }}>
+                                        <Typography variant='caption' color='text.disabled'>
+                                            {stepLog.action_by} — {stepLog.action_type}
+                                            {stepLog.remark ? ` (${stepLog.remark})` : ''}
+                                            {stepLog.action_date ? ` · ${new Date(stepLog.action_date).toLocaleString('th-TH')}` : ''}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
+                        </Box>
+                    )
+                })}
+            </Box>
+        )
     }
 
-    const steps = [
-        { title: 'Request Submitted', state: submittedState, icon: 'tabler-file-upload' },
-        { title: 'In Review / Progress', state: progressState, icon: 'tabler-user-check' },
-        { title: finalState === 'rejected' ? 'Rejected' : 'Approved', state: finalState, icon: finalState === 'rejected' ? 'tabler-x' : 'tabler-check' }
-    ]
+    // ── Fallback: status-based view (old behavior) ──
+    const currentStepIndex = isRejected
+        ? -1
+        : workflowSteps.findIndex(s => s.value === status)
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative', ml: 1, mt: 2 }}>
-            <Box sx={{ position: 'absolute', left: 19, top: 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
+        <Box sx={{ position: 'relative', ml: 1, mt: 1 }}>
+            {isRejected && (
+                <Box sx={{ mb: 2, p: 1.5, borderRadius: 1.5, bgcolor: 'error.light', display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                    <i className='tabler-circle-x' style={{ fontSize: 18, color: 'var(--mui-palette-error-main)' }} />
+                    <Typography variant='body2' color='error.main' fontWeight={700}>Request Rejected</Typography>
+                </Box>
+            )}
 
-            {steps.map((step, idx) => {
-                const isCompleted = step.state === 'completed'
-                const isCurrent = step.state === 'in_progress'
-                const isRejected = step.state === 'rejected'
+            {/* vertical connector line */}
+            <Box sx={{ position: 'absolute', left: 19, top: isRejected ? 62 : 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
 
-                let color = 'text.disabled'
-                let bg = 'action.hover'
-
-                if (isCompleted) {
-                    color = 'success.main'
-                    bg = 'success.light'
-                } else if (isCurrent) {
-                    color = 'warning.main'
-                    bg = 'warning.light'
-                } else if (isRejected) {
-                    color = 'error.main'
-                    bg = 'error.light'
+            {workflowSteps.map((step, idx) => {
+                let stepState: 'completed' | 'in_progress' | 'pending' = 'pending'
+                if (idx === 0) {
+                    stepState = 'completed' // Request Submitted — always done
+                } else if (!isRejected && currentStepIndex > 0) {
+                    if (idx < currentStepIndex) stepState = 'completed'
+                    else if (idx === currentStepIndex) stepState = 'in_progress'
                 }
 
+                const isCompleted = stepState === 'completed'
+                const isCurrent = stepState === 'in_progress'
+
+                const iconColor = isCompleted
+                    ? 'var(--mui-palette-success-main)'
+                    : isCurrent
+                        ? 'var(--mui-palette-warning-main)'
+                        : 'inherit'
+
                 return (
-                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === steps.length - 1 ? 0 : 3 }}>
+                    <Box
+                        key={idx}
+                        sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === workflowSteps.length - 1 ? 0 : 3 }}
+                    >
                         <Box sx={{
-                            width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            bgcolor: isCompleted || isCurrent || isRejected ? bg : 'background.paper',
+                            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            bgcolor: isCompleted ? 'success.light' : isCurrent ? 'warning.light' : 'background.paper',
                             border: '2px solid',
-                            borderColor: isCompleted || isCurrent || isRejected ? 'transparent' : 'divider',
-                            boxShadow: isCurrent ? `0 0 0 4px rgba(255, 159, 67, 0.2)` : 'none'
+                            borderColor: isCompleted || isCurrent ? 'transparent' : 'divider',
+                            boxShadow: isCurrent ? '0 0 0 4px rgba(255, 159, 67, 0.2)' : 'none',
                         }}>
-                            <i className={step.icon} style={{ fontSize: 20, color: isCompleted || isCurrent || isRejected ? `var(--mui-palette-${color.replace('.main', '')}-main)` : 'inherit' }} />
+                            <i className={step.icon} style={{ fontSize: 20, color: iconColor }} />
                         </Box>
                         <Box sx={{ pt: 1 }}>
-                            <Typography variant='subtitle2' fontWeight={isCurrent ? 800 : 600} color={isCurrent || isCompleted || isRejected ? 'text.primary' : 'text.disabled'}>
-                                {step.title}
+                            <Typography
+                                variant='subtitle2'
+                                fontWeight={isCurrent ? 800 : isCompleted ? 600 : 500}
+                                color={isCompleted || isCurrent ? 'text.primary' : 'text.disabled'}
+                            >
+                                {step.label}
                             </Typography>
                         </Box>
                     </Box>
@@ -220,11 +328,12 @@ const StatusTimeline = ({ status }: { status: string }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const DetailRenderer = ({ data }: { data: any }) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    const { data: statusOptions = [] } = useRequestStatusOptions()
     const files = buildFileUrls(data?.documents)
 
     if (!data) return null
 
-    const accent = statusAccent[data.request_status] || '#8A8D99'
+    const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -269,15 +378,15 @@ const DetailRenderer = ({ data }: { data: any }) => {
                     {/* Request Info Grid */}
                     <Grid container spacing={3} sx={{ mb: 4 }}>
                         <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Type</Typography>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Process / Product</Typography>
                             <Typography variant='body2' fontWeight={600}>{data.supportProduct_Process || '-'}</Typography>
                         </Grid>
                         <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Purchase Frequency</Typography>
-                            <Typography variant='body2' fontWeight={600}>{data.purchase_frequency || '-'}</Typography>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Purchase Frequency / Year</Typography>
+                            <Typography variant='body2' fontWeight={600}>{data.purchase_frequency || '-'}{' Times / Year'}</Typography>
                         </Grid>
                         <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Assigned To</Typography>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>PO PIC</Typography>
                             <Typography variant='body2' fontWeight={600}>{data.assign_to || '-'}</Typography>
                         </Grid>
                         <Grid item xs={12} sm={6} md={3}>
@@ -374,7 +483,11 @@ const DetailRenderer = ({ data }: { data: any }) => {
                             <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Registration Steps</Typography>
                             <Divider sx={{ flex: 1 }} />
                         </Box>
-                        <StatusTimeline status={data.request_status} />
+                        <StatusTimeline
+                            status={data.request_status}
+                            approvalSteps={data.approval_steps}
+                            approvalLogs={data.approval_logs}
+                        />
                     </Box>
 
                     {/* Attached Files */}
@@ -414,56 +527,80 @@ const DetailRenderer = ({ data }: { data: any }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
-interface SearchResultProps {
-    activeFilters: SearchFilterValues
-}
+export default function SearchResult() {
+    const { getValues, setValue } = useFormContext<RequestHistoryFormData>()
+    const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const { data: statusOptions = [] } = useRequestStatusOptions()
 
-export default function SearchResult({ activeFilters }: SearchResultProps) {
-    const [rows, setRows] = useState<any[]>([])
-    const [loading, setLoading] = useState(false)
+    const [totalCount, setTotalCount] = useState(0)
+    const gridApiRef = useRef<any>(null)
 
-    const fetchData = useCallback(async () => {
-        setLoading(true)
-        try {
-            const res = await RegisterRequestServices.getAll({
-                Request_By_EmployeeCode: getUserData()?.EMPLOYEE_CODE || ''
-            })
-            setRows(res.data?.ResultOnDb || [])
-        } catch (err) {
-            console.error('Failed to load request history:', err)
-        } finally {
-            setLoading(false)
+    // ── Server-Side Datasource ────────────────────────────────────────────────
+    const datasource = useMemo<IServerSideDatasource>(() => ({
+        getRows: async (params) => {
+            const f = getValues('searchFilters')
+            const { startRow, endRow } = params.request
+            const order = params.request.sortModel?.length > 0
+                ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
+                : [{ id: 'request_id', desc: true }]
+            try {
+                const res = await RegisterRequestServices.getAll({
+                    Request_By_EmployeeCode: getUserData()?.EMPLOYEE_CODE || '',
+                    SearchFilters: [
+                        { id: 'company_name', value: f.vendor_name || null },
+                        { id: 'request_status', value: f.overall_status?.value || null }
+                    ].filter((x: any) => x.value !== null && x.value !== ''),
+                    ColumnFilters: [],
+                    Order: order,
+                    Start: startRow ?? 0,
+                    Limit: (endRow ?? 50) - (startRow ?? 0)
+                })
+                if (res.data?.Status) {
+                    setTotalCount(res.data.TotalCountOnDb)
+                    params.success({ rowData: res.data.ResultOnDb, rowCount: res.data.TotalCountOnDb })
+                } else {
+                    params.fail()
+                }
+            } catch {
+                params.fail()
+            }
         }
-    }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), []) // getValues is a stable ref — no need to re-create datasource
 
+    // Trigger refresh when Search / Clear button sets isEnableFetching = true
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        if (isEnableFetching && gridApiRef.current) {
+            setIsEnableFetching(false)
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [isEnableFetching, setIsEnableFetching])
 
-    // Client-side filter on top
-    const filtered = useMemo(() => {
-        return rows.filter(r => {
-            const matchName = !activeFilters.vendor_name || (r.company_name || '').toLowerCase().includes(activeFilters.vendor_name.toLowerCase())
-            const matchBy = !activeFilters.submitted_by || (r.FULL_NAME || r.EMPLOYEE_CODE || '').toLowerCase().includes(activeFilters.submitted_by.toLowerCase())
-            const matchStatus = !activeFilters.overall_status || r.request_status === activeFilters.overall_status.value
-            return matchName && matchBy && matchStatus
-        })
-    }, [rows, activeFilters])
+    // ── Column / Grid State Persistence ──────────────────────────────────────
+    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
+        setValue('searchResults.agGridState', e.state)
+    }, [setValue])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
             field: 'request_status',
             headerName: 'Status',
-            flex: 0.9,
-            minWidth: 120,
+            flex: 1.2,
+            minWidth: 210,
             cellRenderer: (params: any) => {
-                const val = params.value
-                if (!val) return null
-                let color: 'success' | 'warning' | 'error' | 'default' = 'default'
-                if (val === 'Approved' || val === 'completed') color = 'success'
-                if (val === 'Pending' || val === 'in_progress') color = 'warning'
-                if (val === 'Rejected' || val === 'rejected') color = 'error'
-                return <Chip label={val} color={color} size='small' variant='tonal' sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                if (!params.value) return null
+                const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                return (
+                    <Chip
+                        label={params.value}
+                        color={chipColor}
+                        size='small'
+                        variant='tonal'
+                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                    />
+                )
             }
         },
         {
@@ -500,7 +637,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
         },
         {
             field: 'assign_to',
-            headerName: 'Assigned To',
+            headerName: 'PO PIC',
             flex: 1,
             minWidth: 150
         },
@@ -530,15 +667,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
             minWidth: 140,
             valueFormatter: p => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [])
-
-
-    const defaultColDef = useMemo<ColDef>(() => ({ resizable: true, sortable: true }), [])
-
-    // Count by status
-    const countByStatus = (status: string) => rows.filter(r =>
-        r.request_status?.toLowerCase() === status.toLowerCase()
-    ).length
+    ], [statusOptions])
 
     return (
         <Grid container spacing={6}>
@@ -552,10 +681,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                                 <Typography variant='h6'>My Registration Requests</Typography>
                             </Box>
                             <Divider orientation='vertical' flexItem />
-                            <StatusSummaryChip label='All' count={rows.length} color='info' />
-                            <StatusSummaryChip label='Approved' count={countByStatus('Approved')} color='success' />
-                            <StatusSummaryChip label='Pending' count={countByStatus('Pending')} color='warning' />
-                            <StatusSummaryChip label='Rejected' count={countByStatus('Rejected')} color='error' />
+                            <StatusSummaryChip label='All' count={totalCount} color='info' />
                         </Box>
                     </CardContent>
                 </Card>
@@ -567,37 +693,30 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                     <CardContent sx={{ p: '24px !important' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                             <Typography variant='subtitle1' fontWeight={700}>
-                                Results ({filtered.length})
+                                Results ({totalCount})
                             </Typography>
                             <Button
                                 size='small'
                                 variant='tonal'
-                                startIcon={loading ? <CircularProgress size={14} /> : <i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                                onClick={fetchData}
-                                disabled={loading}
+                                startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
+                                onClick={() => gridApiRef.current?.refreshServerSide({ purge: true })}
                             >
                                 Refresh
                             </Button>
                         </Box>
 
-                        {loading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                                <CircularProgress />
-                            </Box>
-                        ) : (
-                            <Box sx={{ width: '100%', height: 600 }}>
-                                <DxAGgridTable
-                                    rowData={filtered}
-                                    columnDefs={colDefs}
-                                    defaultColDef={defaultColDef}
-                                    masterDetail={true}
-                                    detailCellRenderer={DetailRenderer}
-                                    detailRowAutoHeight={true}
-                                    domLayout='normal'
-                                    rowSelection='single'
-                                />
-                            </Box>
-                        )}
+                        <DxAGgridTable
+                            columnDefs={colDefs}
+                            serverSideDatasource={datasource}
+                            height={600}
+                            masterDetail={true}
+                            detailCellRenderer={DetailRenderer}
+                            detailRowAutoHeight={true}
+                            getRowId={(p: any) => String(p.data.request_id ?? p.data.vendor_id ?? p.rowIndex)}
+                            onGridReady={(p: any) => { gridApiRef.current = p.api }}
+                            initialState={savedGridState}
+                            onStateUpdated={handleStateUpdated}
+                        />
                     </CardContent>
                 </Card>
             </Grid>

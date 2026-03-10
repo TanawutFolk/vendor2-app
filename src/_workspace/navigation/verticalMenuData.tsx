@@ -394,6 +394,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/request-register'
   },
   {
+    label: dictionary['navigation'].SupplierOutsourcingSelectionSheet,
+    icon: 'tabler-file-description',
+    id: 540,
+    href: '/supplier-outsourcing-selection-sheet'
+  },
+  {
     label: dictionary['navigation'].menu3,
     isSection: true
   },

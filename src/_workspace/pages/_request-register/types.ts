@@ -14,6 +14,26 @@ export interface VendorProduct {
     note?: string
 }
 
+export interface ApprovalStepItem {
+    step_id: number
+    step_order: number
+    approver_id: string
+    step_status: string
+    DESCRIPTION: string
+    CREATE_DATE: string
+    UPDATE_BY: string
+    UPDATE_DATE: string
+}
+
+export interface ApprovalLogItem {
+    log_id: number
+    step_id: number
+    action_by: string
+    action_type: string
+    remark: string
+    action_date: string
+}
+
 export interface RegistrationRequest {
     request_id: number
     vendor_id: number
@@ -36,4 +56,6 @@ export interface RegistrationRequest {
     // Relations
     contacts: VendorContact[]
     products: VendorProduct[]
+    approval_steps: ApprovalStepItem[]
+    approval_logs: ApprovalLogItem[]
 }
