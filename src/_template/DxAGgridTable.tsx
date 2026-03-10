@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import type { AgGridReactProps } from 'ag-grid-react'
-import type { ColDef, IServerSideDatasource } from 'ag-grid-community'
+import type { ColDef, GridState, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
 import { themeQuartz } from 'ag-grid-community'
 import { Box } from '@mui/material'
 
@@ -42,6 +42,12 @@ interface DxAGgridTableProps extends AgGridReactProps {
      * The component will automatically set rowModelType='serverSide' and cacheBlockSize.
      */
     serverSideDatasource?: IServerSideDatasource
+
+    /** Restore persisted column/sort/filter state on mount */
+    initialState?: GridState
+
+    /** Called whenever column order, visibility, pinning, or sorting changes — use to persist state */
+    onStateUpdated?: (e: StateUpdatedEvent) => void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +62,8 @@ export const DxAGgridTable = ({
     paginationPageSize = 20,
     paginationPageSizeSelector = [10, 20, 30, 40, 50, 100, 200, 300, 400, 500],
     noRowsOverlayComponent,
+    initialState,
+    onStateUpdated,
     ...rest // ← caller can override ANY AgGridReact prop, same pattern as DxMRTTable's ...rest
 }: DxAGgridTableProps) => {
 
@@ -105,6 +113,10 @@ export const DxAGgridTable = ({
                 serverSideDatasource={serverSideDatasource}
                 // Enforce strict 1 block = 1 page size, dynamically updated when user changes page size
                 cacheBlockSize={isServerMode ? pageSize : undefined}
+
+                // ── State Persistence (AG Grid native) ───────────────────────
+                initialState={initialState}
+                onStateUpdated={onStateUpdated}
 
                 // ── Caller overrides everything via spread ────────────────────
                 {...rest}

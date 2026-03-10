@@ -39,14 +39,7 @@ export const SearchFiltersSchema = z.object({
 
 // --- Search Results Schema ---
 export const SearchResultsSchema = z.object({
-    pageSize: z.number().optional(),
-    columnFilters: z.array(z.any()).optional(),
-    sorting: z.array(z.any()).optional(),
-    density: z.string().optional(),
-    columnVisibility: z.record(z.boolean()).optional(),
-    columnPinning: z.record(z.string()).optional(),
-    columnOrder: z.array(z.string()).optional(),
-    columnFilterFns: z.record(z.any()).optional()
+    agGridState: z.any().optional()
 })
 
 // --- Main Page Schema ---
@@ -76,9 +69,7 @@ export const defaultSearchFilters: SearchFiltersFormData = {
 
 export const defaultFindVendorValues: FindVendorFormData = {
     searchFilters: defaultSearchFilters,
-    searchResults: {
-        pageSize: 20
-    }
+    searchResults: {}
 }
 
 // Columns definition matching SearchResult fields
@@ -142,11 +133,7 @@ export const fetchDefaultValues = async (): Promise<FindVendorFormData> => {
                 inuse: savedData.searchFilters.inuse || null
             },
             searchResults: {
-                ...defaultFindVendorValues.searchResults,
-                ...savedData.searchResults,
-                columnFilters: savedData.searchResults.columnFilters || [],
-                sorting: savedData.searchResults.sorting || [],
-                columnOrder: savedData.searchResults.columnOrder || columns
+                agGridState: savedData.searchResults?.agGridState
             }
         }
     } catch (error) {

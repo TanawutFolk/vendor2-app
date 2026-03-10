@@ -465,12 +465,19 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
 
     const user = getUserData()
-    const empCode = user?.EMPLOYEE_CODE || ''
+    const empCode = user?.EMPLOYEE_CODE 
 
     const fetchData = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await RegisterRequestServices.getAll({ assign_to: empCode })
+            const res = await RegisterRequestServices.getAll({
+                assign_to: empCode,
+                SearchFilters: [],
+                ColumnFilters: [],
+                Limit: 1000,
+                Order: [{ id: 'request_id', desc: true }],
+                Start: 0
+            })
             setRows(res.data?.ResultOnDb || [])
         } catch (err) {
             console.error('Failed to load assigned requests:', err)
