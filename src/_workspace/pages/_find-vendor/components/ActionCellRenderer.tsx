@@ -7,7 +7,7 @@ import { Box } from '@mui/material';
 import type { ICellRendererParams } from 'ag-grid-community';
 
 interface ActionCellRendererProps extends ICellRendererParams {
-  onEditClick?: (vendorId: number) => void;
+  onEditClick?: (vendorId: number, data: any) => void;
   onRegisterClick?: (vendorId: number, data: any) => void;
 }
 
@@ -18,7 +18,7 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const onEdit = () => {
     // Permission check is done at parent level (SearchResult.tsx) via context
     if (params.context?.onEditClick && vendorId) {
-      params.context.onEditClick(vendorId);
+      params.context.onEditClick(vendorId, params.data);
     }
   };
 

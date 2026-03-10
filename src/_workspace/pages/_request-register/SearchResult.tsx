@@ -10,10 +10,9 @@ import {
 } from '@mui/material'
 
 // AG Grid Imports
-import { AgGridReact } from 'ag-grid-react'
 import type { ColDef } from 'ag-grid-community'
-import { themeQuartz } from 'ag-grid-community'
 import 'ag-grid-enterprise'
+import DxAGgridTable from '@/_template/DxAGgridTable'
 
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
@@ -29,12 +28,14 @@ import type { SearchFilterValues } from './SearchFilter'
 // ─────────────────────────────────────────────────────────────────────────────
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 
-const buildFileUrls = (filePath: string | null): { name: string; url: string }[] => {
-    if (!filePath) return []
-    return filePath.split(',').map(name => ({
-        name: name.trim(),
-        url: `${API_BASE}/uploads/documents/${name.trim()}`
-    }))
+const buildFileUrls = (documents: any): { name: string; url: string }[] => {
+    try {
+        const docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
+        return docs.filter(Boolean).map((d: any) => ({
+            name: d.file_name || d.file_path || 'Unnamed File',
+            url: `${API_BASE}/uploads/documents/${d.file_path}`
+        }))
+    } catch { return [] }
 }
 
 const statusAccent: Record<string, string> = {
@@ -50,22 +51,6 @@ const statusColor = (status: string): 'success' | 'warning' | 'error' | 'info' |
     if (s === 'rejected') return 'error'
     return 'default'
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AG Grid Theme
-// ─────────────────────────────────────────────────────────────────────────────
-const agGridTheme = themeQuartz.withParams({
-    spacing: 6,
-    columnBorder: { style: 'solid', color: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)' },
-    browserColorScheme: 'inherit',
-    backgroundColor: 'var(--mui-palette-background-paper)',
-    foregroundColor: 'var(--mui-palette-text-primary)',
-    headerBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.12)',
-    headerTextColor: 'var(--mui-palette-text-primary)',
-    oddRowBackgroundColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.04)',
-    borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.19)',
-    rowHoverColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.08)'
-})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Summary Chip
@@ -234,7 +219,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
     const [sendingEmail, setSendingEmail] = useState(false)
     const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
-    const files = buildFileUrls(data?.File_Path)
+    const files = buildFileUrls(data?.documents)
     if (!data) return null
 
     const handleSendEmail = async () => {
@@ -549,7 +534,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
             valueGetter: (p: any) => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
         },
         {
-            field: 'File_Path',
+            field: 'documents',
             headerName: 'Files',
             width: 100,
             cellRenderer: (params: any) => {
@@ -630,11 +615,10 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                             </Box>
                         ) : (
                             <Box sx={{ width: '100%', height: 600 }}>
-                                <AgGridReact
+                                <DxAGgridTable
                                     rowData={filtered}
                                     columnDefs={colDefs}
                                     defaultColDef={defaultColDef}
-                                    theme={agGridTheme}
                                     masterDetail={true}
                                     detailRowAutoHeight={true}
                                     domLayout='normal'
@@ -676,6 +660,7 @@ export default function SearchResult({ activeFilters }: SearchResultProps) {
                                 data={selectedData}
                                 onApprove={() => { setActionMode('approve'); setActionDialogOpen(true) }}
                                 onReject={() => { setActionMode('reject'); setActionDialogOpen(true) }}
+                                onEmailSent={() => fetchData()}
                             />
                         </DialogContent>
                     </>

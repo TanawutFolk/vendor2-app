@@ -93,12 +93,17 @@ interface EditVendorModalProps {
     open: boolean
     onClose: () => void
     vendorId: number | null
+    rowData?: any
     onSuccess?: () => void
 }
 
-const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: EditVendorModalProps) => {
+const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSuccess }: EditVendorModalProps) => {
+    const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
+
     // Hooks
-    const { data: vendorQueryData, isLoading: isLoadingVendor, isFetching: isFetchingVendor } = useGetVendor(vendorId)
+    // Only fetch fresh data from API when user actively enters 'edit' mode to modify the vendor
+    const isFetchEnabled = !!vendorId && editingMode === 'edit'
+    const { data: vendorQueryData, isLoading: isLoadingVendor, isFetching: isFetchingVendor } = useGetVendor(vendorId, isFetchEnabled)
     const queryClient = useQueryClient()
     const updateVendor = useUpdateVendor(
         (data: any, variables: any) => {
@@ -120,11 +125,10 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
 
     // Derived states — include isFetchingVendor so loading overlay shows on every refetch (not just first load)
     // This prevents stale data from showing while new vendor data is being loaded in background
-    const loading = isLoadingVendor || isFetchingVendor || (!!vendorId && !vendorQueryData)
+    const loading = (editingMode === 'edit' && (isLoadingVendor || isFetchingVendor || (!!vendorId && !vendorQueryData)))
     const saving = updateVendor.isPending
 
     const [error, setError] = useState<string | null>(null)
-    const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
 
     // RHF Setup
     const { control, handleSubmit, reset, watch, formState: { errors }, getValues, setValue, trigger } = useForm<EditVendorSchemaType>({
@@ -184,9 +188,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         }
     }, [])
 
-    // ─── Clear form immediately when vendorId changes ───────────────────────────
-    // This prevents stale data from showing while new vendor data is being fetched.
-    // Must run BEFORE the populate effect so the form is always clean on each open.
+    // ─── Clear and Populate form when vendorId or rowData changes (View Mode) ───
     useEffect(() => {
         if (!vendorId) return // Modal closing — do nothing (let onClose handle)
         reset({ company_name: '', vendor_type_id: null, contacts: [], products: [] })
@@ -197,11 +199,43 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
         setDeletedContactIds([])
         setDeletedProductIds([])
         setEditingMode('view')
-    }, [vendorId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Populate form when data is available
+        if (rowData) {
+            // Normalize rowData to look like VendorComprehensiveI for React Hook Form
+            const comprehensive: VendorComprehensiveI = {
+                vendor_id: rowData.vendor_id,
+                fft_vendor_code: rowData.fft_vendor_code,
+                fft_status: rowData.fft_status,
+                status_check: rowData.status_check,
+                company_name: rowData.company_name,
+                vendor_type_id: rowData.vendor_type_id,
+                vendor_type_name: rowData.vendor_type_name,
+                province: rowData.province,
+                postal_code: rowData.postal_code,
+                website: rowData.website,
+                address: rowData.address,
+                tel_center: rowData.tel_center,
+                emailmain: rowData.emailmain,
+                vendor_region: rowData.vendor_region,
+                contacts: rowData.contacts || [],
+                products: rowData.products || [],
+                CREATE_BY: rowData.CREATE_BY,
+                UPDATE_BY: rowData.UPDATE_BY,
+                CREATE_DATE: rowData.CREATE_DATE,
+                UPDATE_DATE: rowData.UPDATE_DATE,
+                INUSE: rowData.INUSE
+            }
+            setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
+            reset(comprehensive)
+            setVendorFftCode(comprehensive.fft_vendor_code)
+            setVendorFftStatus(comprehensive.fft_status != null ? Number(comprehensive.fft_status) : null)
+            setVendorStatusCheck(comprehensive.status_check)
+        }
+    }, [vendorId, rowData, reset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Populate form when fresh data is fetched from API (Edit Mode)
     useEffect(() => {
-        if (vendorQueryData && open) {
+        if (vendorQueryData && open && editingMode === 'edit') {
             const { comprehensive } = vendorQueryData
 
             setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
@@ -215,7 +249,7 @@ const EditVendorModal = ({ open, onClose, vendorId, onSuccess: onSaveSuccess }: 
             setDeletedContactIds([])
             setDeletedProductIds([])
         }
-    }, [vendorQueryData, open, reset])
+    }, [vendorQueryData, open, reset, editingMode])
 
     const toggleEditMode = () => {
         setEditingMode(prev => prev === 'view' ? 'edit' : 'view')

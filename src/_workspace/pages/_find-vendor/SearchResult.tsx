@@ -49,6 +49,7 @@ const SearchResult = () => {
     const gridApiRef = useRef<any>(null)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+    const [selectedRowData, setSelectedRowData] = useState<any>(null)
 
     // Export Excel states
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -72,7 +73,7 @@ const SearchResult = () => {
         getRows: async (params) => {
             try {
                 const { startRow, endRow } = params.request
-                const limit = (20) - (startRow ?? 0)
+                const limit = (endRow ?? 20) - (startRow ?? 0)
 
                 // Read latest form values at fetch time (not stale closure)
                 const currentFilters = getValues('searchFilters')
@@ -266,14 +267,16 @@ const SearchResult = () => {
     }
 
     // Handle edit click from ActionCellRenderer
-    const handleEditClick = useCallback((vendorId: number) => {
+    const handleEditClick = useCallback((vendorId: number, data: any) => {
         setSelectedVendorId(vendorId)
+        setSelectedRowData(data)
         setEditModalOpen(true)
     }, [])
 
     const handleCloseEditModal = useCallback(() => {
         setEditModalOpen(false)
         setSelectedVendorId(null)
+        setSelectedRowData(null)
     }, [])
 
     // Column definitions
@@ -350,24 +353,6 @@ const SearchResult = () => {
                 filter: 'agTextColumnFilter'
             },
             {
-                field: 'website',
-                headerName: 'Website',
-                width: 200,
-                filter: 'agTextColumnFilter'
-            },
-            {
-                field: 'address',
-                headerName: 'Address',
-                width: 300,
-                filter: 'agTextColumnFilter'
-            },
-            {
-                field: 'tel_center',
-                headerName: 'Tel Company',
-                width: 130,
-                filter: 'agTextColumnFilter'
-            },
-            {
                 field: 'emailmain',
                 headerName: 'Email (Main)',
                 width: 220,
@@ -417,50 +402,6 @@ const SearchResult = () => {
                 width: 250,
                 filter: 'agTextColumnFilter',
                 cellRenderer: EmailCellRenderer
-            },
-            {
-                field: 'CREATE_BY',
-                headerName: 'Created By',
-                width: 120,
-                filter: 'agTextColumnFilter',
-                valueFormatter: (params) => params.value || 'N/A'
-            },
-            {
-                field: 'UPDATE_BY',
-                headerName: 'Updated By',
-                width: 120,
-                filter: 'agTextColumnFilter',
-                valueFormatter: (params) => params.value || 'N/A'
-            },
-            {
-                field: 'CREATE_DATE',
-                headerName: 'Created Date',
-                width: 150,
-                filter: 'agDateColumnFilter',
-                valueFormatter: (params) => {
-                    if (!params.value) return 'N/A'
-                    const date = new Date(params.value)
-                    return date.toLocaleDateString('th-TH', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    })
-                }
-            },
-            {
-                field: 'UPDATE_DATE',
-                headerName: 'Updated Date',
-                width: 150,
-                filter: 'agDateColumnFilter',
-                valueFormatter: (params) => {
-                    if (!params.value) return 'N/A'
-                    const date = new Date(params.value)
-                    return date.toLocaleDateString('th-TH', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    })
-                }
             }
         ],
         []
@@ -600,6 +541,7 @@ const SearchResult = () => {
         try {
             const payload = new FormData()
             payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
+            payload.append('vendor_contact_id', formData?.vendorContactId || '')
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
@@ -700,6 +642,7 @@ const SearchResult = () => {
                 open={editModalOpen}
                 onClose={handleCloseEditModal}
                 vendorId={selectedVendorId}
+                rowData={selectedRowData}
                 onSuccess={handleEditSuccess}
             />
 

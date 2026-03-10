@@ -13,6 +13,7 @@ export interface VendorResultI {
     website: string
     address: string
     tel_center: string
+    emailmain?: string | null
     group_name: string
     maker_name: string
     product_name: string
@@ -59,8 +60,8 @@ export interface VendorUpdateRequestI {
     model_list?: string
     vendor_contact_id?: number
 
-    vendor_product_id?: number
-    product_group_id?: number
+    vendor_product_id?: number | null
+    product_group_id?: number | null
     contact_name?: string
     tel_phone?: string
     email?: string

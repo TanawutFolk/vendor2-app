@@ -13,22 +13,25 @@ import {
     Chip,
     Slide,
     SlideProps,
-    TextField,
     IconButton,
     List,
-    ListItem
+    ListItem,
+    RadioGroup,
+    Radio,
+    FormControlLabel
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import type { BoxProps } from '@mui/material/Box'
 import { useDropzone } from 'react-dropzone'
 import AppReactDropzone from '@/libs/styles/AppReactDropzone'
 import ConfirmModal from '@components/ConfirmModal'
+import CustomTextField from '@components/mui/TextField'
 
 interface RegisterConfirmModalProps {
     open: boolean
     vendorData?: any
     onClose: () => void
-    onConfirm: (formData?: { supportType: string; purchaseFreq: string; files: File[] }) => void
+    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; files: File[] }) => void
 }
 
 // Styled Dropzone Component
@@ -100,6 +103,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
     // Form states
     const [supportType, setSupportType] = useState('')
     const [purchaseFreq, setPurchaseFreq] = useState('')
+    const [vendorContactId, setVendorContactId] = useState('')
     const [files, setFiles] = useState<File[]>([])
 
     // Reset state when modal opens/closes
@@ -109,6 +113,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                 setStep(1)
                 setSupportType('')
                 setPurchaseFreq('')
+                setVendorContactId('')
                 setFiles([])
             }, 300)
         }
@@ -210,7 +215,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
 
     const handleConfirmed = () => {
         setConfirmOpen(false)
-        onConfirm({ supportType, purchaseFreq, files })
+        onConfirm({ supportType, purchaseFreq, vendorContactId, files })
     }
 
     return (
@@ -352,19 +357,57 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
 
                     {step === 2 && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
-                            <TextField
+
+                            {/* Contact Selection */}
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                                    Select Target Contact <Typography component="span" color="error">*</Typography>
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                    The vendor agreement email will be sent to the selected contact.
+                                </Typography>
+                                <Box sx={{
+                                    border: '1px solid', borderColor: 'divider',
+                                    borderRadius: 1.5, p: 2, bgcolor: 'background.paper'
+                                }}>
+                                    <RadioGroup
+                                        value={vendorContactId}
+                                        onChange={(e) => setVendorContactId(e.target.value)}
+                                    >                                        {vendorData?.contacts?.map((contact: any, index: number) => (
+                                        contact.vendor_contact_id ? (
+                                            <FormControlLabel
+                                                key={contact.vendor_contact_id}
+                                                value={String(contact.vendor_contact_id)}
+                                                control={<Radio />}
+                                                label={
+                                                    <Box>
+                                                        <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {contact.email ? `✉️ ${contact.email}` : 'No email'} {contact.tel_phone ? `| 📞 ${contact.tel_phone}` : ''}
+                                                        </Typography>
+                                                    </Box>
+                                                }
+                                                sx={{ mb: 1, '&:last-child': { mb: 0 } }}
+                                            />
+                                        ) : null
+                                    ))}
+                                    </RadioGroup>
+                                </Box>
+                            </Box>
+
+                            <CustomTextField
                                 fullWidth
                                 label="For support product / process"
                                 placeholder="e.g. Server infrastructure, Maintenance..."
                                 value={supportType}
-                                onChange={(e) => setSupportType(e.target.value)}
+                                onChange={(e: any) => setSupportType(e.target.value)}
                             />
-                            <TextField
+                            <CustomTextField
                                 fullWidth
                                 label="Purchase Frequency / Year"
                                 placeholder="e.g. Monthly, 2-3 times/year..."
                                 value={purchaseFreq}
-                                onChange={(e) => setPurchaseFreq(e.target.value)}
+                                onChange={(e: any) => setPurchaseFreq(e.target.value)}
                             />
 
                             <Box>
@@ -439,7 +482,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                 onClick={handleSubmit}
                                 color="success"
                                 size='large'
-                                disabled={!supportType || !purchaseFreq}
+                                disabled={!supportType || !purchaseFreq || !vendorContactId}
                                 sx={{ minWidth: 120 }}
                             >
                                 Submit Request

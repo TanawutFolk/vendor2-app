@@ -22,7 +22,7 @@ export const useSearch = (params: FindVendorSearchRequestI, enabled: boolean = t
     })
 }
 
-export const useGetVendor = (vendorId: number | null) => {
+export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
     return useQuery<
         {
             vendor: VendorResultI,
@@ -37,7 +37,7 @@ export const useGetVendor = (vendorId: number | null) => {
             if (!vendorId) return null
             return await EditVendorUtils.getComprehensiveByVendorId(vendorId)
         },
-        enabled: !!vendorId,
+        enabled: enabled !== undefined ? enabled : !!vendorId,
         staleTime: 1,  // Always re-fetch when vendorId changes — prevents stale data flash
         retry: 1
     })

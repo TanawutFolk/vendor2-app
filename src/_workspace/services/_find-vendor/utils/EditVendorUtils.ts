@@ -114,6 +114,8 @@ export class EditVendorUtils {
             website: vendorData.website,
             address: vendorData.address,
             tel_center: vendorData.tel_center,
+            emailmain: vendorData.emailmain,
+            vendor_region: vendorData.vendor_region,
             contacts: allContacts.length > 0 ? allContacts : [{
                 vendor_contact_id: vendorData.vendor_contact_id,
                 contact_name: vendorData.contact_name || '',
@@ -360,12 +362,12 @@ export class EditVendorUtils {
                 vendor_id: vendorId,
                 company_name: data.company_name,
                 vendor_type_id: data.vendor_type_id ?? null,
-                province: data.province ?? undefined,
-                postal_code: data.postal_code ?? undefined,
-                website: data.website ?? undefined,
-                address: data.address ?? undefined,
-                tel_center: data.tel_center ?? undefined,
-                INUSE: data.INUSE ?? undefined,
+                province: data.province ?? '',
+                postal_code: data.postal_code ?? '',
+                website: data.website ?? '',
+                address: data.address ?? '',
+                tel_center: data.tel_center ?? '',
+                INUSE: data.INUSE !== undefined ? data.INUSE : undefined,
                 UPDATE_BY: userCode
             }
             const res = await FindVendorServices.update(vendorId, vendorUpdateData)
@@ -380,9 +382,9 @@ export class EditVendorUtils {
                 vendor_id: vendorId,
                 vendor_contact_id: contact.vendor_contact_id,
                 contact_name: contact.contact_name,
-                tel_phone: contact.tel_phone ?? undefined,
-                email: contact.email ?? undefined,
-                position: contact.position ?? undefined,
+                tel_phone: contact.tel_phone ?? '',
+                email: contact.email ?? '',
+                position: contact.position ?? '',
                 UPDATE_BY: userCode
             }
             const res = await FindVendorServices.update(vendorId, updateData)
@@ -396,10 +398,10 @@ export class EditVendorUtils {
             const updateData: VendorUpdateRequestI = {
                 vendor_id: vendorId,
                 vendor_product_id: product.vendor_product_id,
-                product_group_id: product.product_group_id ?? undefined,
-                maker_name: product.maker_name ?? undefined,
+                product_group_id: product.product_group_id ?? null,
+                maker_name: product.maker_name ?? '',
                 product_name: product.product_name,
-                model_list: product.model_list ?? undefined,
+                model_list: product.model_list ?? '',
                 UPDATE_BY: userCode
             }
             const res = await FindVendorServices.update(vendorId, updateData)
@@ -413,9 +415,9 @@ export class EditVendorUtils {
             const createData: VendorUpdateRequestI = {
                 vendor_id: vendorId,
                 contact_name: contact.contact_name,
-                tel_phone: contact.tel_phone ?? undefined,
-                email: contact.email ?? undefined,
-                position: contact.position ?? undefined,
+                tel_phone: contact.tel_phone ?? '',
+                email: contact.email ?? '',
+                position: contact.position ?? '',
                 UPDATE_BY: userCode
             }
             const res = await FindVendorServices.update(vendorId, createData)
@@ -428,10 +430,10 @@ export class EditVendorUtils {
         for (const product of newProducts) {
             const createData: VendorUpdateRequestI = {
                 vendor_id: vendorId,
-                product_group_id: product.product_group_id ?? undefined,
-                maker_name: product.maker_name ?? undefined,
+                product_group_id: product.product_group_id ?? null,
+                maker_name: product.maker_name ?? '',
                 product_name: product.product_name,
-                model_list: product.model_list ?? undefined,
+                model_list: product.model_list ?? '',
                 UPDATE_BY: userCode
             }
             const res = await FindVendorServices.update(vendorId, createData)
