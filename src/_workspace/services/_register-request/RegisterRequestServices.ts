@@ -128,6 +128,7 @@ export interface StatusOption {
     label: string
     chipColor: string
     accent: string
+    icon?: string
     sortOrder: number
 }
 

@@ -10,6 +10,7 @@ import type {
     VendorComprehensiveI,
     UpdateVendorParamsI
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 export const PREFIX_QUERY_KEY = 'FIND_VENDOR'
 
@@ -50,7 +51,13 @@ const updateVendorBatch = async (dataItem: UpdateVendorParamsI) => {
 export const useUpdateVendor = (onSuccess?: any, onError?: any) => {
     return useMutation({
         mutationFn: updateVendorBatch,
-        onSuccess,
-        onError
+        onSuccess: (data: any) => {
+            ToastMessageSuccess({ message: 'Vendor updated successfully' })
+            onSuccess?.(data)
+        },
+        onError: (error: any) => {
+            ToastMessageError({ message: error?.message || 'Failed to update vendor' })
+            onError?.(error)
+        }
     })
 }

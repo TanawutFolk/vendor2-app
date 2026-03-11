@@ -25,9 +25,8 @@ import type { RequestHistoryFormData } from './validateSchema'
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
 
-// Status — icons from code, everything else from DB
-import { STATUS_ICON_MAP } from '@_workspace/constants/requestStatus'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import StatusTimeline from './StatusTimeline'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -45,15 +44,6 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
     } catch { return [] }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Summary Chip
-// ─────────────────────────────────────────────────────────────────────────────
-const StatusSummaryChip = ({ label, count, color }: { label: string; count: number; color: 'success' | 'warning' | 'default' | 'error' | 'info' }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Chip label={`${count}`} color={color} size='small' variant='tonal' sx={{ minWidth: 28 }} />
-        <Typography variant='body2' color='text.secondary'>{label}</Typography>
-    </Box>
-)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Viewer Dialog
@@ -90,7 +80,7 @@ const FileViewerDialog = ({ open, files, onClose }: {
                                 key={idx}
                                 disablePadding
                                 sx={{
-                                    py: 1.5, px: 2, mb: 1, borderRadius: 2,
+                                    py: 1.5, px: 2, mb: 1, borderRadius: 1,
                                     border: '1px solid', borderColor: 'divider',
                                     '&:hover': { bgcolor: 'action.hover' }
                                 }}
@@ -138,198 +128,39 @@ const FileViewerDialog = ({ open, files, onClose }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Status Timeline Component  (steps from request_approval_step + fallback to DB status options)
-// ─────────────────────────────────────────────────────────────────────────────
-const StatusTimeline = ({ status, approvalSteps, approvalLogs }: { status: string; approvalSteps?: any[]; approvalLogs?: any[] }) => {
-    const { data: statusOptions = [] } = useRequestStatusOptions()
-
-    // Parse approval_steps & approval_logs from JSON if needed
-    const steps: any[] = useMemo(() => {
-        try {
-            const raw = typeof approvalSteps === 'string' ? JSON.parse(approvalSteps) : (approvalSteps || [])
-            return raw.filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
-        } catch { return [] }
-    }, [approvalSteps])
-
-    const logs: any[] = useMemo(() => {
-        try {
-            const raw = typeof approvalLogs === 'string' ? JSON.parse(approvalLogs) : (approvalLogs || [])
-            return raw.filter(Boolean)
-        } catch { return [] }
-    }, [approvalLogs])
-
-    // If we have real approval steps, use those; otherwise fall back to status-based workflow
-    const hasRealSteps = steps.length > 0
-
-    // Fallback: Build workflow steps from DB (old behavior)
-    const workflowSteps = useMemo(() => {
-        if (hasRealSteps) return []
-        const submitted = { label: 'Request Submitted', value: null as string | null, icon: 'tabler-file-upload' }
-        const s = statusOptions
-            .filter(s => s.value !== 'Rejected')
-            .map(s => ({ label: s.label, value: s.value as string | null, icon: STATUS_ICON_MAP[s.value] || 'tabler-file' }))
-        return [submitted, ...s]
-    }, [statusOptions, hasRealSteps])
-
-    const isRejected = status === 'Rejected'
-
-    // ── Real steps view (from request_approval_step) ──
-    if (hasRealSteps) {
-        return (
-            <Box sx={{ position: 'relative', ml: 1, mt: 1 }}>
-                {isRejected && (
-                    <Box sx={{ mb: 2, p: 1.5, borderRadius: 1.5, bgcolor: 'error.light', display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                        <i className='tabler-circle-x' style={{ fontSize: 18, color: 'var(--mui-palette-error-main)' }} />
-                        <Typography variant='body2' color='error.main' fontWeight={700}>Request Rejected</Typography>
-                    </Box>
-                )}
-
-                {/* vertical connector line */}
-                <Box sx={{ position: 'absolute', left: 19, top: isRejected ? 62 : 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
-
-                {steps.map((step: any, idx: number) => {
-                    const stepStatus = step.step_status || 'pending'
-                    const isCompleted = stepStatus === 'approved' || stepStatus === 'completed'
-                    const isCurrent = stepStatus === 'in_progress' || stepStatus === 'current'
-                    const isStepRejected = stepStatus === 'rejected'
-                    const isSkipped = stepStatus === 'skipped'
-                    const isPending = !isCompleted && !isCurrent && !isStepRejected && !isSkipped
-
-                    const iconColor = isCompleted
-                        ? 'var(--mui-palette-success-main)'
-                        : isCurrent
-                            ? 'var(--mui-palette-warning-main)'
-                            : isStepRejected
-                                ? 'var(--mui-palette-error-main)'
-                                : isSkipped
-                                    ? 'var(--mui-palette-info-main)'
-                                    : 'inherit'
-
-                    const stepIcon = isCompleted ? 'tabler-check'
-                        : isCurrent ? 'tabler-loader-2'
-                        : isStepRejected ? 'tabler-x'
-                        : isSkipped ? 'tabler-minus'
-                        : STATUS_ICON_MAP[step.DESCRIPTION] || 'tabler-point'
-
-                    const stepLog = logs.find((l: any) => l.step_id === step.step_id)
-
-                    return (
-                        <Box key={idx}
-                            sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === steps.length - 1 ? 0 : 3 }}
-                        >
-                            <Box sx={{
-                                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                bgcolor: isCompleted ? 'success.light' : isCurrent ? 'warning.light' : isStepRejected ? 'error.light' : isSkipped ? 'info.light' : 'background.paper',
-                                border: '2px solid',
-                                borderColor: isCompleted || isCurrent || isStepRejected || isSkipped ? 'transparent' : 'divider',
-                                boxShadow: isCurrent ? '0 0 0 4px rgba(255, 159, 67, 0.2)' : 'none',
-                            }}>
-                                <i className={stepIcon} style={{ fontSize: 20, color: iconColor }} />
-                            </Box>
-                            <Box sx={{ pt: 0.5, flex: 1 }}>
-                                <Typography
-                                    variant='subtitle2'
-                                    fontWeight={isCurrent ? 800 : isCompleted ? 600 : 500}
-                                    color={isPending || isSkipped ? 'text.disabled' : 'text.primary'}
-                                >
-                                    {step.DESCRIPTION || `Step ${step.step_order}`}
-                                </Typography>
-                                {step.approver_id && (
-                                    <Typography variant='caption' color='text.secondary'>
-                                        Approver: {step.approver_id}
-                                    </Typography>
-                                )}
-                                {stepLog && (
-                                    <Box sx={{ mt: 0.5 }}>
-                                        <Typography variant='caption' color='text.disabled'>
-                                            {stepLog.action_by} — {stepLog.action_type}
-                                            {stepLog.remark ? ` (${stepLog.remark})` : ''}
-                                            {stepLog.action_date ? ` · ${new Date(stepLog.action_date).toLocaleString('th-TH')}` : ''}
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Box>
-                        </Box>
-                    )
-                })}
-            </Box>
-        )
-    }
-
-    // ── Fallback: status-based view (old behavior) ──
-    const currentStepIndex = isRejected
-        ? -1
-        : workflowSteps.findIndex(s => s.value === status)
-
-    return (
-        <Box sx={{ position: 'relative', ml: 1, mt: 1 }}>
-            {isRejected && (
-                <Box sx={{ mb: 2, p: 1.5, borderRadius: 1.5, bgcolor: 'error.light', display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                    <i className='tabler-circle-x' style={{ fontSize: 18, color: 'var(--mui-palette-error-main)' }} />
-                    <Typography variant='body2' color='error.main' fontWeight={700}>Request Rejected</Typography>
-                </Box>
-            )}
-
-            {/* vertical connector line */}
-            <Box sx={{ position: 'absolute', left: 19, top: isRejected ? 62 : 20, bottom: 20, width: 2, bgcolor: 'divider', zIndex: 0 }} />
-
-            {workflowSteps.map((step, idx) => {
-                let stepState: 'completed' | 'in_progress' | 'pending' = 'pending'
-                if (idx === 0) {
-                    stepState = 'completed' // Request Submitted — always done
-                } else if (!isRejected && currentStepIndex > 0) {
-                    if (idx < currentStepIndex) stepState = 'completed'
-                    else if (idx === currentStepIndex) stepState = 'in_progress'
-                }
-
-                const isCompleted = stepState === 'completed'
-                const isCurrent = stepState === 'in_progress'
-
-                const iconColor = isCompleted
-                    ? 'var(--mui-palette-success-main)'
-                    : isCurrent
-                        ? 'var(--mui-palette-warning-main)'
-                        : 'inherit'
-
-                return (
-                    <Box
-                        key={idx}
-                        sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 1, mb: idx === workflowSteps.length - 1 ? 0 : 3 }}
-                    >
-                        <Box sx={{
-                            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            bgcolor: isCompleted ? 'success.light' : isCurrent ? 'warning.light' : 'background.paper',
-                            border: '2px solid',
-                            borderColor: isCompleted || isCurrent ? 'transparent' : 'divider',
-                            boxShadow: isCurrent ? '0 0 0 4px rgba(255, 159, 67, 0.2)' : 'none',
-                        }}>
-                            <i className={step.icon} style={{ fontSize: 20, color: iconColor }} />
-                        </Box>
-                        <Box sx={{ pt: 1 }}>
-                            <Typography
-                                variant='subtitle2'
-                                fontWeight={isCurrent ? 800 : isCompleted ? 600 : 500}
-                                color={isCompleted || isCurrent ? 'text.primary' : 'text.disabled'}
-                            >
-                                {step.label}
-                            </Typography>
-                        </Box>
-                    </Box>
-                )
-            })}
-        </Box>
-    )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Master-Detail Renderer
 // ─────────────────────────────────────────────────────────────────────────────
 const DetailRenderer = ({ data }: { data: any }) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const files = buildFileUrls(data?.documents)
+
+    const workflowSteps = useMemo(() => {
+        try {
+            const approvalSteps = typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || [])
+            if (approvalSteps.length > 0) return []
+        } catch { /* ignore */ }
+
+        const submitted = { title: 'Request Submitted', status: 'completed' as const, step: 0, description: '' }
+        let currentStepIndex = -1
+        if (data.request_status !== 'Rejected') {
+            const normalizeStr = (str?: string | null) => (str || '').replace(/\s+/g, '').toLowerCase()
+            if (normalizeStr(data.request_status).includes('senttopo')) currentStepIndex = 0
+            else currentStepIndex = statusOptions.findIndex((s: any) => normalizeStr(s.value) === normalizeStr(data.request_status))
+        }
+
+        const s = statusOptions
+            .filter((s: any) => s.value !== 'Rejected')
+            .map((s: any, idx: number) => {
+                let stepState: any = 'pending'
+                if (data.request_status !== 'Rejected' && currentStepIndex >= 0) {
+                    if (idx + 1 <= currentStepIndex) stepState = 'completed'
+                    else if (idx + 1 === currentStepIndex + 1) stepState = 'in_progress'
+                }
+                return { title: s.label, status: stepState, step: idx + 1, description: '' }
+            })
+        return [submitted, ...s]
+    }, [statusOptions, data.request_status, data.approval_steps])
 
     if (!data) return null
 
@@ -357,7 +188,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                 <CardContent sx={{ p: '24px !important' }}>
 
                     {/* Header Banner */}
-                    <Box sx={{ p: 3, mb: 3, borderRadius: 3, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
+                    <Box sx={{ p: 3, mb: 3, borderRadius: 1, bgcolor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.1)', border: '1px solid', borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.25)' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
                             <Box>
                                 <Typography variant='h5' fontWeight={800} sx={{ mb: 0.25 }}>{data.company_name}</Typography>
@@ -369,8 +200,8 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 </Box>
                             </Box>
                             <Chip
-                                label={data.request_status} size='medium'
-                                sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }}
+                                label={data.request_status} size='medium' color='primary' variant='tonal'
+                                sx={{ fontWeight: 700, fontSize: '0.75rem' }}
                             />
                         </Box>
                     </Box>
@@ -484,9 +315,13 @@ const DetailRenderer = ({ data }: { data: any }) => {
                             <Divider sx={{ flex: 1 }} />
                         </Box>
                         <StatusTimeline
-                            status={data.request_status}
-                            approvalSteps={data.approval_steps}
-                            approvalLogs={data.approval_logs}
+                            steps={workflowSteps}
+                            approvalSteps={(() => {
+                                try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
+                            })()}
+                            approvalLogs={(() => {
+                                try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
+                            })()}
                         />
                     </Box>
 
@@ -527,13 +362,21 @@ const DetailRenderer = ({ data }: { data: any }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
+import { useQueryClient } from '@tanstack/react-query'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
+
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestHistoryFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
     const { data: statusOptions = [] } = useRequestStatusOptions()
+    const queryClient = useQueryClient()
 
     const [totalCount, setTotalCount] = useState(0)
     const gridApiRef = useRef<any>(null)
+
+    // ── Dialog State ─────────────────────────────────────────────────────────
+    const [drawerOpen, setDrawerOpen] = useState(false)
+    const [selectedData, setSelectedData] = useState<any>(null)
 
     // ── Server-Side Datasource ────────────────────────────────────────────────
     const datasource = useMemo<IServerSideDatasource>(() => ({
@@ -544,7 +387,7 @@ export default function SearchResult() {
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
                 : [{ id: 'request_id', desc: true }]
             try {
-                const res = await RegisterRequestServices.getAll({
+                const payload = {
                     Request_By_EmployeeCode: getUserData()?.EMPLOYEE_CODE || '',
                     SearchFilters: [
                         { id: 'company_name', value: f.vendor_name || null },
@@ -554,7 +397,15 @@ export default function SearchResult() {
                     Order: order,
                     Start: startRow ?? 0,
                     Limit: (endRow ?? 50) - (startRow ?? 0)
+                }
+
+                // Fetch using React Query client to integrate with devtools and app-wide caching invalidation
+                const res = await queryClient.fetchQuery({
+                    queryKey: [PREFIX_QUERY_KEY, payload],
+                    queryFn: () => RegisterRequestServices.getAll(payload),
+                    staleTime: 0 // Fetch fresh data for the grid always
                 })
+
                 if (res.data?.Status) {
                     setTotalCount(res.data.TotalCountOnDb)
                     params.success({ rowData: res.data.ResultOnDb, rowCount: res.data.TotalCountOnDb })
@@ -565,7 +416,7 @@ export default function SearchResult() {
                 params.fail()
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }), []) // getValues is a stable ref — no need to re-create datasource
 
     // Trigger refresh when Search / Clear button sets isEnableFetching = true
@@ -585,30 +436,45 @@ export default function SearchResult() {
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
+            headerName: '',
+            field: 'view',
+            width: 50,
+            pinned: 'left',
+            cellRenderer: (params: any) => (
+                <IconButton
+                    size='small'
+                    color='primary'
+                    onClick={() => {
+                        setSelectedData(params.data)
+                        setDrawerOpen(true)
+                    }}
+                >
+                    <i className='tabler-eye' style={{ fontSize: 18 }} />
+                </IconButton>
+            )
+        },
+        {
             field: 'request_status',
             headerName: 'Status',
             flex: 1.2,
-            minWidth: 210,
-            cellRenderer: (params: any) => {
-                if (!params.value) return null
-                const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
-                return (
-                    <Chip
-                        label={params.value}
-                        color={chipColor}
-                        size='small'
-                        variant='tonal'
-                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                    />
-                )
+            minWidth: 230,
+            cellRenderer: 'agGroupCellRenderer',
+            cellRendererParams: {
+                innerRenderer: (params: any) => {
+                    const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                    return (
+                        <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
+                            sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                        />
+                    )
+                }
             }
         },
         {
             field: 'company_name',
             headerName: 'Company Name',
             flex: 1.5,
-            minWidth: 220,
-            cellRenderer: 'agGroupCellRenderer'
+            minWidth: 220
         },
         {
             field: 'supportProduct_Process',
@@ -671,21 +537,7 @@ export default function SearchResult() {
 
     return (
         <Grid container spacing={6}>
-            {/* Summary Chips */}
-            <Grid item xs={12}>
-                <Card>
-                    <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mr: 2 }}>
-                                <i className='tabler-history' style={{ fontSize: 22, color: 'var(--mui-palette-primary-main)' }} />
-                                <Typography variant='h6'>My Registration Requests</Typography>
-                            </Box>
-                            <Divider orientation='vertical' flexItem />
-                            <StatusSummaryChip label='All' count={totalCount} color='info' />
-                        </Box>
-                    </CardContent>
-                </Card>
-            </Grid>
+
 
             {/* AG Grid */}
             <Grid item xs={12}>
@@ -720,6 +572,28 @@ export default function SearchResult() {
                     </CardContent>
                 </Card>
             </Grid>
+
+            {/* View Detail Dialog */}
+            <Dialog
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                maxWidth='lg'
+                fullWidth
+                scroll='paper'
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <i className='tabler-file-description' style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='h5'>Request Details</Typography>
+                    </Box>
+                    <IconButton onClick={() => setDrawerOpen(false)} size='small'>
+                        <i className='tabler-x' style={{ fontSize: 20 }} />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
+                    {selectedData && <DetailRenderer data={selectedData} />}
+                </DialogContent>
+            </Dialog>
         </Grid>
     )
 }

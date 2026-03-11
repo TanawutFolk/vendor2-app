@@ -8,6 +8,7 @@ import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, Car
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
+import SelectCustom from '@components/react-select/SelectCustom'
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import AddProductGroupModal from './modal/AddProductGroupModal'
 
@@ -16,6 +17,7 @@ import { useCheckDuplicate } from '@_workspace/react-query/hooks/vendor/useCheck
 import type { CheckDuplicateResponseI } from '@_workspace/types/_add-vendor/AddVendorTypes'
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
+import { fetchVendorRegions } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorRegions'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -265,26 +267,19 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                         name='vendor_region'
                         control={control}
                         render={({ field }) => (
-                            <Box>
-                                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                                    Vendor Region
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={field.value}
-                                    exclusive
-                                    onChange={(_, val) => { if (val !== null) field.onChange(val) }}
-                                    disabled={isDisabled}
-                                    size='small'
-                                    color='primary'
-                                >
-                                    <ToggleButton value='Local' sx={{ px: 3, fontWeight: 600 }}>
-                                        🏠 Local
-                                    </ToggleButton>
-                                    <ToggleButton value='Oversea' sx={{ px: 3, fontWeight: 600 }}>
-                                        ✈️ Oversea
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                            <AsyncSelectCustom
+                                label='Vendor Region'
+                                loadOptions={(inputValue: string) => fetchVendorRegions(inputValue)}
+                                value={field.value ? { label: field.value, value: field.value } : null}
+                                onChange={(val: any) => field.onChange(val?.value || '')}
+                                defaultOptions
+                                cacheOptions
+                                isClearable
+                                isDisabled={isDisabled}
+                                placeholder='Select vendor region...'
+                                classNamePrefix='select'
+                                {...(errors.vendor_region && { error: true })}
+                            />
                         )}
                     />
                 </Grid>

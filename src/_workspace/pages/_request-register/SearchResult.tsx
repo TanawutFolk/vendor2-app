@@ -44,17 +44,6 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
     } catch { return [] }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Summary Chip
-// ─────────────────────────────────────────────────────────────────────────────
-const StatusSummaryChip = ({ label, count, color }: {
-    label: string; count: number; color: 'success' | 'warning' | 'default' | 'error' | 'info'
-}) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Chip label={`${count}`} color={color} size='small' variant='tonal' sx={{ minWidth: 28 }} />
-        <Typography variant='body2' color='text.secondary'>{label}</Typography>
-    </Box>
-)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Viewer Dialog
@@ -278,7 +267,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
         <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
 
             {/* Header Banner */}
-            <Box sx={{ p: 2.5, mb: 3, borderRadius: 2, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
+            <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
                         <Typography variant='h6' fontWeight={800}>{data.company_name}</Typography>
@@ -390,8 +379,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                                         <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
                                         <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
-                                        <Chip label={s.step_status || 'pending'} size='small' variant='tonal'
-                                            color={s.step_status === 'approved' ? 'success' : s.step_status === 'rejected' ? 'error' : 'default'}
+                                        <Chip label={s.step_status === 'pending' ? 'waiting' : (s.step_status || 'waiting')} size='small' variant='tonal'
+                                            color={s.step_status === 'approved' ? 'success' : s.step_status === 'rejected' ? 'error' : s.step_status === 'pending' ? 'warning' : 'default'}
                                             sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22 }}
                                         />
                                         <Typography variant='body2' color='text.secondary'>
@@ -457,7 +446,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
             {/* Email Agreement Section (actionable status only) */}
             {isActionable && (
                 <Box sx={{
-                    mb: 3, p: 2, borderRadius: 2,
+                    mb: 3, p: 2, borderRadius: 1,
                     bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'primary.light' : 'rgba(115, 103, 240, 0.12)',
                     border: '1px dashed', borderColor: 'primary.main',
                     display: 'flex', flexDirection: 'column', gap: 1.5
@@ -508,6 +497,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Detail Renderer for Master/Detail AG Grid
+// ─────────────────────────────────────────────────────────────────────────────
+const DetailRenderer = (props: any) => {
+    return (
+        <DetailPanel
+            data={props.data}
+            onApprove={(status: string) => props.context.onApprove(props.data, status)}
+            onReject={() => props.context.onReject(props.data)}
+            onEmailSent={() => props.context.onEmailSent()}
+        />
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SearchResult() {
@@ -518,11 +521,11 @@ export default function SearchResult() {
     const [totalCount, setTotalCount] = useState(0)
     const gridApiRef = useRef<any>(null)
 
-    // Drawer state
-    const [drawerOpen, setDrawerOpen] = useState(false)
+    // Action dialog & Drawer state
     const [selectedData, setSelectedData] = useState<any | null>(null)
+    const [drawerOpen, setDrawerOpen] = useState(false)
 
-    // Action dialog state
+    // Approve/Reject Action Dialog state
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
     const [nextStatus, setNextStatus] = useState('')
@@ -561,7 +564,7 @@ export default function SearchResult() {
                 params.fail()
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [empCode]) // getValues is a stable ref — no need to re-create datasource
 
     // Trigger refresh when Search / Clear button sets isEnableFetching = true
@@ -582,35 +585,40 @@ export default function SearchResult() {
     const colDefs = useMemo<ColDef[]>(() => [
         {
             headerName: '',
-            field: 'request_id',
-            width: 68,
+            field: 'view',
+            width: 50,
             pinned: 'left',
-            sortable: false,
-            filter: false,
             cellRenderer: (params: any) => (
-                <IconButton size='small' color='primary'
-                    onClick={() => { setSelectedData(params.data); setDrawerOpen(true) }}
+                <IconButton
+                    size='small'
+                    color='primary'
+                    onClick={() => {
+                        setSelectedData(params.data)
+                        setDrawerOpen(true)
+                    }}
                 >
                     <i className='tabler-eye' style={{ fontSize: 18 }} />
                 </IconButton>
-            ),
-            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
+            )
         },
         {
             field: 'request_status',
             headerName: 'Status',
             flex: 1.2,
-            minWidth: 210,
-            cellRenderer: (params: any) => {
-                const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
-                return (
-                    <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
-                        sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24, mt: 1 }}
-                    />
-                )
+            minWidth: 230,
+            cellRenderer: 'agGroupCellRenderer',
+            cellRendererParams: {
+                innerRenderer: (params: any) => {
+                    const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                    return (
+                        <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
+                            sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                        />
+                    )
+                }
             }
         },
-        { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210, cellRenderer: 'agGroupCellRenderer' },
+        { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
         { field: 'supportProduct_Process', headerName: 'Support Product / Process', flex: 1, minWidth: 180 },
         { field: 'purchase_frequency', headerName: 'Purchase Frequency', width: 170 },
         {
@@ -644,31 +652,30 @@ export default function SearchResult() {
 
     const handleActionSuccess = () => {
         gridApiRef.current?.refreshServerSide({ purge: true })
-        setDrawerOpen(false)
         setSelectedData(null)
     }
+
+    const gridContext = useMemo(() => ({
+        onApprove: (data: any, status: string) => {
+            setSelectedData(data)
+            setNextStatus(status)
+            setActionMode('approve')
+            setActionDialogOpen(true)
+        },
+        onReject: (data: any) => {
+            setSelectedData(data)
+            setActionMode('reject')
+            setActionDialogOpen(true)
+        },
+        onEmailSent: () => {
+            gridApiRef.current?.refreshServerSide({ purge: true })
+        }
+    }), [])
 
     return (
         <Grid container spacing={6}>
 
-            {/* Summary Chips */}
-            <Grid item xs={12}>
-                <Card>
-                    <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mr: 2 }}>
-                                <i className='tabler-clipboard-list' style={{ fontSize: 22, color: 'var(--mui-palette-primary-main)' }} />
-                                <Box>
-                                    <Typography variant='h6'>My Assigned Requests</Typography>
-                                    <Typography variant='caption' color='text.secondary'>Assigned to: <strong>{empCode}</strong></Typography>
-                                </Box>
-                            </Box>
-                            <Divider orientation='vertical' flexItem />
-                            <StatusSummaryChip label='All' count={totalCount} color='info' />
-                        </Box>
-                    </CardContent>
-                </Card>
-            </Grid>
+
 
             {/* AG Grid */}
             <Grid item xs={12}>
@@ -697,43 +704,14 @@ export default function SearchResult() {
                             onGridReady={(p: any) => { gridApiRef.current = p.api }}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}
+                            masterDetail={true}
+                            detailCellRenderer={DetailRenderer}
+                            detailRowHeight={850}
+                            context={gridContext}
                         />
                     </CardContent>
                 </Card>
             </Grid>
-
-            {/* Request Detail Modal */}
-            <Dialog
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                aria-labelledby='detail-dialog-title'
-                maxWidth='sm'
-                fullWidth
-                PaperProps={{ sx: { m: 2, borderRadius: 2 } }}
-            >
-                {selectedData && (
-                    <>
-                        <DialogTitle
-                            id='detail-dialog-title'
-                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}
-                        >
-                            <Typography variant='h6' fontWeight={700}>Request Details</Typography>
-                            <IconButton size='small' onClick={() => setDrawerOpen(false)}>
-                                <i className='tabler-x' style={{ fontSize: 18 }} />
-                            </IconButton>
-                        </DialogTitle>
-
-                        <DialogContent dividers sx={{ p: 0 }}>
-                            <DetailPanel
-                                data={selectedData}
-                                onApprove={(status: string) => { setNextStatus(status); setActionMode('approve'); setActionDialogOpen(true) }}
-                                onReject={() => { setActionMode('reject'); setActionDialogOpen(true) }}
-                                onEmailSent={() => gridApiRef.current?.refreshServerSide({ purge: true })}
-                            />
-                        </DialogContent>
-                    </>
-                )}
-            </Dialog>
 
             {/* Approve / Reject Dialog */}
             <ActionDialog
@@ -744,6 +722,28 @@ export default function SearchResult() {
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />
+
+            {/* View Detail Dialog */}
+            <Dialog
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                maxWidth='lg'
+                fullWidth
+                scroll='paper'
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <i className='tabler-file-description' style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='h5'>Request Details</Typography>
+                    </Box>
+                    <IconButton onClick={() => setDrawerOpen(false)} size='small'>
+                        <i className='tabler-x' style={{ fontSize: 20 }} />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
+                    {selectedData && <DetailRenderer data={selectedData} context={gridContext} />}
+                </DialogContent>
+            </Dialog>
         </Grid>
     )
 }

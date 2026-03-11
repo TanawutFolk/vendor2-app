@@ -1,5 +1,4 @@
-// MUI Imports
-import { Box, Typography, Chip, Tooltip, Avatar } from '@mui/material'
+import { Box, Typography, Chip, Avatar } from '@mui/material'
 
 // Types
 import type { RegisterStep, RegisterStatus, ApprovalStepRecord, ApprovalLogRecord } from './types'
@@ -38,8 +37,8 @@ const statusConfig: Record<
         chipIcon: 'tabler-clock-filled'
     },
     pending: {
-        label: 'Pending',
-        color: 'default',
+        label: 'Waiting',
+        color: 'warning',
         bgColor: 'transparent',
         iconBg: '#8A8D99',
         connectorColor: 'rgba(138,141,153,0.3)',
@@ -130,11 +129,10 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
                     mb: isLast ? 0 : 1.5,
                     px: 2,
                     py: 1.5,
-                    borderRadius: 2.5,
-                    bgcolor: isPending || isSkipped ? 'action.hover' : cfg.bgColor,
+                    borderRadius: 1,
+                    bgcolor: 'transparent',
                     border: '1px solid',
                     borderColor: isPending || isSkipped ? 'divider' : step.status === 'rejected' ? 'rgba(234,84,85,0.2)' : 'rgba(234,84,85,0.15)',
-                    opacity: isPending || isSkipped ? 0.6 : 1,
                     transition: 'all 0.25s ease'
                 }}
             >
@@ -156,12 +154,7 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
                         {step.description}
                     </Typography>
                 )}
-                {step.remark && (
-                    <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px dashed', borderColor: 'divider', display: 'flex', gap: 0.75, alignItems: 'flex-start' }}>
-                        <i className='tabler-quote' style={{ fontSize: 12, marginTop: 1, color: 'var(--mui-palette-error-main)', opacity: 0.7 }} />
-                        <Typography variant='caption' color='text.secondary' sx={{ fontStyle: 'italic', lineHeight: 1.5 }}>{step.remark}</Typography>
-                    </Box>
-                )}
+
             </Box>
         </Box>
     )
@@ -198,6 +191,11 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                     updatedBy: log?.action_by || s.UPDATE_BY || undefined,
                     updatedDate: log?.action_date ? new Date(log.action_date).toLocaleString('th-TH') : s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleString('th-TH') : undefined,
                     remark: log?.remark || undefined,
+                    branchLabel: s.DESCRIPTION === 'Pending Agreement To Vendor' ? 'กรณีไม่ตกลง (Disagreed)' : undefined,
+                    branchChildren: s.DESCRIPTION === 'Pending Agreement To Vendor' ? [
+                        { step: Number(`${s.step_order}.1`), title: 'Issue GPR B', status: 'pending' },
+                        { step: Number(`${s.step_order}.2`), title: 'Issue GPR C', status: 'pending' }
+                    ] : undefined
                 } as RegisterStep
             })
         : steps
@@ -211,7 +209,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                 const hasBranch = step.branchChildren && step.branchChildren.length > 0
 
                 return (
-                    <Box key={`${step.step}-${index}`} sx={{ display: 'flex', gap: 2.5, position: 'relative' }}>
+                    <Box key={`${step.step}-${index}`} sx={{ display: 'flex', gap: 2, position: 'relative' }}>
                         {/* Left: icon + connector */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 0.5 }}>
                             <StepIcon status={step.status} step={step.step} />
@@ -236,19 +234,12 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                             {/* Main card */}
                             <Box
                                 sx={{
-                                    p: 2.5,
-                                    borderRadius: 3,
-                                    bgcolor: isPending
-                                        ? 'action.hover'
-                                        : cfg.bgColor,
+                                    py: 1.5,
+                                    px: 2,
+                                    borderRadius: 1,
+                                    bgcolor: step.status === 'in_progress' ? cfg.bgColor : 'transparent',
                                     border: '1px solid',
-                                    borderColor: isPending
-                                        ? 'divider'
-                                        : step.status === 'completed' ? 'rgba(40,199,111,0.2)'
-                                            : step.status === 'in_progress' ? 'rgba(255,159,67,0.25)'
-                                                : step.status === 'rejected' ? 'rgba(234,84,85,0.2)'
-                                                    : 'divider',
-                                    opacity: isPending ? 0.65 : 1,
+                                    borderColor: step.status === 'in_progress' ? (cfg as any).borderColor || 'rgba(255,159,67,0.25)' : 'divider',
                                     transition: 'all 0.25s ease'
                                 }}
                             >
@@ -269,58 +260,15 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                     />
                                 </Box>
 
-                                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, lineHeight: 1.6 }}>
+                                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: step.remark ? 1 : 0, lineHeight: 1.6 }}>
                                     {step.description}
+                                    {step.description && (step.updatedBy || step.updatedDate) ? ' • ' : ''}
+                                    {step.updatedBy && `Updated by ${step.updatedBy}`}
+                                    {step.updatedBy && step.updatedDate ? ' on ' : ''}
+                                    {step.updatedDate}
                                 </Typography>
 
-                                {/* Meta */}
-                                {(step.updatedBy || step.updatedDate) && (
-                                    <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
-                                        {step.updatedBy && (
-                                            <Tooltip title='Updated by' placement='top'>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <i className='tabler-user' style={{ fontSize: 10, color: 'var(--mui-palette-primary-contrastText)' }} />
-                                                    </Box>
-                                                    <Typography variant='caption' fontWeight={500} color='text.secondary'>{step.updatedBy}</Typography>
-                                                </Box>
-                                            </Tooltip>
-                                        )}
-                                        {step.updatedDate && (
-                                            <Tooltip title='Updated date' placement='top'>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                                    <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <i className='tabler-calendar' style={{ fontSize: 10, color: 'var(--mui-palette-primary-contrastText)' }} />
-                                                    </Box>
-                                                    <Typography variant='caption' fontWeight={500} color='text.secondary'>{step.updatedDate}</Typography>
-                                                </Box>
-                                            </Tooltip>
-                                        )}
-                                    </Box>
-                                )}
 
-                                {/* Remark */}
-                                {step.remark && (
-                                    <Box
-                                        sx={{
-                                            mt: 1.5,
-                                            px: 1.5,
-                                            py: 1,
-                                            borderRadius: 2,
-                                            bgcolor: 'background.paper',
-                                            border: '1px dashed',
-                                            borderColor: 'divider',
-                                            display: 'flex',
-                                            gap: 1,
-                                            alignItems: 'flex-start'
-                                        }}
-                                    >
-                                        <i className='tabler-quote' style={{ fontSize: 14, marginTop: 1, color: 'var(--mui-palette-primary-main)', opacity: 0.7 }} />
-                                        <Typography variant='caption' color='text.secondary' sx={{ fontStyle: 'italic', lineHeight: 1.6 }}>
-                                            {step.remark}
-                                        </Typography>
-                                    </Box>
-                                )}
                             </Box>
 
                             {/* Branch Path (rejection scenario) */}

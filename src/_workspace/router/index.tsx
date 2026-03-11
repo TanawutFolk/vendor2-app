@@ -79,6 +79,9 @@ const RequestRegisterHistoryPage = lazy(() => import('@/_workspace/pages/_reques
 /* Request Register (PO Dashboard) */
 const RequestRegisterPage = lazy(() => import('@/_workspace/pages/_request-register/page'))
 
+/* Task Manager */
+const TaskManagerPage = lazy(() => import('@/_workspace/pages/_task-manager/page'))
+
 export default (
   <>
     <Route path='/en/product-category' element={<ProductCategoryPage />} />
@@ -157,5 +160,8 @@ export default (
 
     {/* Request Register (PO Dashboard) */}
     <Route path='/en/request-register' element={<RequestRegisterPage />} />
+
+    {/* Task Manager */}
+    <Route path='/en/task-manager' element={<TaskManagerPage />} />
   </>
 )

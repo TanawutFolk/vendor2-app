@@ -412,7 +412,7 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
         id: 536,
         label: dictionary['navigation'].task,
         icon: 'tabler-clipboard-copy',
-        href: '/task'
+        href: '/task-manager'
       },
       {
         id: 537,
