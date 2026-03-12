@@ -8,6 +8,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 import { useAssignees } from '@_workspace/react-query/useAssignees'
 import { useDeleteAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import AddEditForm from './AddEditForm'
+import { GroupChip } from '@_workspace/utils/groupChipHelper'
 
 const SearchResult = () => {
     const { getValues } = useFormContext<AssigneesFormData>()
@@ -73,16 +74,7 @@ const SearchResult = () => {
             field: 'group_name',
             headerName: 'Group',
             flex: 1.5,
-            cellRenderer: (params: any) => {
-                const val = params.value
-                const colorMap: any = {
-                    'Local': 'primary',
-                    'Oversea': 'info',
-                    'PO_Manager': 'warning',
-                    'MD': 'error'
-                }
-                return val ? <Chip label={val} size='small' color={colorMap[val] || 'default'} variant='tonal' /> : '-'
-            }
+            cellRenderer: (params: any) => <GroupChip value={params.value} />
         },
         {
             field: 'INUSE',
@@ -117,14 +109,15 @@ const SearchResult = () => {
                         pagination={true}
                     />
                 </div>
-            </CardContent>
-
-            {/* Add/Edit Modal */}
+                {/* Add/Edit Modal */}
             <AddEditForm
                 open={openDialog}
                 onClose={() => setOpenDialog(false)}
                 initialData={editingData}
             />
+            </CardContent>
+
+            
         </Card>
     )
 }

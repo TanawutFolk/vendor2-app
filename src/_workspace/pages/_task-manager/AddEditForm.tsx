@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Card } from '@mui/material'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -7,6 +7,7 @@ import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
 import { useSaveAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import { groupOptions } from './SearchFilter'
+import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 
 const FormSchema = z.object({
     Assignees_id: z.number().optional(),
@@ -78,11 +79,23 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
     }
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <DialogTitle>{initialData ? 'Edit Assignee' : 'Add New Assignee'}</DialogTitle>
-                <DialogContent dividers>
-                    <Grid container spacing={4}>
+        <>
+  
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth='md'
+            fullWidth
+            PaperProps={{ component: 'form', onSubmit: handleSubmit(onSubmit) } as any}
+            sx={{
+               
+                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+            }}
+        >
+            <DialogTitle>{initialData ? 'Edit Assignee' : 'Add New Assignee'}</DialogTitle>
+            <DialogContent >
+            
+  <Grid className='z-100000000' container spacing={4}>
                         <Grid item xs={12} sm={6}>
                             <Controller
                                 name='empcode'
@@ -128,13 +141,14 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                                 )}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} >
                             <Controller
                                 name='group_name'
                                 control={control}
                                 render={({ field }) => (
                                     <div className='flex flex-col'>
                                         <SelectCustom
+
                                             label='Group Name'
                                             options={groupOptions}
                                             value={groupOptions.find(o => o.value === field.value) || null}
@@ -150,7 +164,7 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                                 name='INUSE'
                                 control={control}
                                 render={({ field }) => (
-                                    <SelectCustom
+                                    <AsyncSelectCustom
                                         label='Status'
                                         options={inUseOptions}
                                         value={inUseOptions.find(o => o.value === field.value) || null}
@@ -160,7 +174,10 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                             />
                         </Grid>
                     </Grid>
+            
+                  
                 </DialogContent>
+                
                 <DialogActions>
                     <Button onClick={onClose} variant='tonal' color='secondary' disabled={isPending}>
                         Cancel
@@ -169,8 +186,9 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                         {isPending ? 'Saving...' : 'Save'}
                     </Button>
                 </DialogActions>
-            </form>
         </Dialog>
+        
+        </>
     )
 }
 

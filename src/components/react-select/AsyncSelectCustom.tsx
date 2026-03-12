@@ -17,7 +17,7 @@ function AsyncSelectCustom<
   IsMulti extends boolean = false,
   Group extends GroupBase<Option> = GroupBase<Option>
 >(props: AsyncSelectCustomProps & AsyncProps<Option, IsMulti, Group>) {
-  const { } = Option
+  const {} = Option
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 

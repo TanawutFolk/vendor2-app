@@ -46,6 +46,7 @@ export default class RegisterRequestServices {
         approve_by?: string
         approver_remark?: string
         UPDATE_BY?: string
+        isFinalStep?: boolean
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/updateStatus`,
@@ -119,6 +120,56 @@ export default class RegisterRequestServices {
             url: `${RegisterRequestAPI.API_ROOT_URL}/updateApprovalStep`,
             data,
             method: 'POST'
+        })
+    }
+
+    // Save CC emails list for a request
+    static updateCcEmails(data: {
+        request_id: number
+        cc_emails: string[]
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/updateCcEmails`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    // Account PIC: complete vendor registration and fill vendor code
+    static completeRegistration(data: {
+        request_id: number
+        vendor_code: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/completeRegistration`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    // Save GPR form (Supplier / Outsourcing Selection Sheet) data
+    static saveGprForm(data: {
+        request_id: number
+        gpr_data: Record<string, any>
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprForm`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    // Attach a single document file to an existing request
+    // Used for: GPR criteria per-row uploads, generated Form A PDF attachment
+    static addDocument(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ document_id: number; file_path: string; file_name: string }>>> {
+        return axiosRequest<RegisterRequestResponseI<{ document_id: number; file_path: string; file_name: string }>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/addDocument`,
+            data: formData,
+            method: 'POST',
+            headers: { 'Content-Type': 'multipart/form-data' }
         })
     }
 }

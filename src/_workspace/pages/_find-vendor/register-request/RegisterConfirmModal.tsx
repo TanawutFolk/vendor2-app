@@ -469,6 +469,16 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                     ) : (
                         <>
                             <Button
+                                variant="contained"
+                                onClick={handleSubmit}
+                                color="primary"
+                                size='large'
+                                disabled={!supportType || !purchaseFreq || !vendorContactId}
+                                sx={{ minWidth: 120 }}
+                            >
+                                Submit Request
+                            </Button>
+                            <Button
                                 variant="tonal"
                                 color="secondary"
                                 onClick={handleBack}
@@ -476,16 +486,6 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                 sx={{ minWidth: 100 }}
                             >
                                 Back
-                            </Button>
-                            <Button
-                                variant="contained"
-                                onClick={handleSubmit}
-                                color="success"
-                                size='large'
-                                disabled={!supportType || !purchaseFreq || !vendorContactId}
-                                sx={{ minWidth: 120 }}
-                            >
-                                Submit Request
                             </Button>
                         </>
                     )}

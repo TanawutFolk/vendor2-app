@@ -29,6 +29,9 @@ import { useDxContext } from '@/_template/DxContextProvider'
 // Status — colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 
+// GPR Form Dialog
+import GprFormDialog from './modal/GprFormDialog'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,11 +121,12 @@ interface ActionDialogProps {
     mode: 'approve' | 'reject'
     requestId: number | null
     nextStatus: string
+    isFinalStep: boolean
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -139,6 +143,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, onClose, onSuccess }:
                 approve_by: user?.EMPLOYEE_CODE || '',
                 approver_remark: remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
+                isFinalStep: mode === 'approve' ? isFinalStep : false,
             })
             setRemark('')
             onSuccess()
@@ -192,16 +197,30 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, onClose, onSuccess }:
 // ─────────────────────────────────────────────────────────────────────────────
 interface DetailPanelProps {
     data: any
-    onApprove: (nextStatus: string) => void
+    onApprove: (nextStatus: string, isFinalStep: boolean) => void
     onReject: () => void
     onEmailSent: () => void
+    onCompleted?: () => void
 }
 
-const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProps) => {
+const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
     const [sendingEmail, setSendingEmail] = useState(false)
     const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    // CC emails management
+    const [ccEmails, setCcEmails] = useState<string[]>([])
+    const [ccInput, setCcInput] = useState('')
+    const [ccEditMode, setCcEditMode] = useState(false)
+    const [ccSaving, setCcSaving] = useState(false)
+    const [ccFeedback, setCcFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
+    // Account step: complete registration
+    const [vendorCodeInput, setVendorCodeInput] = useState('')
+    const [completing, setCompleting] = useState(false)
+    const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
+    // GPR Form dialog
+    const [gprDialogOpen, setGprDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
+    const user = getUserData()
     const files = buildFileUrls(data?.documents)
     if (!data) return null
 
@@ -223,6 +242,73 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
         }
     }
 
+    // Parse cc_emails from data on mount / data change
+    useEffect(() => {
+        try {
+            const parsed = typeof data.cc_emails === 'string' ? JSON.parse(data.cc_emails) : (data.cc_emails || [])
+            setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
+        } catch { setCcEmails([]) }
+    }, [data?.cc_emails])
+
+    const handleSaveCcEmails = async (updatedList: string[]) => {
+        setCcSaving(true)
+        setCcFeedback(null)
+        try {
+            const res = await RegisterRequestServices.updateCcEmails({
+                request_id: data.request_id,
+                cc_emails: updatedList,
+                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+            })
+            if (res.data.Status) {
+                setCcFeedback({ type: 'success', msg: 'CC list saved' })
+                setCcEditMode(false)
+                onEmailSent() // refresh grid
+            } else {
+                setCcFeedback({ type: 'error', msg: res.data.Message })
+            }
+        } catch (err: any) {
+            setCcFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to save CC emails' })
+        } finally {
+            setCcSaving(false)
+        }
+    }
+
+    const handleAddCc = () => {
+        const email = ccInput.trim().toLowerCase()
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+        if (ccEmails.includes(email)) { setCcInput(''); return }
+        const updated = [...ccEmails, email]
+        setCcEmails(updated)
+        setCcInput('')
+    }
+
+    const handleRemoveCc = (email: string) => {
+        setCcEmails(prev => prev.filter(e => e !== email))
+    }
+
+    const handleCompleteRegistration = async () => {
+        if (!vendorCodeInput.trim()) return
+        setCompleting(true)
+        setCompleteFeedback(null)
+        try {
+            const res = await RegisterRequestServices.completeRegistration({
+                request_id: data.request_id,
+                vendor_code: vendorCodeInput.trim(),
+                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+            })
+            if (res.data.Status) {
+                setCompleteFeedback({ type: 'success', msg: 'Registration completed! Final emails sent.' })
+                onCompleted?.()
+            } else {
+                setCompleteFeedback({ type: 'error', msg: res.data.Message })
+            }
+        } catch (err: any) {
+            setCompleteFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to complete registration' })
+        } finally {
+            setCompleting(false)
+        }
+    }
+
     const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
 
     // Parse approval steps to determine if current user can act
@@ -232,10 +318,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
     const isActionable = !!currentStep
+    const isAccountStep = isActionable && (currentStep?.DESCRIPTION || '').toLowerCase().includes('account')
 
     // Compute next status value for approve action
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = (() => {
+        // ถ้าเป็น step สุดท้าย ให้ใช้ status ของ currentStep (MD Approval)
         const targetDesc = nextStep?.DESCRIPTION || currentStep?.DESCRIPTION || ''
         const match = statusOptions.find(so => so.label === targetDesc)
         return match?.value || targetDesc
@@ -414,8 +503,78 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                     {infoRow('Approved / Rejected By', data.approve_by)}
                     {infoRow('Approval Date', data.approve_date ? new Date(data.approve_date).toLocaleDateString('th-TH') : '-')}
                     {infoRow('Approver Remark', data.approver_remark)}
+                    {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
                 </Box>
             )}
+
+            {/* CC Recipients management — always visible, PIC can edit */}
+            <Box sx={{ mb: 3 }}>
+                <SectionHeader icon='tabler-users-group' title='CC Recipients (Final Email)' />
+                <Box sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    {!ccEditMode ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, flex: 1 }}>
+                                {ccEmails.length === 0
+                                    ? <Typography variant='caption' color='text.secondary'>No CC recipients added yet</Typography>
+                                    : ccEmails.map(e => (
+                                        <Chip key={e} label={e} size='small' variant='outlined'
+                                            icon={<i className='tabler-mail' style={{ fontSize: 13 }} />}
+                                        />
+                                    ))
+                                }
+                            </Box>
+                            <Button size='small' variant='tonal'
+                                startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
+                                onClick={() => { setCcEditMode(true); setCcFeedback(null) }}
+                            >Edit</Button>
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                <TextField
+                                    size='small' fullWidth
+                                    label='Add email address'
+                                    placeholder='name@example.com'
+                                    value={ccInput}
+                                    onChange={e => setCcInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCc() } }}
+                                />
+                                <Button variant='contained' size='small' onClick={handleAddCc}
+                                    startIcon={<i className='tabler-plus' style={{ fontSize: 14 }} />}
+                                >Add</Button>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, minHeight: 30 }}>
+                                {ccEmails.length === 0
+                                    ? <Typography variant='caption' color='text.secondary'>No emails added</Typography>
+                                    : ccEmails.map(e => (
+                                        <Chip key={e} label={e} size='small' variant='tonal' color='primary'
+                                            onDelete={() => handleRemoveCc(e)}
+                                        />
+                                    ))
+                                }
+                            </Box>
+                            {ccFeedback && <Alert severity={ccFeedback.type} sx={{ py: 0 }}>{ccFeedback.msg}</Alert>}
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                <Button size='small' variant='tonal' color='secondary'
+                                    onClick={() => {
+                                        setCcEditMode(false); setCcInput('')
+                                        // Reset to DB value
+                                        try {
+                                            const parsed = typeof data.cc_emails === 'string' ? JSON.parse(data.cc_emails) : (data.cc_emails || [])
+                                            setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
+                                        } catch { setCcEmails([]) }
+                                    }}
+                                >Cancel</Button>
+                                <Button size='small' variant='contained' color='primary'
+                                    disabled={ccSaving}
+                                    startIcon={ccSaving ? <CircularProgress size={14} /> : <i className='tabler-device-floppy' style={{ fontSize: 14 }} />}
+                                    onClick={() => handleSaveCcEmails(ccEmails)}
+                                >Save</Button>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
+            </Box>
 
             {/* Attached Files */}
             <Box sx={{ mb: 3 }}>
@@ -443,8 +602,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                 )}
             </Box>
 
-            {/* Email Agreement Section (actionable status only) */}
-            {isActionable && (
+            {/* Email Agreement Section (actionable status only, not for Account step)
+            {isActionable && !isAccountStep && (
                 <Box sx={{
                     mb: 3, p: 2, borderRadius: 1,
                     bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'primary.light' : 'rgba(115, 103, 240, 0.12)',
@@ -474,14 +633,85 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
                         {sendingEmail ? 'Sending...' : 'Send Agreement Email'}
                     </Button>
                 </Box>
+            )} */}
+
+            {/* Account Registration Step UI (only when Account step is in_progress) */}
+            {isAccountStep && (
+                <Box sx={{
+                    mb: 3, p: 2.5, borderRadius: 1,
+                    bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'rgba(102, 16, 242, 0.04)' : 'rgba(102, 16, 242, 0.12)',
+                    border: '1px solid', borderColor: 'rgba(102, 16, 242, 0.4)',
+                    display: 'flex', flexDirection: 'column', gap: 2
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className='tabler-building-bank' style={{ fontSize: 22, color: '#6610f2' }} />
+                        <Box>
+                            <Typography variant='subtitle1' fontWeight={700} color='#6610f2'>Account Registration Step</Typography>
+                            <Typography variant='caption' color='text.secondary'>
+                                กรุณาลงทะเบียน Vendor ในระบบแล้วกรอก Vendor Code เพื่อเสร็จสิ้นกระบวนการ
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <TextField
+                        fullWidth size='small'
+                        label='Vendor Code (FFT System)'
+                        placeholder='e.g. V-12345'
+                        value={vendorCodeInput}
+                        onChange={e => setVendorCodeInput(e.target.value)}
+                    />
+                    {completeFeedback && (
+                        <Alert severity={completeFeedback.type} sx={{ py: 0 }}>{completeFeedback.msg}</Alert>
+                    )}
+                    <Button
+                        variant='contained' fullWidth
+                        sx={{ bgcolor: '#6610f2', '&:hover': { bgcolor: '#5a0ec4' } }}
+                        disabled={completing || !vendorCodeInput.trim()}
+                        startIcon={completing ? <CircularProgress size={16} color='inherit' /> : <i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                        onClick={handleCompleteRegistration}
+                    >
+                        {completing ? 'Completing...' : 'Complete Registration'}
+                    </Button>
+                </Box>
             )}
 
-            {/* Approve / Reject Buttons (actionable status only) */}
-            {isActionable && (
+            {/* GPR Form — always visible for PO PIC (checker step) */}
+            {isActionable && !isAccountStep && (
+                <Box sx={{
+                    mb: 3, p: 2, borderRadius: 1,
+                    border: '1px solid', borderColor: 'divider',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <i className='tabler-clipboard-text' style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }} />
+                        <Box>
+                            <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
+                            <Typography variant='caption' color='text.secondary'>
+                                {data.gpr_data ? 'GPR form filled — click to edit' : 'Fill in the vendor evaluation form from vendor response'}
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {data.gpr_data && (
+                            <Chip label='Filled' size='small' color='success' variant='tonal'
+                                icon={<i className='tabler-circle-check' style={{ fontSize: 13 }} />}
+                            />
+                        )}
+                        <Button size='small' variant='contained' color='primary'
+                            startIcon={<i className={data.gpr_data ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
+                            onClick={() => setGprDialogOpen(true)}
+                        >
+                            {data.gpr_data ? 'Edit Form' : 'Fill Form'}
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+
+            {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
+            {isActionable && !isAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button variant='contained' color='success' fullWidth
                         startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={() => onApprove(computedNextStatus)}
+                        onClick={() => onApprove(computedNextStatus, isFinalStep)}
                     >Approve</Button>
                     <Button variant='contained' color='error' fullWidth
                         startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
@@ -491,6 +721,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent }: DetailPanelProp
             )}
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
+            <GprFormDialog
+                open={gprDialogOpen}
+                rowData={data}
+                onClose={() => setGprDialogOpen(false)}
+                onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
+            />
         </Box>
     )
 }
@@ -503,9 +739,10 @@ const DetailRenderer = (props: any) => {
     return (
         <DetailPanel
             data={props.data}
-            onApprove={(status: string) => props.context.onApprove(props.data, status)}
+            onApprove={(status: string, finalStep: boolean) => props.context.onApprove(props.data, status, finalStep)}
             onReject={() => props.context.onReject(props.data)}
             onEmailSent={() => props.context.onEmailSent()}
+            onCompleted={() => props.context.onCompleted()}
         />
     )
 }
@@ -529,6 +766,7 @@ export default function SearchResult() {
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
     const [nextStatus, setNextStatus] = useState('')
+    const [isFinalStep, setIsFinalStep] = useState(false)
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
@@ -656,19 +894,26 @@ export default function SearchResult() {
     }
 
     const gridContext = useMemo(() => ({
-        onApprove: (data: any, status: string) => {
+        onApprove: (data: any, status: string, finalStep: boolean) => {
             setSelectedData(data)
             setNextStatus(status)
+            setIsFinalStep(finalStep)
             setActionMode('approve')
             setActionDialogOpen(true)
         },
         onReject: (data: any) => {
             setSelectedData(data)
+            setIsFinalStep(false)
             setActionMode('reject')
             setActionDialogOpen(true)
         },
         onEmailSent: () => {
             gridApiRef.current?.refreshServerSide({ purge: true })
+        },
+        onCompleted: () => {
+            gridApiRef.current?.refreshServerSide({ purge: true })
+            setDrawerOpen(false)
+            setSelectedData(null)
         }
     }), [])
 
@@ -719,6 +964,7 @@ export default function SearchResult() {
                 mode={actionMode}
                 requestId={selectedData?.request_id || null}
                 nextStatus={nextStatus}
+                isFinalStep={isFinalStep}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />
