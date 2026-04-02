@@ -73,7 +73,7 @@ const SuccessModal = ({
 
     return (
         <Dialog
-            maxWidth='md'
+            maxWidth='sm'
             fullWidth={true}
             open={open}
             disableEscapeKeyDown
@@ -217,7 +217,7 @@ const SuccessModal = ({
                 )}
             </DialogContent>
 
-            <DialogActions sx={{ justifyContent: 'center', mb: 3 }}>
+            <DialogActions sx={{ justifyContent: 'flex-start', mb: 3 }}>
                 <Button variant='contained' color='success' onClick={onClose} size='large'>
                     OK
                 </Button>

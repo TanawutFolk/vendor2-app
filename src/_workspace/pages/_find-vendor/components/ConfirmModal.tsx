@@ -40,15 +40,15 @@ const ConfirmModal = ({
 }: ConfirmModalProps) => {
     return (
         <Dialog
-            open={open}
+            maxWidth='sm'
+            fullWidth={true}
             onClose={(event, reason) => {
                 if (reason !== 'backdropClick' && !loading) {
                     onClose()
                 }
             }}
-            maxWidth="xs"
-            fullWidth
             TransitionComponent={Transition}
+            open={open}
             sx={{
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
@@ -84,22 +84,12 @@ const ConfirmModal = ({
 
             <DialogActions
                 sx={{
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start',
                     borderTop: 'none',
                     mb: 4,
                     gap: 2
                 }}
             >
-                <Button
-                    variant="tonal"
-                    color="secondary"
-                    onClick={onClose}
-                    disabled={loading}
-                    size='large'
-                    sx={{ minWidth: 100 }}
-                >
-                    Cancel
-                </Button>
                 <Button
                     variant="contained"
                     onClick={onConfirm}
@@ -109,6 +99,16 @@ const ConfirmModal = ({
                     sx={{ minWidth: 100 }}
                 >
                     {loading ? 'Saving...' : 'Confirm'}
+                </Button>
+                <Button
+                    variant="tonal"
+                    color="secondary"
+                    onClick={onClose}
+                    disabled={loading}
+                    size='large'
+                    sx={{ minWidth: 100 }}
+                >
+                    Cancel
                 </Button>
             </DialogActions>
         </Dialog>

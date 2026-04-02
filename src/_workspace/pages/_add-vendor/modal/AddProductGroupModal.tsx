@@ -10,8 +10,20 @@ import {
     Button,
     Typography,
     Grid,
-    CircularProgress
+    CircularProgress,
+    Slide
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+
+import type { ReactElement, Ref } from 'react'
+import { forwardRef } from 'react'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
 
 // Third-party Imports
 import { useForm, Controller } from 'react-hook-form'
@@ -98,16 +110,18 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
 
     return (
         <Dialog
-            open={open}
-            onClose={(e, reason) => {
+            maxWidth='sm'
+            fullWidth={true}
+            onClose={(event, reason) => {
                 if (reason !== 'backdropClick') {
                     handleClose()
                 }
             }}
-            maxWidth='xs'
-            fullWidth
+            TransitionComponent={Transition}
+            open={open}
             sx={{
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': { overflow: 'visible' },
+                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
             }}
         >
             <DialogTitle>
@@ -140,7 +154,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
                     </Grid>
                 </Grid>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ justifyContent: 'flex-start' }}>
                 <Button
                     variant='contained'
                     color='primary'

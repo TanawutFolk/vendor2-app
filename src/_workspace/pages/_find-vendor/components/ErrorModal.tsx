@@ -40,7 +40,7 @@ const ErrorModal = ({
     const displayMessage = dbMessage || message
     return (
         <Dialog
-            maxWidth='xs'
+            maxWidth='sm'
             fullWidth={true}
             open={open}
             disableEscapeKeyDown
@@ -87,7 +87,7 @@ const ErrorModal = ({
 
             <DialogActions
                 sx={{
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start',
                     borderTop: 'none',
                     mb: 4,
                     gap: 2

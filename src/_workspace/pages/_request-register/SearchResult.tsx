@@ -13,6 +13,20 @@ import {
 import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
+import type { ReactElement, Ref } from 'react'
+import { forwardRef } from 'react'
+import { Slide } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
+
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 
@@ -64,12 +78,26 @@ const FileViewerDialog = ({ open, files, onClose }: {
     }
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
+        <Dialog
+            maxWidth='sm'
+            fullWidth={true}
+            onClose={(event, reason) => {
+                if (reason !== 'backdropClick') {
+                    onClose()
+                }
+            }}
+            TransitionComponent={Transition}
+            open={open}
+            sx={{
+                '& .MuiDialog-paper': { overflow: 'visible' },
+                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+            }}
+        >
             <DialogTitle>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <i className='tabler-paperclip' style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }} />
-                    <Typography variant='h6'>Attached Files ({files.length})</Typography>
-                </Box>
+                <Typography variant='h5' component='span'>Attached Files ({files.length})</Typography>
+                <DialogCloseButton onClick={onClose} disableRipple>
+                    <i className='tabler-x' />
+                </DialogCloseButton>
             </DialogTitle>
             <DialogContent dividers>
                 {files.length === 0 ? (
@@ -106,7 +134,7 @@ const FileViewerDialog = ({ open, files, onClose }: {
                     </List>
                 )}
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ justifyContent: 'flex-start' }}>
                 <Button onClick={onClose} variant='tonal' color='secondary'>Close</Button>
             </DialogActions>
         </Dialog>
@@ -156,15 +184,26 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
     }
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
+        <Dialog
+            maxWidth='sm'
+            fullWidth={true}
+            onClose={(event, reason) => {
+                if (reason !== 'backdropClick') {
+                    onClose()
+                }
+            }}
+            TransitionComponent={Transition}
+            open={open}
+            sx={{
+                '& .MuiDialog-paper': { overflow: 'visible' },
+                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+            }}
+        >
             <DialogTitle>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <i
-                        className={mode === 'approve' ? 'tabler-circle-check' : 'tabler-circle-x'}
-                        style={{ fontSize: 22, color: mode === 'approve' ? '#28C76F' : '#EA5455' }}
-                    />
-                    <Typography variant='h6'>{mode === 'approve' ? 'Approve Request' : 'Reject Request'}</Typography>
-                </Box>
+                <Typography variant='h5' component='span'>{mode === 'approve' ? 'Approve Request' : 'Reject Request'}</Typography>
+                <DialogCloseButton onClick={onClose} disableRipple>
+                    <i className='tabler-x' />
+                </DialogCloseButton>
             </DialogTitle>
             <DialogContent dividers>
                 {error && <Alert severity='error' sx={{ mb: 2 }}>{error}</Alert>}
@@ -176,8 +215,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                     onChange={e => setRemark(e.target.value)}
                 />
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} variant='tonal' color='secondary' disabled={loading}>Cancel</Button>
+            <DialogActions sx={{ justifyContent: 'flex-start' }}>
                 <Button
                     onClick={handleSubmit}
                     variant='contained'
@@ -187,6 +225,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 >
                     {mode === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
                 </Button>
+                <Button onClick={onClose} variant='tonal' color='secondary' disabled={loading}>Cancel</Button>
             </DialogActions>
         </Dialog>
     )
@@ -971,20 +1010,26 @@ export default function SearchResult() {
 
             {/* View Detail Dialog */}
             <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(event, reason) => {
+                    if (reason !== 'backdropClick') {
+                        setDrawerOpen(false)
+                    }
+                }}
+                TransitionComponent={Transition}
                 open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                maxWidth='lg'
-                fullWidth
                 scroll='paper'
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
             >
-                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <i className='tabler-file-description' style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
-                        <Typography variant='h5'>Request Details</Typography>
-                    </Box>
-                    <IconButton onClick={() => setDrawerOpen(false)} size='small'>
-                        <i className='tabler-x' style={{ fontSize: 20 }} />
-                    </IconButton>
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>Request Details</Typography>
+                    <DialogCloseButton onClick={() => setDrawerOpen(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
                     {selectedData && <DetailRenderer data={selectedData} context={gridContext} />}

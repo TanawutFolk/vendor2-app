@@ -18,8 +18,20 @@ import {
     Chip,
     IconButton,
     ToggleButton,
-    ToggleButtonGroup
+    ToggleButtonGroup,
+    Slide
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+import type { ReactElement, Ref } from 'react'
+import { forwardRef } from 'react'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
+
 import EditIcon from '@mui/icons-material/Edit'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import MailOutlineIcon from '@mui/icons-material/MailOutline'
@@ -39,6 +51,7 @@ import ErrorModal from '../components/ErrorModal'
 import { EmailActionButtons } from '../components/EmailActionButtons'
 import AddProductGroupModal from '../../_add-vendor/modal/AddProductGroupModal'
 import { FftStatusChip, StatusCheckChip } from '../components/fftStatus'
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
 // Services & Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -331,73 +344,94 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
 
     return (
         <>
-            <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth PaperProps={{ sx: { bgcolor: 'background.default' } }}>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 0 }}>
-                    <Box sx={{
-                        width: '100%', px: 3, py: 2,
-                        bgcolor: 'background.paper',
-                        borderBottom: '1px solid', borderColor: 'divider',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap'
-                    }}>
-                        <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.25 }}>
-                                <Typography variant="h6" fontWeight={800}>
-                                    {originalData?.company_name || 'Vendor Details'}
-                                </Typography>
-                                {vendorFftCode && (
-                                    <Chip label={`Code: ${vendorFftCode}`} size="small" color="primary" variant="tonal" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(event, reason) => {
+                    if (reason !== 'backdropClick') {
+                        handleClose()
+                    }
+                }}
+                TransitionComponent={Transition}
+                open={open}
+                PaperProps={{ sx: { bgcolor: 'background.default' } }}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>
+                        {originalData?.company_name || 'Vendor Details'}
+                    </Typography>
+                    <DialogCloseButton onClick={onClose} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
+                <Box sx={{
+                    width: '100%', px: 3, py: 2,
+                    bgcolor: 'background.paper',
+                    borderBottom: '1px solid', borderColor: 'divider',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap'
+                }}>
+                    <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.25 }}>
+                            <Typography variant="h6" fontWeight={800}>
+                                {originalData?.company_name || 'Vendor Details'}
+                            </Typography>
+                            {vendorFftCode && (
+                                <Chip label={`Code: ${vendorFftCode}`} size="small" color="primary" variant="tonal" sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} />
+                            )}
+                            {vendorStatusCheck && (
+                                <StatusCheckChip value={vendorStatusCheck} />
+                            )}
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Controller
+                                name="INUSE"
+                                control={control}
+                                render={({ field }) => (
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={field.value === 1}
+                                                onChange={(e) => field.onChange(e.target.checked ? 1 : 0)}
+                                                color="success"
+                                                disabled={editingMode === 'view'}
+                                                size="small"
+                                            />
+                                        }
+                                        label={<Typography variant='caption' fontWeight={600} color={field.value === 1 ? 'success.main' : 'text.disabled'}>{field.value === 1 ? 'Active' : 'Inactive'}</Typography>}
+                                        sx={{ m: 0 }}
+                                    />
                                 )}
-                                {vendorStatusCheck && (
-                                    <StatusCheckChip value={vendorStatusCheck} />
-                                )}
+                            />
+                            <Typography variant='caption' color='text.disabled'>·</Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                <i className='tabler-user' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                <Typography variant='caption' color='text.disabled'>Update By: {originalData?.UPDATE_BY || '-'}</Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Controller
-                                    name="INUSE"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={field.value === 1}
-                                                    onChange={(e) => field.onChange(e.target.checked ? 1 : 0)}
-                                                    color="success"
-                                                    disabled={editingMode === 'view'}
-                                                    size="small"
-                                                />
-                                            }
-                                            label={<Typography variant='caption' fontWeight={600} color={field.value === 1 ? 'success.main' : 'text.disabled'}>{field.value === 1 ? 'Active' : 'Inactive'}</Typography>}
-                                            sx={{ m: 0 }}
-                                        />
-                                    )}
-                                />
-                                <Typography variant='caption' color='text.disabled'>·</Typography>
-                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                    <i className='tabler-user' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
-                                    <Typography variant='caption' color='text.disabled'>Update By: {originalData?.UPDATE_BY || '-'}</Typography>
-                                </Box>
-                                <Typography variant='caption' color='text.disabled'>·</Typography>
-                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                    <i className='tabler-calendar' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
-                                    <Typography variant='caption' color='text.disabled'>
-                                        Update Date: {originalData?.UPDATE_DATE ? new Date(originalData.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
-                                    </Typography>
-                                </Box>
+                            <Typography variant='caption' color='text.disabled'>·</Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                <i className='tabler-calendar' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                <Typography variant='caption' color='text.disabled'>
+                                    Update Date: {originalData?.UPDATE_DATE ? new Date(originalData.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
+                                </Typography>
                             </Box>
                         </Box>
-
-                        <Button
-                            variant={editingMode === 'edit' ? 'contained' : 'tonal'}
-                            color={editingMode === 'edit' ? 'success' : 'primary'}
-                            onClick={toggleEditMode}
-                            disabled={loading}
-                            startIcon={editingMode === 'edit' ? <i className='tabler-check' /> : <i className='tabler-edit' />}
-                            sx={{ fontWeight: 700 }}
-                        >
-                            {editingMode === 'edit' ? 'Editing Mode' : 'Edit Mode'}
-                        </Button>
                     </Box>
-                </DialogTitle>
+
+                    <Button
+                        variant={editingMode === 'edit' ? 'contained' : 'tonal'}
+                        color={editingMode === 'edit' ? 'success' : 'primary'}
+                        onClick={toggleEditMode}
+                        disabled={loading}
+                        startIcon={editingMode === 'edit' ? <i className='tabler-check' /> : <i className='tabler-edit' />}
+                        sx={{ fontWeight: 700 }}
+                    >
+                        {editingMode === 'edit' ? 'Editing Mode' : 'Edit Mode'}
+                    </Button>
+                </Box>
                 <DialogContent dividers sx={{ p: 3, maxHeight: '75vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {loading ? (
                         <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>

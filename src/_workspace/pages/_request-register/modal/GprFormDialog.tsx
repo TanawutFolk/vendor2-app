@@ -11,7 +11,7 @@
 //                Signature block (visual) · Path · For Selector
 //   · Actions: "Save" + "Save & Export PDF"
 
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment, forwardRef } from 'react'
 import CustomTextField from '@components/mui/TextField'
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
@@ -19,8 +19,18 @@ import {
     FormControlLabel, FormLabel, FormControl, Select, MenuItem,
     Grid, CircularProgress, Alert, Chip, Paper, Table, TableHead,
     TableRow, TableCell, TableBody, TableContainer, InputLabel,
-    Tooltip, IconButton,
+    Tooltip, IconButton, Slide
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+import type { ReactElement, Ref } from 'react'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import ReactApexChart from 'react-apexcharts'
 import { pdf } from '@react-pdf/renderer'
 import { GprPdfDocument } from './GprPdfDocument'
@@ -389,10 +399,15 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
     // ── Render ───────────────────────────────────────────────────────────────
     return (
         <Dialog
+            maxWidth='sm'
+            fullWidth={true}
+            onClose={(event, reason) => {
+                if (reason !== 'backdropClick') {
+                    if (!isBusy) onClose()
+                }
+            }}
+            TransitionComponent={Transition}
             open={open}
-            onClose={isBusy ? undefined : onClose}
-            maxWidth='lg'
-            fullWidth
             sx={{
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
@@ -409,16 +424,11 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
             />
 
             {/* ── Dialog Title ─────────────────────────────────────────────── */}
-            <DialogTitle sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <i className='tabler-clipboard-text' style={{ fontSize: 22, color: 'var(--mui-palette-primary-main)' }} />
-                    <Box>
-                        <Typography variant='h6' fontWeight={800}>Supplier / Outsourcing Selection Sheet</Typography>
-                        <Typography variant='caption' color='text.secondary'>
-                            {rowData?.company_name}&nbsp;·&nbsp;{rowData?.request_number || `#${rowData?.request_id}`}
-                        </Typography>
-                    </Box>
-                </Box>
+            <DialogTitle>
+                <Typography variant='h5' component='span'>Supplier / Outsourcing Selection Sheet</Typography>
+                <DialogCloseButton onClick={() => { if (!isBusy) onClose() }} disableRipple>
+                    <i className='tabler-x' />
+                </DialogCloseButton>
             </DialogTitle>
 
             {/* ── Dialog Content ───────────────────────────────────────────── */}
@@ -952,10 +962,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
             </DialogContent>
 
             {/* ── Actions ─────────────────────────────────────────────────── */}
-            <DialogActions sx={{ px: 3, py: 1.5, gap: 1 }}>
-                <Button variant='tonal' color='secondary' onClick={onClose} disabled={isBusy}>
-                    Cancel
-                </Button>
+            <DialogActions sx={{ justifyContent: 'flex-start', px: 3, py: 1.5, gap: 1 }}>
                 <Button
                     variant='tonal' color='primary'
                     onClick={handleSave}
@@ -971,6 +978,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                     startIcon={generatingPdf ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-file-type-pdf' style={{ fontSize: 16 }} />}
                 >
                     {generatingPdf ? 'Generating…' : 'Save & Export PDF'}
+                </Button>
+                <Button variant='tonal' color='secondary' onClick={onClose} disabled={isBusy}>
+                    Cancel
                 </Button>
             </DialogActions>
 

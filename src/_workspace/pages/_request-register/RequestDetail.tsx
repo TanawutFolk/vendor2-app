@@ -4,8 +4,21 @@ import { useState } from 'react'
 // MUI Imports
 import {
     Box, Typography, Chip, Divider, Button, TextField,
-    Dialog, DialogTitle, DialogContent, DialogActions
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    Slide
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+import type { ReactElement, Ref } from 'react'
+import { forwardRef } from 'react'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
+
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
 // Types
 import type { RegistrationRequest } from './types'
@@ -270,26 +283,64 @@ const RequestDetail = ({ request }: Props) => {
             </Box>
 
             {/* ── Approve Dialog ── */}
-            <Dialog open={approveDialog} onClose={() => setApproveDialog(false)} maxWidth='xs' fullWidth>
-                <DialogTitle sx={{ fontWeight: 700 }}>Confirm Approval</DialogTitle>
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(event, reason) => {
+                    if (reason !== 'backdropClick') {
+                        setApproveDialog(false)
+                    }
+                }}
+                TransitionComponent={Transition}
+                open={approveDialog}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>Confirm Approval</Typography>
+                    <DialogCloseButton onClick={() => setApproveDialog(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
                 <DialogContent>
                     <Typography variant='body2' color='text.secondary'>
                         Approve the registration request for <strong>{request.company_name}</strong>?
                         The request will proceed to the next step.
                     </Typography>
                 </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setApproveDialog(false)} variant='tonal' color='secondary'>Cancel</Button>
+                <DialogActions sx={{ justifyContent: 'flex-start', px: 3, pb: 2 }}>
                     <Button variant='contained' color='success' onClick={() => setApproveDialog(false)}
                         startIcon={<i className='tabler-check' />}>
                         Confirm Approve
                     </Button>
+                    <Button onClick={() => setApproveDialog(false)} variant='tonal' color='secondary'>Cancel</Button>
                 </DialogActions>
             </Dialog>
 
             {/* ── Reject Dialog ── */}
-            <Dialog open={rejectDialog} onClose={() => setRejectDialog(false)} maxWidth='xs' fullWidth>
-                <DialogTitle sx={{ fontWeight: 700, color: 'error.main' }}>Reject Request</DialogTitle>
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(event, reason) => {
+                    if (reason !== 'backdropClick') {
+                        setRejectDialog(false)
+                    }
+                }}
+                TransitionComponent={Transition}
+                open={rejectDialog}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>Reject Request</Typography>
+                    <DialogCloseButton onClick={() => setRejectDialog(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
                 <DialogContent>
                     <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
                         Reject the request for <strong>{request.company_name}</strong>. Please provide a reason.
@@ -303,14 +354,14 @@ const RequestDetail = ({ request }: Props) => {
                         size='small'
                     />
                 </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setRejectDialog(false)} variant='tonal' color='secondary'>Cancel</Button>
+                <DialogActions sx={{ justifyContent: 'flex-start', px: 3, pb: 2 }}>
                     <Button variant='contained' color='error'
                         disabled={rejectRemark.trim() === ''}
                         onClick={() => setRejectDialog(false)}
                         startIcon={<i className='tabler-x' />}>
                         Confirm Reject
                     </Button>
+                    <Button onClick={() => setRejectDialog(false)} variant='tonal' color='secondary'>Cancel</Button>
                 </DialogActions>
             </Dialog>
         </Box>

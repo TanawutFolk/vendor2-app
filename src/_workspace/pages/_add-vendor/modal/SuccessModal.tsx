@@ -338,7 +338,7 @@ const SuccessModal = ({
 
                 <DialogActions
                     sx={{
-                        justifyContent: 'center',
+                        justifyContent: 'flex-start',
                         borderTop: 'none',
                         mb: 3
                     }}

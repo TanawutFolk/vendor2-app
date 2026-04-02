@@ -1,8 +1,18 @@
-import { useEffect } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Card } from '@mui/material'
+import { useEffect, forwardRef } from 'react'
+import type { ReactElement, Ref } from 'react'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Card, Slide, Typography } from '@mui/material'
+import type { SlideProps } from '@mui/material'
 import { useForm, Controller } from 'react-hook-form'
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactElement<any, any> },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
 import { useSaveAssignee } from '@_workspace/react-query/useAssigneesMutation'
@@ -80,22 +90,32 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
 
     return (
         <>
-  
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth='md'
-            fullWidth
-            PaperProps={{ component: 'form', onSubmit: handleSubmit(onSubmit) } as any}
-            sx={{
-               
-                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
-            }}
-        >
-            <DialogTitle>{initialData ? 'Edit Assignee' : 'Add New Assignee'}</DialogTitle>
-            <DialogContent >
-            
-  <Grid className='z-100000000' container spacing={4}>
+
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(event, reason) => {
+                    if (reason !== 'backdropClick') {
+                        onClose()
+                    }
+                }}
+                TransitionComponent={Transition}
+                open={open}
+                PaperProps={{ component: 'form', onSubmit: handleSubmit(onSubmit) } as any}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>{initialData ? 'Edit Assignee' : 'Add New Assignee'}</Typography>
+                    <DialogCloseButton onClick={onClose} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
+                <DialogContent >
+
+                    <Grid className='z-100000000' container spacing={4}>
                         <Grid item xs={12} sm={6}>
                             <Controller
                                 name='empcode'
@@ -148,7 +168,7 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                                 render={({ field }) => (
                                     <div className='flex flex-col'>
                                         <SelectCustom
-
+                                            classNamePrefix='select'
                                             label='Group Name'
                                             options={groupOptions}
                                             value={groupOptions.find(o => o.value === field.value) || null}
@@ -165,6 +185,7 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                                 control={control}
                                 render={({ field }) => (
                                     <AsyncSelectCustom
+                                        classNamePrefix='select'
                                         label='Status'
                                         options={inUseOptions}
                                         value={inUseOptions.find(o => o.value === field.value) || null}
@@ -174,20 +195,20 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                             />
                         </Grid>
                     </Grid>
-            
-                  
+
+
                 </DialogContent>
-                
-                <DialogActions>
-                    <Button onClick={onClose} variant='tonal' color='secondary' disabled={isPending}>
-                        Cancel
-                    </Button>
+
+                <DialogActions sx={{ justifyContent: 'flex-start' }}>
                     <Button type='submit' variant='contained' disabled={isPending}>
                         {isPending ? 'Saving...' : 'Save'}
                     </Button>
+                    <Button onClick={onClose} variant='tonal' color='secondary' disabled={isPending}>
+                        Cancel
+                    </Button>
                 </DialogActions>
-        </Dialog>
-        
+            </Dialog>
+
         </>
     )
 }

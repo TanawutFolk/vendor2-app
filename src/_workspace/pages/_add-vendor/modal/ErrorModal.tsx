@@ -80,23 +80,23 @@ const ErrorModal = ({
                     </Box>
                 </DialogContent>
 
-                <DialogActions
-                    sx={{
-                        justifyContent: 'center',
-                        borderTop: 'none',
-                        mb: 4,
-                        gap: 2
-                    }}
-                >
-                    {onRetryClick && (
-                        <Button variant='contained' color='primary' onClick={onRetryClick} size='large'>
-                            Try Again
-                        </Button>
-                    )}
-                    <Button variant='tonal' color='secondary' onClick={onCloseClick} size='large'>
-                        Close
+            <DialogActions
+                sx={{
+                    justifyContent: 'flex-start',
+                    borderTop: 'none',
+                    mb: 4,
+                    gap: 2
+                }}
+            >
+                {onRetryClick && (
+                    <Button variant='contained' color='primary' onClick={onRetryClick} size='large'>
+                        Try Again
                     </Button>
-                </DialogActions>
+                )}
+                <Button variant='tonal' color='secondary' onClick={onCloseClick} size='large'>
+                    Close
+                </Button>
+            </DialogActions>
             </Dialog>
         </>
     )
