@@ -31,7 +31,7 @@ interface RegisterConfirmModalProps {
     open: boolean
     vendorData?: any
     onClose: () => void
-    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; files: File[] }) => void
+    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; ccEmails: string[]; files: File[] }) => void
 }
 
 // Styled Dropzone Component
@@ -104,6 +104,8 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
     const [supportType, setSupportType] = useState('')
     const [purchaseFreq, setPurchaseFreq] = useState('')
     const [vendorContactId, setVendorContactId] = useState('')
+    const [ccEmails, setCcEmails] = useState<string[]>([])
+    const [ccInput, setCcInput] = useState('')
     const [files, setFiles] = useState<File[]>([])
 
     // Reset state when modal opens/closes
@@ -114,10 +116,24 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                 setSupportType('')
                 setPurchaseFreq('')
                 setVendorContactId('')
+                setCcEmails([])
+                setCcInput('')
                 setFiles([])
             }, 300)
         }
     }, [open])
+
+    const handleAddCc = () => {
+        const email = ccInput.trim().toLowerCase()
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+        if (ccEmails.includes(email)) { setCcInput(''); return }
+        setCcEmails(prev => [...prev, email])
+        setCcInput('')
+    }
+
+    const handleRemoveCc = (email: string) => {
+        setCcEmails(prev => prev.filter(e => e !== email))
+    }
 
     const { getRootProps, getInputProps } = useDropzone({
         onDrop: acceptedFiles => {
@@ -215,7 +231,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
 
     const handleConfirmed = () => {
         setConfirmOpen(false)
-        onConfirm({ supportType, purchaseFreq, vendorContactId, files })
+        onConfirm({ supportType, purchaseFreq, vendorContactId, ccEmails, files })
     }
 
     return (
@@ -383,7 +399,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                                     <Box>
                                                         <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
                                                         <Typography variant="caption" color="text.secondary">
-                                                            {contact.email ? `✉️ ${contact.email}` : 'No email'} {contact.tel_phone ? `| 📞 ${contact.tel_phone}` : ''}
+                                                            {contact.email ? contact.email : 'No email'} {contact.tel_phone ? `| Tel: ${contact.tel_phone}` : ''}
                                                         </Typography>
                                                     </Box>
                                                 }
@@ -409,6 +425,38 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                 value={purchaseFreq}
                                 onChange={(e: any) => setPurchaseFreq(e.target.value)}
                             />
+
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>CC Recipients (Final Email)</Typography>
+                                <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+                                    <CustomTextField
+                                        size='small' fullWidth
+                                        placeholder='Enter email address...'
+                                        value={ccInput}
+                                        onChange={e => setCcInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                handleAddCc()
+                                            }
+                                        }}
+                                    />
+                                    <Button variant='contained' onClick={handleAddCc} disabled={!ccInput.trim()}>
+                                        Add
+                                    </Button>
+                                </Box>
+                                {ccEmails.length > 0 && (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {ccEmails.map(e => (
+                                            <Chip
+                                                key={e} label={e} size='small' variant='outlined'
+                                                onDelete={() => handleRemoveCc(e)}
+                                                icon={<i className='tabler-mail' style={{ fontSize: 13 }} />}
+                                            />
+                                        ))}
+                                    </Box>
+                                )}
+                            </Box>
 
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Quotation, Concerned documents</Typography>

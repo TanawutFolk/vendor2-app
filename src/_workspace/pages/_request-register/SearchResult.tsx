@@ -8,6 +8,10 @@ import {
     Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
     TextField, Alert
 } from '@mui/material'
+import LoadingButton from '@mui/lab/LoadingButton'
+
+import undraw_clean_up_re_504g from '@assets/images/common/undraw_clean_up_re_504g.svg'
+import undraw_notify_re_65on from '@assets/images/common/undraw_notify_re_65on.svg'
 
 // AG Grid Imports
 import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
@@ -45,6 +49,9 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 
 // GPR Form Dialog
 import GprFormDialog from './modal/GprFormDialog'
+
+// Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
+import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -177,55 +184,78 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
             onSuccess()
             onClose()
         } catch (e: any) {
-            setError(e?.message || 'Failed to update status')
+            setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
         } finally {
             setLoading(false)
         }
     }
 
+    const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
+
     return (
         <Dialog
-            maxWidth='sm'
+            maxWidth='xs'
             fullWidth={true}
-            onClose={(event, reason) => {
+            open={open}
+            disableEscapeKeyDown
+            aria-labelledby='alert-dialog-title'
+            aria-describedby='alert-dialog-description'
+            TransitionComponent={Transition}
+            onClose={(_event, reason) => {
                 if (reason !== 'backdropClick') {
                     onClose()
                 }
             }}
-            TransitionComponent={Transition}
-            open={open}
             sx={{
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
             }}
         >
-            <DialogTitle>
-                <Typography variant='h5' component='span'>{mode === 'approve' ? 'Approve Request' : 'Reject Request'}</Typography>
-                <DialogCloseButton onClick={onClose} disableRipple>
-                    <i className='tabler-x' />
-                </DialogCloseButton>
-            </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent>
+                <Box sx={{ mb: 6, display: 'flex', justifyContent: 'center' }}>
+                    <img src={imageConfirm} height={120} width={150} alt='' />
+                </Box>
+                <Box sx={{ mb: 4, textAlign: 'center' }}>
+                    <Typography variant='h5'>Are You Sure ?</Typography>
+                    <Typography variant='h5' sx={{ color: 'text.secondary' }}>
+                        ยืนยันการ{mode === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}ข้อมูลหรือไม่ ?
+                    </Typography>
+                </Box>
+                
                 {error && <Alert severity='error' sx={{ mb: 2 }}>{error}</Alert>}
-                <TextField
-                    fullWidth multiline rows={3}
-                    label='Remark / Comment (optional)'
-                    placeholder='Enter your remark here...'
-                    value={remark}
-                    onChange={e => setRemark(e.target.value)}
-                />
+                
+                {mode === 'reject' && (
+                    <TextField
+                        fullWidth multiline rows={3}
+                        label='Remark / Comment (Required for reject)'
+                        placeholder='Enter your remark here...'
+                        value={remark}
+                        onChange={e => setRemark(e.target.value)}
+                    />
+                )}
             </DialogContent>
-            <DialogActions sx={{ justifyContent: 'flex-start' }}>
-                <Button
+
+            <DialogActions
+                sx={{
+                    justifyContent: 'center',
+                    borderTop: 'none',
+                    mb: 4
+                }}
+            >
+                <LoadingButton
                     onClick={handleSubmit}
+                    loading={loading}
+                    loadingIndicator={mode === 'approve' ? 'Approving...' : 'Rejecting...'}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
-                    disabled={loading}
-                    startIcon={loading ? <CircularProgress size={16} /> : undefined}
+                    sx={{ mr: 4 }}
+                    disabled={mode === 'reject' && !remark.trim()}
                 >
-                    {mode === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
+                    <span>Yes, {mode === 'approve' ? 'Approve' : 'Reject'} !</span>
+                </LoadingButton>
+                <Button variant='tonal' color='secondary' onClick={onClose} disabled={loading}>
+                    Cancel
                 </Button>
-                <Button onClick={onClose} variant='tonal' color='secondary' disabled={loading}>Cancel</Button>
             </DialogActions>
         </Dialog>
     )
@@ -258,24 +288,41 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
+    // Edit Request dialog
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editForm, setEditForm] = useState({ supportProduct_Process: '', purchase_frequency: '', requester_remark: '' })
+    const [editSaving, setEditSaving] = useState(false)
+    const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
+    // Edit Vendor modal (reuse EditVendorModal from find-vendor)
+    const [editVendorOpen, setEditVendorOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const user = getUserData()
     const files = buildFileUrls(data?.documents)
     if (!data) return null
 
-    const handleSendEmail = async () => {
+    const handleSendEmailAndApprove = async () => {
         setSendingEmail(true)
         setEmailFeedback(null)
         try {
             const res = await RegisterRequestServices.sendAgreementEmail(data)
             if (res.data.Status) {
-                setEmailFeedback({ type: 'success', msg: res.data.Message })
+                // Email sent successfully, now approve request automatically
+                await RegisterRequestServices.updateStatus({
+                    request_id: data.request_id,
+                    request_status: computedNextStatus,
+                    approve_by: user?.EMPLOYEE_CODE || '',
+                    approver_remark: 'Agreement Email Sent',
+                    UPDATE_BY: user?.EMPLOYEE_CODE || '',
+                    isFinalStep: isFinalStep,
+                })
+                setEmailFeedback({ type: 'success', msg: 'Email sent & status updated successfully.' })
                 onEmailSent()
+                if (onCompleted) onCompleted()
             } else {
                 setEmailFeedback({ type: 'error', msg: res.data.Message })
             }
         } catch (err: any) {
-            setEmailFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to send email' })
+            setEmailFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to send email or update status' })
         } finally {
             setSendingEmail(false)
         }
@@ -358,6 +405,42 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
     const isActionable = !!currentStep
     const isAccountStep = isActionable && (currentStep?.DESCRIPTION || '').toLowerCase().includes('account')
+    const isPicStep = isActionable && currentStep?.step_order === 2 && user?.EMPLOYEE_CODE === data.assign_to
+
+    const handleOpenEditDialog = () => {
+        setEditForm({
+            supportProduct_Process: data.supportProduct_Process || '',
+            purchase_frequency: data.purchase_frequency || '',
+            requester_remark: data.requester_remark || ''
+        })
+        setEditFeedback(null)
+        setEditDialogOpen(true)
+    }
+
+    const handleSaveEdit = async () => {
+        setEditSaving(true)
+        setEditFeedback(null)
+        try {
+            const res = await RegisterRequestServices.updateRequest({
+                request_id: data.request_id,
+                supportProduct_Process: editForm.supportProduct_Process,
+                purchase_frequency: editForm.purchase_frequency,
+                requester_remark: editForm.requester_remark,
+                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+            })
+            if (res.data.Status) {
+                setEditFeedback({ type: 'success', msg: 'บันทึกสำเร็จ' })
+                onEmailSent() // refresh grid
+                setTimeout(() => setEditDialogOpen(false), 800)
+            } else {
+                setEditFeedback({ type: 'error', msg: res.data.Message })
+            }
+        } catch (err: any) {
+            setEditFeedback({ type: 'error', msg: err?.response?.data?.Message || err?.message || 'Failed to update request' })
+        } finally {
+            setEditSaving(false)
+        }
+    }
 
     // Compute next status value for approve action
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
@@ -375,6 +458,23 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const products: any[] = (() => {
         try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
     })().filter(Boolean)
+
+    let targetContactName = '-'
+    let displayTargetEmail = data.emailmain || 'No Email'
+
+    if (data.vendor_contact_id) {
+        const c = contacts.find((x: any) => x && x.vendor_contact_id === Number(data.vendor_contact_id))
+        if (c && c.email) {
+            targetContactName = c.contact_name || '-'
+            displayTargetEmail = c.email
+        }
+    } else if (contacts.length > 0) {
+        const c = contacts[0]
+        if (c && c.email) {
+            targetContactName = c.contact_name || '-'
+            displayTargetEmail = c.email
+        }
+    }
 
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
@@ -415,7 +515,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
 
             {/* Request Info */}
             <Box sx={{ mb: 3 }}>
-                <SectionHeader icon='tabler-clipboard-list' title='Request Info' />
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className='tabler-clipboard-list' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
+                        <Divider sx={{ flex: 1, minWidth: 40 }} />
+                    </Box>
+                    {isPicStep && (
+                        <Button size='small' variant='tonal' color='warning'
+                            startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
+                            onClick={handleOpenEditDialog}
+                        >Edit Request</Button>
+                    )}
+                </Box>
                 {infoRow('Support Product / Process', data.supportProduct_Process)}
                 {infoRow('Purchase Frequency', data.purchase_frequency)}
                 {infoRow('Assigned To (PIC)', data.assign_to)}
@@ -425,7 +537,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
 
             {/* Vendor Info */}
             <Box sx={{ mb: 3 }}>
-                <SectionHeader icon='tabler-building-store' title='Vendor Info' />
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className='tabler-building-store' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Vendor Info</Typography>
+                        <Divider sx={{ flex: 1, minWidth: 40 }} />
+                    </Box>
+                    {isPicStep && (
+                        <Button size='small' variant='tonal' color='info'
+                            startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
+                            onClick={() => setEditVendorOpen(true)}
+                        >Edit Vendor</Button>
+                    )}
+                </Box>
                 {infoRow('Vendor Type', data.vendor_type_name)}
                 {infoRow('Region', data.vendor_region)}
                 {infoRow('FFT Vendor Code', data.fft_vendor_code)}
@@ -495,21 +619,35 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader icon='tabler-list-check' title={`Approval Steps (${steps.length})`} />
                         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
                                 {['#', 'Description', 'Approver', 'Status', 'Updated'].map(h => (
                                     <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
                                 ))}
                             </Box>
                             {steps.sort((a: any, b: any) => a.step_order - b.step_order).map((s: any, i: number) => {
                                 const stepLog = logs.find((l: any) => l.step_id === s.step_id)
+                                const getStepStatusCfg = (status: string) => {
+                                    switch(status) {
+                                        case 'approved': case 'completed': return { label: 'Completed', color: 'success' as const, icon: 'tabler-circle-check-filled' }
+                                        case 'in_progress': case 'current': return { label: 'In Progress', color: 'warning' as const, icon: 'tabler-clock-filled' }
+                                        case 'rejected': return { label: 'Rejected', color: 'error' as const, icon: 'tabler-circle-x-filled' }
+                                        case 'skipped': return { label: 'Skipped', color: 'info' as const, icon: 'tabler-circle-minus' }
+                                        case 'pending': default: return { label: 'Waiting', color: 'warning' as const, icon: 'tabler-clock' }
+                                    }
+                                }
+                                const stCfg = getStepStatusCfg(s.step_status)
                                 return (
-                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
                                         <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
                                         <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
-                                        <Chip label={s.step_status === 'pending' ? 'waiting' : (s.step_status || 'waiting')} size='small' variant='tonal'
-                                            color={s.step_status === 'approved' ? 'success' : s.step_status === 'rejected' ? 'error' : s.step_status === 'pending' ? 'warning' : 'default'}
-                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22 }}
+                                        <Chip 
+                                            icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
+                                            label={stCfg.label} 
+                                            size='small' 
+                                            variant='tonal'
+                                            color={stCfg.color}
+                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22, width: 'fit-content' }}
                                         />
                                         <Typography variant='body2' color='text.secondary'>
                                             {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
@@ -641,7 +779,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 )}
             </Box>
 
-            {/* Email Agreement Section (actionable status only, not for Account step)
+            {/* Email Agreement Section */}
             {isActionable && !isAccountStep && (
                 <Box sx={{
                     mb: 3, p: 2, borderRadius: 1,
@@ -654,7 +792,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Typography variant='subtitle2' fontWeight={700}>Vendor Agreement Email</Typography>
                     </Box>
                     <Typography variant='caption' color='text.secondary'>
-                        ส่งอีเมลแจ้งรายละเอียดเงื่อนไขและขอเอกสารไปยัง Vendor ({data.emailmain || 'No Email'})
+                        ส่งอีเมลแจ้งรายละเอียดเงื่อนไขและขอเอกสารไปยัง Vendor Contact: <strong>{targetContactName} ({displayTargetEmail})</strong>
+                        <br />การส่งอีเมลนี้จะถือเป็นการอนุมัติคำขอในขั้นตอนนี้โดยอัตโนมัติ
                     </Typography>
 
                     {emailFeedback && (
@@ -666,13 +805,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     <Button
                         variant='contained' color='primary' fullWidth size='small'
                         startIcon={sendingEmail ? <CircularProgress size={16} color='inherit' /> : <i className='tabler-send' style={{ fontSize: 16 }} />}
-                        onClick={handleSendEmail}
-                        disabled={sendingEmail || !data.emailmain}
+                        onClick={handleSendEmailAndApprove}
+                        disabled={sendingEmail || !displayTargetEmail || displayTargetEmail === 'No Email'}
                     >
-                        {sendingEmail ? 'Sending...' : 'Send Agreement Email'}
+                        {sendingEmail ? 'Sending & Approving...' : 'Send Agreement Email & Approve'}
                     </Button>
                 </Box>
-            )} */}
+            )}
 
             {/* Account Registration Step UI (only when Account step is in_progress) */}
             {isAccountStep && (
@@ -766,6 +905,92 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
             />
+
+            {/* Edit Vendor Modal (reuse from find-vendor — full Vendor Info + Contacts + Products editing) */}
+            <EditVendorModal
+                open={editVendorOpen}
+                onClose={() => setEditVendorOpen(false)}
+                vendorId={data.vendor_id || null}
+                rowData={{
+                    vendor_id: data.vendor_id,
+                    fft_vendor_code: data.fft_vendor_code,
+                    fft_status: data.fft_status,
+                    status_check: data.status_check,
+                    company_name: data.company_name,
+                    vendor_type_id: data.vendor_type_id,
+                    vendor_type_name: data.vendor_type_name,
+                    province: data.province,
+                    postal_code: data.postal_code,
+                    website: data.website,
+                    address: data.address,
+                    tel_center: data.tel_center,
+                    emailmain: data.emailmain,
+                    vendor_region: data.vendor_region,
+                    contacts: contacts,
+                    products: products,
+                    CREATE_BY: data.CREATE_BY,
+                    UPDATE_BY: data.UPDATE_BY,
+                    CREATE_DATE: data.CREATE_DATE,
+                    UPDATE_DATE: data.UPDATE_DATE,
+                    INUSE: data.INUSE
+                }}
+                onSuccess={() => { setEditVendorOpen(false); onEmailSent() }}
+            />
+
+            {/* Edit Request Dialog */}
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                onClose={(_event, reason) => {
+                    if (reason !== 'backdropClick') setEditDialogOpen(false)
+                }}
+                TransitionComponent={Transition}
+                open={editDialogOpen}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>Edit Request</Typography>
+                    <DialogCloseButton onClick={() => setEditDialogOpen(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {editFeedback && <Alert severity={editFeedback.type} sx={{ mb: 2 }}>{editFeedback.msg}</Alert>}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                        <TextField
+                            fullWidth
+                            label='Support Product / Process'
+                            value={editForm.supportProduct_Process}
+                            onChange={e => setEditForm(prev => ({ ...prev, supportProduct_Process: e.target.value }))}
+                        />
+                        <TextField
+                            fullWidth
+                            label='Purchase Frequency'
+                            value={editForm.purchase_frequency}
+                            onChange={e => setEditForm(prev => ({ ...prev, purchase_frequency: e.target.value }))}
+                        />
+                        <TextField
+                            fullWidth multiline rows={3}
+                            label='Requester Remark'
+                            value={editForm.requester_remark}
+                            onChange={e => setEditForm(prev => ({ ...prev, requester_remark: e.target.value }))}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'flex-start' }}>
+                    <Button
+                        onClick={handleSaveEdit}
+                        variant='contained'
+                        color='primary'
+                        disabled={editSaving}
+                        startIcon={editSaving ? <CircularProgress size={16} /> : <i className='tabler-device-floppy' style={{ fontSize: 16 }} />}
+                    >Save</Button>
+                    <Button onClick={() => setEditDialogOpen(false)} variant='tonal' color='secondary' disabled={editSaving}>Cancel</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     )
 }

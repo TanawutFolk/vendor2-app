@@ -39,6 +39,22 @@ export default class RegisterRequestServices {
         })
     }
 
+    // Update request details (PIC แก้ไขข้อมูลคำขอ)
+    static updateRequest(data: {
+        request_id: number
+        vendor_contact_id?: number | null
+        supportProduct_Process?: string
+        purchase_frequency?: string
+        requester_remark?: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/updateRequest`,
+            data,
+            method: 'POST'
+        })
+    }
+
     // Update request status (approve/reject)
     static updateStatus(data: {
         request_id: number

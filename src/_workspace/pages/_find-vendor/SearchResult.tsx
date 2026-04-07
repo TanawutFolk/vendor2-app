@@ -1,10 +1,10 @@
-﻿'use client'
+'use client'
 
 // React Imports
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress } from '@mui/material'
+import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
@@ -207,8 +207,9 @@ const SearchResult = () => {
             payload.append('vendor_contact_id', formData?.vendorContactId || '')
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
+            payload.append('cc_emails', JSON.stringify(formData?.ccEmails || []))
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
-            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'à¸–à¹‰à¸²à¹€à¸«à¹‡à¸™à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸™à¸µà¹‰à¹à¸ˆà¹‰à¸‡S524')
+            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'ถ้าเห็นข้อความนี้แจ้งS524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))
             }
@@ -247,17 +248,15 @@ const SearchResult = () => {
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
             cellRenderer: (params: any) => {
                 const val = params.value
-                if (!val) return <span style={{ color: '#9e9e9e' }}>â€”</span>
-                const isOversea = val === 'Oversea'
+                if (!val) return <span style={{ color: '#9e9e9e' }}>—</span>
                 return (
-                    <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600,
-                        background: isOversea ? 'rgb(var(--mui-palette-info-mainChannel) / 0.12)' : 'rgb(var(--mui-palette-success-mainChannel) / 0.12)',
-                        color: isOversea ? 'var(--mui-palette-info-main)' : 'var(--mui-palette-success-main)'
-                    }}>
-                        {isOversea ? 'âœˆï¸' : 'ðŸ '} {val}
-                    </span>
+                    <Chip
+                        size="small"
+                        label={val === 'Oversea' ? '✈️ Oversea' : '🏠 Local'}
+                        color={val === 'Oversea' ? 'info' : 'success'}
+                        variant="tonal"
+                        sx={{ fontWeight: 600, height: 22, fontSize: '0.7rem' }}
+                    />
                 )
             }
         },

@@ -371,7 +371,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
         },
     ]
     const chartOptions = {
-        chart:       { type: 'line' as const, height: 270, toolbar: { show: false }, background: 'transparent' },
+        chart:       { type: 'line' as const, height: 270, toolbar: { show: false }, background: 'transparent', parentHeightOffset: 0 },
         plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
         dataLabels:  { enabled: false },
         legend:      { position: 'top' as const },
@@ -391,7 +391,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                 { formatter: (v: number) => `${v.toFixed(2)}%` },
             ],
         },
-        grid: { borderColor: '#f0f0f0' },
+        grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } },
     }
 
     const isBusy = saving || generatingPdf
@@ -399,7 +399,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
     // ── Render ───────────────────────────────────────────────────────────────
     return (
         <Dialog
-            maxWidth='sm'
+            maxWidth='lg'
             fullWidth={true}
             onClose={(event, reason) => {
                 if (reason !== 'backdropClick') {
@@ -408,6 +408,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
             }}
             TransitionComponent={Transition}
             open={open}
+            PaperProps={{ sx: { bgcolor: 'background.default' } }}
             sx={{
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
@@ -423,16 +424,30 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                 onChange={handleFileChange}
             />
 
-            {/* ── Dialog Title ─────────────────────────────────────────────── */}
-            <DialogTitle>
-                <Typography variant='h5' component='span'>Supplier / Outsourcing Selection Sheet</Typography>
-                <DialogCloseButton onClick={() => { if (!isBusy) onClose() }} disableRipple>
-                    <i className='tabler-x' />
-                </DialogCloseButton>
+            {/* ── Dialog Title — Premium Header ────────────────────────── */}
+            <DialogTitle sx={{ p: 0, overflow: 'visible' }}>
+                <Box sx={{
+                    px: 3, py: 2.5,
+                    background: 'linear-gradient(135deg, var(--mui-palette-primary-main) 0%, #7367F0 100%)',
+                    color: '#fff',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                }}>
+                    <Box>
+                        <Typography variant='h5' fontWeight={800} sx={{ letterSpacing: 0.3 }}>
+                            Supplier / Outsourcing Selection Sheet
+                        </Typography>
+                        <Typography variant='caption' sx={{ opacity: 0.85, display: 'block', mt: 0.5 }}>
+                            GPR Form A · {form.company_name || rowData?.company_name || '—'}
+                        </Typography>
+                    </Box>
+                    <DialogCloseButton onClick={() => { if (!isBusy) onClose() }} disableRipple sx={{ color: '#fff' }}>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </Box>
             </DialogTitle>
 
             {/* ── Dialog Content ───────────────────────────────────────────── */}
-            <DialogContent dividers sx={{ px: 3, py: 2, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+            <DialogContent dividers sx={{ px: 4, py: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
                 {feedback && (
                     <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={() => setFeedback(null)}>
                         {feedback.msg}
@@ -441,34 +456,34 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
 
                 {/* ── 1. Company Info ─────────────────────────────────────── */}
                 <SectionTitle no={1} title='Company Name' color='primary.main' />
-                <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
+                    <Grid container spacing={2.5}>
+                        <Grid item xs={12} md={6}>
                             <CustomTextField
                                 fullWidth label='Company Name' placeholder='Enter company name...'
                                 value={form.company_name}
                                 onChange={e => setField('company_name', e.target.value)}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} md={6}>
+                            <CustomTextField
+                                fullWidth label='Email' placeholder='Enter email...'
+                                value={form.email}
+                                onChange={e => setField('email', e.target.value)}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
                             <CustomTextField
                                 fullWidth label='PIC' placeholder='Enter PIC name...'
                                 value={form.pic_name}
                                 onChange={e => setField('pic_name', e.target.value)}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} md={3}>
                             <CustomTextField
                                 fullWidth label='Tel' placeholder='Enter telephone...'
                                 value={form.tel}
                                 onChange={e => setField('tel', e.target.value)}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <CustomTextField
-                                fullWidth label='Email' placeholder='Enter email...'
-                                value={form.email}
-                                onChange={e => setField('email', e.target.value)}
                             />
                         </Grid>
                     </Grid>
@@ -508,8 +523,8 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
 
                 {/* ── 3. Company General Information ──────────────────────── */}
                 <SectionTitle no={3} title='Company general information' color='primary.main' />
-                <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
-                    <Grid container spacing={2}>
+                <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
+                    <Grid container spacing={2.5}>
 
                         {/* Address */}
                         <Grid item xs={12}>
@@ -538,7 +553,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Grid>
 
                         {/* Start Year */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <CustomTextField fullWidth label='Start Year' placeholder='e.g. 2005'
                                 value={form.start_year}
                                 onChange={e => setField('start_year', e.target.value)}
@@ -546,7 +561,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Grid>
 
                         {/* Authorized Capital */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <CustomTextField fullWidth label='Authorized Capital' placeholder='e.g. 10,000,000 THB'
                                 value={form.authorized_capital}
                                 onChange={e => setField('authorized_capital', e.target.value)}
@@ -554,7 +569,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Grid>
 
                         {/* Establish */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <CustomTextField fullWidth label='Establish (years)' placeholder='e.g. 15'
                                 value={form.establish}
                                 onChange={e => setField('establish', e.target.value)}
@@ -562,7 +577,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Grid>
 
                         {/* Number of Employees */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <CustomTextField fullWidth label='Number of Employees'
                                 placeholder='e.g. 150'
                                 value={form.number_of_employees}
@@ -571,7 +586,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Grid>
 
                         {/* Manufactured Country */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <CustomTextField fullWidth label='Manufactured Country'
                                 placeholder='e.g. Thailand'
                                 value={form.manufactured_country}
@@ -589,125 +604,95 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                             />
                         </Grid>
 
-                        {/* ── Financial Data 5 Years ──────────────────────── */}
+                        {/* ── Financial Data 5 Years — Chart LEFT, Table RIGHT ── */}
                         <Grid item xs={12}>
-                            <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ mb: 1, display: 'block' }}>
+                            <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ mb: 1.5, display: 'block' }}>
                                 Financial Data — Last 5 Years
                             </Typography>
-
-                            {/* Input table — rows: details, cols: year × (Amount, %Change) */}
-                            <TableContainer component={Paper} variant='outlined' sx={{ mb: 2, overflowX: 'auto' }}>
-                                <Table size='small' sx={{ minWidth: 700 }}>
-                                    <TableHead>
-                                        {/* Row 1: Details | Year headers (colSpan=2 each) */}
-                                        <TableRow sx={{ bgcolor: 'action.hover' }}>
-                                            <TableCell rowSpan={2} sx={{ fontWeight: 700, minWidth: 155, verticalAlign: 'middle', borderRight: '1px solid', borderColor: 'divider' }}>
-                                                Details
-                                            </TableCell>
-                                            {form.sales_profit.map((row, i) => (
-                                                <TableCell key={i} colSpan={2} align='center' sx={{ fontWeight: 700, borderLeft: '1px solid', borderColor: 'divider', p: '4px 6px' }}>
-                                                    <TextField
-                                                        size='small' variant='standard'
-                                                        inputProps={{ style: { textAlign: 'center', fontWeight: 700, fontSize: '0.8rem' } }}
-                                                        value={row.year}
-                                                        onChange={e => setSalesProfitField(i, 'year', e.target.value)}
-                                                        sx={{ width: 56 }}
-                                                    />
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                        {/* Row 2: Amount | %Change sub-headers */}
-                                        <TableRow sx={{ bgcolor: 'action.hover' }}>
-                                            {form.sales_profit.map((_, i) => (
-                                                <Fragment key={i}>
-                                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.68rem', borderLeft: '1px solid', borderColor: 'divider', color: 'text.secondary', minWidth: 95 }}>Amount</TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.68rem', color: 'text.secondary', minWidth: 72 }}>%Change</TableCell>
-                                                </Fragment>
-                                            ))}
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {/* Total Revenue row */}
-                                        <TableRow>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', borderRight: '1px solid', borderColor: 'divider' }}>
-                                                Total Revenue<br />
-                                                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem' }}>รายได้รวม</Typography>
-                                            </TableCell>
-                                            {form.sales_profit.map((row, i) => (
-                                                <Fragment key={i}>
-                                                    <TableCell sx={{ borderLeft: '1px solid', borderColor: 'divider' }}>
-                                                        <TextField size='small' variant='standard' placeholder='0' type='number'
-                                                            value={row.total_revenue}
-                                                            onChange={e => setSalesProfitField(i, 'total_revenue', e.target.value)}
-                                                            sx={{ width: 90 }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField size='small' variant='standard' placeholder='0.00' type='number'
-                                                            value={row.total_revenue_pct}
-                                                            onChange={e => setSalesProfitField(i, 'total_revenue_pct', e.target.value)}
-                                                            sx={{ width: 65 }}
-                                                        />
-                                                    </TableCell>
-                                                </Fragment>
-                                            ))}
-                                        </TableRow>
-                                        {/* Net Profit row */}
-                                        <TableRow>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', borderRight: '1px solid', borderColor: 'divider' }}>
-                                                Net Profit<br />
-                                                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem' }}>กำไรสุทธิ</Typography>
-                                            </TableCell>
-                                            {form.sales_profit.map((row, i) => (
-                                                <Fragment key={i}>
-                                                    <TableCell sx={{ borderLeft: '1px solid', borderColor: 'divider' }}>
-                                                        <TextField size='small' variant='standard' placeholder='0' type='number'
-                                                            value={row.net_profit}
-                                                            onChange={e => setSalesProfitField(i, 'net_profit', e.target.value)}
-                                                            sx={{ width: 90 }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TextField size='small' variant='standard' placeholder='0.00' type='number'
-                                                            value={row.net_profit_pct}
-                                                            onChange={e => setSalesProfitField(i, 'net_profit_pct', e.target.value)}
-                                                            sx={{ width: 65 }}
-                                                        />
-                                                    </TableCell>
-                                                </Fragment>
-                                            ))}
-                                        </TableRow>
-                                        {/* Net Profit Margin % — auto-calculated */}
-                                        <TableRow sx={{ bgcolor: 'rgba(40,199,111,0.05)' }}>
-                                            <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', borderRight: '1px solid', borderColor: 'divider' }}>
-                                                % Net Profit Margin<br />
-                                                <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem' }}>อัตราผลกำไรสุทธิ</Typography>
-                                            </TableCell>
-                                            {form.sales_profit.map((row, i) => {
-                                                const rev    = parseFloat(row.total_revenue) || 0
-                                                const profit = parseFloat(row.net_profit)   || 0
-                                                const margin = rev > 0 ? (profit / rev * 100).toFixed(2) : '-'
-                                                return (
-                                                    <TableCell key={i} colSpan={2} align='center' sx={{ borderLeft: '1px solid', borderColor: 'divider' }}>
-                                                        <Typography variant='caption' fontWeight={700} color='success.main'>
-                                                            {margin !== '-' ? `${margin}%` : '-'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                )
-                                            })}
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-
-                            {/* Combo chart */}
-                            <ReactApexChart
-                                key={form.sales_profit.map(r => r.year).join(',')}
-                                type='line'
-                                options={chartOptions}
-                                series={chartSeries}
-                                height={270}
-                            />
+                            <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+                                {/* LEFT: Input Table (40%) */}
+                                <Grid item xs={12} md={5}>
+                                    <TableContainer component={Paper} variant='outlined' sx={{ borderRadius: 1.5, overflow: 'hidden', height: '100%' }}>
+                                        <Table size='small' sx={{ tableLayout: 'fixed' }}>
+                                            <TableHead>
+                                                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '16%', p: '6px 4px' }}>Year</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '22%', p: '6px 4px' }}>Revenue</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '12%', p: '6px 2px' }}>%</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '22%', p: '6px 4px' }}>Net Profit</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '12%', p: '6px 2px' }}>%</TableCell>
+                                                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', width: '16%', p: '6px 2px', color: 'success.main' }}>Margin</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {form.sales_profit.map((row, i) => {
+                                                    const rev = parseFloat(row.total_revenue) || 0
+                                                    const profit = parseFloat(row.net_profit) || 0
+                                                    const margin = rev > 0 ? (profit / rev * 100).toFixed(1) : '-'
+                                                    return (
+                                                        <TableRow key={i} sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                                                            <TableCell sx={{ p: '4px' }}>
+                                                                <TextField size='small' variant='standard'
+                                                                    inputProps={{ style: { textAlign: 'center', fontWeight: 700, fontSize: '0.78rem' } }}
+                                                                    value={row.year}
+                                                                    onChange={e => setSalesProfitField(i, 'year', e.target.value)}
+                                                                    sx={{ width: '100%' }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell sx={{ p: '4px' }}>
+                                                                <TextField size='small' variant='standard' placeholder='0' type='number'
+                                                                    value={row.total_revenue}
+                                                                    onChange={e => setSalesProfitField(i, 'total_revenue', e.target.value)}
+                                                                    sx={{ width: '100%' }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell sx={{ p: '4px 2px' }}>
+                                                                <TextField size='small' variant='standard' placeholder='%' type='number'
+                                                                    value={row.total_revenue_pct}
+                                                                    onChange={e => setSalesProfitField(i, 'total_revenue_pct', e.target.value)}
+                                                                    sx={{ width: '100%' }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell sx={{ p: '4px' }}>
+                                                                <TextField size='small' variant='standard' placeholder='0' type='number'
+                                                                    value={row.net_profit}
+                                                                    onChange={e => setSalesProfitField(i, 'net_profit', e.target.value)}
+                                                                    sx={{ width: '100%' }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell sx={{ p: '4px 2px' }}>
+                                                                <TextField size='small' variant='standard' placeholder='%' type='number'
+                                                                    value={row.net_profit_pct}
+                                                                    onChange={e => setSalesProfitField(i, 'net_profit_pct', e.target.value)}
+                                                                    sx={{ width: '100%' }}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell align='center' sx={{ p: '4px 2px' }}>
+                                                                <Typography variant='caption' fontWeight={700} color='success.main'>
+                                                                    {margin !== '-' ? `${margin}%` : '-'}
+                                                                </Typography>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                </Grid>
+                                {/* RIGHT: Chart (60%) */}
+                                <Grid item xs={12} md={7}>
+                                    <Paper variant='outlined' sx={{ p: 0, borderRadius: 1.5, height: '100%', overflow: 'hidden' }}>
+                                        <ReactApexChart
+                                            key={form.sales_profit.map(r => r.year).join(',')}
+                                            type='line'
+                                            options={chartOptions}
+                                            series={chartSeries}
+                                            height={280}
+                                            width='100%'
+                                        />
+                                    </Paper>
+                                </Grid>
+                            </Grid>
                         </Grid>
 
                         {/* Vendor's Original Country */}

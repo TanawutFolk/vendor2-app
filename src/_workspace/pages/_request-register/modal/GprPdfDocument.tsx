@@ -186,13 +186,6 @@ interface Props {
 }
 
 export function GprPdfDocument({ form, rowData }: Props) {
-    const contacts: any[] = (() => {
-        try {
-            const raw = typeof rowData?.contacts === 'string' ? JSON.parse(rowData.contacts) : (rowData?.contacts || [])
-            return Array.isArray(raw) ? raw.filter(Boolean) : []
-        } catch { return [] }
-    })()
-    const c0 = contacts[0] || {}
 
     const needUploaded    = form.criteria.filter(c => c.criteria === 'Need' && c.uploaded_file).length
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '3.14' && c.uploaded_file).length
@@ -216,17 +209,17 @@ export function GprPdfDocument({ form, rowData }: Props) {
                 <View style={{ paddingLeft: 10, marginBottom: 6 }}>
                     <View style={s.infoRow}>
                         <Text style={s.infoLbl}>Company Name :</Text>
-                        <Text style={s.infoVal}>{rowData?.company_name || ''}</Text>
+                        <Text style={s.infoVal}>{form.company_name || ''}</Text>
                     </View>
                     <View style={[s.infoRow, { marginBottom: 0 }]}>
                         <Text style={[s.infoLbl, { width: 30 }]}>PIC :</Text>
-                        <Text style={[s.infoVal, { marginRight: 10 }]}>{c0.contact_name || ''}</Text>
+                        <Text style={[s.infoVal, { marginRight: 10 }]}>{form.pic_name || ''}</Text>
                         <Text style={[s.infoLbl, { width: 25 }]}>Tel :</Text>
-                        <Text style={s.infoVal}>{c0.tel_phone || ''}</Text>
+                        <Text style={s.infoVal}>{form.tel || ''}</Text>
                     </View>
                     <View style={s.infoRow}>
                         <Text style={[s.infoLbl, { width: 45 }]}>Email :</Text>
-                        <Text style={s.infoVal}>{c0.email || ''}</Text>
+                        <Text style={s.infoVal}>{form.email || ''}</Text>
                     </View>
                 </View>
 
@@ -308,8 +301,8 @@ export function GprPdfDocument({ form, rowData }: Props) {
                                     borderBottomStyle: 'solid',
                                 }}>
                                     <Text style={{ flex: 1, fontSize: 7.5, padding: '2 4', borderRightWidth: 0.5, borderRightColor: '#ccc', borderRightStyle: 'solid' }}>{sp.year}</Text>
-                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4', borderRightWidth: 0.5, borderRightColor: '#ccc', borderRightStyle: 'solid' }}>{sp.sales}</Text>
-                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4' }}>{sp.profit}</Text>
+                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4', borderRightWidth: 0.5, borderRightColor: '#ccc', borderRightStyle: 'solid' }}>{sp.total_revenue}</Text>
+                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4' }}>{sp.net_profit}</Text>
                                 </View>
                             ))}
                         </View>
