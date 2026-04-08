@@ -9,7 +9,8 @@
     "customerInvoiceTo": "Customer Invoice To",
     "menu1": "Vendor",
     "menu2": "Request",
-    "menu3": "Task Management",
+    "menu4": "Approval",
+    "menu3": "Setting",
     "processTimeStudySetting": "Master of the data",
     "productGroup": "Product Group",
     "productCategory": "Product Category",
@@ -69,10 +70,11 @@
     "addVendor": "Add Vendor",
     "requestHistory": "Request Register history",
     "taskManager": "Task Manager",
-    "task": "Task",
-    "employeePO": "Employee PO",
-    "approver": "Approver",
+    "setting": "Setting",
+    "employeeManager": "Employee Manager",
+    "poMgrApproval": "PO Mgr Approval",
     "requestRegister": "Request Register",
-    "SupplierOutsourcingSelectionSheet": "Supplier / Outsourcing Selection Sheet"
+    "mdApproval": "MD Approval",
+    "documentCheck": "Document Check"
   }
 }

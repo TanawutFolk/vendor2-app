@@ -178,6 +178,15 @@ export default class RegisterRequestServices {
         })
     }
 
+    // Get GPR form data via new database
+    static getGprForm(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/getGprForm`,
+            data: { request_id },
+            method: 'POST'
+        })
+    }
+
     // Attach a single document file to an existing request
     // Used for: GPR criteria per-row uploads, generated Form A PDF attachment
     static addDocument(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ document_id: number; file_path: string; file_name: string }>>> {

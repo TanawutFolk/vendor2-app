@@ -394,37 +394,48 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/request-register'
   },
   {
-    label: dictionary['navigation'].SupplierOutsourcingSelectionSheet,
+    label: dictionary['navigation'].menu4,
+    isSection: true
+  },
+  {
+    label: dictionary['navigation'].documentCheck,
+    icon: 'tabler-file-description',
+    id: 541,
+    href: '/document-check'
+  },
+  {
+    id: 538,
+    label: dictionary['navigation'].poMgrApproval,
+    icon: 'tabler-user-check',
+    href: '/po-mgr-approval'
+  },
+  {
+    label: dictionary['navigation'].mdApproval,
     icon: 'tabler-file-description',
     id: 540,
-    href: '/supplier-outsourcing-selection-sheet'
+    href: '/md-approval'
   },
+
   {
     label: dictionary['navigation'].menu3,
     isSection: true
   },
   {
-    label: dictionary['navigation'].taskManager,
+    label: dictionary['navigation'].setting,
     icon: 'tabler-device-desktop-cog',
     id: 535,
     children: [
       {
         id: 536,
-        label: dictionary['navigation'].task,
+        label: dictionary['navigation'].taskManager,
         icon: 'tabler-clipboard-copy',
         href: '/task-manager'
       },
       {
         id: 537,
-        label: dictionary['navigation'].employeePO,
+        label: dictionary['navigation'].employeeManager,
         icon: 'tabler-users',
-        href: '/employee-po'
-      },
-      {
-        id: 538,
-        label: dictionary['navigation'].approver,
-        icon: 'tabler-user-check',
-        href: '/approver'
+        href: '/employee-manager'
       },
     ]
   },

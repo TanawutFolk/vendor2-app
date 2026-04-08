@@ -4,7 +4,7 @@
 // Thai font: place Sarabun-Regular.ttf + Sarabun-Bold.ttf in /public/fonts/
 // then uncomment the Font.register block below.
 
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
 import type { GprFormData } from './GprFormDialog'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
@@ -183,9 +183,10 @@ const s = StyleSheet.create({
 interface Props {
     form: GprFormData
     rowData: any
+    chartDataUri?: string
 }
 
-export function GprPdfDocument({ form, rowData }: Props) {
+export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
     const needUploaded    = form.criteria.filter(c => c.criteria === 'Need' && c.uploaded_file).length
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '3.14' && c.uploaded_file).length
@@ -274,37 +275,17 @@ export function GprPdfDocument({ form, rowData }: Props) {
                         <Text style={[s.td, { width: 130, fontFamily: 'Helvetica-Bold' }]}>Main Product</Text>
                         <Text style={[s.tdl, { flex: 1 }]}>{form.main_product}</Text>
                     </View>
-                    {/* Sales & Profit 5 Years (inline sub-table) */}
+                    {/* Sales & Profit 5 Years (Chart) */}
                     <View style={[s.tblRow, { alignItems: 'flex-start' }]}>
                         <Text style={[s.td, { width: 130, fontFamily: 'Helvetica-Bold' }]}>
                             {'Sales and Operational Profit\n(Last 5 Years)'}
                         </Text>
-                        <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#aaa', borderBottomStyle: 'solid' }}>
-                                {['Year', 'Sales (MB)', 'Operational Profit (MB)'].map((h, i) => (
-                                    <Text key={i} style={{
-                                        flex: i === 0 ? 1 : 2,
-                                        fontSize: 7,
-                                        fontFamily: 'Helvetica-Bold',
-                                        padding: '2 4',
-                                        borderRightWidth: i < 2 ? 0.5 : 0,
-                                        borderRightColor: '#ccc',
-                                        borderRightStyle: 'solid',
-                                    }}>{h}</Text>
-                                ))}
-                            </View>
-                            {form.sales_profit.map((sp, i) => (
-                                <View key={i} style={{
-                                    flexDirection: 'row',
-                                    borderBottomWidth: i < form.sales_profit.length - 1 ? 0.5 : 0,
-                                    borderBottomColor: '#ccc',
-                                    borderBottomStyle: 'solid',
-                                }}>
-                                    <Text style={{ flex: 1, fontSize: 7.5, padding: '2 4', borderRightWidth: 0.5, borderRightColor: '#ccc', borderRightStyle: 'solid' }}>{sp.year}</Text>
-                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4', borderRightWidth: 0.5, borderRightColor: '#ccc', borderRightStyle: 'solid' }}>{sp.total_revenue}</Text>
-                                    <Text style={{ flex: 2, fontSize: 7.5, padding: '2 4' }}>{sp.net_profit}</Text>
-                                </View>
-                            ))}
+                        <View style={{ flex: 1, padding: 4, alignItems: 'center', justifyContent: 'center' }}>
+                            {chartDataUri ? (
+                                <Image src={chartDataUri} style={{ height: 160, width: '90%', objectFit: 'contain' }} />
+                            ) : (
+                                <Text style={{ fontSize: 8, color: '#999', fontStyle: 'italic', margin: 20 }}>Chart image will appear here</Text>
+                            )}
                         </View>
                     </View>
                     {/* Vendor's Original Country — last row, no bottom border */}
@@ -334,9 +315,15 @@ export function GprPdfDocument({ form, rowData }: Props) {
                                 <Text style={[Td, { flex: 3 }]}>{c.detail}</Text>
                                 <Text style={[Td, { width: 60 }]}>{c.criteria}</Text>
                                 <Text style={[Td, { flex: 2 }]}>{c.remark}</Text>
-                                <Text style={[Tdl, { width: 55 }]}>
-                                    {c.uploaded_file ? `\u2713 ${c.uploaded_name || 'Uploaded'}` : '-'}
-                                </Text>
+                                <View style={[Tdl, { width: 55, alignItems: 'center', justifyContent: 'center' }]}>
+                                    {c.uploaded_file ? (
+                                        <Svg viewBox="0 0 24 24" width={12} height={12}>
+                                            <Path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" fill="#28C76F" />
+                                        </Svg>
+                                    ) : (
+                                        <Text style={{ fontSize: 10 }}>-</Text>
+                                    )}
+                                </View>
                             </View>
                         )
                     })}
@@ -429,15 +416,7 @@ export function GprPdfDocument({ form, rowData }: Props) {
                                 paddingBottom: 1,
                             }}>{form.vendor_code_selector || '  '}</Text>
                         </View>
-                        {/* PM Manager */}
-                        <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginRight: 24 }}>
-                            <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica-Bold', marginRight: 4 }}>PM Manager :</Text>
-                            <Text style={{
-                                fontSize: 8, minWidth: 100,
-                                borderBottomWidth: 0.5, borderBottomColor: '#666', borderBottomStyle: 'solid',
-                                paddingBottom: 1,
-                            }}>{form.pm_manager || '  '}</Text>
-                        </View>
+
                         {/* Date */}
                         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                             <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica-Bold', marginRight: 4 }}>Date :</Text>
