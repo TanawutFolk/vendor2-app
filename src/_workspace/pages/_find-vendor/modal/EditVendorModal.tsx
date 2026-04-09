@@ -32,13 +32,9 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-import EditIcon from '@mui/icons-material/Edit'
-import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import MailOutlineIcon from '@mui/icons-material/MailOutline'
-import { InputAdornment, Tooltip } from '@mui/material'
+import { InputAdornment } from '@mui/material'
 
 // Third-party Imports
-import classNames from 'classnames'
 import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -50,7 +46,7 @@ import SuccessModal from '../components/SuccessModal'
 import ErrorModal from '../components/ErrorModal'
 import { EmailActionButtons } from '../components/EmailActionButtons'
 import AddProductGroupModal from '../../_add-vendor/modal/AddProductGroupModal'
-import { FftStatusChip, StatusCheckChip } from '../components/fftStatus'
+import { StatusCheckChip } from '../components/fftStatus'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
 // Services & Utils Imports
@@ -63,31 +59,13 @@ import { FormControlLabel, Switch } from '@mui/material'
 
 // Types & Schema Imports
 import type {
-    VendorComprehensiveI,
-    VendorContactI,
-    VendorProductI,
-    VendorUpdateRequestI
+    VendorComprehensiveI
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { editVendorSchema, EditVendorSchemaType } from './validateSchema'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI Components (matching RequestDetail.tsx)
 // ─────────────────────────────────────────────────────────────────────────────
-const InfoField = ({ label, value, fullWidth }: { label: string; value?: string | React.ReactNode; fullWidth?: boolean }) => (
-    <Box sx={{ ...(fullWidth ? { gridColumn: '1 / -1' } : {}) }}>
-        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', mb: 0.25, fontWeight: 600, letterSpacing: 0.3 }}>
-            {label}
-        </Typography>
-        {typeof value === 'string' ? (
-            <Typography variant='body2' sx={{ color: value ? 'text.primary' : 'text.disabled', fontStyle: value ? 'normal' : 'italic' }}>
-                {value || '—'}
-            </Typography>
-        ) : (
-            value || <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>—</Typography>
-        )}
-    </Box>
-)
-
 const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         <Box sx={{
@@ -136,15 +114,12 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
         }
     )
 
-    // Derived states — include isFetchingVendor so loading overlay shows on every refetch (not just first load)
-    // This prevents stale data from showing while new vendor data is being loaded in background
-    const loading = (editingMode === 'edit' && (isLoadingVendor || isFetchingVendor || (!!vendorId && !vendorQueryData)))
+    // Keep form interactive during background refetches; block only on first detail load.
+    const loading = editingMode === 'edit' && (isLoadingVendor || (!vendorQueryData && isFetchingVendor))
     const saving = updateVendor.isPending
 
-    const [error, setError] = useState<string | null>(null)
-
     // RHF Setup
-    const { control, handleSubmit, reset, watch, formState: { errors }, getValues, setValue, trigger } = useForm<EditVendorSchemaType>({
+    const { control, handleSubmit, reset, formState: { errors }, getValues, setValue, trigger } = useForm<EditVendorSchemaType>({
         resolver: zodResolver(editVendorSchema),
         defaultValues: {
             company_name: '',
@@ -178,11 +153,7 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
     const [errorMessage, setErrorMessage] = useState<string>('')
     const [errorDetails, setErrorDetails] = useState<any>(null)
     const [vendorFftCode, setVendorFftCode] = useState<string | null | undefined>(null)
-    const [vendorFftStatus, setVendorFftStatus] = useState<number | null>(null)
     const [vendorStatusCheck, setVendorStatusCheck] = useState<string | undefined>(undefined)
-
-    // Watch for changes to display in header
-    const watchedValues = watch()
 
 
     // Dropdown fetcher for vendor types (following SearchFilter.tsx pattern)
@@ -207,7 +178,6 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
         reset({ company_name: '', vendor_type_id: null, contacts: [], products: [] })
         setOriginalData(null)
         setVendorFftCode(null)
-        setVendorFftStatus(null)
         setVendorStatusCheck(undefined)
         setDeletedContactIds([])
         setDeletedProductIds([])
@@ -241,24 +211,31 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
             setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
             reset(comprehensive)
             setVendorFftCode(comprehensive.fft_vendor_code)
-            setVendorFftStatus(comprehensive.fft_status != null ? Number(comprehensive.fft_status) : null)
             setVendorStatusCheck(comprehensive.status_check)
         }
     }, [vendorId, rowData, reset]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Populate form when fresh data is fetched from API (Edit Mode)
+    // Populate form when fresh data is fetched from API in edit mode.
     useEffect(() => {
         if (vendorQueryData && open && editingMode === 'edit') {
             const { comprehensive } = vendorQueryData
+
+            // Skip reset when the newest snapshot is already in form state.
+            if (
+                originalData &&
+                originalData.vendor_id === comprehensive.vendor_id &&
+                originalData.UPDATE_DATE === comprehensive.UPDATE_DATE
+            ) {
+                return
+            }
 
             setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
             reset(comprehensive)
 
             setVendorFftCode(comprehensive.fft_vendor_code)
-            setVendorFftStatus(comprehensive.fft_status != null ? Number(comprehensive.fft_status) : null)
             setVendorStatusCheck(comprehensive.status_check)
 
-            // Clear deletions tracking on fresh load
+            // Clear deletions tracking on fresh load.
             setDeletedContactIds([])
             setDeletedProductIds([])
         }
@@ -282,8 +259,6 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
 
     const onSubmit = async (data: EditVendorSchemaType) => {
         if (!vendorId) return
-
-        setError(null)
 
         const userCode = getUserData().EMPLOYEE_CODE || 'SYSTEM'
 
@@ -313,14 +288,9 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
         handleSubmit(onSubmit)()
     }
 
-    const handleSaveButtonClick = async () => {
-        handleSaveClick()
-    }
-
     const handleClose = () => {
         reset()
         setEditingMode('view')
-        setError(null)
         setDeletedContactIds([])
         setDeletedProductIds([])
         onClose()
@@ -362,9 +332,9 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
             >
                 <DialogTitle>
                     <Typography variant='h5' component='span'>
-                        {originalData?.company_name || 'Vendor Details'}
+                        {editingMode === 'edit' ? 'Edit Vendor' : 'Vendor Details'}
                     </Typography>
-                    <DialogCloseButton onClick={onClose} disableRipple>
+                    <DialogCloseButton onClick={handleClose} disableRipple>
                         <i className='tabler-x' />
                     </DialogCloseButton>
                 </DialogTitle>

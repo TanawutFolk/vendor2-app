@@ -39,7 +39,10 @@ export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
             return await EditVendorUtils.getComprehensiveByVendorId(vendorId)
         },
         enabled: enabled !== undefined ? enabled : !!vendorId,
-        staleTime: 1,  // Always re-fetch when vendorId changes — prevents stale data flash
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
         retry: 1
     })
 }
