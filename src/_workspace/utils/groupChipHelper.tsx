@@ -1,14 +1,14 @@
 import { Chip } from '@mui/material'
 
-export const GROUP_CHIP_COLOR_MAP: Record<string, 'primary' | 'info' | 'warning' | 'error' | 'default'> = {
+export const GROUP_CHIP_COLOR_MAP: Record<string, 'primary' | 'info' | 'warning' | 'error' | 'secondary'> = {
     Local: 'primary',
     Oversea: 'info',
     PO_Manager: 'warning',
     MD: 'error'
 }
 
-export const getGroupChipColor = (group: string): 'primary' | 'info' | 'warning' | 'error' | 'default' => {
-    return GROUP_CHIP_COLOR_MAP[group] ?? 'default'
+export const getGroupChipColor = (group: string): 'primary' | 'info' | 'warning' | 'error' | 'secondary' => {
+    return GROUP_CHIP_COLOR_MAP[group] ?? 'secondary'
 }
 
 interface GroupChipProps {

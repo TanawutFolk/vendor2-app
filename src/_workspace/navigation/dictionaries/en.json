@@ -75,6 +75,8 @@
     "poMgrApproval": "PO Mgr Approval",
     "requestRegister": "Request Register",
     "mdApproval": "MD Approval",
-    "documentCheck": "Document Check"
+    "documentCheck": "Document Check",
+    "poGmApproval": "PO GM Approval",
+    "accRegister": "Account Register Vendor Code"
   }
 }

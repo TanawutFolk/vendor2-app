@@ -394,6 +394,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/request-register'
   },
   {
+    label: dictionary['navigation'].accRegister,
+    icon: 'tabler-checklist',
+    id: 543,
+    href: '/acc-register'
+  },
+  {
     label: dictionary['navigation'].menu4,
     isSection: true
   },
@@ -401,17 +407,23 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     label: dictionary['navigation'].documentCheck,
     icon: 'tabler-file-description',
     id: 541,
-    href: '/document-check'
+    href: '/check-document'
   },
   {
     id: 538,
     label: dictionary['navigation'].poMgrApproval,
-    icon: 'tabler-user-check',
+    icon: 'tabler-user-star',
     href: '/po-mgr-approval'
   },
   {
+    id: 542,
+    label: dictionary['navigation'].poGmApproval,
+    icon: 'tabler-user-check',
+    href: '/po-gm-approval'
+  },
+  {
     label: dictionary['navigation'].mdApproval,
-    icon: 'tabler-file-description',
+    icon: 'tabler-award',
     id: 540,
     href: '/md-approval'
   },

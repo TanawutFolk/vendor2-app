@@ -489,10 +489,20 @@ export default function SearchResult() {
             cellRenderer: 'agGroupCellRenderer',
             cellRendererParams: {
                 innerRenderer: (params: any) => {
-                    const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                    const statusCfg = statusOptions.find(s => s.value === params.value)
+                    const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
+                    const txtColor = statusCfg?.accent || '#8A8D99'
                     return (
-                        <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
-                            sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                        <Chip label={params.value || '-'} size='small'
+                            sx={{
+                                bgcolor: bgColor,
+                                color: txtColor,
+                                border: '1px solid',
+                                borderColor: `${txtColor}40`,
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 24
+                            }}
                         />
                     )
                 }
@@ -544,12 +554,17 @@ export default function SearchResult() {
                 const count = buildFileUrls(params.value).length
                 if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
                 return (
-                    <Chip
-                        label={`${count} file${count > 1 ? 's' : ''}`}
-                        size='small'
-                        color='primary'
-                        variant='tonal'
-                        icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
+                    <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
+                        icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
+                        sx={{
+                            bgcolor: '#1976d220',
+                            color: '#1976d2',
+                            border: '1px solid #1976d240',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            height: 24,
+                            '& .MuiChip-icon': { color: '#1976d2' }
+                        }}
                     />
                 )
             }

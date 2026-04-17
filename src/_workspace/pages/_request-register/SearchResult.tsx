@@ -634,12 +634,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             {steps.sort((a: any, b: any) => a.step_order - b.step_order).map((s: any, i: number) => {
                                 const stepLog = logs.find((l: any) => l.step_id === s.step_id)
                                 const getStepStatusCfg = (status: string) => {
-                                    switch(status) {
-                                        case 'approved': case 'completed': return { label: 'Completed', color: 'success' as const, icon: 'tabler-circle-check-filled' }
-                                        case 'in_progress': case 'current': return { label: 'In Progress', color: 'warning' as const, icon: 'tabler-clock-filled' }
-                                        case 'rejected': return { label: 'Rejected', color: 'error' as const, icon: 'tabler-circle-x-filled' }
-                                        case 'skipped': return { label: 'Skipped', color: 'info' as const, icon: 'tabler-circle-minus' }
-                                        case 'pending': default: return { label: 'Waiting', color: 'warning' as const, icon: 'tabler-clock' }
+                                    switch (status) {
+                                        case 'approved': case 'completed': return { label: 'Completed', bgColor: '#28c76f20', txtColor: '#28c76f', borderColor: '#28c76f40', icon: 'tabler-circle-check-filled' }
+                                        case 'in_progress': case 'current': return { label: 'In Progress', bgColor: '#ff9f4320', txtColor: '#ff9f43', borderColor: '#ff9f4340', icon: 'tabler-clock-play' }
+                                        case 'rejected': return { label: 'Rejected', bgColor: '#ea545520', txtColor: '#ea5455', borderColor: '#ea545540', icon: 'tabler-circle-x-filled' }
+                                        case 'skipped': return { label: 'Skipped', bgColor: '#00cfe820', txtColor: '#00cfe8', borderColor: '#00cfe840', icon: 'tabler-circle-minus' }
+                                        case 'pending': default: return { label: 'Waiting', bgColor: '#ff9f4315', txtColor: '#ff9f4390', borderColor: '#ff9f4330', icon: 'tabler-clock' }
                                     }
                                 }
                                 const stCfg = getStepStatusCfg(s.step_status)
@@ -648,13 +648,21 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                         <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
                                         <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
-                                        <Chip 
-                                            icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
-                                            label={stCfg.label} 
-                                            size='small' 
-                                            variant='tonal'
-                                            color={stCfg.color}
-                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22, width: 'fit-content' }}
+                                        <Chip
+                                            icon={<i className={stCfg.icon} style={{ fontSize: 13, color: stCfg.txtColor }} />}
+                                            label={stCfg.label}
+                                            size='small'
+                                            sx={{
+                                                bgcolor: stCfg.bgColor,
+                                                color: stCfg.txtColor,
+                                                border: '1px solid',
+                                                borderColor: stCfg.borderColor,
+                                                fontWeight: 600,
+                                                fontSize: '0.68rem',
+                                                height: 22,
+                                                width: 'fit-content',
+                                                '& .MuiChip-icon': { color: stCfg.txtColor }
+                                            }}
                                         />
                                         <Typography variant='body2' color='text.secondary'>
                                             {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
@@ -1118,10 +1126,20 @@ export default function SearchResult() {
             cellRenderer: 'agGroupCellRenderer',
             cellRendererParams: {
                 innerRenderer: (params: any) => {
-                    const chipColor = (statusOptions.find(s => s.value === params.value)?.chipColor || 'default') as any
+                    const statusCfg = statusOptions.find(s => s.value === params.value)
+                    const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
+                    const txtColor = statusCfg?.accent || '#8A8D99'
                     return (
-                        <Chip label={params.value || '-'} color={chipColor} size='small' variant='tonal'
-                            sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                        <Chip label={params.value || '-'} size='small'
+                            sx={{
+                                bgcolor: bgColor,
+                                color: txtColor,
+                                border: '1px solid',
+                                borderColor: `${txtColor}40`,
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 24
+                            }}
                         />
                     )
                 }
@@ -1145,8 +1163,17 @@ export default function SearchResult() {
                 const count = buildFileUrls(params.value).length
                 if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
                 return (
-                    <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small' color='primary' variant='tonal'
-                        icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
+                    <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
+                        icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
+                        sx={{
+                            bgcolor: '#1976d220',
+                            color: '#1976d2',
+                            border: '1px solid #1976d240',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            height: 24,
+                            '& .MuiChip-icon': { color: '#1976d2' }
+                        }}
                     />
                 )
             }

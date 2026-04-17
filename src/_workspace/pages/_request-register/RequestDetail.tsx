@@ -233,7 +233,7 @@ const RequestDetail = ({ request }: Props) => {
                                     </Box>
                                     <Typography variant='subtitle2' fontWeight={700}>{c.contact_name}</Typography>
                                     {c.position && (
-                                        <Chip label={c.position} size='small' variant='tonal' color='default'
+                                        <Chip label={c.position} size='small' variant='tonal' color='secondary'
                                             sx={{ fontSize: '0.65rem', height: 18, fontWeight: 600 }} />
                                     )}
                                 </Box>

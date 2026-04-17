@@ -79,8 +79,23 @@ const RequestRegisterHistoryPage = lazy(() => import('@/_workspace/pages/_reques
 /* Request Register (PO Dashboard) */
 const RequestRegisterPage = lazy(() => import('@/_workspace/pages/_request-register/page'))
 
+/* Account Register */
+const AccRegisterPage = lazy(() => import('@/_workspace/pages/_Acc-register/page'))
+
 /* Task Manager */
 const TaskManagerPage = lazy(() => import('@/_workspace/pages/_task-manager/page'))
+
+/* MD Approval */
+const MdApprovalPage = lazy(() => import('@/_workspace/pages/_md-approval/page'))
+
+/* PO Mgr Approval */
+const PoMgrApprovalPage = lazy(() => import('@/_workspace/pages/_poMgr-approval/page'))
+
+/* PO GM Approval */
+const PoGmApprovalPage = lazy(() => import('@/_workspace/pages/_poGm-approval/page'))
+
+/* Check Document */
+const CheckDocumentPage = lazy(() => import('@/_workspace/pages/_check-document/page'))
 
 export default (
   <>
@@ -161,7 +176,22 @@ export default (
     {/* Request Register (PO Dashboard) */}
     <Route path='/en/request-register' element={<RequestRegisterPage />} />
 
+    {/* Account Register */}
+    <Route path='/en/acc-register' element={<AccRegisterPage />} />
+
     {/* Task Manager */}
     <Route path='/en/task-manager' element={<TaskManagerPage />} />
+
+    {/* MD Approval */}
+    <Route path='/en/md-approval' element={<MdApprovalPage />} />
+
+    {/* PO Mgr Approval */}
+    <Route path='/en/po-mgr-approval' element={<PoMgrApprovalPage />} />
+
+    {/* PO GM Approval */}
+    <Route path='/en/po-gm-approval' element={<PoGmApprovalPage />} />
+
+    {/* Check Document */}
+    <Route path='/en/check-document' element={<CheckDocumentPage />} />
   </>
 )

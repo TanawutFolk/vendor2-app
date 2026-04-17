@@ -14,7 +14,7 @@ export default class RegisterRequestServices {
     // Create a new vendor registration request (with file uploads)
     static create(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ request_id: number }>>> {
         return axiosRequest<RegisterRequestResponseI<{ request_id: number }>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/create`,
+            url: `${RegisterRequestAPI.API_ROOT_URL}/createRequestVendor`,
             data: formData,
             method: 'POST',
             headers: { 'Content-Type': 'multipart/form-data' }
