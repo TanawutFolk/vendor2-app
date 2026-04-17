@@ -15,6 +15,8 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const vendorId = params.data?.vendor_id;
   const isAlreadyRegistered = params.data?.status_check === 'Registered';
 
+  const isCannotRegister = params.data?.status_check === 'Cannot Register';
+
   const onEdit = () => {
     // Permission check is done at parent level (SearchResult.tsx) via context
     if (params.context?.onEditClick && vendorId) {
@@ -30,7 +32,7 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
 
   return (
     <Box style={{ display: 'flex', gap: '5px' }}>
-      {!isAlreadyRegistered && (
+      {!isAlreadyRegistered && !isCannotRegister && (
         <IconButton onClick={onRegister} size="small" color="warning" title="ส่งคำขอ Register">
           <ForwardToInboxIcon />
         </IconButton>

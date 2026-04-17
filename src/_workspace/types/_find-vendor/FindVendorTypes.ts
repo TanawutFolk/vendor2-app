@@ -147,6 +147,7 @@ export interface VendorComprehensiveI {
     fft_vendor_code?: string | null
     fft_status?: string | null
     status_check?: string
+    reject_reason?: string
     company_name: string
     vendor_type_id?: number
     vendor_type_name: string

@@ -65,11 +65,44 @@ const statusConfig: Record<
     }
 }
 
+const normalizeText = (value?: string | null) => (value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+const toRegisterStatus = (stepStatus?: string | null): RegisterStatus => {
+    const normalized = normalizeText(stepStatus)
+
+    if (normalized.includes('approved') || normalized.includes('completed') || normalized.includes('agreement reached')) {
+        return 'completed'
+    }
+
+    if (normalized.includes('in_progress') || normalized.includes('in progress') || normalized.includes('current')) {
+        return 'in_progress'
+    }
+
+    if (normalized.includes('rejected') || normalized.includes('disagree')) {
+        return 'rejected'
+    }
+
+    if (normalized.includes('skipped')) {
+        return 'skipped'
+    }
+
+    return 'pending'
+}
+
+const isPendingAgreementStep = (title?: string | null) => normalizeText(title).includes('pending agreement')
+
+const isDisagreedBranchStep = (title?: string | null) => {
+    const normalized = normalizeText(title)
+    return normalized.includes('vendor disagreed') || normalized.includes('issue gpr b') || normalized.includes('issue gpr c')
+}
+
+const getStatusCfg = (status?: RegisterStatus) => statusConfig[status || 'pending'] || statusConfig.pending
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Step Icon
 // ─────────────────────────────────────────────────────────────────────────────
 const StepIcon = ({ status, step }: { status: RegisterStatus; step: number }) => {
-    const cfg = statusConfig[status]
+    const cfg = getStatusCfg(status)
     return (
         <Avatar
             sx={{
@@ -99,7 +132,7 @@ const StepIcon = ({ status, step }: { status: RegisterStatus; step: number }) =>
 // Branch Node (sub-step for rejection path)
 // ─────────────────────────────────────────────────────────────────────────────
 const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) => {
-    const cfg = statusConfig[step.status]
+    const cfg = getStatusCfg(step.status)
     const isPending = step.status === 'pending'
     const isSkipped = step.status === 'skipped'
 
@@ -172,38 +205,39 @@ interface Props {
 const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
     // If real approval steps exist, map them to RegisterStep format
     const effectiveSteps: RegisterStep[] = (approvalSteps && approvalSteps.length > 0)
-        ? approvalSteps
+        ? (() => {
+            const mappedSteps = approvalSteps
             .filter(Boolean)
             .sort((a, b) => a.step_order - b.step_order)
             .map(s => {
-                const statusMap: Record<string, RegisterStatus> = {
-                    'approved': 'completed', 'completed': 'completed',
-                    'in_progress': 'in_progress', 'current': 'in_progress',
-                    'rejected': 'rejected', 'pending': 'pending',
-                    'skipped': 'skipped'
-                }
                 const log = approvalLogs?.find(l => l.step_id === s.step_id)
                 return {
                     step: s.step_order,
                     title: s.DESCRIPTION || `Step ${s.step_order}`,
                     description: s.approver_id ? `Approver: ${s.approver_id}` : '',
-                    status: statusMap[s.step_status] || 'pending',
+                    status: toRegisterStatus(s.step_status),
                     updatedBy: log?.action_by || s.UPDATE_BY || undefined,
                     updatedDate: log?.action_date ? new Date(log.action_date).toLocaleString('th-TH') : s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleString('th-TH') : undefined,
-                    remark: log?.remark || undefined,
-                    branchLabel: s.DESCRIPTION === 'Pending Agreement To Vendor' ? 'กรณีไม่ตกลง (Disagreed)' : undefined,
-                    branchChildren: s.DESCRIPTION === 'Pending Agreement To Vendor' ? [
-                        { step: Number(`${s.step_order}.1`), title: 'Issue GPR B', status: 'pending' },
-                        { step: Number(`${s.step_order}.2`), title: 'Issue GPR C', status: 'pending' }
-                    ] : undefined
+                    remark: log?.remark || undefined
                 } as RegisterStep
             })
+            const branchChildren = mappedSteps.filter(s => isDisagreedBranchStep(s.title))
+            const topLevelSteps = mappedSteps.filter(s => !isDisagreedBranchStep(s.title))
+            const pendingAgreementStep = topLevelSteps.find(s => isPendingAgreementStep(s.title))
+
+            if (pendingAgreementStep && branchChildren.length > 0) {
+                pendingAgreementStep.branchLabel = 'กรณีไม่ตกลง (Disagreed)'
+                pendingAgreementStep.branchChildren = branchChildren
+            }
+
+            return topLevelSteps
+        })()
         : steps
 
     return (
         <Box sx={{ position: 'relative' }}>
             {effectiveSteps.map((step, index) => {
-                const cfg = statusConfig[step.status]
+                const cfg = getStatusCfg(step.status)
                 const isLast = index === effectiveSteps.length - 1
                 const isPending = step.status === 'pending'
                 const hasBranch = step.branchChildren && step.branchChildren.length > 0
@@ -222,7 +256,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                         my: 1,
                                         borderRadius: 1,
                                         background: step.status === 'completed'
-                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${statusConfig[effectiveSteps[index + 1].status].connectorColor})`
+                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${getStatusCfg(effectiveSteps[index + 1].status).connectorColor})`
                                             : `linear-gradient(to bottom, ${cfg.connectorColor}, rgba(138,141,153,0.15))`
                                     }}
                                 />

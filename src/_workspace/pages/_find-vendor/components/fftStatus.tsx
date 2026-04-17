@@ -10,9 +10,10 @@ const FFT_STATUS_CONFIG = {
 }
 
 // Status Check configuration (for string values from Prones check)
-const STATUS_CHECK_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' }> = {
+const STATUS_CHECK_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default' }> = {
     'Registered': { label: 'Registered', color: 'success' },
-    'Not Registered': { label: 'Not Registered', color: 'error' }
+    'Not Registered': { label: 'Not Registered', color: 'error' },
+    'Cannot Register': { label: 'Cannot Register', color: 'default' }
 }
 
 // Base FFT Status Chip component

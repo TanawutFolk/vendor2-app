@@ -603,7 +603,7 @@ export default function SearchResult() {
 
             {/* View Detail Dialog */}
             <Dialog
-                maxWidth='sm'
+                maxWidth='md'
                 fullWidth={true}
                 onClose={(event, reason) => {
                     if (reason !== 'backdropClick') {

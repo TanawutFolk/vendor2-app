@@ -19,7 +19,9 @@ import {
     IconButton,
     ToggleButton,
     ToggleButtonGroup,
-    Slide
+    Slide,
+    Alert,
+    AlertTitle
 } from '@mui/material'
 import type { SlideProps } from '@mui/material'
 import type { ReactElement, Ref } from 'react'
@@ -190,6 +192,7 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
                 fft_vendor_code: rowData.fft_vendor_code,
                 fft_status: rowData.fft_status,
                 status_check: rowData.status_check,
+                reject_reason: rowData.reject_reason,
                 company_name: rowData.company_name,
                 vendor_type_id: rowData.vendor_type_id,
                 vendor_type_name: rowData.vendor_type_name,
@@ -410,6 +413,14 @@ const EditVendorModal = ({ open, onClose, vendorId, rowData, onSuccess: onSaveSu
                         </Box>
                     ) : (
                         <>
+                            {/* Reject Reason Alert */}
+                            {originalData?.status_check === 'Cannot Register' && (
+                                <Alert severity="error" sx={{ mb: 3 }}>
+                                    <AlertTitle>Cannot Register</AlertTitle>
+                                    <strong>Reject Reason:</strong> {originalData.reject_reason || 'ไม่มีการระบุเหตุผล'}
+                                </Alert>
+                            )}
+
                             {/* Company Information */}
                             <Box sx={{ position: 'relative', zIndex: 4 }}>
                                 <SectionHeader icon="tabler-building-store" title="Company Profile" />

@@ -313,7 +313,8 @@ const SearchFilter = () => {
                                         isClearable
                                         options={[
                                             { value: '1', label: 'Registered' },
-                                            { value: '0', label: 'Not Registered' }
+                                            { value: '0', label: 'Not Registered' },
+                                            { value: 'Cannot Register', label: 'Cannot Register' }
                                         ]}
                                         classNamePrefix='select'
                                     />

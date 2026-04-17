@@ -172,7 +172,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
         setLoading(true)
         setError(null)
         try {
-            await RegisterRequestServices.updateStatus({
+            const res = await RegisterRequestServices.updateStatus({
                 request_id: requestId,
                 request_status: mode === 'approve' ? nextStatus : 'Rejected',
                 approve_by: user?.EMPLOYEE_CODE || '',
@@ -180,9 +180,13 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
                 isFinalStep: mode === 'approve' ? isFinalStep : false,
             })
-            setRemark('')
-            onSuccess()
-            onClose()
+            if (res.data.Status) {
+                setRemark('')
+                onSuccess()
+                onClose()
+            } else {
+                setError(res.data.Message || 'Failed to update status')
+            }
         } catch (e: any) {
             setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
         } finally {
@@ -307,7 +311,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             const res = await RegisterRequestServices.sendAgreementEmail(data)
             if (res.data.Status) {
                 // Email sent successfully, now approve request automatically
-                await RegisterRequestServices.updateStatus({
+                const updateRes = await RegisterRequestServices.updateStatus({
                     request_id: data.request_id,
                     request_status: computedNextStatus,
                     approve_by: user?.EMPLOYEE_CODE || '',
@@ -315,6 +319,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     UPDATE_BY: user?.EMPLOYEE_CODE || '',
                     isFinalStep: isFinalStep,
                 })
+                if (!updateRes.data.Status) {
+                    throw new Error(updateRes.data.Message || 'Email sent but failed to update status')
+                }
                 setEmailFeedback({ type: 'success', msg: 'Email sent & status updated successfully.' })
                 onEmailSent()
                 if (onCompleted) onCompleted()
