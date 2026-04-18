@@ -113,7 +113,7 @@ const AddVendorPage = () => {
             emailmain: getValues('emailmain'),
             address: getValues('address'),
             note: getValues('note'),
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ถ้าเห็นข้อความนี้คือไม่ปกติแล้วแจ้ง S524',
+            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524',
             contacts: getValues('contacts').map(c => ({
                 contact_name: c.contact_name,
                 tel_phone: c.tel_phone,

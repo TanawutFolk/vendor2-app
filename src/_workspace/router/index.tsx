@@ -85,6 +85,9 @@ const AccRegisterPage = lazy(() => import('@/_workspace/pages/_Acc-register/page
 /* Task Manager */
 const TaskManagerPage = lazy(() => import('@/_workspace/pages/_task-manager/page'))
 
+/* Employee Manager */
+const EmployeeManagerPage = lazy(() => import('@/_workspace/pages/_Employee-manager/page'))
+
 /* MD Approval */
 const MdApprovalPage = lazy(() => import('@/_workspace/pages/_md-approval/page'))
 
@@ -181,6 +184,9 @@ export default (
 
     {/* Task Manager */}
     <Route path='/en/task-manager' element={<TaskManagerPage />} />
+
+    {/* Employee Manager */}
+    <Route path='/en/employee-manager' element={<EmployeeManagerPage />} />
 
     {/* MD Approval */}
     <Route path='/en/md-approval' element={<MdApprovalPage />} />

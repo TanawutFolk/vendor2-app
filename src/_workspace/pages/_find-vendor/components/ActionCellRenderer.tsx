@@ -33,11 +33,11 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
   return (
     <Box style={{ display: 'flex', gap: '5px' }}>
       {!isAlreadyRegistered && !isCannotRegister && (
-        <IconButton onClick={onRegister} size="small" color="warning" title="ส่งคำขอ Register">
+        <IconButton onClick={onRegister} size="small" color="warning" title="Send Register Request">
           <ForwardToInboxIcon />
         </IconButton>
       )}
-      <IconButton onClick={onEdit} size="small" color="primary" title="ดูรายละเอียด">
+      <IconButton onClick={onEdit} size="small" color="primary" title="View Details">
         <VisibilityIcon />
       </IconButton>
     </Box>

@@ -1,8 +1,7 @@
 // MUI Imports
-import { Button, Card, CardContent, CardHeader, Collapse, Grid, IconButton } from '@mui/material'
+import { Button, Grid } from '@mui/material'
 
 // Third-party Imports
-import classNames from 'classnames'
 import { useState } from 'react'
 
 // React Hook Form Imports
@@ -18,13 +17,10 @@ import { useDxContext } from '@/_template/DxContextProvider'
 // Types & Schema
 import type { AssigneesFormData } from './validateSchema'
 import { fetchDefaultValues } from './validateSchema'
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
+import { ASSIGNEE_GROUPS } from '@_workspace/utils/requestWorkflow'
 
-export const groupOptions = [
-    { label: 'Local', value: 'Local' },
-    { label: 'Oversea', value: 'Oversea' },
-    { label: 'PO Manager', value: 'PO_Manager' },
-    { label: 'MD', value: 'MD' }
-]
+export const groupOptions = [...ASSIGNEE_GROUPS]
 
 export const inUseOptions = [
     { label: 'Active', value: '1' },
@@ -47,26 +43,14 @@ const SearchFilter = () => {
     const handleClear = async () => {
         const defaults = await fetchDefaultValues()
         setValue('keyword', defaults.keyword)
-        setValue('group_name', defaults.group_name)
+        setValue('group_code', defaults.group_code)
         setValue('in_use', defaults.in_use)
         setIsEnableFetching(true)
     }
 
     return (
-        <Card style={{ overflow: 'visible', zIndex: 4 }}>
-            <CardHeader
-                title='Search Filters'
-                action={
-                    <IconButton size='small' aria-label='collapse' onClick={() => setCollapse(!collapse)}>
-                        <i className={classNames(collapse ? 'tabler-chevron-down' : 'tabler-chevron-up', 'text-xl')} />
-                    </IconButton>
-                }
-                titleTypographyProps={{ variant: 'h5' }}
-                sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
-            />
-            <Collapse in={!collapse}>
-                <CardContent>
-                    <Grid container spacing={4}>
+        <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
+            <Grid container spacing={4}>
 
                         {/* Keyword Search */}
                         <Grid item xs={12} sm={6} md={4}>
@@ -85,14 +69,14 @@ const SearchFilter = () => {
                             />
                         </Grid>
 
-                        {/* Group Name */}
+                        {/* Group Code */}
                         <Grid item xs={12} sm={6} md={4}>
                             <Controller
-                                name='group_name'
+                                name='group_code'
                                 control={control}
                                 render={({ field }) => (
                                     <SelectCustom
-                                        label='Group Name'
+                                        label='Group'
                                         placeholder='Select group ...'
                                         isClearable
                                         options={groupOptions}
@@ -133,10 +117,8 @@ const SearchFilter = () => {
                             </Button>
                         </Grid>
 
-                    </Grid>
-                </CardContent>
-            </Collapse>
-        </Card>
+            </Grid>
+        </SearchFilterCard>
     )
 }
 

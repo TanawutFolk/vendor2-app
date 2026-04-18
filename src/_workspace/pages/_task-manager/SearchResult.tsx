@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, IconButton, Button, Typography, Chip, Box } from '@mui/material'
+import { CardContent, IconButton, Button, Typography, Chip, Box } from '@mui/material'
 import type { ColDef } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useFormContext } from 'react-hook-form'
@@ -9,6 +9,7 @@ import { useAssignees } from '@_workspace/react-query/useAssignees'
 import { useDeleteAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import AddEditForm from './AddEditForm'
 import { GroupChip } from '@_workspace/utils/groupChipHelper'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 const SearchResult = () => {
     const { getValues } = useFormContext<AssigneesFormData>()
@@ -70,11 +71,12 @@ const SearchResult = () => {
         { field: 'empcode', headerName: 'Emp. Code', flex: 1 },
         { field: 'empName', headerName: 'Name', flex: 2 },
         { field: 'empEmail', headerName: 'Email', flex: 2 },
+        { field: 'group_code', headerName: 'Group Code', flex: 1.2 },
         {
             field: 'group_name',
             headerName: 'Group',
             flex: 1.5,
-            cellRenderer: (params: any) => <GroupChip value={params.value} />
+            cellRenderer: (params: any) => <GroupChip value={params.data?.group_code || params.value} label={params.value} />
         },
         {
             field: 'INUSE',
@@ -95,11 +97,11 @@ const SearchResult = () => {
     ], [])
 
     return (
-        <Card>
-            <CardHeader
-                title={<Typography variant='h5'>Search Result</Typography>}
-
-            />
+        <SearchResultCard action={
+            <Button variant='contained' size='small' onClick={handleAddNew}>
+                Add Assignee
+            </Button>
+        }>
             <CardContent>
                 <div className='ag-theme-alpine' style={{ height: 600, width: '100%' }}>
                     <DxAGgridTable
@@ -116,9 +118,7 @@ const SearchResult = () => {
                 initialData={editingData}
             />
             </CardContent>
-
-            
-        </Card>
+        </SearchResultCard>
     )
 }
 

@@ -41,6 +41,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import StatusTimeline from './StatusTimeline'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -584,7 +585,7 @@ export default function SearchResult() {
 
             {/* AG Grid */}
             <Grid item xs={12}>
-                <Card>
+                <SearchResultCard>
                     <CardContent sx={{ p: '24px !important' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                             <Typography variant='subtitle1' fontWeight={700}>
@@ -613,7 +614,7 @@ export default function SearchResult() {
                             onStateUpdated={handleStateUpdated}
                         />
                     </CardContent>
-                </Card>
+                </SearchResultCard>
             </Grid>
 
             {/* View Detail Dialog */}

@@ -52,6 +52,9 @@ import GprFormDialog from './modal/GprFormDialog'
 
 // Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
+import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
+import { isAccountStep, isPicStep, resolveGroupCodeForStep, resolveNextStatus } from '@_workspace/utils/requestWorkflow'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -157,11 +160,12 @@ interface ActionDialogProps {
     requestId: number | null
     nextStatus: string
     isFinalStep: boolean
+    approveActionLabel: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -195,6 +199,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
     }
 
     const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
+    const actionLabel = mode === 'approve' ? approveActionLabel : 'Reject'
 
     return (
         <Dialog
@@ -222,7 +227,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        ยืนยันการ{mode === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}ข้อมูลหรือไม่ ?
+                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : 'Confirm reject action?'}
                     </Typography>
                 </Box>
                 
@@ -249,13 +254,13 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 <LoadingButton
                     onClick={handleSubmit}
                     loading={loading}
-                    loadingIndicator={mode === 'approve' ? 'Approving...' : 'Rejecting...'}
+                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : 'Rejecting...'}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
                     sx={{ mr: 4 }}
                     disabled={mode === 'reject' && !remark.trim()}
                 >
-                    <span>Yes, {mode === 'approve' ? 'Approve' : 'Reject'} !</span>
+                    <span>Yes, {actionLabel} !</span>
                 </LoadingButton>
                 <Button variant='tonal' color='secondary' onClick={onClose} disabled={loading}>
                     Cancel
@@ -270,15 +275,13 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
 // ─────────────────────────────────────────────────────────────────────────────
 interface DetailPanelProps {
     data: any
-    onApprove: (nextStatus: string, isFinalStep: boolean) => void
+    onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: () => void
     onEmailSent: () => void
     onCompleted?: () => void
 }
 
 const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
-    const [sendingEmail, setSendingEmail] = useState(false)
-    const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     // CC emails management
     const [ccEmails, setCcEmails] = useState<string[]>([])
@@ -292,6 +295,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
+    const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editForm, setEditForm] = useState({ supportProduct_Process: '', purchase_frequency: '', requester_remark: '' })
@@ -303,37 +307,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const user = getUserData()
     const files = buildFileUrls(data?.documents)
     if (!data) return null
-
-    const handleSendEmailAndApprove = async () => {
-        setSendingEmail(true)
-        setEmailFeedback(null)
-        try {
-            const res = await RegisterRequestServices.sendAgreementEmail(data)
-            if (res.data.Status) {
-                // Email sent successfully, now approve request automatically
-                const updateRes = await RegisterRequestServices.updateStatus({
-                    request_id: data.request_id,
-                    request_status: computedNextStatus,
-                    approve_by: user?.EMPLOYEE_CODE || '',
-                    approver_remark: 'Agreement Email Sent',
-                    UPDATE_BY: user?.EMPLOYEE_CODE || '',
-                    isFinalStep: isFinalStep,
-                })
-                if (!updateRes.data.Status) {
-                    throw new Error(updateRes.data.Message || 'Email sent but failed to update status')
-                }
-                setEmailFeedback({ type: 'success', msg: 'Email sent & status updated successfully.' })
-                onEmailSent()
-                if (onCompleted) onCompleted()
-            } else {
-                setEmailFeedback({ type: 'error', msg: res.data.Message })
-            }
-        } catch (err: any) {
-            setEmailFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to send email or update status' })
-        } finally {
-            setSendingEmail(false)
-        }
-    }
 
     // Parse cc_emails from data on mount / data change
     useEffect(() => {
@@ -411,8 +384,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
     const isActionable = !!currentStep
-    const isAccountStep = isActionable && (currentStep?.DESCRIPTION || '').toLowerCase().includes('account')
-    const isPicStep = isActionable && currentStep?.step_order === 2 && user?.EMPLOYEE_CODE === data.assign_to
+    const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
+    const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
+    const approvalLogs: any[] = (() => {
+        try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
+    })().filter(Boolean)
+    const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
+        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+    )
+    const approveButtonLabel = isCurrentPicStep
+        ? (hasVendorRequested ? 'Approve to Checker' : 'Send to Vendor')
+        : 'Approve'
+    const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
+    const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
     const handleOpenEditDialog = () => {
         setEditForm({
@@ -436,7 +420,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
             if (res.data.Status) {
-                setEditFeedback({ type: 'success', msg: 'บันทึกสำเร็จ' })
+                setEditFeedback({ type: 'success', msg: 'Saved successfully' })
                 onEmailSent() // refresh grid
                 setTimeout(() => setEditDialogOpen(false), 800)
             } else {
@@ -452,12 +436,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     // Compute next status value for approve action
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
-    const computedNextStatus = (() => {
-        // ถ้าเป็น step สุดท้าย ให้ใช้ status ของ currentStep (MD Approval)
-        const targetDesc = nextStep?.DESCRIPTION || currentStep?.DESCRIPTION || ''
-        const match = statusOptions.find(so => so.label === targetDesc)
-        return match?.value || targetDesc
-    })()
+    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -465,23 +444,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const products: any[] = (() => {
         try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
     })().filter(Boolean)
-
-    let targetContactName = '-'
-    let displayTargetEmail = data.emailmain || 'No Email'
-
-    if (data.vendor_contact_id) {
-        const c = contacts.find((x: any) => x && x.vendor_contact_id === Number(data.vendor_contact_id))
-        if (c && c.email) {
-            targetContactName = c.contact_name || '-'
-            displayTargetEmail = c.email
-        }
-    } else if (contacts.length > 0) {
-        const c = contacts[0]
-        if (c && c.email) {
-            targetContactName = c.contact_name || '-'
-            displayTargetEmail = c.email
-        }
-    }
 
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
@@ -528,7 +490,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
                         <Divider sx={{ flex: 1, minWidth: 40 }} />
                     </Box>
-                    {isPicStep && (
+                    {isCurrentPicStep && (
                         <Button size='small' variant='tonal' color='warning'
                             startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
                             onClick={handleOpenEditDialog}
@@ -550,7 +512,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Vendor Info</Typography>
                         <Divider sx={{ flex: 1, minWidth: 40 }} />
                     </Box>
-                    {isPicStep && (
+                    {isCurrentPicStep && (
                         <Button size='small' variant='tonal' color='info'
                             startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
                             onClick={() => setEditVendorOpen(true)}
@@ -794,42 +756,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 )}
             </Box>
 
-            {/* Email Agreement Section */}
-            {isActionable && !isAccountStep && (
-                <Box sx={{
-                    mb: 3, p: 2, borderRadius: 1,
-                    bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'primary.light' : 'rgba(115, 103, 240, 0.12)',
-                    border: '1px dashed', borderColor: 'primary.main',
-                    display: 'flex', flexDirection: 'column', gap: 1.5
-                }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <i className='tabler-mail-fast' style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }} />
-                        <Typography variant='subtitle2' fontWeight={700}>Vendor Agreement Email</Typography>
-                    </Box>
-                    <Typography variant='caption' color='text.secondary'>
-                        ส่งอีเมลแจ้งรายละเอียดเงื่อนไขและขอเอกสารไปยัง Vendor Contact: <strong>{targetContactName} ({displayTargetEmail})</strong>
-                        <br />การส่งอีเมลนี้จะถือเป็นการอนุมัติคำขอในขั้นตอนนี้โดยอัตโนมัติ
-                    </Typography>
-
-                    {emailFeedback && (
-                        <Alert severity={emailFeedback.type} sx={{ py: 0, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
-                            {emailFeedback.msg}
-                        </Alert>
-                    )}
-
-                    <Button
-                        variant='contained' color='primary' fullWidth size='small'
-                        startIcon={sendingEmail ? <CircularProgress size={16} color='inherit' /> : <i className='tabler-send' style={{ fontSize: 16 }} />}
-                        onClick={handleSendEmailAndApprove}
-                        disabled={sendingEmail || !displayTargetEmail || displayTargetEmail === 'No Email'}
-                    >
-                        {sendingEmail ? 'Sending & Approving...' : 'Send Agreement Email & Approve'}
-                    </Button>
-                </Box>
-            )}
-
             {/* Account Registration Step UI (only when Account step is in_progress) */}
-            {isAccountStep && (
+            {isCurrentAccountStep && (
                 <Box sx={{
                     mb: 3, p: 2.5, borderRadius: 1,
                     bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'rgba(102, 16, 242, 0.04)' : 'rgba(102, 16, 242, 0.12)',
@@ -841,7 +769,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Box>
                             <Typography variant='subtitle1' fontWeight={700} color='#6610f2'>Account Registration Step</Typography>
                             <Typography variant='caption' color='text.secondary'>
-                                กรุณาลงทะเบียน Vendor ในระบบแล้วกรอก Vendor Code เพื่อเสร็จสิ้นกระบวนการ
+                                Register the vendor in the FFT system, then enter the Vendor Code to complete the process.
                             </Typography>
                         </Box>
                     </Box>
@@ -868,7 +796,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             )}
 
             {/* GPR Form — always visible for PO PIC (checker step) */}
-            {isActionable && !isAccountStep && (
+            {isActionable && !isCurrentAccountStep && (
                 <Box sx={{
                     mb: 3, p: 2, borderRadius: 1,
                     border: '1px solid', borderColor: 'divider',
@@ -900,12 +828,21 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             )}
 
             {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
-            {isActionable && !isAccountStep && (
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            {isActionable && !isCurrentAccountStep && (
+                <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+                    {isCurrentPicStep && (
+                        <Button
+                            variant='tonal'
+                            color='warning'
+                            onClick={() => setReassignDialogOpen(true)}
+                        >
+                            Reassign PIC
+                        </Button>
+                    )}
                     <Button variant='contained' color='success' fullWidth
                         startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={() => onApprove(computedNextStatus, isFinalStep)}
-                    >Approve</Button>
+                        onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
+                    >{approveButtonLabel}</Button>
                     <Button variant='contained' color='error' fullWidth
                         startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
                         onClick={onReject}
@@ -919,6 +856,16 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 rowData={data}
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
+            />
+            <ReassignDialog
+                open={reassignDialogOpen}
+                requestId={data.request_id || null}
+                scope='REQUEST_PIC'
+                groupCode={currentGroupCode}
+                currentEmpCode={data.assign_to}
+                updateBy={user?.EMPLOYEE_CODE || 'SYSTEM'}
+                onClose={() => setReassignDialogOpen(false)}
+                onSuccess={onEmailSent}
             />
 
             {/* Edit Vendor Modal (reuse from find-vendor — full Vendor Info + Contacts + Products editing) */}
@@ -1018,7 +965,7 @@ const DetailRenderer = (props: any) => {
     return (
         <DetailPanel
             data={props.data}
-            onApprove={(status: string, finalStep: boolean) => props.context.onApprove(props.data, status, finalStep)}
+            onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
             onReject={() => props.context.onReject(props.data)}
             onEmailSent={() => props.context.onEmailSent()}
             onCompleted={() => props.context.onCompleted()}
@@ -1046,6 +993,7 @@ export default function SearchResult() {
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
     const [nextStatus, setNextStatus] = useState('')
     const [isFinalStep, setIsFinalStep] = useState(false)
+    const [approveActionLabel, setApproveActionLabel] = useState('Approve')
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
@@ -1192,16 +1140,18 @@ export default function SearchResult() {
     }
 
     const gridContext = useMemo(() => ({
-        onApprove: (data: any, status: string, finalStep: boolean) => {
+        onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
             setSelectedData(data)
             setNextStatus(status)
             setIsFinalStep(finalStep)
+            setApproveActionLabel(actionLabel || 'Approve')
             setActionMode('approve')
             setActionDialogOpen(true)
         },
         onReject: (data: any) => {
             setSelectedData(data)
             setIsFinalStep(false)
+            setApproveActionLabel('Approve')
             setActionMode('reject')
             setActionDialogOpen(true)
         },
@@ -1222,20 +1172,12 @@ export default function SearchResult() {
 
             {/* AG Grid */}
             <Grid item xs={12}>
-                <Card>
+                <SearchResultCard>
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Typography variant='subtitle1' fontWeight={700}>
                                 Results ({totalCount})
                             </Typography>
-                            <Button
-                                size='small'
-                                variant='tonal'
-                                startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                                onClick={() => gridApiRef.current?.refreshServerSide({ purge: true })}
-                            >
-                                Refresh
-                            </Button>
                         </Box>
 
                         <DxAGgridTable
@@ -1253,7 +1195,7 @@ export default function SearchResult() {
                             context={gridContext}
                         />
                     </CardContent>
-                </Card>
+                </SearchResultCard>
             </Grid>
 
             {/* Approve / Reject Dialog */}
@@ -1263,13 +1205,14 @@ export default function SearchResult() {
                 requestId={selectedData?.request_id || null}
                 nextStatus={nextStatus}
                 isFinalStep={isFinalStep}
+                approveActionLabel={approveActionLabel}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />
 
             {/* View Detail Dialog */}
             <Dialog
-                maxWidth='sm'
+                maxWidth='lg'
                 fullWidth={true}
                 onClose={(event, reason) => {
                     if (reason !== 'backdropClick') {
@@ -1280,7 +1223,11 @@ export default function SearchResult() {
                 open={drawerOpen}
                 scroll='paper'
                 sx={{
-                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-paper': {
+                        overflow: 'visible',
+                        width: { xs: 'calc(100vw - 16px)', sm: 'calc(100vw - 32px)', lg: '1100px' },
+                        maxWidth: '1100px',
+                    },
                     '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
                 }}
             >

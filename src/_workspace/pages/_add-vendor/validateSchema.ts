@@ -6,7 +6,7 @@ import {
     requiredFieldMessage
 } from '@/libs/valibot/error-message/errorMessage'
 
-// --- Contact Schema (สำหรับ vendor_contacts table) ---
+// --- Contact Schema (for vendor_contacts table) ---
 export const ContactSchema = z.object({
     contact_name: z
         .string({
@@ -38,7 +38,7 @@ export const ContactSchema = z.object({
         .or(z.literal(''))
 })
 
-// --- Product Schema (สำหรับ vendor_products table) ---
+// --- Product Schema (for vendor_products table) ---
 // Option object type for AsyncSelectCustom
 const ProductGroupOptionSchema = z.object({
     value: z.number(),

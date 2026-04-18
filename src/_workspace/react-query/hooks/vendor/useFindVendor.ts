@@ -23,6 +23,19 @@ export const useSearch = (params: FindVendorSearchRequestI, enabled: boolean = t
     })
 }
 
+export const getVendorDetailQueryConfig = (vendorId: number | null) => ({
+    queryKey: [PREFIX_QUERY_KEY, 'DETAIL', vendorId],
+    queryFn: async () => {
+        if (!vendorId) return null
+        return await EditVendorUtils.getComprehensiveByVendorId(vendorId)
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+})
+
 export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
     return useQuery<
         {
@@ -33,17 +46,8 @@ export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
         } | null,
         Error
     >({
-        queryKey: [PREFIX_QUERY_KEY, 'DETAIL', vendorId],
-        queryFn: async () => {
-            if (!vendorId) return null
-            return await EditVendorUtils.getComprehensiveByVendorId(vendorId)
-        },
+        ...getVendorDetailQueryConfig(vendorId),
         enabled: enabled !== undefined ? enabled : !!vendorId,
-        staleTime: 5 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
-        retry: 1
     })
 }
 

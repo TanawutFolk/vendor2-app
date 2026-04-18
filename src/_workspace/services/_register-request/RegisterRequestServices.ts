@@ -113,6 +113,10 @@ export default class RegisterRequestServices {
         approver_id: string
         step_status: string
         DESCRIPTION: string
+        step_code?: string
+        actor_type?: string
+        group_code?: string
+        assignment_mode?: string
         CREATE_BY: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<{ step_id: number }>>> {
         return axiosRequest<RegisterRequestResponseI<{ step_id: number }>>({
@@ -147,6 +151,20 @@ export default class RegisterRequestServices {
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/updateCcEmails`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static reassign(data: {
+        request_id: number
+        scope: 'REQUEST_PIC' | 'CURRENT_STEP'
+        to_empcode: string
+        reason?: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/reassign`,
             data,
             method: 'POST'
         })
@@ -202,6 +220,12 @@ export default class RegisterRequestServices {
 export interface StatusOption {
     value: string
     label: string
+    stepCode?: string
+    actorType?: string
+    defaultGroupCodeLocal?: string
+    defaultGroupCodeOversea?: string
+    requiresVendorReply?: number
+    requiresVendorCode?: number
     chipColor: string
     accent: string
     icon?: string
@@ -215,6 +239,10 @@ export interface ApprovalStep {
     approver_id: string
     step_status: string
     DESCRIPTION: string
+    step_code?: string
+    actor_type?: string
+    group_code?: string
+    assignment_mode?: string
     CREATE_DATE: string
     UPDATE_BY: string
     UPDATE_DATE: string

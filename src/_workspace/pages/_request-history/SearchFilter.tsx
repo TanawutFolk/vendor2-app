@@ -1,8 +1,7 @@
 // MUI Imports
-import { Button, Card, CardContent, CardHeader, Collapse, Grid, IconButton } from '@mui/material'
+import { Button, Grid } from '@mui/material'
 
 // Third-party Imports
-import classNames from 'classnames'
 import { useState } from 'react'
 
 // React Hook Form Imports
@@ -24,6 +23,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 import type { RequestHistoryFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
 import { MENU_ID } from './env'
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
@@ -67,20 +67,8 @@ const SearchFilter = () => {
     }
 
     return (
-        <Card style={{ overflow: 'visible', zIndex: 4 }}>
-            <CardHeader
-                title='Search Filters'
-                action={
-                    <IconButton size='small' aria-label='collapse' onClick={() => setCollapse(!collapse)}>
-                        <i className={classNames(collapse ? 'tabler-chevron-down' : 'tabler-chevron-up', 'text-xl')} />
-                    </IconButton>
-                }
-                titleTypographyProps={{ variant: 'h5' }}
-                sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
-            />
-            <Collapse in={!collapse}>
-                <CardContent>
-                    <Grid container spacing={4}>
+        <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
+            <Grid container spacing={4}>
 
                         {/* Vendor Name */}
                         <Grid item xs={12} sm={6} md={3}>
@@ -145,10 +133,8 @@ const SearchFilter = () => {
                             </Button>
                         </Grid>
 
-                    </Grid>
-                </CardContent>
-            </Collapse>
-        </Card>
+            </Grid>
+        </SearchFilterCard>
     )
 }
 

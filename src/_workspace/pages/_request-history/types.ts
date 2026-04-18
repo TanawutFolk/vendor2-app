@@ -10,7 +10,7 @@ export interface RegisterStep {
     remark?: string
     // Branching support
     isBranch?: boolean          // true = this node is a branch (sub-step of rejection path)
-    branchLabel?: string        // e.g. "ไม่ตกลง" to label the branch line
+    branchLabel?: string        // e.g. "Disagreed Case" to label the branch line
     branchChildren?: RegisterStep[]  // sub-steps inside rejection branch
 }
 

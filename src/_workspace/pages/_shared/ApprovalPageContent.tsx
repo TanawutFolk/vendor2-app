@@ -32,6 +32,7 @@ const Transition = forwardRef(function Transition(
 })
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
@@ -41,6 +42,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Status — colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import { isPicStep, resolveGroupCodeForStep, resolveNextStatus } from '@_workspace/utils/requestWorkflow'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -141,11 +143,12 @@ interface ActionDialogProps {
     requestId: number | null
     nextStatus: string
     isFinalStep: boolean
+    approveActionLabel: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -179,6 +182,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
     }
 
     const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
+    const actionLabel = mode === 'approve' ? approveActionLabel : 'Reject'
 
     return (
         <Dialog
@@ -200,7 +204,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        ยืนยันการ{mode === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}ข้อมูลหรือไม่ ?
+                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : 'Confirm reject action?'}
                     </Typography>
                 </Box>
 
@@ -221,13 +225,13 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
                 <LoadingButton
                     onClick={handleSubmit}
                     loading={loading}
-                    loadingIndicator={mode === 'approve' ? 'Approving...' : 'Rejecting...'}
+                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : 'Rejecting...'}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
                     sx={{ mr: 4 }}
                     disabled={mode === 'reject' && !remark.trim()}
                 >
-                    <span>Yes, {mode === 'approve' ? 'Approve' : 'Reject'} !</span>
+                    <span>Yes, {actionLabel} !</span>
                 </LoadingButton>
                 <Button variant='tonal' color='secondary' onClick={onClose} disabled={loading}>
                     Cancel
@@ -243,13 +247,15 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, onClose,
 interface DetailPanelProps {
     data: any
     empCode: string | undefined
-    onApprove: (nextStatus: string, isFinalStep: boolean) => void
+    onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: () => void
+    onRefresh: () => void
 }
 
-const DetailPanel = ({ data, empCode, onApprove, onReject }: DetailPanelProps) => {
+const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [gprFormOpen, setGprFormOpen] = useState(false)
+    const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     if (!data) return null
 
@@ -272,23 +278,26 @@ const DetailPanel = ({ data, empCode, onApprove, onReject }: DetailPanelProps) =
     )
 
     // PIC step: description contains 'pic' — allow assign_to (not just approver_id) to action
-    const currentDesc = (currentStep?.DESCRIPTION || '').toLowerCase()
-    const isPicStep = currentDesc.includes('pic')
+    const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
     const isCurrentStepMine = !!currentStep && (
         currentStep.approver_id === empCode ||
-        (isPicStep && data.assign_to === empCode)
+        (isCurrentPicStep && data.assign_to === empCode)
     )
+    const hasVendorRequested = !!currentStep && logs.some((l: any) =>
+        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+    )
+    const approveButtonLabel = isCurrentPicStep
+        ? (hasVendorRequested ? 'Approve to Checker' : 'Send to Vendor')
+        : 'Approve'
 
     // Actionable only if there IS an in_progress step AND it belongs to this user
     const isActionable = isCurrentStepMine
 
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
-    const computedNextStatus = (() => {
-        const targetDesc = nextStep?.DESCRIPTION || currentStep?.DESCRIPTION || ''
-        const match = statusOptions.find(so => so.label === targetDesc)
-        return match?.value || targetDesc
-    })()
+    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
+    const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
+    const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -524,11 +533,18 @@ const DetailPanel = ({ data, empCode, onApprove, onReject }: DetailPanelProps) =
 
             {/* Approve / Reject Buttons */}
             {isActionable && (
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+                    <Button
+                        variant='tonal'
+                        color='warning'
+                        onClick={() => setReassignDialogOpen(true)}
+                    >
+                        Reassign Step
+                    </Button>
                     <Button variant='contained' color='success' fullWidth
                         startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={() => onApprove(computedNextStatus, isFinalStep)}
-                    >Approve</Button>
+                        onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
+                    >{approveButtonLabel}</Button>
                     <Button variant='contained' color='error' fullWidth
                         startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
                         onClick={onReject}
@@ -548,6 +564,16 @@ const DetailPanel = ({ data, empCode, onApprove, onReject }: DetailPanelProps) =
                     }}
                 />
             )}
+            <ReassignDialog
+                open={reassignDialogOpen}
+                requestId={data.request_id || null}
+                scope='CURRENT_STEP'
+                groupCode={currentGroupCode}
+                currentEmpCode={currentStep?.approver_id || data.assign_to}
+                updateBy={empCode || 'SYSTEM'}
+                onClose={() => setReassignDialogOpen(false)}
+                onSuccess={onRefresh}
+            />
         </Box>
     )
 }
@@ -560,8 +586,9 @@ const DetailRenderer = (props: any) => {
         <DetailPanel
             data={props.data}
             empCode={props.context.empCode}
-            onApprove={(status: string, finalStep: boolean) => props.context.onApprove(props.data, status, finalStep)}
+            onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
             onReject={() => props.context.onReject(props.data)}
+            onRefresh={() => props.context.onRefresh()}
         />
     )
 }
@@ -594,6 +621,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
     const [nextStatus, setNextStatus] = useState('')
     const [isFinalStep, setIsFinalStep] = useState(false)
+    const [approveActionLabel, setApproveActionLabel] = useState('Approve')
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
@@ -727,27 +755,30 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
         }
     ], [statusOptions])
 
-    const handleActionSuccess = () => {
+    const handleActionSuccess = useCallback(() => {
         gridApiRef.current?.refreshServerSide({ purge: true })
         setSelectedData(null)
-    }
+    }, [])
 
     const gridContext = useMemo(() => ({
         empCode,
-        onApprove: (data: any, status: string, finalStep: boolean) => {
+        onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
             setSelectedData(data)
             setNextStatus(status)
             setIsFinalStep(finalStep)
+            setApproveActionLabel(actionLabel || 'Approve')
             setActionMode('approve')
             setActionDialogOpen(true)
         },
         onReject: (data: any) => {
             setSelectedData(data)
             setIsFinalStep(false)
+            setApproveActionLabel('Approve')
             setActionMode('reject')
             setActionDialogOpen(true)
-        }
-    }), [empCode])
+        },
+        onRefresh: handleActionSuccess
+    }), [empCode, handleActionSuccess])
 
     return (
         <Grid container spacing={6}>
@@ -798,7 +829,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             <Grid item xs={12}>
                 <Card>
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                 <Box sx={{
                                     width: 4, height: 24, borderRadius: 1,
@@ -808,13 +839,6 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
                                     {pageTitle} — Pending Approval ({totalCount})
                                 </Typography>
                             </Box>
-                            <Button
-                                size='small' variant='tonal'
-                                startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                                onClick={() => gridApiRef.current?.refreshServerSide({ purge: true })}
-                            >
-                                Refresh
-                            </Button>
                         </Box>
 
                         <DxAGgridTable
@@ -840,20 +864,25 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
                 requestId={selectedData?.request_id || null}
                 nextStatus={nextStatus}
                 isFinalStep={isFinalStep}
+                approveActionLabel={approveActionLabel}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />
 
             {/* Detail Dialog */}
             <Dialog
-                maxWidth='sm'
+                maxWidth='lg'
                 fullWidth={true}
                 onClose={(event, reason) => { if (reason !== 'backdropClick') setDrawerOpen(false) }}
                 TransitionComponent={Transition}
                 open={drawerOpen}
                 scroll='paper'
                 sx={{
-                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-paper': {
+                        overflow: 'visible',
+                        width: { xs: 'calc(100vw - 16px)', sm: 'calc(100vw - 32px)', lg: '1100px' },
+                        maxWidth: '1100px',
+                    },
                     '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
                 }}
             >

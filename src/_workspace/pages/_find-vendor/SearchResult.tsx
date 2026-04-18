@@ -4,7 +4,7 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 
 // MUI Imports
-import { Card, CardHeader, Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
+import { Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
@@ -38,6 +38,7 @@ import { StatusCheckCellRenderer } from './components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer'
 import EditVendorModal from './modal/EditVendorModal'
 import RegisterConfirmModal from './register-request/RegisterConfirmModal'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 
 const SearchResult = () => {
@@ -150,7 +151,7 @@ const SearchResult = () => {
         gridApiRef.current?.exportDataAsExcel({
             fileName: `Vendor_List_${buildTimestamp()}.xlsx`,
             sheetName: 'Vendor List',
-            // ไม่ต้องระบุ columnKeys → ใช้ column ที่ visible อยู่บนหน้าจอตาม state ปัจจุบัน
+            // Keep columnKeys undefined to export currently visible columns from grid state.
         })
     }
 
@@ -209,7 +210,7 @@ const SearchResult = () => {
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
             payload.append('cc_emails', JSON.stringify(formData?.ccEmails || []))
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
-            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'ถ้าเห็นข้อความนี้แจ้งS524')
+            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))
             }
@@ -272,35 +273,30 @@ const SearchResult = () => {
     ], [])
 
     return (
-        <Card>
-            <CardHeader
-                title='Search Result'
-                titleTypographyProps={{ variant: 'h5' }}
-                action={
-                    <>
-                        <Button
-                            variant='outlined'
-                            color='primary'
-                            startIcon={isExporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
-                            onClick={(e) => setAnchorEl(e.currentTarget)}
-                            disabled={isExporting}
-                            sx={{ borderRadius: '20px' }}
-                        >
-                            {isExporting ? 'Exporting...' : 'Export to Excel'}
-                        </Button>
-                        <Menu anchorEl={anchorEl} open={openExportMenu} onClose={() => setAnchorEl(null)}>
-                            <MenuItem onClick={handleExportCurrentPage} disabled={isExporting}>
-                                <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
-                                <ListItemText>Export Current Page</ListItemText>
-                            </MenuItem>
-                            <MenuItem onClick={handleExportAllData} disabled={isExporting}>
-                                <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
-                                <ListItemText>Export All</ListItemText>
-                            </MenuItem>
-                        </Menu>
-                    </>
-                }
-            />
+        <SearchResultCard action={
+            <>
+                <Button
+                    variant='outlined'
+                    color='primary'
+                    startIcon={isExporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+                    onClick={(e) => setAnchorEl(e.currentTarget)}
+                    disabled={isExporting}
+                    sx={{ borderRadius: '20px' }}
+                >
+                    {isExporting ? 'Exporting...' : 'Export to Excel'}
+                </Button>
+                <Menu anchorEl={anchorEl} open={openExportMenu} onClose={() => setAnchorEl(null)}>
+                    <MenuItem onClick={handleExportCurrentPage} disabled={isExporting}>
+                        <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
+                        <ListItemText>Export Current Page</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={handleExportAllData} disabled={isExporting}>
+                        <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
+                        <ListItemText>Export All</ListItemText>
+                    </MenuItem>
+                </Menu>
+            </>
+        }>
             <DxAGgridTable
                 columnDefs={columnDefs}
                 serverSideDatasource={datasource}
@@ -333,7 +329,7 @@ const SearchResult = () => {
                 onClose={() => { setRegisterModalOpen(false); setSelectedRegisterVendor(null) }}
                 onConfirm={handleConfirmRegister}
             />
-        </Card>
+        </SearchResultCard>
     )
 }
 

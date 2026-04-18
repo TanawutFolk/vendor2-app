@@ -24,6 +24,7 @@ const FormSchema = z.object({
     empcode: z.string().min(1, 'EmpCode is required'),
     empName: z.string().min(1, 'Name is required'),
     empEmail: z.string().email('Invalid email format').min(1, 'Email is required'),
+    group_code: z.string().min(1, 'Group is required'),
     group_name: z.string().min(1, 'Group is required'),
     INUSE: z.number()
 })
@@ -44,13 +45,14 @@ const inUseOptions = [
 const AddEditForm = ({ open, onClose, initialData }: Props) => {
     const { mutate: saveAssignee, isPending } = useSaveAssignee()
 
-    const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+    const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
             Assignees_id: undefined,
             empcode: '',
             empName: '',
             empEmail: '',
+            group_code: '',
             group_name: '',
             INUSE: 1
         }
@@ -64,6 +66,7 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                     empcode: initialData.empcode || '',
                     empName: initialData.empName || '',
                     empEmail: initialData.empEmail || '',
+                    group_code: initialData.group_code || '',
                     group_name: initialData.group_name || '',
                     INUSE: initialData.INUSE ?? 1
                 })
@@ -73,6 +76,7 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                     empcode: '',
                     empName: '',
                     empEmail: '',
+                    group_code: '',
                     group_name: '',
                     INUSE: 1
                 })
@@ -163,18 +167,22 @@ const AddEditForm = ({ open, onClose, initialData }: Props) => {
                         </Grid>
                         <Grid item xs={12} sm={6} >
                             <Controller
-                                name='group_name'
+                                name='group_code'
                                 control={control}
                                 render={({ field }) => (
                                     <div className='flex flex-col'>
                                         <SelectCustom
                                             classNamePrefix='select'
-                                            label='Group Name'
+                                            label='Group'
                                             options={groupOptions}
                                             value={groupOptions.find(o => o.value === field.value) || null}
-                                            onChange={(val: any) => field.onChange(val?.value || '')}
+                                            onChange={(val: any) => {
+                                                field.onChange(val?.value || '')
+                                                const matched = groupOptions.find(o => o.value === val?.value)
+                                                setValue('group_name', matched?.label || '')
+                                            }}
                                         />
-                                        {errors.group_name && <span className='text-xs text-error mt-1'>{errors.group_name.message}</span>}
+                                        {errors.group_code && <span className='text-xs text-error mt-1'>{errors.group_code.message}</span>}
                                     </div>
                                 )}
                             />

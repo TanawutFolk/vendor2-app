@@ -28,7 +28,7 @@ interface ErrorModalProps {
 const ErrorModal = ({
     show,
     title = 'Error!',
-    message = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง',
+    message = 'An error occurred while saving data. Please try again.',
     onCloseClick,
     onRetryClick
 }: ErrorModalProps) => {

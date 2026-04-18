@@ -226,7 +226,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
             const pendingAgreementStep = topLevelSteps.find(s => isPendingAgreementStep(s.title))
 
             if (pendingAgreementStep && branchChildren.length > 0) {
-                pendingAgreementStep.branchLabel = 'กรณีไม่ตกลง (Disagreed)'
+                pendingAgreementStep.branchLabel = 'Disagreed Case'
                 pendingAgreementStep.branchChildren = branchChildren
             }
 
@@ -333,7 +333,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                     >
                                         <i className='tabler-git-branch' style={{ fontSize: 13, color: 'var(--mui-palette-error-main)' }} />
                                         <Typography variant='caption' fontWeight={700} color='error.main'>
-                                            {step.branchLabel || 'กรณีไม่ตกลง'}
+                                                {step.branchLabel || 'Disagreed Case'}
                                         </Typography>
                                     </Box>
 
