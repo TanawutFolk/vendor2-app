@@ -53,7 +53,19 @@ import GprFormDialog from './modal/GprFormDialog'
 // Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
-import { isAccountStep, isPicStep, resolveGroupCodeForStep, resolveNextStatus } from '@_workspace/utils/requestWorkflow'
+import {
+    getApproveActionLabel,
+    getGprStageLabel,
+    getRejectActionLabel,
+    isIssueGprBStep,
+    isIssueGprCStep,
+    isPendingAgreementStep,
+    isAccountStep,
+    isPicStep,
+    isVendorDisagreedStep,
+    resolveGroupCodeForStep,
+    resolveNextStatus,
+} from '@_workspace/utils/requestWorkflow'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,11 +173,12 @@ interface ActionDialogProps {
     nextStatus: string
     isFinalStep: boolean
     approveActionLabel: string
+    rejectActionLabel: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -199,7 +212,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
     }
 
     const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
-    const actionLabel = mode === 'approve' ? approveActionLabel : 'Reject'
+    const actionLabel = mode === 'approve' ? approveActionLabel : rejectActionLabel
 
     return (
         <Dialog
@@ -227,7 +240,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : 'Confirm reject action?'}
+                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : `Confirm action: ${rejectActionLabel}`}
                     </Typography>
                 </Box>
                 
@@ -254,7 +267,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <LoadingButton
                     onClick={handleSubmit}
                     loading={loading}
-                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : 'Rejecting...'}
+                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : `${rejectActionLabel}...`}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
                     sx={{ mr: 4 }}
@@ -276,7 +289,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
 interface DetailPanelProps {
     data: any
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
-    onReject: () => void
+    onReject: (rejectActionLabel: string) => void
     onEmailSent: () => void
     onCompleted?: () => void
 }
@@ -392,9 +405,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
-    const approveButtonLabel = isCurrentPicStep
-        ? (hasVendorRequested ? 'Approve to Checker' : 'Send to Vendor')
-        : 'Approve'
+    const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
+    const rejectButtonLabel = getRejectActionLabel(currentStep)
+    const gprStageLabel = getGprStageLabel(currentStep, hasVendorRequested)
     const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
     const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
@@ -437,6 +450,21 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
+    const pendingAfterCurrent = currentStep
+        ? approvalSteps
+            .filter((s: any) => s.step_status === 'pending' && s.step_order > currentStep.step_order)
+            .sort((a: any, b: any) => Number(a.step_order || 0) - Number(b.step_order || 0))
+        : []
+    const gprBStep = pendingAfterCurrent.find((s: any) => isIssueGprBStep(s))
+    const gprCStep = pendingAfterCurrent.find((s: any) => isIssueGprCStep(s))
+    const vendorDisagreedStep = pendingAfterCurrent.find((s: any) => isVendorDisagreedStep(s))
+    const agreementNextStep = pendingAfterCurrent.find((s: any) => !isIssueGprBStep(s) && !isIssueGprCStep(s) && !isVendorDisagreedStep(s))
+    const agreementNextStatus = resolveNextStatus(statusOptions, currentStep, agreementNextStep || nextStep)
+    const gprBStatus = gprBStep ? resolveNextStatus(statusOptions, currentStep, gprBStep) : computedNextStatus
+    const gprCStatus = gprCStep ? resolveNextStatus(statusOptions, currentStep, gprCStep) : computedNextStatus
+    const vendorDisagreedStatus = vendorDisagreedStep
+        ? resolveNextStatus(statusOptions, currentStep, vendorDisagreedStep)
+        : 'Vendor Disagreed'
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -807,7 +835,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Box>
                             <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
                             <Typography variant='caption' color='text.secondary'>
-                                {data.gpr_data ? 'GPR form filled — click to edit' : 'Fill in the vendor evaluation form from vendor response'}
+                                {data.gpr_data
+                                    ? `${gprStageLabel} filled - click to edit`
+                                    : `Fill in ${gprStageLabel} from vendor response`}
                             </Typography>
                         </Box>
                     </Box>
@@ -821,7 +851,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             startIcon={<i className={data.gpr_data ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
                             onClick={() => setGprDialogOpen(true)}
                         >
-                            {data.gpr_data ? 'Edit Form' : 'Fill Form'}
+                            {data.gpr_data ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`}
                         </Button>
                     </Box>
                 </Box>
@@ -839,14 +869,54 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             Reassign PIC
                         </Button>
                     )}
-                    <Button variant='contained' color='success' fullWidth
-                        startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
-                    >{approveButtonLabel}</Button>
-                    <Button variant='contained' color='error' fullWidth
-                        startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
-                        onClick={onReject}
-                    >Reject</Button>
+                    {isPendingAgreementStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='warning' fullWidth
+                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(gprBStatus, false, 'Send GPR B to Vendor')}
+                            >Send GPR B to Vendor</Button>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                        </>
+                    )}
+                    {isIssueGprBStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='warning' fullWidth
+                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(gprCStatus, false, 'Send GPR C to Vendor')}
+                            >Send GPR C to Vendor</Button>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                        </>
+                    )}
+                    {isIssueGprCStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                            <Button variant='contained' color='error' fullWidth
+                                startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(vendorDisagreedStatus, false, 'Vendor Disagreed (Close)')}
+                            >Vendor Disagreed (Close)</Button>
+                        </>
+                    )}
+                    {!isPendingAgreementStep(currentStep) && !isIssueGprBStep(currentStep) && !isIssueGprCStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
+                            >{approveButtonLabel}</Button>
+                            <Button variant='contained' color='error' fullWidth
+                                startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                                onClick={() => onReject(rejectButtonLabel)}
+                            >{rejectButtonLabel}</Button>
+                        </>
+                    )}
                 </Box>
             )}
 
@@ -966,7 +1036,7 @@ const DetailRenderer = (props: any) => {
         <DetailPanel
             data={props.data}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
-            onReject={() => props.context.onReject(props.data)}
+            onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
             onEmailSent={() => props.context.onEmailSent()}
             onCompleted={() => props.context.onCompleted()}
         />
@@ -994,6 +1064,7 @@ export default function SearchResult() {
     const [nextStatus, setNextStatus] = useState('')
     const [isFinalStep, setIsFinalStep] = useState(false)
     const [approveActionLabel, setApproveActionLabel] = useState('Approve')
+    const [rejectActionLabel, setRejectActionLabel] = useState('Reject')
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
@@ -1148,10 +1219,11 @@ export default function SearchResult() {
             setActionMode('approve')
             setActionDialogOpen(true)
         },
-        onReject: (data: any) => {
+        onReject: (data: any, actionLabel: string) => {
             setSelectedData(data)
             setIsFinalStep(false)
             setApproveActionLabel('Approve')
+            setRejectActionLabel(actionLabel || 'Reject')
             setActionMode('reject')
             setActionDialogOpen(true)
         },
@@ -1206,6 +1278,7 @@ export default function SearchResult() {
                 nextStatus={nextStatus}
                 isFinalStep={isFinalStep}
                 approveActionLabel={approveActionLabel}
+                rejectActionLabel={rejectActionLabel}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />

@@ -42,7 +42,17 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Status — colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
-import { isPicStep, resolveGroupCodeForStep, resolveNextStatus } from '@_workspace/utils/requestWorkflow'
+import {
+    getApproveActionLabel,
+    getRejectActionLabel,
+    isIssueGprBStep,
+    isIssueGprCStep,
+    isPendingAgreementStep,
+    isPicStep,
+    isVendorDisagreedStep,
+    resolveGroupCodeForStep,
+    resolveNextStatus,
+} from '@_workspace/utils/requestWorkflow'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -144,11 +154,12 @@ interface ActionDialogProps {
     nextStatus: string
     isFinalStep: boolean
     approveActionLabel: string
+    rejectActionLabel: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -182,7 +193,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
     }
 
     const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
-    const actionLabel = mode === 'approve' ? approveActionLabel : 'Reject'
+    const actionLabel = mode === 'approve' ? approveActionLabel : rejectActionLabel
 
     return (
         <Dialog
@@ -204,7 +215,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : 'Confirm reject action?'}
+                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : `Confirm action: ${rejectActionLabel}`}
                     </Typography>
                 </Box>
 
@@ -225,7 +236,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <LoadingButton
                     onClick={handleSubmit}
                     loading={loading}
-                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : 'Rejecting...'}
+                    loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : `${rejectActionLabel}...`}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
                     sx={{ mr: 4 }}
@@ -248,7 +259,7 @@ interface DetailPanelProps {
     data: any
     empCode: string | undefined
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
-    onReject: () => void
+    onReject: (rejectActionLabel: string) => void
     onRefresh: () => void
 }
 
@@ -286,9 +297,8 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
     const hasVendorRequested = !!currentStep && logs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
-    const approveButtonLabel = isCurrentPicStep
-        ? (hasVendorRequested ? 'Approve to Checker' : 'Send to Vendor')
-        : 'Approve'
+    const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
+    const rejectButtonLabel = getRejectActionLabel(currentStep)
 
     // Actionable only if there IS an in_progress step AND it belongs to this user
     const isActionable = isCurrentStepMine
@@ -296,6 +306,21 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
+    const pendingAfterCurrent = currentStep
+        ? approvalSteps
+            .filter((s: any) => s.step_status === 'pending' && s.step_order > currentStep.step_order)
+            .sort((a: any, b: any) => Number(a.step_order || 0) - Number(b.step_order || 0))
+        : []
+    const gprBStep = pendingAfterCurrent.find((s: any) => isIssueGprBStep(s))
+    const gprCStep = pendingAfterCurrent.find((s: any) => isIssueGprCStep(s))
+    const vendorDisagreedStep = pendingAfterCurrent.find((s: any) => isVendorDisagreedStep(s))
+    const agreementNextStep = pendingAfterCurrent.find((s: any) => !isIssueGprBStep(s) && !isIssueGprCStep(s) && !isVendorDisagreedStep(s))
+    const agreementNextStatus = resolveNextStatus(statusOptions, currentStep, agreementNextStep || nextStep)
+    const gprBStatus = gprBStep ? resolveNextStatus(statusOptions, currentStep, gprBStep) : computedNextStatus
+    const gprCStatus = gprCStep ? resolveNextStatus(statusOptions, currentStep, gprCStep) : computedNextStatus
+    const vendorDisagreedStatus = vendorDisagreedStep
+        ? resolveNextStatus(statusOptions, currentStep, vendorDisagreedStep)
+        : 'Vendor Disagreed'
     const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
     const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
@@ -541,14 +566,54 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
                     >
                         Reassign Step
                     </Button>
-                    <Button variant='contained' color='success' fullWidth
-                        startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
-                    >{approveButtonLabel}</Button>
-                    <Button variant='contained' color='error' fullWidth
-                        startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
-                        onClick={onReject}
-                    >Reject</Button>
+                    {isPendingAgreementStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='warning' fullWidth
+                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(gprBStatus, false, 'Send GPR B to Vendor')}
+                            >Send GPR B to Vendor</Button>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                        </>
+                    )}
+                    {isIssueGprBStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='warning' fullWidth
+                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(gprCStatus, false, 'Send GPR C to Vendor')}
+                            >Send GPR C to Vendor</Button>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                        </>
+                    )}
+                    {isIssueGprCStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
+                            >Approve</Button>
+                            <Button variant='contained' color='error' fullWidth
+                                startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(vendorDisagreedStatus, false, 'Vendor Disagreed (Close)')}
+                            >Vendor Disagreed (Close)</Button>
+                        </>
+                    )}
+                    {!isPendingAgreementStep(currentStep) && !isIssueGprBStep(currentStep) && !isIssueGprCStep(currentStep) && (
+                        <>
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
+                            >{approveButtonLabel}</Button>
+                            <Button variant='contained' color='error' fullWidth
+                                startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                                onClick={() => onReject(rejectButtonLabel)}
+                            >{rejectButtonLabel}</Button>
+                        </>
+                    )}
                 </Box>
             )}
 
@@ -587,7 +652,7 @@ const DetailRenderer = (props: any) => {
             data={props.data}
             empCode={props.context.empCode}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
-            onReject={() => props.context.onReject(props.data)}
+            onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
             onRefresh={() => props.context.onRefresh()}
         />
     )
@@ -622,6 +687,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
     const [nextStatus, setNextStatus] = useState('')
     const [isFinalStep, setIsFinalStep] = useState(false)
     const [approveActionLabel, setApproveActionLabel] = useState('Approve')
+    const [rejectActionLabel, setRejectActionLabel] = useState('Reject')
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
@@ -770,10 +836,11 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             setActionMode('approve')
             setActionDialogOpen(true)
         },
-        onReject: (data: any) => {
+        onReject: (data: any, actionLabel: string) => {
             setSelectedData(data)
             setIsFinalStep(false)
             setApproveActionLabel('Approve')
+            setRejectActionLabel(actionLabel || 'Reject')
             setActionMode('reject')
             setActionDialogOpen(true)
         },
@@ -865,6 +932,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
                 nextStatus={nextStatus}
                 isFinalStep={isFinalStep}
                 approveActionLabel={approveActionLabel}
+                rejectActionLabel={rejectActionLabel}
                 onClose={() => setActionDialogOpen(false)}
                 onSuccess={handleActionSuccess}
             />

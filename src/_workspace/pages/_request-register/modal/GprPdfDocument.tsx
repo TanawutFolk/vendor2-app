@@ -5,7 +5,7 @@
 // then uncomment the Font.register block below.
 
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
-import type { GprFormData } from './GprFormDialog'
+import type { GprFormData } from './useGprForm'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
 // import { Font } from '@react-pdf/renderer'

@@ -25,6 +25,8 @@ export const ASSIGNEE_GROUP_LABEL_MAP = ASSIGNEE_GROUPS.reduce<Record<string, st
 
 const normalizeText = (value: any) => String(value || '').trim().toLowerCase()
 
+export const normalizeWorkflowText = (value: any) => normalizeText(String(value || '').replace(/[_-]+/g, ' '))
+
 export const inferStepCode = (step: any) => {
     if (step?.step_code) return String(step.step_code).trim().toUpperCase()
     if (step?.stepCode) return String(step.stepCode).trim().toUpperCase()
@@ -118,4 +120,45 @@ export const resolveGroupCodeForStep = (step: any, isOversea: boolean) => {
         default:
             return ''
     }
+}
+
+export const isPendingAgreementStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('pending agreement')
+
+export const isIssueGprBStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr b')
+
+export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr c')
+
+export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('vendor disagre')
+
+export const getApproveActionLabel = (currentStep: any, hasVendorRequested: boolean) => {
+    if (!currentStep) return 'Approve'
+
+    if (isPicStep(currentStep)) {
+        if (!hasVendorRequested) return 'Send to Vendor'
+        if (isPendingAgreementStep(currentStep)) return 'Vendor Agreed (Continue)'
+        if (isIssueGprBStep(currentStep)) return 'Send GPR B to Vendor'
+        if (isIssueGprCStep(currentStep)) return 'Send GPR C to Vendor'
+        return 'Approve'
+    }
+
+    if (isPendingAgreementStep(currentStep)) return 'Confirm Agreement'
+    if (isIssueGprBStep(currentStep) || isIssueGprCStep(currentStep)) return 'Continue Negotiation'
+
+    return 'Approve'
+}
+
+export const getRejectActionLabel = (currentStep: any) => {
+    if (!currentStep) return 'Reject'
+    if (isPendingAgreementStep(currentStep) || isIssueGprBStep(currentStep) || isIssueGprCStep(currentStep)) {
+        return 'Vendor Disagreed'
+    }
+    return 'Reject'
+}
+
+export const getGprStageLabel = (currentStep: any, hasVendorRequested: boolean) => {
+    if (!currentStep) return 'GPR form'
+    if (isIssueGprBStep(currentStep)) return 'GPR B'
+    if (isIssueGprCStep(currentStep)) return 'GPR C'
+    if (isPendingAgreementStep(currentStep) && hasVendorRequested) return 'Pending agreement'
+    return 'GPR form'
 }

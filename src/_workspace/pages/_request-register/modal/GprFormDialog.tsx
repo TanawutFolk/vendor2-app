@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, ReactElement, Ref } from 'react'
+import React, { forwardRef, useMemo } from 'react'
+import type { ReactElement, Ref } from 'react'
 import type { SlideProps } from '@mui/material'
 import {
     Alert,
@@ -36,19 +36,18 @@ import {
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import ReactApexChart from 'react-apexcharts'
-import ApexCharts from 'apexcharts'
-import { pdf } from '@react-pdf/renderer'
 import {
     Controller,
     FormProvider,
     useFieldArray,
-    useForm,
     useFormContext,
     useWatch,
 } from 'react-hook-form'
-import { GprPdfDocument } from './GprPdfDocument'
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useGprForm, BUSINESS_CATEGORIES } from './useGprForm'
+import type { GprFormData, GprFormDialogProps } from './useGprForm'
+
+// Re-export types so existing consumers (e.g. GprPdfDocument) keep working
+export type { GprFormData, SalesProfitYear, GprCriteria } from './useGprForm'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -57,165 +56,7 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-export interface SalesProfitYear {
-    year: string
-    total_revenue: string
-    total_revenue_pct: string
-    net_profit: string
-    net_profit_pct: string
-}
-
-export interface GprCriteria {
-    no: string
-    detail: string
-    criteria: 'Need' | 'Optional'
-    remark: string
-    uploaded_file?: string
-    uploaded_name?: string
-}
-
-export interface GprFormData {
-    company_name: string
-    pic_name: string
-    tel: string
-    email: string
-    sanctions: 'non-concerned' | 'concerned' | ''
-    address: string
-    business_category: string
-    start_year: string
-    authorized_capital: string
-    establish: string
-    number_of_employees: string
-    manufactured_country: string
-    main_product: string
-    sales_profit: SalesProfitYear[]
-    vendor_original_country: string
-    currency: string
-    criteria: GprCriteria[]
-    suggestion: string
-    result: 'approval' | 'disapproval' | ''
-    path: string
-    vendor_code_selector: string
-    completion_date: string
-}
-
-const BUSINESS_CATEGORIES = ['Manufacturer', 'Trading', 'Service', 'Other']
-const THIS_YEAR = new Date().getFullYear()
-
-const DEFAULT_SALES_PROFIT: SalesProfitYear[] = Array.from({ length: 5 }, (_, i) => ({
-    year: String(THIS_YEAR - 4 + i),
-    total_revenue: '',
-    total_revenue_pct: '',
-    net_profit: '',
-    net_profit_pct: '',
-}))
-
-const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] = [
-    { no: '3.1', detail: 'Compliant of the law', criteria: 'Need' },
-    { no: '3.2', detail: 'Anti-Bribery Policy Communication', criteria: 'Need' },
-    { no: '3.3', detail: 'General Purchase Specification Requirement', criteria: 'Need' },
-    { no: '3.4', detail: 'Manufacture location survey', criteria: 'Need' },
-    { no: '3.5', detail: 'Company Environmental and Energy Policy', criteria: 'Need' },
-    { no: '3.6', detail: 'Quality Management Certification', criteria: 'Optional' },
-    { no: '3.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Optional' },
-    { no: '3.8', detail: 'Environmental Management Certification', criteria: 'Optional' },
-    { no: '3.9', detail: 'History reliability', criteria: 'Optional' },
-    { no: '3.10', detail: 'Reliable performance', criteria: 'Optional' },
-    { no: '3.11', detail: 'Advised by Customer, Parent Company or Manager up', criteria: 'Optional' },
-    { no: '3.12', detail: 'Low Price', criteria: 'Optional' },
-    { no: '3.13', detail: 'Document to request for Automatic Account Transfer', criteria: 'Optional' },
-    { no: '3.14', detail: 'Other', criteria: 'Optional' },
-]
-
-const buildDefaultCriteria = (existing?: GprCriteria[]): GprCriteria[] =>
-    CRITERIA_MASTER.map(master => {
-        const found = existing?.find(item => item.no === master.no)
-
-        return {
-            ...master,
-            remark: found?.remark || '',
-            uploaded_file: found?.uploaded_file,
-            uploaded_name: found?.uploaded_name,
-        }
-    })
-
-const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined => {
-    if (!raw) return undefined
-
-    const source = Array.isArray(raw) ? raw[0] : raw
-    if (!source || typeof source !== 'object') return undefined
-
-    return {
-        company_name: source.company_name,
-        pic_name: source.pic_name,
-        tel: source.tel,
-        email: source.email,
-        address: source.address,
-        business_category: source.business_category,
-        start_year: source.start_year,
-        authorized_capital: source.authorized_capital,
-        establish: source.establish ?? source.establish_years,
-        number_of_employees: source.number_of_employees,
-        manufactured_country: source.manufactured_country,
-        main_product: source.main_product,
-        vendor_original_country: source.vendor_original_country,
-        sanctions: source.sanctions ?? source.sanctions_status,
-        currency: source.currency,
-        suggestion: source.suggestion,
-        result: source.result ?? source.result_status,
-        path: source.path ?? source.document_path,
-        vendor_code_selector: source.vendor_code_selector,
-        completion_date: source.completion_date,
-        sales_profit: source.sales_profit,
-        criteria: source.criteria,
-    }
-}
-
-const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFormData => {
-    const products = (() => {
-        try {
-            return typeof rowData?.products === 'string' ? JSON.parse(rowData.products) : (rowData?.products || [])
-        } catch {
-            return []
-        }
-    })()
-
-    const contacts = (() => {
-        try {
-            return typeof rowData?.contacts === 'string' ? JSON.parse(rowData.contacts) : (rowData?.contacts || [])
-        } catch {
-            return []
-        }
-    })().filter(Boolean)
-
-    const firstContact = contacts[0] || {}
-    const mainProduct = products.map((item: any) => item.product_name || item.maker_name).filter(Boolean).join(', ')
-
-    return {
-        company_name: saved?.company_name ?? (rowData?.company_name || ''),
-        pic_name: saved?.pic_name ?? (firstContact.contact_name || ''),
-        tel: saved?.tel ?? (firstContact.tel_phone || ''),
-        email: saved?.email ?? (firstContact.email || ''),
-        sanctions: saved?.sanctions || '',
-        address: saved?.address ?? (rowData?.address || ''),
-        business_category: saved?.business_category || '',
-        start_year: saved?.start_year || '',
-        authorized_capital: saved?.authorized_capital || '',
-        establish: saved?.establish || '',
-        number_of_employees: saved?.number_of_employees || '',
-        manufactured_country: saved?.manufactured_country || '',
-        main_product: saved?.main_product ?? mainProduct,
-        sales_profit: saved?.sales_profit || DEFAULT_SALES_PROFIT,
-        vendor_original_country: saved?.vendor_original_country || '',
-        currency: saved?.currency ?? 'THB',
-        criteria: buildDefaultCriteria(saved?.criteria),
-        suggestion: saved?.suggestion || '',
-        result: saved?.result || '',
-        path: saved?.path || '',
-        vendor_code_selector: saved?.vendor_code_selector || (rowData?.vendor_code || ''),
-        completion_date: saved?.completion_date || '',
-    }
-}
+// ── Static UI helper ──────────────────────────────────────────────────────────
 
 const SectionTitle = ({ no, title, color = 'primary.main' }: { no: string | number; title: string; color?: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, mt: 1 }}>
@@ -240,7 +81,9 @@ const SectionTitle = ({ no, title, color = 'primary.main' }: { no: string | numb
     </Box>
 )
 
-const DialogSubtitle = ({ fallbackName }: { fallbackName?: string }) => {
+// ── Memoized Section Components ───────────────────────────────────────────────
+
+const DialogSubtitle = React.memo(({ fallbackName }: { fallbackName?: string }) => {
     const { control } = useFormContext<GprFormData>()
     const companyName = useWatch({ control, name: 'company_name' })
 
@@ -249,9 +92,9 @@ const DialogSubtitle = ({ fallbackName }: { fallbackName?: string }) => {
             GPR Form A · {companyName || fallbackName || '-'}
         </Typography>
     )
-}
+})
 
-const CompanyInfoSection = () => {
+const CompanyInfoSection = React.memo(() => {
     const { register } = useFormContext<GprFormData>()
 
     return (
@@ -275,9 +118,9 @@ const CompanyInfoSection = () => {
             </Paper>
         </>
     )
-}
+})
 
-const SanctionsSection = () => {
+const SanctionsSection = React.memo(() => {
     const { control } = useFormContext<GprFormData>()
 
     return (
@@ -322,15 +165,15 @@ const SanctionsSection = () => {
             </Paper>
         </>
     )
-}
+})
 
-const FinancialSection = () => {
+const FinancialSection = React.memo(() => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'sales_profit' })
     const salesProfit = useWatch({ control, name: 'sales_profit' }) || []
     const currency = useWatch({ control, name: 'currency' }) || 'THB'
 
-    const chartSeries = [
+    const chartSeries = useMemo(() => [
         { name: 'Total Revenue', type: 'column', data: salesProfit.map(item => parseFloat(item?.total_revenue) || 0) },
         { name: 'Net Profit', type: 'column', data: salesProfit.map(item => parseFloat(item?.net_profit) || 0) },
         {
@@ -342,9 +185,9 @@ const FinancialSection = () => {
                 return revenue > 0 ? parseFloat((profit / revenue * 100).toFixed(2)) : 0
             }),
         },
-    ]
+    ], [salesProfit])
 
-    const chartOptions = {
+    const chartOptions = useMemo(() => ({
         chart: {
             id: 'financial-chart-pdf',
             type: 'line' as const,
@@ -373,7 +216,12 @@ const FinancialSection = () => {
             ],
         },
         grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } },
-    }
+    }), [salesProfit, currency])
+
+    const chartKey = useMemo(
+        () => salesProfit.map(item => item?.year || '').join(','),
+        [salesProfit]
+    )
 
     return (
         <Grid item xs={12}>
@@ -465,7 +313,7 @@ const FinancialSection = () => {
                 <Grid item xs={12} md={7}>
                     <Paper variant='outlined' sx={{ p: 0, borderRadius: 1.5, height: '100%', overflow: 'hidden' }}>
                         <ReactApexChart
-                            key={salesProfit.map(item => item?.year || '').join(',')}
+                            key={chartKey}
                             type='line'
                             options={chartOptions}
                             series={chartSeries}
@@ -477,9 +325,9 @@ const FinancialSection = () => {
             </Grid>
         </Grid>
     )
-}
+})
 
-const GeneralInfoSection = () => {
+const GeneralInfoSection = React.memo(() => {
     const { control, register } = useFormContext<GprFormData>()
 
     return (
@@ -539,7 +387,7 @@ const GeneralInfoSection = () => {
             </Paper>
         </>
     )
-}
+})
 
 interface CriteriaSectionProps {
     criteriaUploading: Record<number, boolean>
@@ -548,7 +396,7 @@ interface CriteriaSectionProps {
     onRemoveUpload: (idx: number) => void
 }
 
-const CriteriaSection = ({ criteriaUploading, criteriaError, onUploadClick, onRemoveUpload }: CriteriaSectionProps) => {
+const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUploadClick, onRemoveUpload }: CriteriaSectionProps) => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'criteria' })
     const criteria = useWatch({ control, name: 'criteria' }) || []
@@ -655,13 +503,40 @@ const CriteriaSection = ({ criteriaUploading, criteriaError, onUploadClick, onRe
             </Paper>
         </>
     )
-}
+})
 
-const SuggestionSection = () => {
-    const { control, register } = useFormContext<GprFormData>()
+/** Isolated sub-component: only re-renders when criteria uploaded_file values change */
+const CriteriaStats = React.memo(() => {
+    const { control } = useFormContext<GprFormData>()
     const criteria = useWatch({ control, name: 'criteria' }) || []
     const needUploaded = criteria.filter(item => item?.criteria === 'Need' && item?.uploaded_file).length
     const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '3.14' && item?.uploaded_file).length
+
+    return (
+        <Paper variant='outlined' sx={{ p: 1.5, mb: 2, bgcolor: 'action.hover', borderRadius: 1.5 }}>
+            <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 1 }}>
+                Remark :
+            </Typography>
+            <Typography variant='caption' sx={{ display: 'block', mb: 0.5 }}>
+                {'1. Criteria for evaluation criteria in item 3.1 to 3.5, Which are all selected = '}
+                <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{needUploaded}</Box>
+                {' items'}
+            </Typography>
+            <Typography variant='caption' sx={{ display: 'block', mb: 0.75 }}>
+                {'2. Item 3.6 to 3.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
+                <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{optionalUploaded}</Box>
+                {' items'}
+            </Typography>
+            <Typography variant='caption' component='div' sx={{ pl: 1.5, color: 'text.secondary', lineHeight: 1.8 }}>
+                <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 3.6-3.7 is recommended.<br />
+                <strong>-</strong> Other business category shall be authorized capital is at least 0.5 MTHB, Establish is at least 1 year.
+            </Typography>
+        </Paper>
+    )
+})
+
+const SuggestionSection = React.memo(() => {
+    const { control, register } = useFormContext<GprFormData>()
 
     return (
         <>
@@ -677,25 +552,7 @@ const SuggestionSection = () => {
                     sx={{ mb: 2 }}
                 />
 
-                <Paper variant='outlined' sx={{ p: 1.5, mb: 2, bgcolor: 'action.hover', borderRadius: 1.5 }}>
-                    <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 1 }}>
-                        Remark :
-                    </Typography>
-                    <Typography variant='caption' sx={{ display: 'block', mb: 0.5 }}>
-                        {'1. Criteria for evaluation criteria in item 3.1 to 3.5, Which are all selected = '}
-                        <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{needUploaded}</Box>
-                        {' items'}
-                    </Typography>
-                    <Typography variant='caption' sx={{ display: 'block', mb: 0.75 }}>
-                        {'2. Item 3.6 to 3.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
-                        <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{optionalUploaded}</Box>
-                        {' items'}
-                    </Typography>
-                    <Typography variant='caption' component='div' sx={{ pl: 1.5, color: 'text.secondary', lineHeight: 1.8 }}>
-                        <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 3.6-3.7 is recommended.<br />
-                        <strong>-</strong> Other business category shall be authorized capital is at least 0.5 MTHB, Establish is at least 1 year.
-                    </Typography>
-                </Paper>
+                <CriteriaStats />
 
                 <FormControl sx={{ mb: 2 }}>
                     <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
@@ -794,185 +651,36 @@ const SuggestionSection = () => {
             </Paper>
         </>
     )
-}
+})
 
-interface GprFormDialogProps {
-    open: boolean
-    rowData: any
-    onClose: () => void
-    onSaved?: () => void
-}
+// ── Main Dialog Component ─────────────────────────────────────────────────────
 
 export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFormDialogProps) {
-    const user = getUserData()
-    const methods = useForm<GprFormData>({ defaultValues: buildDefault(rowData) })
-    const { reset, getValues, setValue } = methods
-    const [saving, setSaving] = useState(false)
-    const [generatingPdf, setGeneratingPdf] = useState(false)
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-    const [criteriaUploading, setCriteriaUploading] = useState<Record<number, boolean>>({})
-    const [criteriaError, setCriteriaError] = useState<Record<number, string>>({})
-    const fileInputRef = useRef<HTMLInputElement>(null)
-    const uploadTargetRef = useRef<number>(-1)
-
-    useEffect(() => {
-        if (!open || !rowData?.request_id) return
-
-        let active = true
-        setFeedback(null)
-        setCriteriaError({})
-
-        const loadForm = async () => {
-            try {
-                const response = await RegisterRequestServices.getGprForm(rowData.request_id)
-                if (!active) return
-
-                if (response.data.Status && response.data.ResultOnDb) {
-                    reset(buildDefault(rowData, normalizeSavedGpr(response.data.ResultOnDb)))
-                } else {
-                    reset(buildDefault(rowData))
-                }
-            } catch {
-                if (active) reset(buildDefault(rowData))
-            }
-        }
-
-        loadForm()
-
-        return () => {
-            active = false
-        }
-    }, [open, reset, rowData])
-
-    const handleCriteriaUploadClick = (index: number) => {
-        uploadTargetRef.current = index
-        fileInputRef.current?.click()
-    }
-
-    const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (!file) return
-
-        const index = uploadTargetRef.current
-        if (index < 0) return
-
-        event.target.value = ''
-        setCriteriaUploading(prev => ({ ...prev, [index]: true }))
-        setCriteriaError(prev => ({ ...prev, [index]: '' }))
-
-        try {
-            const formData = new FormData()
-            formData.append('request_id', String(rowData?.request_id))
-            formData.append('file', file)
-            formData.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
-
-            const response = await RegisterRequestServices.addDocument(formData)
-
-            if (response.data.Status) {
-                const { file_path, file_name } = response.data.ResultOnDb
-                setValue(`criteria.${index}.uploaded_file`, file_path, { shouldDirty: true })
-                setValue(`criteria.${index}.uploaded_name`, file_name || file.name, { shouldDirty: true })
-            } else {
-                setCriteriaError(prev => ({ ...prev, [index]: response.data.Message }))
-            }
-        } catch (error: any) {
-            setCriteriaError(prev => ({ ...prev, [index]: error?.response?.data?.Message || 'Upload failed' }))
-        } finally {
-            setCriteriaUploading(prev => ({ ...prev, [index]: false }))
-        }
-    }
-
-    const removeCriteriaUpload = (index: number) => {
-        setValue(`criteria.${index}.uploaded_file`, '', { shouldDirty: true })
-        setValue(`criteria.${index}.uploaded_name`, '', { shouldDirty: true })
-    }
-
-    const handleSave = async () => {
-        if (!rowData?.request_id) return
-
-        setSaving(true)
-        setFeedback(null)
-
-        try {
-            const response = await RegisterRequestServices.saveGprForm({
-                request_id: rowData.request_id,
-                gpr_data: getValues(),
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-
-            if (response.data.Status) {
-                setFeedback({ type: 'success', msg: 'GPR form saved successfully.' })
-                onSaved?.()
-            } else {
-                setFeedback({ type: 'error', msg: response.data.Message })
-            }
-        } catch (error: any) {
-            setFeedback({ type: 'error', msg: error?.response?.data?.Message || 'Failed to save GPR form' })
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleExportPdf = async () => {
-        if (!rowData?.request_id) return
-
-        setGeneratingPdf(true)
-        setFeedback(null)
-
-        try {
-            const currentForm = getValues()
-            await RegisterRequestServices.saveGprForm({
-                request_id: rowData.request_id,
-                gpr_data: currentForm,
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-
-            let chartDataUri = ''
-            try {
-                const chartResult = await ApexCharts.exec('financial-chart-pdf', 'dataURI')
-                if (chartResult?.imgURI) chartDataUri = chartResult.imgURI
-            } catch (error) {
-                console.warn('Failed to extract chart dataURI:', error)
-            }
-
-            const blob = await pdf(
-                <GprPdfDocument form={currentForm} rowData={rowData} chartDataUri={chartDataUri} />
-            ).toBlob()
-
-            const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-            const fileName = `GPR_FormA_${rowData.request_id}_${today}.pdf`
-            const url = URL.createObjectURL(blob)
-            const anchor = document.createElement('a')
-            anchor.href = url
-            anchor.download = fileName
-            anchor.click()
-            URL.revokeObjectURL(url)
-
-            const documentForm = new FormData()
-            documentForm.append('request_id', String(rowData.request_id))
-            documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
-            documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
-            await RegisterRequestServices.addDocument(documentForm)
-
-            setFeedback({ type: 'success', msg: 'PDF generated, saved, and attached to request.' })
-            onSaved?.()
-        } catch (error: any) {
-            setFeedback({ type: 'error', msg: error?.message || 'Failed to generate PDF' })
-        } finally {
-            setGeneratingPdf(false)
-        }
-    }
-
-    const isBusy = saving || generatingPdf
+    const {
+        methods,
+        saving,
+        generatingPdf,
+        feedback,
+        criteriaUploading,
+        criteriaError,
+        fileInputRef,
+        isBusy,
+        handleCriteriaUploadClick,
+        handleFileChange,
+        removeCriteriaUpload,
+        handleSave,
+        handleExportPdf,
+        clearFeedback,
+        handleDialogClose,
+        handleCloseClick,
+    } = useGprForm({ open, rowData, onClose, onSaved })
 
     return (
         <FormProvider {...methods}>
             <Dialog
                 maxWidth='lg'
                 fullWidth
-                onClose={(event, reason) => {
-                    if (reason !== 'backdropClick' && !isBusy) onClose()
-                }}
+                onClose={handleDialogClose}
                 TransitionComponent={Transition}
                 open={open}
                 PaperProps={{ sx: { bgcolor: 'background.default' } }}
@@ -1007,7 +715,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                             </Typography>
                             <DialogSubtitle fallbackName={rowData?.company_name} />
                         </Box>
-                        <DialogCloseButton onClick={() => { if (!isBusy) onClose() }} disableRipple sx={{ color: '#fff' }}>
+                        <DialogCloseButton onClick={handleCloseClick} disableRipple sx={{ color: '#fff' }}>
                             <i className='tabler-x' />
                         </DialogCloseButton>
                     </Box>
@@ -1015,7 +723,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
 
                 <DialogContent dividers sx={{ px: 4, py: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
                     {feedback && (
-                        <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={() => setFeedback(null)}>
+                        <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={clearFeedback}>
                             {feedback.msg}
                         </Alert>
                     )}
@@ -1051,7 +759,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                     >
                         {generatingPdf ? 'Generating...' : 'Save & Export PDF'}
                     </Button>
-                    <Button variant='tonal' color='secondary' onClick={onClose} disabled={isBusy}>
+                    <Button variant='tonal' color='secondary' onClick={handleCloseClick} disabled={isBusy}>
                         Cancel
                     </Button>
                 </DialogActions>
