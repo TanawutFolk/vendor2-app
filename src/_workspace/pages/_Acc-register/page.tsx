@@ -12,6 +12,7 @@ export default function AccRegisterPage() {
             <Grid item xs={12}>
                 <ApprovalPageContent
                     pageTitle='Account Register Vendor'
+                    queueStepCode='ACCOUNT_REGISTERED'
                     accentColor='#28C76F'
                 />
             </Grid>

@@ -21,7 +21,7 @@ const statusConfig: Record<
     completed: {
         label: 'Completed',
         color: 'success',
-        bgColor: 'rgba(40,199,111,0.05)',
+        bgColor: '#eaf8ef',
         iconBg: '#28C76F',
         connectorColor: '#28C76F',
         icon: 'tabler-check',
@@ -30,18 +30,18 @@ const statusConfig: Record<
     in_progress: {
         label: 'In Progress',
         color: 'warning',
-        bgColor: 'rgba(255,159,67,0.05)',
-        iconBg: '#FF9F43',
-        connectorColor: '#FF9F43',
+        bgColor: '#fff4e5',
+        iconBg: '#F08A24',
+        connectorColor: '#F08A24',
         icon: 'tabler-loader-2',
         chipIcon: 'tabler-clock-filled'
     },
     pending: {
         label: 'Waiting',
-        color: 'warning',
-        bgColor: 'transparent',
-        iconBg: '#8A8D99',
-        connectorColor: 'rgba(138,141,153,0.3)',
+        color: 'default',
+        bgColor: '#f2f3f5',
+        iconBg: '#8B909A',
+        connectorColor: 'rgba(139,144,154,0.35)',
         icon: 'tabler-point',
         chipIcon: 'tabler-clock'
     },
@@ -57,9 +57,9 @@ const statusConfig: Record<
     skipped: {
         label: 'Skipped',
         color: 'info',
-        bgColor: 'transparent',
-        iconBg: '#00CFE8',
-        connectorColor: 'rgba(0,207,232,0.25)',
+        bgColor: '#eaf3ff',
+        iconBg: '#3B82F6',
+        connectorColor: 'rgba(59,130,246,0.35)',
         icon: 'tabler-minus',
         chipIcon: 'tabler-circle-minus'
     }

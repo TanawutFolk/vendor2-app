@@ -56,6 +56,7 @@ export interface GprFormDialogProps {
     rowData: any
     onClose: () => void
     onSaved?: () => void
+    readOnly?: boolean
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────

@@ -45,6 +45,7 @@ import {
 } from 'react-hook-form'
 import { useGprForm, BUSINESS_CATEGORIES } from './useGprForm'
 import type { GprFormData, GprFormDialogProps } from './useGprForm'
+import { inferStepCode, isAccountStep } from '@_workspace/utils/requestWorkflow'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
 export type { GprFormData, SalesProfitYear, GprCriteria } from './useGprForm'
@@ -80,6 +81,28 @@ const SectionTitle = ({ no, title, color = 'primary.main' }: { no: string | numb
         <Divider sx={{ flex: 1 }} />
     </Box>
 )
+
+const DisabledBlock = ({ disabled, children }: { disabled: boolean; children: React.ReactNode }) => (
+    <Box
+        component='fieldset'
+        disabled={disabled}
+        sx={{
+            border: 0,
+            p: 0,
+            m: 0,
+            minWidth: 0,
+        }}
+    >
+        {children}
+    </Box>
+)
+
+type SignatureSlot = {
+    role: string
+    code: string
+    signature: string
+    date: string
+}
 
 // ── Memoized Section Components ───────────────────────────────────────────────
 
@@ -538,102 +561,119 @@ const CriteriaStats = React.memo(() => {
     )
 })
 
-const SuggestionSection = React.memo(() => {
+const SuggestionSection = React.memo(
+    ({
+        accountVendorCodeOnly = false,
+        readOnly = false,
+        signatures = [],
+    }: {
+        accountVendorCodeOnly?: boolean
+        readOnly?: boolean
+        signatures?: SignatureSlot[]
+    }) => {
     const { control, register } = useFormContext<GprFormData>()
+    const disableSuggestionInputs = accountVendorCodeOnly || readOnly
 
     return (
         <>
             <SectionTitle no={5} title='Suggestion' />
             <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
-                <CustomTextField
-                    fullWidth
-                    label='Suggestion'
-                    multiline
-                    rows={2}
-                    placeholder='Write your suggestion here...'
-                    {...register('suggestion')}
-                    sx={{ mb: 2 }}
-                />
-
-                <CriteriaStats />
-
-                <FormControl sx={{ mb: 2 }}>
-                    <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
-                        Result
-                    </FormLabel>
-                    <Controller
-                        name='result'
-                        control={control}
-                        render={({ field }) => (
-                            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            size='small'
-                                            color='success'
-                                            checked={field.value === 'approval'}
-                                            onChange={() => field.onChange(field.value === 'approval' ? '' : 'approval')}
-                                        />
-                                    }
-                                    label={<Typography variant='body2' fontWeight={600} color='success.main'>Approval</Typography>}
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            size='small'
-                                            color='error'
-                                            checked={field.value === 'disapproval'}
-                                            onChange={() => field.onChange(field.value === 'disapproval' ? '' : 'disapproval')}
-                                        />
-                                    }
-                                    label={<Typography variant='body2' fontWeight={600} color='error.main'>Disapproval</Typography>}
-                                />
-                            </Box>
-                        )}
+                <DisabledBlock disabled={disableSuggestionInputs}>
+                    <CustomTextField
+                        fullWidth
+                        label='Suggestion'
+                        multiline
+                        rows={2}
+                        placeholder='Write your suggestion here...'
+                        {...register('suggestion')}
+                        sx={{ mb: 2 }}
                     />
-                </FormControl>
 
-                <Paper variant='outlined' sx={{ mb: 2, borderRadius: 1.5, overflow: 'hidden' }}>
-                    <Typography variant='caption' color='text.secondary' sx={{ display: 'block', p: 1, bgcolor: 'action.hover', fontStyle: 'italic' }}>
-                        Signatures are completed on the printed form - this section is for reference only.
-                    </Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
-                        {['Selector', 'Checker', 'Checker', 'Approve by'].map((label, index) => (
-                            <Box
-                                key={label + index}
-                                sx={{
-                                    p: 1.5,
-                                    minHeight: 60,
-                                    borderRight: index < 3 ? '1px solid' : 'none',
-                                    borderRightColor: 'divider',
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <Typography variant='caption' fontWeight={700} display='block'>{label}</Typography>
-                                <Typography variant='caption' color='text.disabled' sx={{ fontSize: '0.62rem' }}>
-                                    .../.../...
-                                </Typography>
-                            </Box>
-                        ))}
-                    </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
-                        {['Issuer', 'Manager', 'General Manager', 'Managing Director'].map((label, index) => (
-                            <Box
-                                key={label + index}
-                                sx={{
-                                    p: 0.75,
-                                    textAlign: 'center',
-                                    borderRight: index < 3 ? '1px solid' : 'none',
-                                    borderRightColor: 'divider',
-                                }}
-                            >
-                                <Typography variant='caption' color='text.secondary'>{label}</Typography>
-                            </Box>
-                        ))}
-                    </Box>
-                </Paper>
+                    <CriteriaStats />
 
-                <CustomTextField fullWidth label='Path' placeholder='File path / folder reference' {...register('path')} sx={{ mb: 2 }} />
+                    <FormControl sx={{ mb: 2 }}>
+                        <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
+                            Result
+                        </FormLabel>
+                        <Controller
+                            name='result'
+                            control={control}
+                            render={({ field }) => (
+                                <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size='small'
+                                                color='success'
+                                                checked={field.value === 'approval'}
+                                                onChange={() => field.onChange(field.value === 'approval' ? '' : 'approval')}
+                                            />
+                                        }
+                                        label={<Typography variant='body2' fontWeight={600} color='success.main'>Approval</Typography>}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size='small'
+                                                color='error'
+                                                checked={field.value === 'disapproval'}
+                                                onChange={() => field.onChange(field.value === 'disapproval' ? '' : 'disapproval')}
+                                            />
+                                        }
+                                        label={<Typography variant='body2' fontWeight={600} color='error.main'>Disapproval</Typography>}
+                                    />
+                                </Box>
+                            )}
+                        />
+                    </FormControl>
+
+                    <Paper variant='outlined' sx={{ mb: 2, borderRadius: 1.5, overflow: 'hidden' }}>
+                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', p: 1, bgcolor: 'action.hover', fontStyle: 'italic' }}>
+                            Signatures are completed on the printed form - this section is for reference only.
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
+                            {signatures.map((item, index) => (
+                                <Box
+                                    key={item.role + index}
+                                    sx={{
+                                        p: 1.5,
+                                        minHeight: 60,
+                                        borderRight: index < 3 ? '1px solid' : 'none',
+                                        borderRightColor: 'divider',
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem', display: 'block', lineHeight: 1.1 }}>
+                                        {item.code || '-'}
+                                    </Typography>
+                                    <Typography variant='caption' fontWeight={700} display='block' sx={{ letterSpacing: 0.5 }}>
+                                        {item.signature || '-'}
+                                    </Typography>
+                                    <Typography variant='caption' color='text.disabled' sx={{ fontSize: '0.7rem' }}>
+                                        {item.date || 'DD/MM/YYYY'}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Box>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
+                            {signatures.map((item, index) => (
+                                <Box
+                                    key={`${item.role}-label-${index}`}
+                                    sx={{
+                                        p: 0.75,
+                                        textAlign: 'center',
+                                        borderRight: index < 3 ? '1px solid' : 'none',
+                                        borderRightColor: 'divider',
+                                    }}
+                                >
+                                    <Typography variant='caption' color='text.secondary'>{item.role}</Typography>
+                                </Box>
+                            ))}
+                        </Box>
+                    </Paper>
+
+                    <CustomTextField fullWidth label='Path' placeholder='File path / folder reference' {...register('path')} sx={{ mb: 2 }} />
+                </DisabledBlock>
 
                 <Paper variant='outlined' sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(40,199,111,0.04)' }}>
                     <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
@@ -644,10 +684,17 @@ const SuggestionSection = React.memo(() => {
                     </Typography>
                     <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
-                            <CustomTextField fullWidth label='Vendor Code' {...register('vendor_code_selector')} />
+                            <CustomTextField fullWidth label='Vendor Code' disabled={readOnly} {...register('vendor_code_selector')} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <CustomTextField fullWidth label='Completion Date' type='date' InputLabelProps={{ shrink: true }} {...register('completion_date')} />
+                            <CustomTextField
+                                fullWidth
+                                label='Completion Date'
+                                type='date'
+                                disabled={disableSuggestionInputs}
+                                InputLabelProps={{ shrink: true }}
+                                {...register('completion_date')}
+                            />
                         </Grid>
                     </Grid>
                 </Paper>
@@ -658,7 +705,7 @@ const SuggestionSection = React.memo(() => {
 
 // ── Main Dialog Component ─────────────────────────────────────────────────────
 
-export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFormDialogProps) {
+export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnly = false }: GprFormDialogProps) {
     const {
         methods,
         saving,
@@ -677,6 +724,89 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
         handleDialogClose,
         handleCloseClick,
     } = useGprForm({ open, rowData, onClose, onSaved })
+
+    const approvalSteps = useMemo(() => {
+        const rawSteps = rowData?.approval_steps
+
+        if (Array.isArray(rawSteps)) return rawSteps
+        if (typeof rawSteps === 'string') {
+            try {
+                return JSON.parse(rawSteps)
+            } catch {
+                return []
+            }
+        }
+
+        return []
+    }, [rowData?.approval_steps])
+
+    const isAccountVendorCodeOnlyMode = useMemo(() => {
+        const currentStep = approvalSteps.find((s: any) => s?.step_status === 'in_progress')
+        return isAccountStep(currentStep)
+    }, [approvalSteps])
+
+    const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
+
+    const signatureSlots = useMemo<SignatureSlot[]>(() => {
+        const approvedStatuses = new Set(['approved', 'completed'])
+
+        const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
+            const source = (fullName || '').trim()
+            if (!source) return (fallbackCode || '').trim()
+
+            const parts = source.split(/\s+/).filter(Boolean)
+            if (parts.length < 2) return source.toUpperCase()
+
+            const firstName = parts[0]
+            const lastName = parts[parts.length - 1]
+            return `${lastName.toUpperCase()} ${firstName.charAt(0).toUpperCase()}.`
+        }
+
+        const formatDate = (rawDate?: string) => {
+            if (!rawDate) return ''
+            const d = new Date(rawDate)
+            if (Number.isNaN(d.getTime())) return ''
+
+            const dd = String(d.getDate()).padStart(2, '0')
+            const mm = String(d.getMonth() + 1).padStart(2, '0')
+            const yyyy = d.getFullYear()
+            return `${dd}/${mm}/${yyyy}`
+        }
+
+        const findLatestApprovedStep = (targetCode: string) => {
+            const matched = approvalSteps.filter((step: any) => {
+                const status = String(step?.step_status || '').toLowerCase()
+                if (!approvedStatuses.has(status)) return false
+
+                return inferStepCode(step) === targetCode
+            })
+
+            matched.sort((a: any, b: any) => {
+                const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+                if (orderDiff !== 0) return orderDiff
+
+                const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
+                const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
+                return bTime - aTime
+            })
+
+            return matched[0]
+        }
+
+        const mapSlot = (role: string, step: any): SignatureSlot => ({
+            role,
+            code: String(step?.approver_id || '').trim(),
+            signature: formatSignatureName(step?.approver_name, step?.approver_id),
+            date: formatDate(step?.UPDATE_DATE || step?.CREATE_DATE),
+        })
+
+        return [
+            mapSlot('Issuer', findLatestApprovedStep('PIC_REVIEW')),
+            mapSlot('Manager', findLatestApprovedStep('PO_MGR_APPROVAL')),
+            mapSlot('General Manager', findLatestApprovedStep('PO_GM_APPROVAL')),
+            mapSlot('Managing Director', findLatestApprovedStep('MD_APPROVAL')),
+        ]
+    }, [approvalSteps])
 
     return (
         <FormProvider {...methods}>
@@ -731,16 +861,24 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         </Alert>
                     )}
 
-                    <CompanyInfoSection />
-                    <SanctionsSection />
-                    <GeneralInfoSection />
-                    <CriteriaSection
-                        criteriaUploading={criteriaUploading}
-                        criteriaError={criteriaError}
-                        onUploadClick={handleCriteriaUploadClick}
-                        onRemoveUpload={removeCriteriaUpload}
-                    />
-                    <SuggestionSection />
+                    {isReadOnlyMode && (
+                        <Alert severity='info' sx={{ mb: 2 }}>
+                            This sheet is in read-only mode at the current workflow step.
+                        </Alert>
+                    )}
+
+                    <DisabledBlock disabled={isAccountVendorCodeOnlyMode || isReadOnlyMode}>
+                        <CompanyInfoSection />
+                        <SanctionsSection />
+                        <GeneralInfoSection />
+                        <CriteriaSection
+                            criteriaUploading={criteriaUploading}
+                            criteriaError={criteriaError}
+                            onUploadClick={handleCriteriaUploadClick}
+                            onRemoveUpload={removeCriteriaUpload}
+                        />
+                    </DisabledBlock>
+                    <SuggestionSection accountVendorCodeOnly={isAccountVendorCodeOnlyMode} readOnly={isReadOnlyMode} signatures={signatureSlots} />
                 </DialogContent>
 
                 <DialogActions sx={{ justifyContent: 'flex-start', px: 3, py: 1.5, gap: 1 }}>
@@ -748,7 +886,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         variant='tonal'
                         color='primary'
                         onClick={handleSave}
-                        disabled={isBusy}
+                        disabled={isBusy || isReadOnlyMode}
                         startIcon={saving ? <CircularProgress size={14} /> : <i className='tabler-device-floppy' style={{ fontSize: 16 }} />}
                     >
                         {saving ? 'Saving...' : 'Save'}
@@ -757,7 +895,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved }: GprFo
                         variant='contained'
                         color='primary'
                         onClick={handleExportPdf}
-                        disabled={isBusy}
+                        disabled={isBusy || isReadOnlyMode}
                         startIcon={generatingPdf ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-file-type-pdf' style={{ fontSize: 16 }} />}
                     >
                         {generatingPdf ? 'Generating...' : 'Save & Export PDF'}

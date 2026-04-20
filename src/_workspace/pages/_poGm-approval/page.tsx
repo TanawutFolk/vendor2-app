@@ -12,6 +12,7 @@ export default function PoGmApprovalPage() {
             <Grid item xs={12}>
                 <ApprovalPageContent
                     pageTitle='PO GM Approval'
+                    queueStepCode='PO_GM_APPROVAL'
                     accentColor='#FF9F43'
                 />
             </Grid>

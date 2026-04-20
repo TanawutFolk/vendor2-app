@@ -12,6 +12,7 @@ export default function MdApprovalPage() {
             <Grid item xs={12}>
                 <ApprovalPageContent
                     pageTitle='MD Approval'
+                    queueStepCode='MD_APPROVAL'
                     accentColor='#28C76F'
                 />
             </Grid>

@@ -6,6 +6,8 @@
 
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
 import type { GprFormData } from './useGprForm'
+import { inferStepCode } from '@_workspace/utils/requestWorkflow'
+import fitelLogo from '@_workspace/utils/fitelLogo.png'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
 // import { Font } from '@react-pdf/renderer'
@@ -37,6 +39,21 @@ const s = StyleSheet.create({
         paddingBottom: 5,
         marginBottom: 6,
     },
+        headerLeft: {
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            gap: 8,
+            flex: 1,
+        },
+        logo: {
+            width: 72,
+            height: 22,
+            objectFit: 'contain',
+        },
+        companyText: {
+            fontFamily: 'Helvetica-Bold',
+            fontSize: 9,
+        },
     title: {
         fontSize: 13,
         fontFamily: 'Helvetica-Bold',
@@ -186,10 +203,90 @@ interface Props {
     chartDataUri?: string
 }
 
+type SignatureSlot = {
+    role: string
+    code: string
+    signature: string
+    date: string
+}
+
 export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
     const needUploaded    = form.criteria.filter(c => c.criteria === 'Need' && c.uploaded_file).length
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '3.14' && c.uploaded_file).length
+
+    const approvalSteps = (() => {
+        const raw = rowData?.approval_steps
+        if (Array.isArray(raw)) return raw
+        if (typeof raw === 'string') {
+            try {
+                return JSON.parse(raw)
+            } catch {
+                return []
+            }
+        }
+        return []
+    })()
+
+    const approvedStatuses = new Set(['approved', 'completed'])
+
+    const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
+        const source = String(fullName || '').trim()
+        if (!source) return String(fallbackCode || '').trim()
+
+        const parts = source.split(/\s+/).filter(Boolean)
+        if (parts.length < 2) return source.toUpperCase()
+
+        const firstName = parts[0]
+        const lastName = parts[parts.length - 1]
+        return `${lastName.toUpperCase()} ${firstName.charAt(0).toUpperCase()}.`
+    }
+
+    const formatDate = (rawDate?: string) => {
+        if (!rawDate) return '........../........../..........'
+        const d = new Date(rawDate)
+        if (Number.isNaN(d.getTime())) return '........../........../..........'
+
+        const dd = String(d.getDate()).padStart(2, '0')
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const yyyy = d.getFullYear()
+        return `${dd}/${mm}/${yyyy}`
+    }
+
+    const findLatestApprovedStep = (targetCode: string) => {
+        const matched = approvalSteps.filter((step: any) => {
+            const status = String(step?.step_status || '').toLowerCase()
+            if (!approvedStatuses.has(status)) return false
+
+            return inferStepCode(step) === targetCode
+        })
+
+        matched.sort((a: any, b: any) => {
+            const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+            if (orderDiff !== 0) return orderDiff
+
+            const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
+            const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
+            return bTime - aTime
+        })
+
+        return matched[0]
+    }
+
+    const signatureSlots: SignatureSlot[] = [
+        { role: 'Issuer', stepCode: 'PIC_REVIEW' },
+        { role: 'Manager', stepCode: 'PO_MGR_APPROVAL' },
+        { role: 'General Manager', stepCode: 'PO_GM_APPROVAL' },
+        { role: 'Managing Director', stepCode: 'MD_APPROVAL' },
+    ].map((item: any) => {
+        const step = findLatestApprovedStep(item.stepCode)
+        return {
+            role: item.role,
+            code: String(step?.approver_id || '').trim(),
+            signature: formatSignatureName(step?.approver_name, step?.approver_id),
+            date: formatDate(step?.UPDATE_DATE || step?.CREATE_DATE),
+        }
+    })
 
     return (
         <Document>
@@ -197,10 +294,11 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
                 {/* ── Header ─────────────────────────────────────────────── */}
                 <View style={s.headerRow}>
-                    <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 9 }}>
-                        Furukawa Fitel (Thailand) Co.,Ltd.
-                    </Text>
-                    <Text style={{ fontSize: 8, color: '#666' }}>No. {rowData?.request_id || ''}</Text>
+                        <View style={s.headerLeft}>
+                            <Image src={fitelLogo} style={s.logo} />
+                            <Text style={s.companyText}>Furukawa Fitel (Thailand) Co.,Ltd.</Text>
+                        </View>
+                    <Text style={{ fontSize: 8, color: '#666' }}>{rowData?.request_number || rowData?.request_id || ''}</Text>
                 </View>
 
                 <Text style={s.title}>Supplier / Outsourcing Selection Sheet</Text>
@@ -374,17 +472,18 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
                 {/* Signature Table */}
                 <View style={{ borderWidth: 0.5, borderColor: '#888', borderStyle: 'solid', marginBottom: 6 }}>
                     <View style={s.sigRow}>
-                        {['Selector', 'Checker', 'Checker', 'Approve by'].map((lbl, i) => (
+                        {signatureSlots.map((slot, i) => (
                             <View key={i} style={i < 3 ? s.sigCell : s.sigCellLast}>
-                                <Text style={s.sigLbl}>{lbl}</Text>
-                                <Text style={s.sigDate}>{'........../........../..........  '}</Text>
+                                <Text style={{ fontSize: 7, color: '#666' }}>{slot.code || '-'}</Text>
+                                <Text style={s.sigLbl}>{slot.signature || '-'}</Text>
+                                <Text style={s.sigDate}>{slot.date}</Text>
                             </View>
                         ))}
                     </View>
                     <View style={s.sigRoleRow}>
-                        {['Issuer', 'Manager', 'General Manager', 'Managing Director'].map((lbl, i) => (
+                        {signatureSlots.map((slot, i) => (
                             <View key={i} style={i < 3 ? s.sigRoleCell : s.sigRoleCellLast}>
-                                <Text style={{ fontSize: 7.5, fontFamily: 'Helvetica-Bold', textAlign: 'center' }}>{lbl}</Text>
+                                <Text style={{ fontSize: 7.5, fontFamily: 'Helvetica-Bold', textAlign: 'center' }}>{slot.role}</Text>
                             </View>
                         ))}
                     </View>

@@ -12,6 +12,7 @@ export default function CheckDocumentPage() {
             <Grid item xs={12}>
                 <ApprovalPageContent
                     pageTitle='Check Document Queue'
+                    queueStepCode='DOC_CHECK'
                     accentColor='#00BAD1' // Info color
                 />
             </Grid>

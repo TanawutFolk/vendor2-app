@@ -60,8 +60,11 @@ import {
     getApproveActionLabel,
     getGprStageLabel,
     getRejectActionLabel,
+    inferStepCode,
     isAccountStep,
     isPicStep,
+    normalizeWorkflowText,
+    WORKFLOW_STEP_CODE,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
@@ -443,9 +446,24 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         .sort((a: any, b: any) => a.step_order - b.step_order)
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
-    const isActionable = !!currentStep
+    const currentStepCode = currentStep ? inferStepCode(currentStep) : ''
+    const isCurrentStepMine = !!currentStep && (
+        currentStep.approver_id === user?.EMPLOYEE_CODE ||
+        (isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to)
+    )
+    const normalizedRequestStatus = normalizeWorkflowText(data.request_status || '')
+    const isAgreementReachedComplete =
+        normalizedRequestStatus.includes('agreement reached') && normalizedRequestStatus.includes('complete')
+    const isActionable = isCurrentStepMine && !isAgreementReachedComplete
     const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
     const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
+    const isPoMgrOrAboveStep = [
+        WORKFLOW_STEP_CODE.PO_MGR_APPROVAL,
+        WORKFLOW_STEP_CODE.PO_GM_APPROVAL,
+        WORKFLOW_STEP_CODE.MD_APPROVAL,
+    ].includes(currentStepCode as any)
+    const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep)
+    const isGprReadOnly = !isCurrentAccountStep && isPoMgrOrAboveStep
     const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
@@ -648,11 +666,11 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 const stepLog = logs.find((l: any) => l.step_id === s.step_id)
                                 const getStepStatusCfg = (status: string) => {
                                     switch (status) {
-                                        case 'approved': case 'completed': return { label: 'Completed', bgColor: '#28c76f20', txtColor: '#28c76f', borderColor: '#28c76f40', icon: 'tabler-circle-check-filled' }
-                                        case 'in_progress': case 'current': return { label: 'In Progress', bgColor: '#ff9f4320', txtColor: '#ff9f43', borderColor: '#ff9f4340', icon: 'tabler-clock-play' }
-                                        case 'rejected': return { label: 'Rejected', bgColor: '#ea545520', txtColor: '#ea5455', borderColor: '#ea545540', icon: 'tabler-circle-x-filled' }
-                                        case 'skipped': return { label: 'Skipped', bgColor: '#00cfe820', txtColor: '#00cfe8', borderColor: '#00cfe840', icon: 'tabler-circle-minus' }
-                                        case 'pending': default: return { label: 'Waiting', bgColor: '#ff9f4315', txtColor: '#ff9f4390', borderColor: '#ff9f4330', icon: 'tabler-clock' }
+                                        case 'approved': case 'completed': return { label: 'Completed', bgColor: '#eaf8ef', txtColor: '#2e7d32', borderColor: '#b7dfc4', icon: 'tabler-circle-check-filled' }
+                                        case 'in_progress': case 'current': return { label: 'In Progress', bgColor: '#fff4e5', txtColor: '#f08a24', borderColor: '#f6c07e', icon: 'tabler-clock-play' }
+                                        case 'rejected': return { label: 'Rejected', bgColor: '#fdecec', txtColor: '#d64545', borderColor: '#f4b4b4', icon: 'tabler-circle-x-filled' }
+                                        case 'skipped': return { label: 'Skipped', bgColor: '#eaf3ff', txtColor: '#3b82f6', borderColor: '#b9d7ff', icon: 'tabler-circle-minus' }
+                                        case 'pending': default: return { label: 'Waiting', bgColor: '#f2f3f5', txtColor: '#8b909a', borderColor: '#d8dce2', icon: 'tabler-clock' }
                                     }
                                 }
                                 const stCfg = getStepStatusCfg(s.step_status)
@@ -844,8 +862,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 </Box>
             )}
 
-            {/* GPR Form — always visible for PO PIC (checker step) */}
-            {isActionable && !isCurrentAccountStep && (
+            {/* GPR Form */}
+            {canOpenGprDialog && (
                 <Box sx={{
                     mb: 3, p: 2, borderRadius: 1,
                     border: '1px solid', borderColor: 'divider',
@@ -856,9 +874,11 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <Box>
                             <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
                             <Typography variant='caption' color='text.secondary'>
-                                {data.gpr_data
-                                    ? `${gprStageLabel} filled - click to edit`
-                                    : `Fill in ${gprStageLabel} from vendor response`}
+                                {isGprReadOnly
+                                    ? `${gprStageLabel} (read-only)`
+                                    : (data.gpr_data
+                                        ? `${gprStageLabel} filled - click to edit`
+                                        : `Fill in ${gprStageLabel} from vendor response`)}
                             </Typography>
                         </Box>
                     </Box>
@@ -869,10 +889,10 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             />
                         )}
                         <Button size='small' variant='contained' color='primary'
-                            startIcon={<i className={data.gpr_data ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
+                            startIcon={<i className={isGprReadOnly ? 'tabler-eye' : (data.gpr_data ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
                             onClick={() => setGprDialogOpen(true)}
                         >
-                            {data.gpr_data ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`}
+                            {isGprReadOnly ? `View ${gprStageLabel}` : (data.gpr_data ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`)}
                         </Button>
                     </Box>
                 </Box>
@@ -929,6 +949,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             <GprFormDialog
                 open={gprDialogOpen}
                 rowData={data}
+                readOnly={isGprReadOnly}
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
             />
@@ -1250,9 +1271,6 @@ export default function SearchResult() {
                 <SearchResultCard>
                     <CardContent sx={{ p: '24px !important' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                            <Typography variant='subtitle1' fontWeight={700}>
-                                Results ({totalCount})
-                            </Typography>
                         </Box>
 
                         <DxAGgridTable

@@ -33,6 +33,8 @@ const Transition = forwardRef(function Transition(
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
@@ -44,8 +46,10 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import {
     getApproveActionLabel,
+    inferStepCode,
     getRejectActionLabel,
     isPicStep,
+    normalizeWorkflowText,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
@@ -64,6 +68,31 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
             url: `${API_BASE}/uploads/documents/${d.file_path}`
         }))
     } catch { return [] }
+}
+
+const parseApprovalSteps = (approvalStepsRaw: any): any[] => {
+    try {
+        const parsed = typeof approvalStepsRaw === 'string' ? JSON.parse(approvalStepsRaw) : (approvalStepsRaw || [])
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+    } catch {
+        return []
+    }
+}
+
+const getMyQueueStepStatus = (row: any, empCode?: string, queueStepCode?: string): 'in_progress' | 'approved' | 'rejected' | 'pending' => {
+    const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
+    const steps = parseApprovalSteps(row?.approval_steps)
+    const myQueueSteps = steps.filter((step: any) => {
+        if (!step || step.approver_id !== empCode) return false
+        if (!normalizedQueueStepCode) return true
+        return inferStepCode(step) === normalizedQueueStepCode
+    })
+
+    if (myQueueSteps.some((step: any) => step.step_status === 'in_progress')) return 'in_progress'
+    if (myQueueSteps.some((step: any) => step.step_status === 'approved')) return 'approved'
+    if (myQueueSteps.some((step: any) => step.step_status === 'rejected')) return 'rejected'
+
+    return 'pending'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,12 +284,13 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
 interface DetailPanelProps {
     data: any
     empCode: string | undefined
+    queueStepCode?: string
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: (rejectActionLabel: string) => void
     onRefresh: () => void
 }
 
-const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
+const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [gprFormOpen, setGprFormOpen] = useState(false)
     const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
@@ -291,6 +321,8 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
         currentStep.approver_id === empCode ||
         (isCurrentPicStep && data.assign_to === empCode)
     )
+    const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
+    const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
     const hasVendorRequested = !!currentStep && logs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
@@ -298,7 +330,10 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
     const rejectButtonLabel = getRejectActionLabel(currentStep)
 
     // Actionable only if there IS an in_progress step AND it belongs to this user
-    const isActionable = isCurrentStepMine
+    const normalizedRequestStatus = normalizeWorkflowText(data.request_status || '')
+    const isAgreementReachedComplete =
+        normalizedRequestStatus.includes('agreement reached') && normalizedRequestStatus.includes('complete')
+    const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedComplete
 
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
@@ -334,11 +369,11 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
 
     const getStepStatusCfg = (status: string) => {
         switch (status) {
-            case 'approved': case 'completed': return { label: 'Completed', bgColor: '#e8f5e9', txtColor: '#2e7d32', borderColor: '#a5d6a7', icon: 'tabler-circle-check-filled' }
-            case 'in_progress': return { label: 'In Progress', bgColor: '#fff8e1', txtColor: '#f57f17', borderColor: '#ffe082', icon: 'tabler-clock-filled' }
-            case 'rejected': return { label: 'Rejected', bgColor: '#ffebee', txtColor: '#c62828', borderColor: '#ef9a9a', icon: 'tabler-circle-x-filled' }
-            case 'skipped': return { label: 'Skipped', bgColor: '#e3f2fd', txtColor: '#1565c0', borderColor: '#90caf9', icon: 'tabler-circle-minus' }
-            case 'pending': default: return { label: 'Waiting', bgColor: '#f5f5f5', txtColor: '#757575', borderColor: '#e0e0e0', icon: 'tabler-clock' }
+            case 'approved': case 'completed': return { label: 'Completed', bgColor: '#eaf8ef', txtColor: '#2e7d32', borderColor: '#b7dfc4', icon: 'tabler-circle-check-filled' }
+            case 'in_progress': return { label: 'In Progress', bgColor: '#fff4e5', txtColor: '#f08a24', borderColor: '#f6c07e', icon: 'tabler-clock-filled' }
+            case 'rejected': return { label: 'Rejected', bgColor: '#fdecec', txtColor: '#d64545', borderColor: '#f4b4b4', icon: 'tabler-circle-x-filled' }
+            case 'skipped': return { label: 'Skipped', bgColor: '#eaf3ff', txtColor: '#3b82f6', borderColor: '#b9d7ff', icon: 'tabler-circle-minus' }
+            case 'pending': default: return { label: 'Waiting', bgColor: '#f2f3f5', txtColor: '#8b909a', borderColor: '#d8dce2', icon: 'tabler-clock' }
         }
     }
 
@@ -621,6 +656,7 @@ const DetailRenderer = (props: any) => {
         <DetailPanel
             data={props.data}
             empCode={props.context.empCode}
+            queueStepCode={props.context.queueStepCode}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
             onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
             onRefresh={() => props.context.onRefresh()}
@@ -635,6 +671,8 @@ interface ApprovalPageContentProps {
     /** The status label that identifies requests belonging to this approver's queue.
      *  Used only for display — filtering is done server-side by approver_id. */
     pageTitle: string
+    /** Restrict queue and actions to this workflow step code (e.g. MD_APPROVAL). */
+    queueStepCode?: string
     /** Accent color for the page header strip */
     accentColor?: string
 }
@@ -642,9 +680,10 @@ interface ApprovalPageContentProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0' }: ApprovalPageContentProps) {
+export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0' }: ApprovalPageContentProps) {
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const [totalCount, setTotalCount] = useState(0)
+    const [collapse, setCollapse] = useState(false)
     const gridApiRef = useRef<any>(null)
     const [vendorNameFilter, setVendorNameFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState<any>(null)
@@ -677,6 +716,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             try {
                 const res = await RegisterRequestServices.getAll({
                     approver_id: empCode,
+                    queue_step_code: queueStepCode,
                     SearchFilters: [
                         { id: 'company_name', value: vendorNameFilter || null },
                         { id: 'request_status', value: statusFilter?.value || null }
@@ -697,7 +737,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [empCode])
+    }), [empCode, queueStepCode])
 
     const handleSearch = useCallback(() => {
         gridApiRef.current?.refreshServerSide({ purge: true })
@@ -750,6 +790,59 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
                 }
             }
         },
+        {
+            field: 'my_approval_status',
+            headerName: 'My Approval',
+            width: 150,
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => {
+                const myStepStatus = getMyQueueStepStatus(params.data, empCode, queueStepCode)
+
+                if (myStepStatus === 'approved') {
+                    return (
+                        <Chip label='Approved' size='small'
+                            sx={{
+                                bgcolor: '#2e7d3220',
+                                color: '#2e7d32',
+                                border: '1px solid #2e7d3240',
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 24
+                            }}
+                        />
+                    )
+                }
+
+                if (myStepStatus === 'rejected') {
+                    return (
+                        <Chip label='Rejected' size='small'
+                            sx={{
+                                bgcolor: '#d6454520',
+                                color: '#d64545',
+                                border: '1px solid #d6454540',
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 24
+                            }}
+                        />
+                    )
+                }
+
+                return (
+                    <Chip label='Waiting' size='small'
+                        sx={{
+                            bgcolor: '#fff4e5',
+                            color: '#f08a24',
+                            border: '1px solid #f6c07e',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            height: 24
+                        }}
+                    />
+                )
+            }
+        },
         { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
         { field: 'supportProduct_Process', headerName: 'Support Product / Process', flex: 1, minWidth: 180 },
         { field: 'purchase_frequency', headerName: 'Purchase Frequency', width: 170 },
@@ -789,7 +882,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             width: 150,
             valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions])
+    ], [statusOptions, empCode, queueStepCode])
 
     const handleActionSuccess = useCallback(() => {
         gridApiRef.current?.refreshServerSide({ purge: true })
@@ -799,6 +892,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
 
     const gridContext = useMemo(() => ({
         empCode,
+        queueStepCode,
         onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
             setSelectedData(data)
             setNextStatus(status)
@@ -816,69 +910,68 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
             setActionDialogOpen(true)
         },
         onRefresh: handleActionSuccess
-    }), [empCode, handleActionSuccess])
+    }), [empCode, queueStepCode, handleActionSuccess])
 
     return (
         <Grid container spacing={6}>
             {/* Search Filter Card */}
             <Grid item xs={12}>
-                <Card style={{ overflow: 'visible', zIndex: 4 }}>
-                    <Box sx={{ px: 3, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                        <i className='tabler-filter' style={{ fontSize: 18, color: accentColor }} />
-                        <Typography variant='h6' fontWeight={700}>Search Filters</Typography>
-                    </Box>
-                    <CardContent>
-                        <Grid container spacing={4}>
-                            <Grid item xs={12} sm={6} md={4}>
-                                <TextField
-                                    fullWidth size='small' label='Vendor Name' placeholder='Enter ...'
-                                    value={vendorNameFilter}
-                                    onChange={e => setVendorNameFilter(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
-                                    autoComplete='off'
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={4}>
-                                <TextField
-                                    select fullWidth size='small' label='Status'
-                                    value={statusFilter?.value || ''}
-                                    onChange={e => {
-                                        const found = statusOptions.find(s => s.value === e.target.value)
-                                        setStatusFilter(found ? { value: found.value, label: found.label } : null)
-                                    }}
-                                    SelectProps={{ native: true }}
-                                >
-                                    <option value=''>All Statuses</option>
-                                    {statusOptions.map(s => (
-                                        <option key={s.value} value={s.value}>{s.label}</option>
-                                    ))}
-                                </TextField>
-                            </Grid>
-                            <Grid item xs={12} className='flex gap-3'>
-                                <Button onClick={handleSearch} variant='contained'>Search</Button>
-                                <Button variant='tonal' color='secondary' onClick={handleClear}>Clear</Button>
-                            </Grid>
+                <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                                fullWidth
+                                size='small'
+                                label='Vendor Name'
+                                placeholder='Enter ...'
+                                value={vendorNameFilter}
+                                onChange={e => setVendorNameFilter(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
+                                autoComplete='off'
+                            />
                         </Grid>
-                    </CardContent>
-                </Card>
+                        <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                                select
+                                fullWidth
+                                size='small'
+                                label='Status'
+                                value={statusFilter?.value || ''}
+                                onChange={e => {
+                                    const found = statusOptions.find(s => s.value === e.target.value)
+                                    setStatusFilter(found ? { value: found.value, label: found.label } : null)
+                                }}
+                                SelectProps={{ native: true }}
+                            >
+                                <option value=''>All Statuses</option>
+                                {statusOptions.map(s => (
+                                    <option key={s.value} value={s.value}>{s.label}</option>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} className='flex gap-3'>
+                            <Button onClick={handleSearch} variant='contained' type='button'>Search</Button>
+                            <Button variant='tonal' color='secondary' type='button' onClick={handleClear}>Clear</Button>
+                        </Grid>
+                    </Grid>
+                </SearchFilterCard>
             </Grid>
 
             {/* AG Grid */}
             <Grid item xs={12}>
-                <Card>
+                <SearchResultCard
+                    action={
+                        <Typography
+                            variant='body2'
+                            color='text.secondary'
+                            title={pageTitle}
+                            sx={{ color: accentColor, fontWeight: 600 }}
+                        >
+                            Total: {totalCount}
+                        </Typography>
+                    }
+                >
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                <Box sx={{
-                                    width: 4, height: 24, borderRadius: 1,
-                                    bgcolor: accentColor
-                                }} />
-                                <Typography variant='subtitle1' fontWeight={700}>
-                                    {pageTitle} — Pending Approval ({totalCount})
-                                </Typography>
-                            </Box>
-                        </Box>
-
                         <DxAGgridTable
                             columnDefs={colDefs}
                             serverSideDatasource={datasource}
@@ -892,7 +985,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
                             context={gridContext}
                         />
                     </CardContent>
-                </Card>
+                </SearchResultCard>
             </Grid>
 
             {/* Action Dialog */}
