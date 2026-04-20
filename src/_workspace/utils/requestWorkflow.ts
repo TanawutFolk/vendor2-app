@@ -89,7 +89,24 @@ export const requiresVendorCode = (step: any) => {
     return inferStepCode(step) === WORKFLOW_STEP_CODE.ACCOUNT_REGISTERED
 }
 
-export const resolveNextStatus = (statusOptions: any[], currentStep: any, nextStep: any) => {
+export const resolveNextStatus = (statusOptions: any[], currentStep: any, nextStep: any, hasVendorRequested: boolean = true) => {
+    if (requiresVendorReply(currentStep) && !hasVendorRequested) {
+        const pendingAgreementVendorComplete = statusOptions.find((so: any) => {
+            const normalizedValue = normalizeWorkflowText(so?.value || '')
+            const normalizedLabel = normalizeWorkflowText(so?.label || '')
+            const source = `${normalizedValue} ${normalizedLabel}`
+            return source.includes('pending agreement') && source.includes('vendor') && source.includes('complete')
+        })
+        if (pendingAgreementVendorComplete?.value) return pendingAgreementVendorComplete.value
+
+        const pendingAgreement = statusOptions.find((so: any) => {
+            const normalizedValue = normalizeWorkflowText(so?.value || '')
+            const normalizedLabel = normalizeWorkflowText(so?.label || '')
+            return normalizedValue.includes('pending agreement') || normalizedLabel.includes('pending agreement')
+        })
+        if (pendingAgreement?.value) return pendingAgreement.value
+    }
+
     const targetStepCode = inferStepCode(nextStep || currentStep)
     const fallbackLabel = nextStep?.DESCRIPTION || currentStep?.DESCRIPTION || ''
 
@@ -123,6 +140,8 @@ export const resolveGroupCodeForStep = (step: any, isOversea: boolean) => {
 }
 
 export const isPendingAgreementStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('pending agreement')
+
+export const isAgreementReachedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('agreement reached')
 
 export const isIssueGprBStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr b')
 

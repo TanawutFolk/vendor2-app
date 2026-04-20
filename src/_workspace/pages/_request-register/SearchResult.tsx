@@ -15,6 +15,8 @@ import undraw_notify_re_65on from '@assets/images/common/undraw_notify_re_65on.s
 
 // AG Grid Imports
 import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
+import type { ICellRendererParams, IServerSideGetRowsParams } from 'ag-grid-community'
+import type { ValueFormatterParams, ValueGetterParams } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
 import type { ReactElement, Ref } from 'react'
@@ -39,6 +41,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // React Hook Form
 import { useFormContext } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import type { RequestRegisterFormData } from './validateSchema'
 
 // Context
@@ -57,15 +60,12 @@ import {
     getApproveActionLabel,
     getGprStageLabel,
     getRejectActionLabel,
-    isIssueGprBStep,
-    isIssueGprCStep,
-    isPendingAgreementStep,
     isAccountStep,
     isPicStep,
-    isVendorDisagreedStep,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
+import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,14 +73,44 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 // ─────────────────────────────────────────────────────────────────────────────
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 
+const safeParseJSON = <T,>(input: unknown, fallback: T): T => {
+    if (input == null) return fallback
+    if (typeof input === 'string') {
+        try { return JSON.parse(input) as T }
+        catch { return fallback }
+    }
+    return input as T
+}
+
 const buildFileUrls = (documents: any): { name: string; url: string }[] => {
-    try {
-        const docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
-        return docs.filter(Boolean).map((d: any) => ({
-            name: d.file_name || d.file_path || 'Unnamed File',
-            url: `${API_BASE}/uploads/documents/${d.file_path}`
-        }))
-    } catch { return [] }
+    const docs = safeParseJSON<any[]>(documents, [])
+    return docs.filter(Boolean).map((d: any) => ({
+        name: d.file_name || d.file_path || 'Unnamed File',
+        url: `${API_BASE}/uploads/documents/${d.file_path}`
+    }))
+}
+
+interface RegisterRequestRow {
+    request_id: number
+    request_status: string
+    company_name?: string
+    supportProduct_Process?: string
+    purchase_frequency?: string
+    FULL_NAME?: string
+    EMPLOYEE_CODE?: string
+    documents?: unknown
+    CREATE_DATE?: string
+    [key: string]: unknown
+}
+
+interface EditRequestForm {
+    supportProduct_Process: string
+    purchase_frequency: string
+    requester_remark: string
+}
+
+interface ActionDialogForm {
+    remark: string
 }
 
 
@@ -179,26 +209,38 @@ interface ActionDialogProps {
 }
 
 const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
-    const [remark, setRemark] = useState('')
-    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const user = getUserData()
+    const {
+        register,
+        handleSubmit: handleFormSubmit,
+        reset,
+        watch,
+        formState: { isSubmitting }
+    } = useForm<ActionDialogForm>({
+        defaultValues: { remark: '' }
+    })
 
-    const handleSubmit = async () => {
+    useEffect(() => {
+        if (!open) return
+        setError(null)
+        reset({ remark: '' })
+    }, [open, mode, requestId, reset])
+
+    const onSubmit = async (formData: ActionDialogForm) => {
         if (!requestId) return
-        setLoading(true)
         setError(null)
         try {
             const res = await RegisterRequestServices.updateStatus({
                 request_id: requestId,
                 request_status: mode === 'approve' ? nextStatus : 'Rejected',
                 approve_by: user?.EMPLOYEE_CODE || '',
-                approver_remark: remark,
+                approver_remark: formData.remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
                 isFinalStep: mode === 'approve' ? isFinalStep : false,
             })
             if (res.data.Status) {
-                setRemark('')
+                reset({ remark: '' })
                 onSuccess()
                 onClose()
             } else {
@@ -206,8 +248,6 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
             }
         } catch (e: any) {
             setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
-        } finally {
-            setLoading(false)
         }
     }
 
@@ -251,8 +291,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                         fullWidth multiline rows={3}
                         label='Remark / Comment (Required for reject)'
                         placeholder='Enter your remark here...'
-                        value={remark}
-                        onChange={e => setRemark(e.target.value)}
+                        {...register('remark')}
                     />
                 )}
             </DialogContent>
@@ -265,17 +304,17 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 }}
             >
                 <LoadingButton
-                    onClick={handleSubmit}
-                    loading={loading}
+                    onClick={handleFormSubmit(onSubmit)}
+                    loading={isSubmitting}
                     loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : `${rejectActionLabel}...`}
                     variant='contained'
                     color={mode === 'approve' ? 'success' : 'error'}
                     sx={{ mr: 4 }}
-                    disabled={mode === 'reject' && !remark.trim()}
+                    disabled={mode === 'reject' && !watch('remark')?.trim()}
                 >
                     <span>Yes, {actionLabel} !</span>
                 </LoadingButton>
-                <Button variant='tonal' color='secondary' onClick={onClose} disabled={loading}>
+                <Button variant='tonal' color='secondary' onClick={onClose} disabled={isSubmitting}>
                     Cancel
                 </Button>
             </DialogActions>
@@ -311,22 +350,30 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
-    const [editForm, setEditForm] = useState({ supportProduct_Process: '', purchase_frequency: '', requester_remark: '' })
-    const [editSaving, setEditSaving] = useState(false)
     const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // Edit Vendor modal (reuse EditVendorModal from find-vendor)
     const [editVendorOpen, setEditVendorOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const user = getUserData()
+    const {
+        register: registerEdit,
+        handleSubmit: handleEditSubmit,
+        reset: resetEdit,
+        formState: { isSubmitting: editSaving }
+    } = useForm<EditRequestForm>({
+        defaultValues: {
+            supportProduct_Process: '',
+            purchase_frequency: '',
+            requester_remark: ''
+        }
+    })
     const files = buildFileUrls(data?.documents)
     if (!data) return null
 
     // Parse cc_emails from data on mount / data change
     useEffect(() => {
-        try {
-            const parsed = typeof data.cc_emails === 'string' ? JSON.parse(data.cc_emails) : (data.cc_emails || [])
-            setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
-        } catch { setCcEmails([]) }
+        const parsed = safeParseJSON<string[]>(data.cc_emails, [])
+        setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
     }, [data?.cc_emails])
 
     const handleSaveCcEmails = async (updatedList: string[]) => {
@@ -391,17 +438,15 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
 
     // Parse approval steps to determine if current user can act
-    const approvalSteps: any[] = (() => {
-        try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
-    })().filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
+    const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.step_order - b.step_order)
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
     const isActionable = !!currentStep
     const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
     const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
-    const approvalLogs: any[] = (() => {
-        try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
-    })().filter(Boolean)
+    const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
@@ -412,7 +457,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
     const handleOpenEditDialog = () => {
-        setEditForm({
+        resetEdit({
             supportProduct_Process: data.supportProduct_Process || '',
             purchase_frequency: data.purchase_frequency || '',
             requester_remark: data.requester_remark || ''
@@ -421,15 +466,14 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         setEditDialogOpen(true)
     }
 
-    const handleSaveEdit = async () => {
-        setEditSaving(true)
+    const handleSaveEdit = async (formData: EditRequestForm) => {
         setEditFeedback(null)
         try {
             const res = await RegisterRequestServices.updateRequest({
                 request_id: data.request_id,
-                supportProduct_Process: editForm.supportProduct_Process,
-                purchase_frequency: editForm.purchase_frequency,
-                requester_remark: editForm.requester_remark,
+                supportProduct_Process: formData.supportProduct_Process,
+                purchase_frequency: formData.purchase_frequency,
+                requester_remark: formData.requester_remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
             if (res.data.Status) {
@@ -441,37 +485,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             }
         } catch (err: any) {
             setEditFeedback({ type: 'error', msg: err?.response?.data?.Message || err?.message || 'Failed to update request' })
-        } finally {
-            setEditSaving(false)
         }
     }
 
     // Compute next status value for approve action
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
-    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
-    const pendingAfterCurrent = currentStep
-        ? approvalSteps
-            .filter((s: any) => s.step_status === 'pending' && s.step_order > currentStep.step_order)
-            .sort((a: any, b: any) => Number(a.step_order || 0) - Number(b.step_order || 0))
-        : []
-    const gprBStep = pendingAfterCurrent.find((s: any) => isIssueGprBStep(s))
-    const gprCStep = pendingAfterCurrent.find((s: any) => isIssueGprCStep(s))
-    const vendorDisagreedStep = pendingAfterCurrent.find((s: any) => isVendorDisagreedStep(s))
-    const agreementNextStep = pendingAfterCurrent.find((s: any) => !isIssueGprBStep(s) && !isIssueGprCStep(s) && !isVendorDisagreedStep(s))
-    const agreementNextStatus = resolveNextStatus(statusOptions, currentStep, agreementNextStep || nextStep)
-    const gprBStatus = gprBStep ? resolveNextStatus(statusOptions, currentStep, gprBStep) : computedNextStatus
-    const gprCStatus = gprCStep ? resolveNextStatus(statusOptions, currentStep, gprCStep) : computedNextStatus
-    const vendorDisagreedStatus = vendorDisagreedStep
-        ? resolveNextStatus(statusOptions, currentStep, vendorDisagreedStep)
-        : 'Vendor Disagreed'
+    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
+    const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions)
+    const agreeAction = negotiationActions.find(action => action.key === 'agree')
+    const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
+    const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
 
-    const contacts: any[] = (() => {
-        try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
-    })().filter(Boolean)
-    const products: any[] = (() => {
-        try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
-    })().filter(Boolean)
+    const contacts: any[] = safeParseJSON<any[]>(data.contacts, []).filter(Boolean)
+    const products: any[] = safeParseJSON<any[]>(data.products, []).filter(Boolean)
 
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
@@ -605,12 +632,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
 
             {/* Approval Steps */}
             {(() => {
-                const steps: any[] = (() => {
-                    try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
-                })().filter(Boolean)
-                const logs: any[] = (() => {
-                    try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
-                })().filter(Boolean)
+                const steps = approvalSteps
+                const logs = approvalLogs
                 if (steps.length === 0) return null
                 return (
                     <Box sx={{ mb: 3 }}>
@@ -741,10 +764,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                     onClick={() => {
                                         setCcEditMode(false); setCcInput('')
                                         // Reset to DB value
-                                        try {
-                                            const parsed = typeof data.cc_emails === 'string' ? JSON.parse(data.cc_emails) : (data.cc_emails || [])
-                                            setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
-                                        } catch { setCcEmails([]) }
+                                        const parsed = safeParseJSON<string[]>(data.cc_emails, [])
+                                        setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
                                     }}
                                 >Cancel</Button>
                                 <Button size='small' variant='contained' color='primary'
@@ -869,43 +890,27 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             Reassign PIC
                         </Button>
                     )}
-                    {isPendingAgreementStep(currentStep) && (
+                    {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
-                            <Button variant='contained' color='warning' fullWidth
-                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(gprBStatus, false, 'Send GPR B to Vendor')}
-                            >Send GPR B to Vendor</Button>
-                            <Button variant='contained' color='success' fullWidth
+                            {renderDisagreeFirst && (
+                                <Button variant='contained' color={disagreeAction.color} fullWidth
+                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
+                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
+                                >{disagreeAction.label}</Button>
+                            )}
+                            <Button variant='contained' color={agreeAction.color} fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
+                                onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}
+                            >{agreeAction.label}</Button>
+                            {!renderDisagreeFirst && (
+                                <Button variant='contained' color={disagreeAction.color} fullWidth
+                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
+                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
+                                >{disagreeAction.label}</Button>
+                            )}
                         </>
                     )}
-                    {isIssueGprBStep(currentStep) && (
-                        <>
-                            <Button variant='contained' color='warning' fullWidth
-                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(gprCStatus, false, 'Send GPR C to Vendor')}
-                            >Send GPR C to Vendor</Button>
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
-                        </>
-                    )}
-                    {isIssueGprCStep(currentStep) && (
-                        <>
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
-                            <Button variant='contained' color='error' fullWidth
-                                startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(vendorDisagreedStatus, false, 'Vendor Disagreed (Close)')}
-                            >Vendor Disagreed (Close)</Button>
-                        </>
-                    )}
-                    {!isPendingAgreementStep(currentStep) && !isIssueGprBStep(currentStep) && !isIssueGprCStep(currentStep) && (
+                    {!isNegotiationStep && (
                         <>
                             <Button variant='contained' color='success' fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
@@ -995,26 +1000,23 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         <TextField
                             fullWidth
                             label='Support Product / Process'
-                            value={editForm.supportProduct_Process}
-                            onChange={e => setEditForm(prev => ({ ...prev, supportProduct_Process: e.target.value }))}
+                            {...registerEdit('supportProduct_Process')}
                         />
                         <TextField
                             fullWidth
                             label='Purchase Frequency'
-                            value={editForm.purchase_frequency}
-                            onChange={e => setEditForm(prev => ({ ...prev, purchase_frequency: e.target.value }))}
+                            {...registerEdit('purchase_frequency')}
                         />
                         <TextField
                             fullWidth multiline rows={3}
                             label='Requester Remark'
-                            value={editForm.requester_remark}
-                            onChange={e => setEditForm(prev => ({ ...prev, requester_remark: e.target.value }))}
+                            {...registerEdit('requester_remark')}
                         />
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'flex-start' }}>
                     <Button
-                        onClick={handleSaveEdit}
+                        onClick={handleEditSubmit(handleSaveEdit)}
                         variant='contained'
                         color='primary'
                         disabled={editSaving}
@@ -1055,7 +1057,7 @@ export default function SearchResult() {
     const gridApiRef = useRef<any>(null)
 
     // Action dialog & Drawer state
-    const [selectedData, setSelectedData] = useState<any | null>(null)
+    const [selectedData, setSelectedData] = useState<RegisterRequestRow | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
 
     // Approve/Reject Action Dialog state
@@ -1071,7 +1073,7 @@ export default function SearchResult() {
 
     // ── Server-Side Datasource ────────────────────────────────────────────────
     const datasource = useMemo<IServerSideDatasource>(() => ({
-        getRows: async (params) => {
+        getRows: async (params: IServerSideGetRowsParams) => {
             const f = getValues('searchFilters')
             const { startRow, endRow } = params.request
             const order = params.request.sortModel?.length > 0
@@ -1124,12 +1126,12 @@ export default function SearchResult() {
             field: 'view',
             width: 50,
             pinned: 'left',
-            cellRenderer: (params: any) => (
+            cellRenderer: (params: ICellRendererParams<RegisterRequestRow>) => (
                 <IconButton
                     size='small'
                     color='primary'
                     onClick={() => {
-                        setSelectedData(params.data)
+                        setSelectedData(params.data ?? null)
                         setDrawerOpen(true)
                     }}
                 >
@@ -1172,13 +1174,13 @@ export default function SearchResult() {
             headerName: 'Submitted By',
             flex: 1,
             minWidth: 170,
-            valueGetter: (p: any) => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
+            valueGetter: (p: ValueGetterParams<RegisterRequestRow>) => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
         },
         {
             field: 'documents',
             headerName: 'Files',
             width: 100,
-            cellRenderer: (params: any) => {
+            cellRenderer: (params: ICellRendererParams<RegisterRequestRow>) => {
                 const count = buildFileUrls(params.value).length
                 if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
                 return (
@@ -1201,12 +1203,13 @@ export default function SearchResult() {
             field: 'CREATE_DATE',
             headerName: 'Submitted Date',
             width: 150,
-            valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
+            valueFormatter: (p: ValueFormatterParams<RegisterRequestRow>) => p.value ? new Date(String(p.value)).toLocaleDateString('th-TH') : '-'
         }
     ], [statusOptions])
 
     const handleActionSuccess = () => {
         gridApiRef.current?.refreshServerSide({ purge: true })
+        setDrawerOpen(false)
         setSelectedData(null)
     }
 
@@ -1257,7 +1260,7 @@ export default function SearchResult() {
                             serverSideDatasource={datasource}
                             height={600}
                             overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
-                            getRowId={(p: any) => String(p.data.request_id)}
+                            getRowId={(p: { data: RegisterRequestRow }) => String(p.data.request_id)}
                             onGridReady={(p: any) => { gridApiRef.current = p.api }}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}

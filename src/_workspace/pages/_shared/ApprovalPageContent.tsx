@@ -45,14 +45,11 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 import {
     getApproveActionLabel,
     getRejectActionLabel,
-    isIssueGprBStep,
-    isIssueGprCStep,
-    isPendingAgreementStep,
     isPicStep,
-    isVendorDisagreedStep,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
+import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -305,22 +302,11 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
 
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
-    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep)
-    const pendingAfterCurrent = currentStep
-        ? approvalSteps
-            .filter((s: any) => s.step_status === 'pending' && s.step_order > currentStep.step_order)
-            .sort((a: any, b: any) => Number(a.step_order || 0) - Number(b.step_order || 0))
-        : []
-    const gprBStep = pendingAfterCurrent.find((s: any) => isIssueGprBStep(s))
-    const gprCStep = pendingAfterCurrent.find((s: any) => isIssueGprCStep(s))
-    const vendorDisagreedStep = pendingAfterCurrent.find((s: any) => isVendorDisagreedStep(s))
-    const agreementNextStep = pendingAfterCurrent.find((s: any) => !isIssueGprBStep(s) && !isIssueGprCStep(s) && !isVendorDisagreedStep(s))
-    const agreementNextStatus = resolveNextStatus(statusOptions, currentStep, agreementNextStep || nextStep)
-    const gprBStatus = gprBStep ? resolveNextStatus(statusOptions, currentStep, gprBStep) : computedNextStatus
-    const gprCStatus = gprCStep ? resolveNextStatus(statusOptions, currentStep, gprCStep) : computedNextStatus
-    const vendorDisagreedStatus = vendorDisagreedStep
-        ? resolveNextStatus(statusOptions, currentStep, vendorDisagreedStep)
-        : 'Vendor Disagreed'
+    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
+    const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions)
+    const agreeAction = negotiationActions.find(action => action.key === 'agree')
+    const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
+    const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
     const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
     const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
@@ -566,43 +552,27 @@ const DetailPanel = ({ data, empCode, onApprove, onReject, onRefresh }: DetailPa
                     >
                         Reassign Step
                     </Button>
-                    {isPendingAgreementStep(currentStep) && (
+                    {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
-                            <Button variant='contained' color='warning' fullWidth
-                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(gprBStatus, false, 'Send GPR B to Vendor')}
-                            >Send GPR B to Vendor</Button>
-                            <Button variant='contained' color='success' fullWidth
+                            {renderDisagreeFirst && (
+                                <Button variant='contained' color={disagreeAction.color} fullWidth
+                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
+                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
+                                >{disagreeAction.label}</Button>
+                            )}
+                            <Button variant='contained' color={agreeAction.color} fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
+                                onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}
+                            >{agreeAction.label}</Button>
+                            {!renderDisagreeFirst && (
+                                <Button variant='contained' color={disagreeAction.color} fullWidth
+                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
+                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
+                                >{disagreeAction.label}</Button>
+                            )}
                         </>
                     )}
-                    {isIssueGprBStep(currentStep) && (
-                        <>
-                            <Button variant='contained' color='warning' fullWidth
-                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(gprCStatus, false, 'Send GPR C to Vendor')}
-                            >Send GPR C to Vendor</Button>
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
-                        </>
-                    )}
-                    {isIssueGprCStep(currentStep) && (
-                        <>
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreementNextStatus, false, 'Approve')}
-                            >Approve</Button>
-                            <Button variant='contained' color='error' fullWidth
-                                startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(vendorDisagreedStatus, false, 'Vendor Disagreed (Close)')}
-                            >Vendor Disagreed (Close)</Button>
-                        </>
-                    )}
-                    {!isPendingAgreementStep(currentStep) && !isIssueGprBStep(currentStep) && !isIssueGprCStep(currentStep) && (
+                    {!isNegotiationStep && (
                         <>
                             <Button variant='contained' color='success' fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
@@ -823,6 +793,7 @@ export default function ApprovalPageContent({ pageTitle, accentColor = '#7367F0'
 
     const handleActionSuccess = useCallback(() => {
         gridApiRef.current?.refreshServerSide({ purge: true })
+        setDrawerOpen(false)
         setSelectedData(null)
     }, [])
 

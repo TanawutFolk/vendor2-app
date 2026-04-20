@@ -297,9 +297,12 @@ const FinancialSection = React.memo(() => {
                                                     <Select {...field} size='small' variant='standard' sx={{ fontSize: '0.75rem', minWidth: 80, mb: 0.5 }}>
                                                         <MenuItem value='THB'>THB</MenuItem>
                                                         <MenuItem value='USD'>USD</MenuItem>
-                                                        <MenuItem value='EUR'>EUR</MenuItem>
-                                                        <MenuItem value='JPY'>JPY</MenuItem>
                                                         <MenuItem value='CNY'>CNY</MenuItem>
+                                                        <MenuItem value='EUR'>EUR</MenuItem>
+                                                        <MenuItem value='JPY'>GBP</MenuItem>
+                                                        <MenuItem value='CNY'>HKD</MenuItem>
+                                                        <MenuItem value='CNY'>JPY</MenuItem>
+                                                        <MenuItem value='CNY'>SGD</MenuItem>
                                                     </Select>
                                                 )}
                                             />
