@@ -208,7 +208,6 @@ const SearchResult = () => {
             payload.append('vendor_contact_id', formData?.vendorContactId || '')
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
-            payload.append('cc_emails', JSON.stringify(formData?.ccEmails || []))
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
             payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {

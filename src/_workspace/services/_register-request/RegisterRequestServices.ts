@@ -144,18 +144,6 @@ export default class RegisterRequestServices {
         })
     }
 
-    // Save CC emails list for a request
-    static updateCcEmails(data: {
-        request_id: number
-        cc_emails: string[]
-        UPDATE_BY?: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
-        return axiosRequest<RegisterRequestResponseI<any>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/updateCcEmails`,
-            data,
-            method: 'POST'
-        })
-    }
 
     static reassign(data: {
         request_id: number

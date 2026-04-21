@@ -35,6 +35,7 @@ import {
 } from '@mui/material'
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import SelectCustom from '@components/react-select/SelectCustom'
 import ReactApexChart from 'react-apexcharts'
 import {
     Controller,
@@ -115,7 +116,7 @@ const DialogSubtitle = React.memo(({ fallbackName }: { fallbackName?: string }) 
 
     return (
         <Typography variant='caption' sx={{ opacity: 0.85, display: 'block', mt: 0.5 }}>
-            GPR Form A · {companyName || fallbackName || '-'}
+            {companyName || fallbackName || '-'}
         </Typography>
     )
 })
@@ -375,20 +376,21 @@ const GeneralInfoSection = React.memo(() => {
                         />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth size='small'>
-                            <InputLabel>Business Category</InputLabel>
-                            <Controller
-                                name='business_category'
-                                control={control}
-                                render={({ field }) => (
-                                    <Select label='Business Category' {...field}>
-                                        {BUSINESS_CATEGORIES.map(category => (
-                                            <MenuItem key={category} value={category}>{category}</MenuItem>
-                                        ))}
-                                    </Select>
-                                )}
-                            />
-                        </FormControl>
+                        <Controller
+                            name='business_category'
+                            control={control}
+                            render={({ field: { value, onChange, ...field } }) => (
+                                <SelectCustom
+                                    {...field}
+                                    label='Business Category'
+                                    placeholder='Select ...'
+                                    isClearable
+                                    options={BUSINESS_CATEGORIES.map(v => ({ value: v, label: v }))}
+                                    value={BUSINESS_CATEGORIES.map(v => ({ value: v, label: v })).find(o => o.value === value) || null}
+                                    onChange={(val: any) => onChange(val?.value || '')}
+                                />
+                            )}
+                        />
                     </Grid>
                     <Grid item xs={12} sm={4}>
                         <CustomTextField fullWidth label='Start Year' placeholder='e.g. 2005' {...register('start_year')} />
@@ -439,8 +441,8 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
                         <TableHead>
                             <TableRow sx={{ bgcolor: 'primary.main' }}>
                                 <TableCell sx={{ color: '#fff', fontWeight: 700, width: 55 }}>No.</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Detail</TableCell>
-                                <TableCell sx={{ color: '#fff', fontWeight: 700, width: 90 }}>Criteria</TableCell>
+                                <TableCell sx={{ color: '#fff', fontWeight: 700, width: 300 }}>Detail</TableCell>
+                                <TableCell sx={{ color: '#fff', fontWeight: 700, width: 100, textAlign: 'center' }}>Criteria</TableCell>
                                 <TableCell sx={{ color: '#fff', fontWeight: 700, width: 180 }}>Remark</TableCell>
                                 <TableCell sx={{ color: '#fff', fontWeight: 700, width: 210 }}>Document</TableCell>
                             </TableRow>
@@ -463,14 +465,16 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
                                         <TableCell>
                                             <Typography variant='caption'>{row.detail}</Typography>
                                         </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={row.criteria}
-                                                size='small'
-                                                color={row.criteria === 'Need' ? 'primary' : 'default'}
-                                                variant={row.criteria === 'Need' ? 'filled' : 'tonal'}
-                                                sx={{ fontSize: '0.65rem' }}
-                                            />
+                                        <TableCell align='center'>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                <Chip
+                                                    label={row.criteria}
+                                                    size='small'
+                                                    color={row.criteria === 'Need' ? 'primary' : 'default'}
+                                                    variant={row.criteria === 'Need' ? 'filled' : 'tonal'}
+                                                    sx={{ fontSize: '0.65rem' }}
+                                                />
+                                            </Box>
                                         </TableCell>
                                         <TableCell>
                                             <TextField
@@ -482,46 +486,83 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {row.uploaded_file ? (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <Chip
-                                                        icon={<i className='tabler-check' style={{ fontSize: 13 }} />}
-                                                        label={row.uploaded_name || 'Uploaded'}
-                                                        size='small'
-                                                        color='success'
-                                                        variant='tonal'
-                                                        sx={{ fontSize: '0.65rem', maxWidth: 155 }}
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+                                                {row.no === '4.3' && (
+                                                    <Controller
+                                                        name={`criteria.${index}.remark` as any}
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <Box sx={{ display: 'flex', gap: 1.5 }}>
+                                                                <FormControlLabel
+                                                                    sx={{ m: 0 }}
+                                                                    control={
+                                                                        <Checkbox
+                                                                            size='small'
+                                                                            color='success'
+                                                                            checked={field.value === 'Accept'}
+                                                                            onChange={() => field.onChange(field.value === 'Accept' ? '' : 'Accept')}
+                                                                        />
+                                                                    }
+                                                                    label={<Typography variant='caption' fontWeight={600} color='success.main'>Accept</Typography>}
+                                                                />
+                                                                <FormControlLabel
+                                                                    sx={{ m: 0 }}
+                                                                    control={
+                                                                        <Checkbox
+                                                                            size='small'
+                                                                            color='error'
+                                                                            checked={field.value === 'Not Accept'}
+                                                                            onChange={() => field.onChange(field.value === 'Not Accept' ? '' : 'Not Accept')}
+                                                                        />
+                                                                    }
+                                                                    label={<Typography variant='caption' fontWeight={600} color='error.main'>Not Accept</Typography>}
+                                                                />
+                                                            </Box>
+                                                        )}
                                                     />
-                                                    <Tooltip title='Remove'>
-                                                        <IconButton size='small' onClick={() => onRemoveUpload(index)} sx={{ p: 0.3 }}>
-                                                            <i className='tabler-x' style={{ fontSize: 12 }} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            ) : (
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.4 }}>
-                                                    <Button
-                                                        size='small'
-                                                        variant='tonal'
-                                                        color='secondary'
-                                                        disabled={criteriaUploading[index]}
-                                                        startIcon={
-                                                            criteriaUploading[index]
-                                                                ? <CircularProgress size={12} />
-                                                                : <i className='tabler-upload' style={{ fontSize: 13 }} />
-                                                        }
-                                                        onClick={() => onUploadClick(index)}
-                                                        sx={{ fontSize: '0.7rem', py: 0.25 }}
-                                                    >
-                                                        {criteriaUploading[index] ? 'Uploading...' : 'Upload PDF'}
-                                                    </Button>
-                                                    {criteriaError[index] && (
-                                                        <Typography variant='caption' color='error' sx={{ fontSize: '0.62rem' }}>
-                                                            {criteriaError[index]}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            )}
+                                                )}
+
+                                                {row.uploaded_file ? (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <Chip
+                                                            icon={<i className='tabler-check' style={{ fontSize: 13 }} />}
+                                                            label={row.uploaded_name || 'Uploaded'}
+                                                            size='small'
+                                                            color='success'
+                                                            variant='tonal'
+                                                            sx={{ fontSize: '0.65rem', maxWidth: 155 }}
+                                                        />
+                                                        <Tooltip title='Remove'>
+                                                            <IconButton size='small' onClick={() => onRemoveUpload(index)} sx={{ p: 0.3 }}>
+                                                                <i className='tabler-x' style={{ fontSize: 12 }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </Box>
+                                                ) : (
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.4 }}>
+                                                        <Button
+                                                            size='small'
+                                                            variant='tonal'
+                                                            color='secondary'
+                                                            disabled={criteriaUploading[index]}
+                                                            startIcon={
+                                                                criteriaUploading[index]
+                                                                    ? <CircularProgress size={12} />
+                                                                    : <i className='tabler-upload' style={{ fontSize: 13 }} />
+                                                            }
+                                                            onClick={() => onUploadClick(index)}
+                                                            sx={{ fontSize: '0.7rem', py: 0.25 }}
+                                                        >
+                                                            {criteriaUploading[index] ? 'Uploading...' : 'Upload PDF'}
+                                                        </Button>
+                                                        {criteriaError[index] && (
+                                                            <Typography variant='caption' color='error' sx={{ fontSize: '0.62rem' }}>
+                                                                {criteriaError[index]}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -539,25 +580,40 @@ const CriteriaStats = React.memo(() => {
     const { control } = useFormContext<GprFormData>()
     const criteria = useWatch({ control, name: 'criteria' }) || []
     const needUploaded = criteria.filter(item => item?.criteria === 'Need' && item?.uploaded_file).length
-    const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '3.14' && item?.uploaded_file).length
+    const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '4.14' && item?.uploaded_file).length
+
+    const isNeedPassed = needUploaded === 5
+    const isOptionalPassed = optionalUploaded >= 4
 
     return (
         <Paper variant='outlined' sx={{ p: 1.5, mb: 2, bgcolor: 'action.hover', borderRadius: 1.5 }}>
             <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 1 }}>
                 Remark :
             </Typography>
-            <Typography variant='caption' sx={{ display: 'block', mb: 0.5 }}>
-                {'1. Criteria for evaluation criteria in item 3.1 to 3.5, Which are all selected = '}
-                <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{needUploaded}</Box>
-                {' items'}
-            </Typography>
-            <Typography variant='caption' sx={{ display: 'block', mb: 0.75 }}>
-                {'2. Item 3.6 to 3.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
-                <Box component='span' sx={{ fontWeight: 700, color: 'primary.main' }}>{optionalUploaded}</Box>
-                {' items'}
-            </Typography>
-            <Typography variant='caption' component='div' sx={{ pl: 1.5, color: 'text.secondary', lineHeight: 1.8 }}>
-                <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 3.6-3.7 is recommended.<br />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <i
+                    className={isNeedPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
+                    style={{ color: isNeedPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
+                />
+                <Typography variant='caption'>
+                    {'1. Criteria for evaluation criteria in item 4.1 to 4.5, Which are all selected = '}
+                    <Box component='span' sx={{ fontWeight: 700, color: isNeedPassed ? 'success.main' : 'error.main' }}>{needUploaded}</Box>
+                    {' items'}
+                </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
+                <i
+                    className={isOptionalPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
+                    style={{ color: isOptionalPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
+                />
+                <Typography variant='caption'>
+                    {'2. Item 4.6 to 4.13 as a criterion independent, Which must choose at least four items, Which are all selected = '}
+                    <Box component='span' sx={{ fontWeight: 700, color: isOptionalPassed ? 'success.main' : 'error.main' }}>{optionalUploaded}</Box>
+                    {' items'}
+                </Typography>
+            </Box>
+            <Typography variant='caption' component='div' sx={{ pl: 6, color: 'text.secondary', lineHeight: 1.8 }}>
+                <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 4.6-4.7 is recommended.<br />
                 <strong>-</strong> Other business category shall be authorized capital is at least 0.5 MTHB, Establish is at least 1 year.
             </Typography>
         </Paper>
@@ -574,137 +630,137 @@ const SuggestionSection = React.memo(
         readOnly?: boolean
         signatures?: SignatureSlot[]
     }) => {
-    const { control, register } = useFormContext<GprFormData>()
-    const disableSuggestionInputs = accountVendorCodeOnly || readOnly
+        const { control, register } = useFormContext<GprFormData>()
+        const disableSuggestionInputs = accountVendorCodeOnly || readOnly
 
-    return (
-        <>
-            <SectionTitle no={5} title='Suggestion' />
-            <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
-                <DisabledBlock disabled={disableSuggestionInputs}>
-                    <CustomTextField
-                        fullWidth
-                        label='Suggestion'
-                        multiline
-                        rows={2}
-                        placeholder='Write your suggestion here...'
-                        {...register('suggestion')}
-                        sx={{ mb: 2 }}
-                    />
-
-                    <CriteriaStats />
-
-                    <FormControl sx={{ mb: 2 }}>
-                        <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
-                            Result
-                        </FormLabel>
-                        <Controller
-                            name='result'
-                            control={control}
-                            render={({ field }) => (
-                                <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                size='small'
-                                                color='success'
-                                                checked={field.value === 'approval'}
-                                                onChange={() => field.onChange(field.value === 'approval' ? '' : 'approval')}
-                                            />
-                                        }
-                                        label={<Typography variant='body2' fontWeight={600} color='success.main'>Approval</Typography>}
-                                    />
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                size='small'
-                                                color='error'
-                                                checked={field.value === 'disapproval'}
-                                                onChange={() => field.onChange(field.value === 'disapproval' ? '' : 'disapproval')}
-                                            />
-                                        }
-                                        label={<Typography variant='body2' fontWeight={600} color='error.main'>Disapproval</Typography>}
-                                    />
-                                </Box>
-                            )}
+        return (
+            <>
+                <SectionTitle no={5} title='Suggestion' />
+                <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
+                    <DisabledBlock disabled={disableSuggestionInputs}>
+                        <CustomTextField
+                            fullWidth
+                            label='Suggestion'
+                            multiline
+                            rows={2}
+                            placeholder='Write your suggestion here...'
+                            {...register('suggestion')}
+                            sx={{ mb: 2 }}
                         />
-                    </FormControl>
 
-                    <Paper variant='outlined' sx={{ mb: 2, borderRadius: 1.5, overflow: 'hidden' }}>
-                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', p: 1, bgcolor: 'action.hover', fontStyle: 'italic' }}>
-                            Signatures are completed on the printed form - this section is for reference only.
-                        </Typography>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
-                            {signatures.map((item, index) => (
-                                <Box
-                                    key={item.role + index}
-                                    sx={{
-                                        p: 1.5,
-                                        minHeight: 60,
-                                        borderRight: index < 3 ? '1px solid' : 'none',
-                                        borderRightColor: 'divider',
-                                        textAlign: 'center',
-                                    }}
-                                >
-                                    <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem', display: 'block', lineHeight: 1.1 }}>
-                                        {item.code || '-'}
-                                    </Typography>
-                                    <Typography variant='caption' fontWeight={700} display='block' sx={{ letterSpacing: 0.5 }}>
-                                        {item.signature || '-'}
-                                    </Typography>
-                                    <Typography variant='caption' color='text.disabled' sx={{ fontSize: '0.7rem' }}>
-                                        {item.date || 'DD/MM/YYYY'}
-                                    </Typography>
-                                </Box>
-                            ))}
-                        </Box>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
-                            {signatures.map((item, index) => (
-                                <Box
-                                    key={`${item.role}-label-${index}`}
-                                    sx={{
-                                        p: 0.75,
-                                        textAlign: 'center',
-                                        borderRight: index < 3 ? '1px solid' : 'none',
-                                        borderRightColor: 'divider',
-                                    }}
-                                >
-                                    <Typography variant='caption' color='text.secondary'>{item.role}</Typography>
-                                </Box>
-                            ))}
-                        </Box>
-                    </Paper>
+                        <CriteriaStats />
 
-                    <CustomTextField fullWidth label='Path' placeholder='File path / folder reference' {...register('path')} sx={{ mb: 2 }} />
-                </DisabledBlock>
-
-                <Paper variant='outlined' sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(40,199,111,0.04)' }}>
-                    <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
-                        For Selector :
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary' fontStyle='italic' sx={{ display: 'block', mb: 1.5 }}>
-                        After completing the Supplier/Outsourcing registration, please specify.
-                    </Typography>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                            <CustomTextField fullWidth label='Vendor Code' disabled={readOnly} {...register('vendor_code_selector')} />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <CustomTextField
-                                fullWidth
-                                label='Completion Date'
-                                type='date'
-                                disabled={disableSuggestionInputs}
-                                InputLabelProps={{ shrink: true }}
-                                {...register('completion_date')}
+                        <FormControl sx={{ mb: 2 }}>
+                            <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
+                                Result
+                            </FormLabel>
+                            <Controller
+                                name='result'
+                                control={control}
+                                render={({ field }) => (
+                                    <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    size='small'
+                                                    color='success'
+                                                    checked={field.value === 'approval'}
+                                                    onChange={() => field.onChange(field.value === 'approval' ? '' : 'approval')}
+                                                />
+                                            }
+                                            label={<Typography variant='body2' fontWeight={600} color='success.main'>Approval</Typography>}
+                                        />
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    size='small'
+                                                    color='error'
+                                                    checked={field.value === 'disapproval'}
+                                                    onChange={() => field.onChange(field.value === 'disapproval' ? '' : 'disapproval')}
+                                                />
+                                            }
+                                            label={<Typography variant='body2' fontWeight={600} color='error.main'>Disapproval</Typography>}
+                                        />
+                                    </Box>
+                                )}
                             />
+                        </FormControl>
+
+                        <Paper variant='outlined' sx={{ mb: 2, borderRadius: 1.5, overflow: 'hidden' }}>
+                            <Typography variant='caption' color='text.secondary' sx={{ display: 'block', p: 1, bgcolor: 'action.hover', fontStyle: 'italic' }}>
+                                Signatures are completed on the printed form - this section is for reference only.
+                            </Typography>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
+                                {signatures.map((item, index) => (
+                                    <Box
+                                        key={item.role + index}
+                                        sx={{
+                                            p: 1.5,
+                                            minHeight: 60,
+                                            borderRight: index < 3 ? '1px solid' : 'none',
+                                            borderRightColor: 'divider',
+                                            textAlign: 'center',
+                                        }}
+                                    >
+                                        <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem', display: 'block', lineHeight: 1.1 }}>
+                                            {item.code || '-'}
+                                        </Typography>
+                                        <Typography variant='caption' fontWeight={700} display='block' sx={{ letterSpacing: 0.5 }}>
+                                            {item.signature || '-'}
+                                        </Typography>
+                                        <Typography variant='caption' color='text.disabled' sx={{ fontSize: '0.7rem' }}>
+                                            {item.date || 'DD/MM/YYYY'}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid', borderTopColor: 'divider' }}>
+                                {signatures.map((item, index) => (
+                                    <Box
+                                        key={`${item.role}-label-${index}`}
+                                        sx={{
+                                            p: 0.75,
+                                            textAlign: 'center',
+                                            borderRight: index < 3 ? '1px solid' : 'none',
+                                            borderRightColor: 'divider',
+                                        }}
+                                    >
+                                        <Typography variant='caption' color='text.secondary'>{item.role}</Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Paper>
+
+                        <CustomTextField fullWidth label='Path' placeholder='File path / folder reference' {...register('path')} sx={{ mb: 2 }} />
+                    </DisabledBlock>
+
+                    <Paper variant='outlined' sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(40,199,111,0.04)' }}>
+                        <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
+                            For Selector :
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary' fontStyle='italic' sx={{ display: 'block', mb: 1.5 }}>
+                            After completing the Supplier/Outsourcing registration, please specify.
+                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <CustomTextField fullWidth label='Vendor Code' disabled={readOnly} {...register('vendor_code_selector')} />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <CustomTextField
+                                    fullWidth
+                                    label='Completion Date'
+                                    type='date'
+                                    disabled={disableSuggestionInputs}
+                                    InputLabelProps={{ shrink: true }}
+                                    {...register('completion_date')}
+                                />
+                            </Grid>
                         </Grid>
-                    </Grid>
+                    </Paper>
                 </Paper>
-            </Paper>
-        </>
-    )
-})
+            </>
+        )
+    })
 
 // ── Main Dialog Component ─────────────────────────────────────────────────────
 
@@ -833,28 +889,14 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     onChange={handleFileChange}
                 />
 
-                <DialogTitle sx={{ p: 0, overflow: 'visible' }}>
-                    <Box
-                        sx={{
-                            px: 3,
-                            py: 2.5,
-                            background: 'linear-gradient(135deg, var(--mui-palette-primary-main) 0%, #7367F0 100%)',
-                            color: '#fff',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'flex-start',
-                        }}
-                    >
-                        <Box>
-                            <Typography variant='h5' fontWeight={800} sx={{ letterSpacing: 0.3 }}>
-                                Supplier / Outsourcing Selection Sheet
-                            </Typography>
-                            <DialogSubtitle fallbackName={rowData?.company_name} />
-                        </Box>
-                        <DialogCloseButton onClick={handleCloseClick} disableRipple sx={{ color: '#fff' }}>
-                            <i className='tabler-x' />
-                        </DialogCloseButton>
-                    </Box>
+                <DialogTitle sx={{ px: 4, py: 4, position: 'relative' }}>
+                    <Typography variant='h5' component='span' fontWeight={800} sx={{ letterSpacing: 0.3 }}>
+                        Supplier / Outsourcing Selection Sheet
+                    </Typography>
+                    <DialogSubtitle fallbackName={rowData?.company_name} />
+                    <DialogCloseButton onClick={handleCloseClick} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
                 </DialogTitle>
 
                 <DialogContent dividers sx={{ px: 4, py: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
@@ -888,7 +930,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     />
                 </DialogContent>
 
-                <DialogActions sx={{ justifyContent: 'flex-start', px: 3, py: 1.5, gap: 1 }}>
+                <DialogActions sx={{ justifyContent: 'flex-start', px: 4, py: 3, gap: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                         variant='tonal'
                         color='primary'

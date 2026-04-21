@@ -150,20 +150,20 @@ export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRI
 export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('vendor disagre')
 
 export const getApproveActionLabel = (currentStep: any, hasVendorRequested: boolean) => {
-    if (!currentStep) return 'Approve'
+    if (!currentStep) return 'Confirm'
 
     if (isPicStep(currentStep)) {
-        if (!hasVendorRequested) return 'Send to Vendor'
+        if (!hasVendorRequested) return 'Approve and Send Email To Vendor'
         if (isPendingAgreementStep(currentStep)) return 'Vendor Agreed (Continue)'
         if (isIssueGprBStep(currentStep)) return 'Send GPR B to Vendor'
-        if (isIssueGprCStep(currentStep)) return 'Send GPR C to Vendor'
-        return 'Approve'
+            if (isIssueGprCStep(currentStep)) return 'Send GPR C to Requester'
+        return 'Confirm'
     }
 
     if (isPendingAgreementStep(currentStep)) return 'Confirm Agreement'
     if (isIssueGprBStep(currentStep) || isIssueGprCStep(currentStep)) return 'Continue Negotiation'
 
-    return 'Approve'
+    return 'Confirm'
 }
 
 export const getRejectActionLabel = (currentStep: any) => {

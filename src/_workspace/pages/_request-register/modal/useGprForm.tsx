@@ -78,20 +78,20 @@ export const DEFAULT_SALES_PROFIT: SalesProfitYear[] = Array.from({ length: 5 },
 }))
 
 export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] = [
-    { no: '3.1', detail: 'Compliant of the law', criteria: 'Need' },
-    { no: '3.2', detail: 'Anti-Bribery Policy Communication', criteria: 'Need' },
-    { no: '3.3', detail: 'General Purchase Specification Requirement', criteria: 'Need' },
-    { no: '3.4', detail: 'Manufacture location survey', criteria: 'Need' },
-    { no: '3.5', detail: 'Company Environmental and Energy Policy', criteria: 'Need' },
-    { no: '3.6', detail: 'Quality Management Certification', criteria: 'Optional' },
-    { no: '3.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Optional' },
-    { no: '3.8', detail: 'Environmental Management Certification', criteria: 'Optional' },
-    { no: '3.9', detail: 'History reliability', criteria: 'Optional' },
-    { no: '3.10', detail: 'Reliable performance', criteria: 'Optional' },
-    { no: '3.11', detail: 'Advised by Customer, Parent Company or Manager up', criteria: 'Optional' },
-    { no: '3.12', detail: 'Low Price', criteria: 'Optional' },
-    { no: '3.13', detail: 'Document to request for Automatic Account Transfer', criteria: 'Optional' },
-    { no: '3.14', detail: 'Other', criteria: 'Optional' },
+    { no: '4.1', detail: 'Compliant of the law', criteria: 'Need' },
+    { no: '4.2', detail: 'Anti-Bribery Policy Communication', criteria: 'Need' },
+    { no: '4.3', detail: 'General Purchase Specification Requirement', criteria: 'Need' },
+    { no: '4.4', detail: 'Manufacture location survey', criteria: 'Need' },
+    { no: '4.5', detail: 'Company Environmental and Energy Policy', criteria: 'Need' },
+    { no: '4.6', detail: 'Quality Management Certification', criteria: 'Optional' },
+    { no: '4.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Optional' },
+    { no: '4.8', detail: 'Environmental Management Certification', criteria: 'Optional' },
+    { no: '4.9', detail: 'History reliability', criteria: 'Optional' },
+    { no: '4.10', detail: 'Reliable performance', criteria: 'Optional' },
+    { no: '4.11', detail: 'Advised by Customer, Parent Company or Manager up', criteria: 'Optional' },
+    { no: '4.12', detail: 'Low Price', criteria: 'Optional' },
+    { no: '4.13', detail: 'Document to request for Automatic Account Transfer', criteria: 'Optional' },
+    { no: '4.14', detail: 'Other', criteria: 'Optional' },
 ]
 
 // ── Helper Functions ──────────────────────────────────────────────────────────
@@ -268,7 +268,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
         try {
             const formData = new FormData()
-            formData.append('request_id', String(rowData?.request_id))
+            formData.append('request_id', String(Number(rowData?.request_id) || 0))
             formData.append('file', file)
             formData.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
 
@@ -355,7 +355,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             URL.revokeObjectURL(url)
 
             const documentForm = new FormData()
-            documentForm.append('request_id', String(rowData.request_id))
+            documentForm.append('request_id', String(Number(rowData?.request_id) || 0))
             documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
             documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
             await RegisterRequestServices.addDocument(documentForm)

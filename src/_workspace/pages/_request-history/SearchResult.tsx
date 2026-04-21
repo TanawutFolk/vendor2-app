@@ -47,6 +47,8 @@ import GprCNotificationDialog from './modal/GprCNotificationDialog'
 // React Query
 import { useQueryClient } from '@tanstack/react-query'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
+import { isIssueGprCStep } from '@_workspace/utils/requestWorkflow'
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -478,15 +480,6 @@ export default function SearchResult() {
             width: 110,
             pinned: 'left',
             cellRenderer: (params: any) => {
-                const rowRequesterCode = String(
-                    params.data?.Request_By_EmployeeCode
-                    || params.data?.request_by_employeecode
-                    || params.data?.request_by_employee_code
-                    || params.data?.EMPLOYEE_CODE
-                    || ''
-                ).trim()
-                const isRequester = !!rowRequesterCode && rowRequesterCode === currentUserCode
-
                 return (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Tooltip title='View Details'>
@@ -501,24 +494,76 @@ export default function SearchResult() {
                                 <i className='tabler-eye' style={{ fontSize: 18 }} />
                             </IconButton>
                         </Tooltip>
-                        {isRequester && (
-                            <Tooltip title='GPR C Notification Setup'>
-                                <IconButton
-                                    size='small'
-                                    color='warning'
-                                    onClick={() => {
-                                        setGprCRowData(params.data)
-                                        setGprCOpen(true)
-                                    }}
-                                >
-                                    <i className='tabler-bell-ringing' style={{ fontSize: 18 }} />
-                                </IconButton>
-                            </Tooltip>
-                        )}
                     </Box>
                 )
             }
         },
+        {
+            headerName: 'Require Action',
+            field: 'require_action',
+            width: 160,
+            pinned: 'left',
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => {
+                const rowRequesterCode = String(
+                    params.data?.Request_By_EmployeeCode
+                    || params.data?.request_by_employeecode
+                    || params.data?.request_by_employee_code
+                    || params.data?.EMPLOYEE_CODE
+                    || ''
+                ).trim()
+                const isRequester = !!rowRequesterCode && rowRequesterCode === currentUserCode
+
+                // Check if current step is GPR C (from approval_steps or request_status)
+                let inGprCStep = false
+                try {
+                    const approvalSteps = typeof params.data?.approval_steps === 'string'
+                        ? JSON.parse(params.data.approval_steps)
+                        : (params.data?.approval_steps || [])
+                    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+                    if (currentStep) {
+                        inGprCStep = isIssueGprCStep(currentStep)
+                    } else {
+                        // Fallback: check request_status text
+                        const statusNorm = String(params.data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase()
+                        inGprCStep = statusNorm.includes('issue gpr c')
+                    }
+                } catch {
+                    const statusNorm = String(params.data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase()
+                    inGprCStep = statusNorm.includes('issue gpr c')
+                }
+
+                if (!inGprCStep || !isRequester) {
+                    return <Typography variant='caption' color='text.disabled'>—</Typography>
+                }
+
+                return (
+                    <Tooltip title='Fill in GPR C Approver & Circular list'>
+                        <Chip
+                            label='GPR C Setup'
+                            size='small'
+                            onClick={() => {
+                                setGprCRowData(params.data)
+                                setGprCOpen(true)
+                            }}
+                            sx={{
+                                cursor: 'pointer',
+                                bgcolor: '#fff3e0',
+                                color: '#e65100',
+                                border: '1px solid #ffcc80',
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 24,
+                                '& .MuiChip-icon': { color: '#e65100' },
+                                '&:hover': { bgcolor: '#ffe0b2' },
+                            }}
+                        />
+                    </Tooltip>
+                )
+            }
+        },
+
         {
             field: 'request_status',
             headerName: 'Status',

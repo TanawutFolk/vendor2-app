@@ -27,11 +27,19 @@ import AppReactDropzone from '@/libs/styles/AppReactDropzone'
 import ConfirmModal from '@components/ConfirmModal'
 import CustomTextField from '@components/mui/TextField'
 
+// Third-party Imports
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+// Schema & Types
+import { RegisterConfirmSchema, defaultRegisterConfirmValues } from './validateSchema'
+import type { RegisterConfirmFormData } from './validateSchema'
+
 interface RegisterConfirmModalProps {
     open: boolean
     vendorData?: any
     onClose: () => void
-    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; ccEmails: string[]; files: File[] }) => void
+    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; files: File[] }) => void
 }
 
 // Styled Dropzone Component
@@ -96,55 +104,73 @@ const Transition = forwardRef(function Transition(
 })
 
 const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: RegisterConfirmModalProps) => {
-    // Flow state
+    // Form setup state
     const [step, setStep] = useState<1 | 2>(1)
     const [confirmOpen, setConfirmOpen] = useState(false)
+    const [fileError, setFileError] = useState<string | null>(null) // State for immediate dropzone feedback
 
-    // Form states
-    const [supportType, setSupportType] = useState('')
-    const [purchaseFreq, setPurchaseFreq] = useState('')
-    const [vendorContactId, setVendorContactId] = useState('')
-    const [ccEmails, setCcEmails] = useState<string[]>([])
-    const [ccInput, setCcInput] = useState('')
-    const [files, setFiles] = useState<File[]>([])
+    // React Hook Form
+    const {
+        control,
+        handleSubmit: handleFormSubmit,
+        setValue,
+        watch,
+        reset,
+        formState: { errors, isValid }
+    } = useForm<RegisterConfirmFormData>({
+        resolver: zodResolver(RegisterConfirmSchema),
+        defaultValues: defaultRegisterConfirmValues,
+        mode: 'onChange'
+    })
+
+    // Watch values for UI logic
+    const files = watch('files')
+    const vendorContactId = watch('vendorContactId')
+    const supportType = watch('supportType')
+    const purchaseFreq = watch('purchaseFreq')
 
     // Reset state when modal opens/closes
     useEffect(() => {
         if (!open) {
             setTimeout(() => {
                 setStep(1)
-                setSupportType('')
-                setPurchaseFreq('')
-                setVendorContactId('')
-                setCcEmails([])
-                setCcInput('')
-                setFiles([])
+                reset(defaultRegisterConfirmValues)
+                setFileError(null)
             }, 300)
         }
-    }, [open])
+    }, [open, reset])
 
-    const handleAddCc = () => {
-        const email = ccInput.trim().toLowerCase()
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
-        if (ccEmails.includes(email)) { setCcInput(''); return }
-        setCcEmails(prev => [...prev, email])
-        setCcInput('')
-    }
-
-    const handleRemoveCc = (email: string) => {
-        setCcEmails(prev => prev.filter(e => e !== email))
-    }
 
     const { getRootProps, getInputProps } = useDropzone({
         onDrop: acceptedFiles => {
-            setFiles(prev => [...prev, ...acceptedFiles])
-        }
+            const currentFiles = watch('files')
+            setValue('files', [...currentFiles, ...acceptedFiles], { shouldValidate: true })
+            setFileError(null)
+        },
+        onDropRejected: (fileRejections) => {
+            const errors = fileRejections.map(r => {
+                const sizeErr = r.errors.find(e => e.code === 'file-too-large')
+                const typeErr = r.errors.find(e => e.code === 'file-invalid-type')
+                if (sizeErr) return `File "${r.file.name}" is too large (max 10MB).`
+                if (typeErr) return `File "${r.file.name}" type is not allowed.`
+                return `File "${r.file.name}" was rejected.`
+            })
+            setFileError(errors[0])
+        },
+        accept: {
+            'application/pdf': ['.pdf'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg']
+        },
+        maxSize: 10 * 1024 * 1024 // 10MB
     })
 
     const handleRemoveFile = (file: File) => {
-        const uploadedFiles = files
-        const filtered = uploadedFiles.filter((i: File) => i.name !== file.name)
-        setFiles([...filtered])
+        const currentFiles = watch('files')
+        const filtered = currentFiles.filter((i: File) => i.name !== file.name)
+        setValue('files', filtered, { shouldValidate: true })
     }
 
     const renderFilePreview = (file: File) => {
@@ -231,7 +257,8 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
 
     const handleConfirmed = () => {
         setConfirmOpen(false)
-        onConfirm({ supportType, purchaseFreq, vendorContactId, ccEmails, files })
+        const data = watch()
+        onConfirm(data)
     }
 
     return (
@@ -383,83 +410,79 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                     The vendor agreement email will be sent to the selected contact.
                                 </Typography>
                                 <Box sx={{
-                                    border: '1px solid', borderColor: 'divider',
+                                    border: '1px solid', borderColor: errors.vendorContactId ? 'error.main' : 'divider',
                                     borderRadius: 1.5, p: 2, bgcolor: 'background.paper'
                                 }}>
-                                    <RadioGroup
-                                        value={vendorContactId}
-                                        onChange={(e) => setVendorContactId(e.target.value)}
-                                    >                                        {vendorData?.contacts?.map((contact: any, index: number) => (
-                                        contact.vendor_contact_id ? (
-                                            <FormControlLabel
-                                                key={contact.vendor_contact_id}
-                                                value={String(contact.vendor_contact_id)}
-                                                control={<Radio />}
-                                                label={
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {contact.email ? contact.email : 'No email'} {contact.tel_phone ? `| Tel: ${contact.tel_phone}` : ''}
-                                                        </Typography>
-                                                    </Box>
-                                                }
-                                                sx={{ mb: 1, '&:last-child': { mb: 0 } }}
-                                            />
-                                        ) : null
-                                    ))}
-                                    </RadioGroup>
-                                </Box>
-                            </Box>
-
-                            <CustomTextField
-                                fullWidth
-                                label="For support product / process"
-                                placeholder="e.g. Server infrastructure, Maintenance..."
-                                value={supportType}
-                                onChange={(e: any) => setSupportType(e.target.value)}
-                            />
-                            <CustomTextField
-                                fullWidth
-                                label="Purchase Frequency / Year"
-                                placeholder="e.g. Monthly, 2-3 times/year..."
-                                value={purchaseFreq}
-                                onChange={(e: any) => setPurchaseFreq(e.target.value)}
-                            />
-
-                            <Box>
-                                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>CC Recipients (Final Email)</Typography>
-                                <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-                                    <CustomTextField
-                                        size='small' fullWidth
-                                        placeholder='Enter email address...'
-                                        value={ccInput}
-                                        onChange={e => setCcInput(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault()
-                                                handleAddCc()
-                                            }
-                                        }}
+                                    <Controller
+                                        name="vendorContactId"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <RadioGroup {...field}>
+                                                {vendorData?.contacts?.map((contact: any, index: number) => (
+                                                    contact.vendor_contact_id ? (
+                                                        <FormControlLabel
+                                                            key={contact.vendor_contact_id}
+                                                            value={String(contact.vendor_contact_id)}
+                                                            control={<Radio />}
+                                                            label={
+                                                                <Box>
+                                                                    <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {contact.email ? contact.email : 'No email'} {contact.tel_phone ? `| Tel: ${contact.tel_phone}` : ''}
+                                                                    </Typography>
+                                                                </Box>
+                                                            }
+                                                            sx={{ mb: 1, '&:last-child': { mb: 0 } }}
+                                                        />
+                                                    ) : null
+                                                ))}
+                                            </RadioGroup>
+                                        )}
                                     />
-                                    <Button variant='contained' onClick={handleAddCc} disabled={!ccInput.trim()}>
-                                        Add
-                                    </Button>
                                 </Box>
-                                {ccEmails.length > 0 && (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                                        {ccEmails.map(e => (
-                                            <Chip
-                                                key={e} label={e} size='small' variant='outlined'
-                                                onDelete={() => handleRemoveCc(e)}
-                                                icon={<i className='tabler-mail' style={{ fontSize: 13 }} />}
-                                            />
-                                        ))}
-                                    </Box>
+                                {errors.vendorContactId && (
+                                    <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                                        {errors.vendorContactId.message}
+                                    </Typography>
                                 )}
                             </Box>
 
+                            <Controller
+                                name="supportType"
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        required
+                                        label="For support product / process"
+                                        placeholder="e.g. Server infrastructure, Maintenance..."
+                                        error={!!errors.supportType}
+                                        helperText={errors.supportType?.message}
+                                    />
+                                )}
+                            />
+
+                            <Controller
+                                name="purchaseFreq"
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        required
+                                        label="Purchase Frequency / Year"
+                                        placeholder="e.g. Monthly, 2-3 times/year..."
+                                        error={!!errors.purchaseFreq}
+                                        helperText={errors.purchaseFreq?.message}
+                                    />
+                                )}
+                            />
+
                             <Box>
-                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Quotation, Concerned documents</Typography>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                    Quotation, Concerned documents <Typography component="span" color="error">*</Typography>
+                                </Typography>
                                 <Dropzone>
                                     <div {...getRootProps({ className: 'dropzone' })}>
                                         <input {...getInputProps()} />
@@ -471,7 +494,14 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                                 <i className='tabler-upload' style={{ fontSize: 24, color: 'var(--mui-palette-secondary-main)' }} />
                                             </Box>
                                             <Typography variant='h6' sx={{ mb: 0.5 }}>Drop files here or click to upload</Typography>
-                                            <Typography variant='body2' color='text.secondary'>Allowed files: PDF, DOC, Excel, Images</Typography>
+                                            <Typography variant='body2' fontWeight={600} color='primary.main'>
+                                                Allowed: PDF, Excel, PNG, JPG (Max 10MB)
+                                            </Typography>
+                                            {fileError || errors.files ? (
+                                                <Typography variant='caption' color='error' sx={{ mt: 1, fontWeight: 700 }}>
+                                                    {fileError || errors.files?.message}
+                                                </Typography>
+                                            ) : null}
                                         </Box>
                                     </div>
                                     {files.length > 0 && (
@@ -518,10 +548,10 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                         <>
                             <Button
                                 variant="contained"
-                                onClick={handleSubmit}
+                                onClick={handleFormSubmit(handleSubmit)}
                                 color="primary"
                                 size='large'
-                                disabled={!supportType || !purchaseFreq || !vendorContactId}
+                                disabled={!isValid}
                                 sx={{ minWidth: 120 }}
                             >
                                 Submit Request

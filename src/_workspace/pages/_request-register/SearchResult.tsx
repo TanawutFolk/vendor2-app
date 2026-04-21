@@ -23,6 +23,7 @@ import type { ReactElement, Ref } from 'react'
 import { forwardRef } from 'react'
 import { Slide } from '@mui/material'
 import type { SlideProps } from '@mui/material'
+import { alpha } from '@mui/material/styles'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -305,9 +306,9 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                         {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : `Confirm action: ${rejectActionLabel}`}
                     </Typography>
                 </Box>
-                
+
                 {error && <Alert severity='error' sx={{ mb: 2 }}>{error}</Alert>}
-                
+
                 {mode === 'reject' && (
                     <TextField
                         fullWidth multiline rows={3}
@@ -334,7 +335,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                     sx={{ mr: 4 }}
                     disabled={mode === 'reject' && !watch('remark')?.trim()}
                 >
-                    <span>Yes, {actionLabel} !</span>
+                    <span> Confirm </span>
                 </LoadingButton>
                 <Button variant='tonal' color='secondary' onClick={onClose} disabled={isSubmitting}>
                     Cancel
@@ -357,12 +358,6 @@ interface DetailPanelProps {
 
 const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
-    // CC emails management
-    const [ccEmails, setCcEmails] = useState<string[]>([])
-    const [ccInput, setCcInput] = useState('')
-    const [ccEditMode, setCcEditMode] = useState(false)
-    const [ccSaving, setCcSaving] = useState(false)
-    const [ccFeedback, setCcFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // Account step: complete registration
     const [vendorCodeInput, setVendorCodeInput] = useState('')
     const [completing, setCompleting] = useState(false)
@@ -394,47 +389,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const files = buildFileUrls(data?.documents)
     if (!data) return null
 
-    // Parse cc_emails from data on mount / data change
-    useEffect(() => {
-        const parsed = safeParseJSON<string[]>(data.cc_emails, [])
-        setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
-    }, [data?.cc_emails])
-
-    const handleSaveCcEmails = async (updatedList: string[]) => {
-        setCcSaving(true)
-        setCcFeedback(null)
-        try {
-            const res = await RegisterRequestServices.updateCcEmails({
-                request_id: data.request_id,
-                cc_emails: updatedList,
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-            if (res.data.Status) {
-                setCcFeedback({ type: 'success', msg: 'CC list saved' })
-                setCcEditMode(false)
-                onEmailSent() // refresh grid
-            } else {
-                setCcFeedback({ type: 'error', msg: res.data.Message })
-            }
-        } catch (err: any) {
-            setCcFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to save CC emails' })
-        } finally {
-            setCcSaving(false)
-        }
-    }
-
-    const handleAddCc = () => {
-        const email = ccInput.trim().toLowerCase()
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
-        if (ccEmails.includes(email)) { setCcInput(''); return }
-        const updated = [...ccEmails, email]
-        setCcEmails(updated)
-        setCcInput('')
-    }
-
-    const handleRemoveCc = (email: string) => {
-        setCcEmails(prev => prev.filter(e => e !== email))
-    }
 
     const handleCompleteRegistration = async () => {
         if (!vendorCodeInput.trim()) return
@@ -496,10 +450,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         WORKFLOW_STEP_CODE.MD_APPROVAL,
     ].includes(currentStepCode as any)
     const isRequester = String(data?.Request_By_EmployeeCode || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
-    const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep)
+    const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
+    const everRequestedVendor = approvalLogs.some((l: any) => l.action_type === 'vendor_requested')
+
+    const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep) && everRequestedVendor
     const canOpenRequesterGprCDialog = isRequester && !isCurrentAccountStep
     const isGprReadOnly = !isCurrentAccountStep && isPoMgrOrAboveStep
-    const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
@@ -514,6 +470,45 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         || data.gpr_c_pc_pic_email
         || (Array.isArray(circularListPreview) && circularListPreview.some(Boolean))
     )
+
+    // GPR evaluation: determine pass/fail from gpr_criteria (joined via vendor_selection_criteria)
+    const gprCriteria: any[] = (() => {
+        const raw = data.gpr_criteria
+        if (Array.isArray(raw)) return raw
+        try { return JSON.parse(raw) } catch { return [] }
+    })()
+    const gprFormFilled = gprCriteria.length > 0
+    // 4.1–4.5 (Need): all must have uploaded_file (4.3 checked via remark='Accept' OR uploaded_file)
+    const gprPassNeed = gprFormFilled && gprCriteria
+        .filter((c: any) => {
+            const no = String(c?.no || '')
+            return ['4.1', '4.2', '4.3', '4.4', '4.5'].includes(no)
+        })
+        .every((c: any) => !!c?.uploaded_file)
+    // 4.6-4.13 (Optional): at least 4 must have uploaded_file
+    const gprPassOptional = gprFormFilled && gprCriteria
+        .filter((c: any) => {
+            const no = String(c?.no || '')
+            return ['4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'].includes(no)
+        })
+        .filter((c: any) => !!c?.uploaded_file).length >= 4
+    const gprEvalPassed = gprPassNeed && gprPassOptional
+    // Any actionable PIC step where vendor has already been sent: GPR drives next action
+    const isPicPostVendorStep = isActionable && !!currentStep && (isPicStep(currentStep) || isPicOwnedNegotiationStep) && everRequestedVendor
+
+    const resolveStatusValueByKeyword = (keyword: string, fallback: string) => {
+        const normalizedKeyword = keyword.trim().toLowerCase()
+        const matched = (statusOptions || []).find((so: any) => {
+            const value = String(so?.value || '').trim().toLowerCase()
+            const label = String(so?.label || '').trim().toLowerCase()
+            return value.includes(normalizedKeyword) || label.includes(normalizedKeyword)
+        })
+
+        return matched?.value || fallback
+    }
+
+    const agreementReachedStatusValue = resolveStatusValueByKeyword('agreement reached', 'Agreement Reached')
+    const issueGprBStatusValue = resolveStatusValueByKeyword('issue gpr b', 'Issue GPR B')
 
     const handleOpenEditDialog = () => {
         resetEdit({
@@ -707,11 +702,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 const stepLog = logs.find((l: any) => l.step_id === s.step_id)
                                 const getStepStatusCfg = (status: string) => {
                                     switch (status) {
-                                        case 'approved': case 'completed': return { label: 'Completed', bgColor: '#eaf8ef', txtColor: '#2e7d32', borderColor: '#b7dfc4', icon: 'tabler-circle-check-filled' }
-                                        case 'in_progress': case 'current': return { label: 'In Progress', bgColor: '#fff4e5', txtColor: '#f08a24', borderColor: '#f6c07e', icon: 'tabler-clock-play' }
-                                        case 'rejected': return { label: 'Rejected', bgColor: '#fdecec', txtColor: '#d64545', borderColor: '#f4b4b4', icon: 'tabler-circle-x-filled' }
-                                        case 'skipped': return { label: 'Skipped', bgColor: '#eaf3ff', txtColor: '#3b82f6', borderColor: '#b9d7ff', icon: 'tabler-circle-minus' }
-                                        case 'pending': default: return { label: 'Waiting', bgColor: '#f2f3f5', txtColor: '#8b909a', borderColor: '#d8dce2', icon: 'tabler-clock' }
+                                        case 'approved':
+                                        case 'completed':
+                                            return { label: 'Completed', colorKey: 'success', icon: 'tabler-circle-check-filled' }
+                                        case 'in_progress':
+                                        case 'current':
+                                            return { label: 'In Progress', colorKey: 'warning', icon: 'tabler-clock-play' }
+                                        case 'rejected':
+                                            return { label: 'Rejected', colorKey: 'error', icon: 'tabler-circle-x-filled' }
+                                        case 'skipped':
+                                            return { label: 'Skipped', colorKey: 'info', icon: 'tabler-circle-minus' }
+                                        case 'pending':
+                                        default:
+                                            return { label: 'Waiting', colorKey: 'pending', icon: 'tabler-clock' }
                                     }
                                 }
                                 const stCfg = getStepStatusCfg(s.step_status)
@@ -721,19 +724,36 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
                                         <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
                                         <Chip
-                                            icon={<i className={stCfg.icon} style={{ fontSize: 13, color: stCfg.txtColor }} />}
+                                            icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                             label={stCfg.label}
                                             size='small'
-                                            sx={{
-                                                bgcolor: stCfg.bgColor,
-                                                color: stCfg.txtColor,
-                                                border: '1px solid',
-                                                borderColor: stCfg.borderColor,
-                                                fontWeight: 600,
-                                                fontSize: '0.68rem',
-                                                height: 22,
-                                                width: 'fit-content',
-                                                '& .MuiChip-icon': { color: stCfg.txtColor }
+                                            sx={(theme) => {
+                                                const colorMap: Record<string, string> = {
+                                                    success: theme.palette.success.main,
+                                                    warning: theme.palette.warning.main,
+                                                    error: theme.palette.error.main,
+                                                    info: theme.palette.info.main,
+                                                    pending: theme.palette.text.secondary,
+                                                }
+                                                const chipColor = colorMap[stCfg.colorKey] || theme.palette.text.secondary
+                                                const bgColor = stCfg.colorKey === 'pending'
+                                                    ? theme.palette.action.hover
+                                                    : alpha(chipColor, theme.palette.mode === 'dark' ? 0.24 : 0.12)
+                                                const borderColor = stCfg.colorKey === 'pending'
+                                                    ? theme.palette.divider
+                                                    : alpha(chipColor, theme.palette.mode === 'dark' ? 0.55 : 0.35)
+
+                                                return {
+                                                    bgcolor: bgColor,
+                                                    color: chipColor,
+                                                    border: '1px solid',
+                                                    borderColor,
+                                                    fontWeight: 600,
+                                                    fontSize: '0.68rem',
+                                                    height: 22,
+                                                    width: 'fit-content',
+                                                    '& .MuiChip-icon': { color: chipColor }
+                                                }
                                             }}
                                         />
                                         <Typography variant='body2' color='text.secondary'>
@@ -800,73 +820,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
                 </Box>
             )}
-
-            {/* CC Recipients management — always visible, PIC can edit */}
-            <Box sx={{ mb: 3 }}>
-                <SectionHeader icon='tabler-users-group' title='CC Recipients (Final Email)' />
-                <Box sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                    {!ccEditMode ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, flex: 1 }}>
-                                {ccEmails.length === 0
-                                    ? <Typography variant='caption' color='text.secondary'>No CC recipients added yet</Typography>
-                                    : ccEmails.map(e => (
-                                        <Chip key={e} label={e} size='small' variant='outlined'
-                                            icon={<i className='tabler-mail' style={{ fontSize: 13 }} />}
-                                        />
-                                    ))
-                                }
-                            </Box>
-                            <Button size='small' variant='tonal'
-                                startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
-                                onClick={() => { setCcEditMode(true); setCcFeedback(null) }}
-                            >Edit</Button>
-                        </Box>
-                    ) : (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                <TextField
-                                    size='small' fullWidth
-                                    label='Add email address'
-                                    placeholder='name@example.com'
-                                    value={ccInput}
-                                    onChange={e => setCcInput(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCc() } }}
-                                />
-                                <Button variant='contained' size='small' onClick={handleAddCc}
-                                    startIcon={<i className='tabler-plus' style={{ fontSize: 14 }} />}
-                                >Add</Button>
-                            </Box>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, minHeight: 30 }}>
-                                {ccEmails.length === 0
-                                    ? <Typography variant='caption' color='text.secondary'>No emails added</Typography>
-                                    : ccEmails.map(e => (
-                                        <Chip key={e} label={e} size='small' variant='tonal' color='primary'
-                                            onDelete={() => handleRemoveCc(e)}
-                                        />
-                                    ))
-                                }
-                            </Box>
-                            {ccFeedback && <Alert severity={ccFeedback.type} sx={{ py: 0 }}>{ccFeedback.msg}</Alert>}
-                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                <Button size='small' variant='tonal' color='secondary'
-                                    onClick={() => {
-                                        setCcEditMode(false); setCcInput('')
-                                        // Reset to DB value
-                                        const parsed = safeParseJSON<string[]>(data.cc_emails, [])
-                                        setCcEmails(Array.isArray(parsed) ? parsed.filter(Boolean) : [])
-                                    }}
-                                >Cancel</Button>
-                                <Button size='small' variant='contained' color='primary'
-                                    disabled={ccSaving}
-                                    startIcon={ccSaving ? <CircularProgress size={14} /> : <i className='tabler-device-floppy' style={{ fontSize: 14 }} />}
-                                    onClick={() => handleSaveCcEmails(ccEmails)}
-                                >Save</Button>
-                            </Box>
-                        </Box>
-                    )}
-                </Box>
-            </Box>
 
             {/* Attached Files */}
             <Box sx={{ mb: 3 }}>
@@ -1006,7 +959,46 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
             {isActionable && !isCurrentAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-                    {isNegotiationStep && agreeAction && disagreeAction && (
+                    {/* PIC post-vendor step: buttons determined by GPR evaluation */}
+                    {isPicPostVendorStep && (
+                        <>
+                            {!gprFormFilled && (
+                                <Box sx={{
+                                    width: '100%', p: 2, borderRadius: 1.5,
+                                    bgcolor: 'info.lighter', border: '1px solid', borderColor: 'info.light',
+                                    display: 'flex', alignItems: 'center', gap: 1.5
+                                }}>
+                                    <i className='tabler-info-circle' style={{ fontSize: 20, color: 'var(--mui-palette-info-main)', flexShrink: 0 }} />
+                                    <Typography variant='body2' color='info.dark' fontWeight={600}>
+                                        Please complete the Supplier / Outsourcing Selection Sheet before proceeding.
+                                    </Typography>
+                                </Box>
+                            )}
+                            {gprFormFilled && !gprEvalPassed && (
+                                <Box sx={{
+                                    width: '100%', p: 2, borderRadius: 1.5,
+                                    bgcolor: 'warning.lighter', border: '1px solid', borderColor: 'warning.light',
+                                    display: 'flex', alignItems: 'center', gap: 1.5
+                                }}>
+                                    <i className='tabler-alert-triangle' style={{ fontSize: 20, color: 'var(--mui-palette-warning-main)', flexShrink: 0 }} />
+                                    <Typography variant='body2' color='warning.dark' fontWeight={600}>
+                                        Vendor has not agreed yet from GPR criteria result. Approve is disabled until criteria pass.
+                                    </Typography>
+                                </Box>
+                            )}
+                            <Button variant='contained' color='success' fullWidth
+                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                disabled={!gprFormFilled || !gprEvalPassed}
+                                onClick={() => onApprove(agreementReachedStatusValue || computedNextStatus, false, 'Approve and Send to Checker')}
+                            >Approve and Send to Checker</Button>
+                            <Button variant='contained' color='warning' fullWidth
+                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                disabled={!gprFormFilled}
+                                onClick={() => onApprove(issueGprBStatusValue || computedNextStatus, false, 'Send GPR B to Vendor')}
+                            >Send GPR B to Vendor</Button>
+                        </>
+                    )}
+                    {!isPicPostVendorStep && isNegotiationStep && agreeAction && disagreeAction && (
                         <>
                             {renderDisagreeFirst && (
                                 <Button variant='contained' color={disagreeAction.color} fullWidth
@@ -1026,7 +1018,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             )}
                         </>
                     )}
-                    {!isNegotiationStep && (
+                    {!isPicPostVendorStep && !isNegotiationStep && (
                         <>
                             <Button variant='contained' color='success' fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}

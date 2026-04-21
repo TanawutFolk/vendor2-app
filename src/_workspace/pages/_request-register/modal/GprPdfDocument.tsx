@@ -213,7 +213,7 @@ type SignatureSlot = {
 export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
     const needUploaded    = form.criteria.filter(c => c.criteria === 'Need' && c.uploaded_file).length
-    const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '3.14' && c.uploaded_file).length
+    const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '4.14' && c.uploaded_file).length
 
     const approvalSteps = (() => {
         const raw = rowData?.approval_steps
@@ -440,13 +440,13 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
                 <View style={{ marginBottom: 6 }}>
                     <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Remark :</Text>
                     <Text style={s.rmkLine}>
-                        {`1. Criteria for evaluation criteria in item 3.1 to 3.5, Which are all selected   =   ${needUploaded}   items`}
+                        {`1. Criteria for evaluation criteria in item 4.1 to 4.5, Which are all selected   =   ${needUploaded}   items`}
                     </Text>
                     <Text style={s.rmkLine}>
-                        {`2. Item 3.6 to 3.13 as a criterion independent, Which must choose at least three items, Which are all selected   =   ${optionalUploaded}   items`}
+                        {`2. Item 4.6 to 4.13 as a criterion independent, Which must choose at least four items, Which are all selected   =   ${optionalUploaded}   items`}
                     </Text>
                     <Text style={s.rmkBold}>
-                        {'- Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 3.6-3.7 is recommended.'}
+                        {'- Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 4.6-4.7 is recommended.'}
                     </Text>
                     <Text style={s.rmkItalic}>
                         {'- Other business category shall be authorized capital is at least 0.5 MTHB, Establish is at least 1 year.'}

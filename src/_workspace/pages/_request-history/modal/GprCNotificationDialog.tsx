@@ -12,6 +12,7 @@ import {
     Typography,
 } from '@mui/material'
 import CustomTextField from '@components/mui/TextField'
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
@@ -173,9 +174,26 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     }
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth='md'>
-            <DialogTitle>Requester GPR C Notification Setup</DialogTitle>
-            <DialogContent dividers>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            fullWidth
+            maxWidth='md'
+            PaperProps={{ sx: { bgcolor: 'background.default' } }}
+            sx={{
+                '& .MuiDialog-paper': { overflow: 'visible' },
+                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' },
+            }}
+        >
+            <DialogTitle sx={{ px: 4, py: 4, position: 'relative' }}>
+                <Typography variant='h5' component='span' fontWeight={800}>
+                    Requester GPR C Notification Setup
+                </Typography>
+                <DialogCloseButton onClick={onClose} disableRipple>
+                    <i className='tabler-x' />
+                </DialogCloseButton>
+            </DialogTitle>
+            <DialogContent dividers sx={{ px: 4, py: 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {!isRequester && (
                         <Alert severity='warning'>Only requester can edit this section.</Alert>
@@ -248,15 +266,19 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                     )}
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>Cancel</Button>
-                <Button
-                    variant='contained'
-                    onClick={handleSave}
-                    disabled={saving || loading || !isRequester}
-                    startIcon={saving ? <CircularProgress size={14} color='inherit' /> : null}
-                >
-                    {saving ? 'Saving...' : 'Save Setup'}
+            <DialogActions sx={{ justifyContent: 'flex-start', px: 4, py: 3, gap: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
+                {isRequester && (
+                    <Button
+                        variant='contained'
+                        onClick={handleSave}
+                        disabled={saving || loading}
+                        startIcon={saving ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-device-floppy' />}
+                    >
+                        {saving ? 'Saving...' : 'Save Setup'}
+                    </Button>
+                )}
+                <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>
+                    {isRequester ? 'Cancel' : 'Close'}
                 </Button>
             </DialogActions>
         </Dialog>
