@@ -33,7 +33,7 @@ const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
 
     // react-hook-form
-    const { setValue, getValues, control } = useFormContext<FindVendorFormData>()
+    const { setValue, getValues, control, handleSubmit } = useFormContext<FindVendorFormData>()
 
     // react-query
     const queryClient = useQueryClient()
@@ -41,13 +41,22 @@ const SearchFilter = () => {
     // DxContext
     const { setIsEnableFetching } = useDxContext()
 
-    const onMutateSuccess = () => { }
+    const onResetFormSearch = () => {
+        setValue('searchFilters', defaultSearchFilters)
+    }
 
-    const onMutateError = (e: any) => { }
+    // Function : react-hook-form
+    const onSubmit = () => {
+        setIsEnableFetching(true)
+        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+        handleAdd()
+    }
 
-    const { mutate } = useCreate(onMutateSuccess, onMutateError)
+    const onError = (data: any) => {
+        console.log(data)
+    }
 
-    // Save user profile setting
+    // react-query
     const handleAdd = () => {
         const dataItem = {
             USER_ID: getUserData().USER_ID,
@@ -83,19 +92,15 @@ const SearchFilter = () => {
         mutate(dataItem)
     }
 
-    // Function
-    const handleSearch = () => {
-        setIsEnableFetching(true)
-        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleAdd()
+    const onMutateSuccess = () => {
+        console.log('onMutateSuccess')
     }
 
-    const handleClear = () => {
-        setValue('searchFilters', defaultSearchFilters)
-        setIsEnableFetching(true)
-        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleAdd()
+    const onMutateError = (e: any) => {
+        console.log('onMutateError', e)
     }
+
+    const { mutate } = useCreate(onMutateSuccess, onMutateError)
 
 
 
@@ -311,7 +316,7 @@ const SearchFilter = () => {
                         </Grid>
                         <Grid item xs={12} className='flex gap-3'>
                             <Button
-                                onClick={handleSearch}
+                                onClick={() => handleSubmit(onSubmit, onError)()}
                                 variant='contained'
                                 type='button'
                             >
@@ -321,7 +326,7 @@ const SearchFilter = () => {
                                 variant='tonal'
                                 color='secondary'
                                 type='reset'
-                                onClick={handleClear}
+                                onClick={onResetFormSearch}
                             >
                                 Clear
                             </Button>
@@ -330,5 +335,4 @@ const SearchFilter = () => {
         </SearchFilterCard>
     )
 }
-
 export default SearchFilter

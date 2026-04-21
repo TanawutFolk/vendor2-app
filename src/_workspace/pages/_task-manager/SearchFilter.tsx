@@ -31,21 +31,25 @@ const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
 
     // React Hook Form
-    const { setValue, control } = useFormContext<AssigneesFormData>()
+    const { setValue, control, handleSubmit } = useFormContext<AssigneesFormData>()
 
     // DxContext — trigger grid refresh
     const { setIsEnableFetching } = useDxContext()
 
-    const handleSearch = () => {
-        setIsEnableFetching(true)
-    }
-
-    const handleClear = async () => {
+    const onResetFormSearch = async () => {
         const defaults = await fetchDefaultValues()
         setValue('keyword', defaults.keyword)
         setValue('group_code', defaults.group_code)
         setValue('in_use', defaults.in_use)
+    }
+
+    // Function : react-hook-form
+    const onSubmit = () => {
         setIsEnableFetching(true)
+    }
+
+    const onError = (data: any) => {
+        console.log(data)
     }
 
     return (
@@ -109,10 +113,10 @@ const SearchFilter = () => {
 
                         {/* Buttons */}
                         <Grid item xs={12} className='flex gap-3'>
-                            <Button onClick={handleSearch} variant='contained' type='button'>
+                            <Button onClick={() => handleSubmit(onSubmit, onError)()} variant='contained' type='button'>
                                 Search
                             </Button>
-                            <Button variant='tonal' color='secondary' type='reset' onClick={handleClear}>
+                            <Button variant='tonal' color='secondary' type='reset' onClick={onResetFormSearch}>
                                 Clear
                             </Button>
                         </Grid>

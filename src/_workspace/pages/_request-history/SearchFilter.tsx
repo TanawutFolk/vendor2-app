@@ -32,7 +32,7 @@ const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
 
     // React Hook Form
-    const { setValue, getValues, control } = useFormContext<RequestHistoryFormData>()
+    const { setValue, getValues, control, handleSubmit } = useFormContext<RequestHistoryFormData>()
 
     // DxContext — trigger grid refresh
     const { setIsEnableFetching } = useDxContext()
@@ -40,11 +40,23 @@ const SearchFilter = () => {
     // Status options from DB
     const { data: statusOptions = [] } = useRequestStatusOptions()
 
-    // Save user preferences
-    const { mutate } = useCreate(() => {}, () => {})
+    const onResetFormSearch = () => {
+        setValue('searchFilters', defaultSearchFilters)
+    }
 
-    const handleSave = () => {
-        mutate({
+    // Function : react-hook-form
+    const onSubmit = () => {
+        setIsEnableFetching(true)
+        handleAdd()
+    }
+
+    const onError = (data: any) => {
+        console.log(data)
+    }
+
+    // react-query
+    const handleAdd = () => {
+        const dataItem = {
             USER_ID: getUserData().USER_ID,
             APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
             MENU_ID: MENU_ID.toString(),
@@ -52,19 +64,20 @@ const SearchFilter = () => {
                 searchFilters: getValues('searchFilters'),
                 searchResults: { agGridState: getValues('searchResults.agGridState') }
             }
-        })
+        }
+
+        mutate(dataItem)
     }
 
-    const handleSearch = () => {
-        setIsEnableFetching(true)
-        handleSave()
+    const onMutateSuccess = () => {
+        console.log('onMutateSuccess')
     }
 
-    const handleClear = () => {
-        setValue('searchFilters', defaultSearchFilters)
-        setIsEnableFetching(true)
-        handleSave()
+    const onMutateError = (e: any) => {
+        console.log('onMutateError', e)
     }
+
+    const { mutate } = useCreate(onMutateSuccess, onMutateError)
 
     return (
         <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
@@ -125,10 +138,10 @@ const SearchFilter = () => {
 
                         {/* Buttons */}
                         <Grid item xs={12} className='flex gap-3'>
-                            <Button onClick={handleSearch} variant='contained' type='button'>
+                            <Button onClick={() => handleSubmit(onSubmit, onError)()} variant='contained' type='button'>
                                 Search
                             </Button>
-                            <Button variant='tonal' color='secondary' type='reset' onClick={handleClear}>
+                            <Button variant='tonal' color='secondary' type='reset' onClick={onResetFormSearch}>
                                 Clear
                             </Button>
                         </Grid>
