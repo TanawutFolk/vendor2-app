@@ -52,12 +52,14 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 
 // GPR Form Dialog
 import GprFormDialog from './modal/GprFormDialog'
+import GprCNotificationDialog from './modal/GprCNotificationDialog'
 
 // Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import {
     getApproveActionLabel,
     getGprStageLabel,
+    parseActionRequiredRemark,
     getRejectActionLabel,
     inferStepCode,
     isAccountStep,
@@ -237,9 +239,23 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
         if (!requestId) return
         setError(null)
         try {
+            const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
+            const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
+            const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
+                mode === 'reject'
+                    ? 'REJECT'
+                    : (normalizedApproveLabel.includes('action required')
+                        ? 'ACTION_REQUIRED'
+                        : (normalizedNextStatus.includes('issue gpr b')
+                            || normalizedNextStatus.includes('issue gpr c')
+                            || normalizedNextStatus.includes('vendor disagre')
+                            ? 'DISAGREE'
+                            : 'APPROVE'))
+
             const res = await RegisterRequestServices.updateStatus({
                 request_id: requestId,
                 request_status: mode === 'approve' ? nextStatus : 'Rejected',
+                workflow_action: workflowAction,
                 approve_by: user?.EMPLOYEE_CODE || '',
                 approver_remark: formData.remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
@@ -353,11 +369,14 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
+    const [gprCDialogOpen, setGprCDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // Edit Vendor modal (reuse EditVendorModal from find-vendor)
     const [editVendorOpen, setEditVendorOpen] = useState(false)
+    const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
+    const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const user = getUserData()
     const {
@@ -476,7 +495,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         WORKFLOW_STEP_CODE.PO_GM_APPROVAL,
         WORKFLOW_STEP_CODE.MD_APPROVAL,
     ].includes(currentStepCode as any)
+    const isRequester = String(data?.Request_By_EmployeeCode || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
     const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep)
+    const canOpenRequesterGprCDialog = isRequester && !isCurrentAccountStep
     const isGprReadOnly = !isCurrentAccountStep && isPoMgrOrAboveStep
     const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
@@ -485,6 +506,14 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
     const gprStageLabel = getGprStageLabel(currentStep, hasVendorRequested)
+    const circularListPreview = safeParseJSON<string[]>(data.gpr_c_circular_json, [])
+    const hasGprCSetup = Boolean(
+        data.gpr_c_approver_name
+        || data.gpr_c_approver_email
+        || data.gpr_c_pc_pic_name
+        || data.gpr_c_pc_pic_email
+        || (Array.isArray(circularListPreview) && circularListPreview.some(Boolean))
+    )
 
     const handleOpenEditDialog = () => {
         resetEdit({
@@ -720,9 +749,39 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 {logs.map((l: any, i: number) => (
                                     <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
                                         <i className='tabler-arrow-right' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
-                                        <Typography variant='caption' color='text.secondary'>
-                                            <strong>{l.action_by}</strong> — {l.action_type} {l.remark ? `(${l.remark})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
-                                        </Typography>
+                                        {(() => {
+                                            const parsedRemark = parseActionRequiredRemark(l.remark)
+                                            const actionTypeLabel = parsedRemark.isActionRequired ? 'action_required' : l.action_type
+                                            const detailParts = [
+                                                parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
+                                                parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
+                                                parsedRemark.note ? `note: ${parsedRemark.note}` : '',
+                                            ].filter(Boolean)
+                                            const detailText = detailParts.length > 0
+                                                ? detailParts.join(' | ')
+                                                : (parsedRemark.rawRemark || '')
+
+                                            return (
+                                                <>
+                                                    {parsedRemark.isActionRequired && (
+                                                        <Chip
+                                                            size='small'
+                                                            label='Action Required'
+                                                            color='warning'
+                                                            variant='tonal'
+                                                            sx={{ height: 20, fontSize: '0.65rem' }}
+                                                            onClick={() => {
+                                                                setSelectedActionRequired(parsedRemark)
+                                                                setActionRequiredDialogOpen(true)
+                                                            }}
+                                                        />
+                                                    )}
+                                                    <Typography variant='caption' color='text.secondary'>
+                                                        <strong>{l.action_by}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                                    </Typography>
+                                                </>
+                                            )
+                                        })()}
                                     </Box>
                                 ))}
                             </Box>
@@ -910,6 +969,40 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 </Box>
             )}
 
+            {canOpenRequesterGprCDialog && (
+                <Box sx={{
+                    mb: 3, p: 2, borderRadius: 1,
+                    border: '1px solid', borderColor: 'warning.main',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <i className='tabler-users' style={{ fontSize: 20, color: 'var(--mui-palette-warning-main)' }} />
+                        <Box>
+                            <Typography variant='subtitle2' fontWeight={700}>Requester GPR C Notification Setup</Typography>
+                            <Typography variant='caption' color='text.secondary'>
+                                Fill approver name and email, PC PIC, and circular list. This section belongs to requester.
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {hasGprCSetup && (
+                            <Chip label='Configured' size='small' color='success' variant='tonal'
+                                icon={<i className='tabler-circle-check' style={{ fontSize: 13 }} />}
+                            />
+                        )}
+                        <Button
+                            size='small'
+                            variant='contained'
+                            color='warning'
+                            startIcon={<i className={hasGprCSetup ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
+                            onClick={() => setGprCDialogOpen(true)}
+                        >
+                            {hasGprCSetup ? 'Edit Setup' : 'Setup'}
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+
             {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
             {isActionable && !isCurrentAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
@@ -956,6 +1049,38 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
             />
+            <GprCNotificationDialog
+                open={gprCDialogOpen}
+                rowData={data}
+                onClose={() => setGprCDialogOpen(false)}
+                onSaved={() => {
+                    setGprCDialogOpen(false)
+                    onEmailSent()
+                }}
+            />
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                open={actionRequiredDialogOpen}
+                onClose={() => setActionRequiredDialogOpen(false)}
+            >
+                <DialogTitle>Action Required Detail</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                        <Typography variant='body2'><strong>Owner:</strong> {selectedActionRequired?.owner || '-'}</Typography>
+                        <Typography variant='body2'><strong>Due Date:</strong> {selectedActionRequired?.dueDate || '-'}</Typography>
+                        <Typography variant='body2'><strong>Note:</strong> {selectedActionRequired?.note || '-'}</Typography>
+                        <Typography variant='body2'><strong>Actor:</strong> {selectedActionRequired?.actor || '-'}</Typography>
+                        <Typography variant='body2'><strong>Captured At:</strong> {selectedActionRequired?.capturedAt || '-'}</Typography>
+                        {selectedActionRequired?.rawRemark && (
+                            <Typography variant='caption' color='text.secondary'>Raw: {selectedActionRequired.rawRemark}</Typography>
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setActionRequiredDialogOpen(false)} variant='tonal' color='secondary'>Close</Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Edit Vendor Modal (reuse from find-vendor — full Vendor Info + Contacts + Products editing) */}
             <EditVendorModal

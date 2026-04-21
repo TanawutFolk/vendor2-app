@@ -47,6 +47,7 @@ import {
     getApproveActionLabel,
     inferStepCode,
     getRejectActionLabel,
+    parseActionRequiredRemark,
     isAgreementReachedStep,
     isIssueGprBStep,
     isIssueGprCStep,
@@ -199,9 +200,23 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
         setLoading(true)
         setError(null)
         try {
+            const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
+            const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
+            const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
+                mode === 'reject'
+                    ? 'REJECT'
+                    : (normalizedApproveLabel.includes('action required')
+                        ? 'ACTION_REQUIRED'
+                        : (normalizedNextStatus.includes('issue gpr b')
+                            || normalizedNextStatus.includes('issue gpr c')
+                            || normalizedNextStatus.includes('vendor disagre')
+                            ? 'DISAGREE'
+                            : 'APPROVE'))
+
             const res = await RegisterRequestServices.updateStatus({
                 request_id: requestId,
                 request_status: mode === 'approve' ? nextStatus : 'Rejected',
+                workflow_action: workflowAction,
                 approve_by: user?.EMPLOYEE_CODE || '',
                 approver_remark: remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
@@ -296,6 +311,8 @@ interface DetailPanelProps {
 const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [gprFormOpen, setGprFormOpen] = useState(false)
+    const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
+    const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     if (!data) return null
 
@@ -564,9 +581,39 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                             {logs.map((l: any, i: number) => (
                                 <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
                                     <i className='tabler-arrow-right' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
-                                    <Typography variant='caption' color='text.secondary'>
-                                        <strong>{l.action_by}</strong> — {l.action_type} {l.remark ? `(${l.remark})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
-                                    </Typography>
+                                    {(() => {
+                                        const parsedRemark = parseActionRequiredRemark(l.remark)
+                                        const actionTypeLabel = parsedRemark.isActionRequired ? 'action_required' : l.action_type
+                                        const detailParts = [
+                                            parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
+                                            parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
+                                            parsedRemark.note ? `note: ${parsedRemark.note}` : '',
+                                        ].filter(Boolean)
+                                        const detailText = detailParts.length > 0
+                                            ? detailParts.join(' | ')
+                                            : (parsedRemark.rawRemark || '')
+
+                                        return (
+                                            <>
+                                                {parsedRemark.isActionRequired && (
+                                                    <Chip
+                                                        size='small'
+                                                        label='Action Required'
+                                                        color='warning'
+                                                        variant='tonal'
+                                                        sx={{ height: 20, fontSize: '0.65rem' }}
+                                                        onClick={() => {
+                                                            setSelectedActionRequired(parsedRemark)
+                                                            setActionRequiredDialogOpen(true)
+                                                        }}
+                                                    />
+                                                )}
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    <strong>{l.action_by}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                                </Typography>
+                                            </>
+                                        )
+                                    })()}
                                 </Box>
                             ))}
                         </Box>
@@ -628,12 +675,36 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                 <GprFormDialog
                     open={gprFormOpen}
                     rowData={data}
+                    readOnly={true}
                     onClose={() => setGprFormOpen(false)}
                     onSaved={() => {
                         // Usually this forces reload, but here we just let it be silent saving
                     }}
                 />
             )}
+            <Dialog
+                maxWidth='sm'
+                fullWidth={true}
+                open={actionRequiredDialogOpen}
+                onClose={() => setActionRequiredDialogOpen(false)}
+            >
+                <DialogTitle>Action Required Detail</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                        <Typography variant='body2'><strong>Owner:</strong> {selectedActionRequired?.owner || '-'}</Typography>
+                        <Typography variant='body2'><strong>Due Date:</strong> {selectedActionRequired?.dueDate || '-'}</Typography>
+                        <Typography variant='body2'><strong>Note:</strong> {selectedActionRequired?.note || '-'}</Typography>
+                        <Typography variant='body2'><strong>Actor:</strong> {selectedActionRequired?.actor || '-'}</Typography>
+                        <Typography variant='body2'><strong>Captured At:</strong> {selectedActionRequired?.capturedAt || '-'}</Typography>
+                        {selectedActionRequired?.rawRemark && (
+                            <Typography variant='caption' color='text.secondary'>Raw: {selectedActionRequired.rawRemark}</Typography>
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setActionRequiredDialogOpen(false)} variant='tonal' color='secondary'>Close</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     )
 }

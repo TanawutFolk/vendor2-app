@@ -59,6 +59,7 @@ export default class RegisterRequestServices {
     static updateStatus(data: {
         request_id: number
         request_status: string
+        workflow_action?: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT'
         approve_by?: string
         approver_remark?: string
         UPDATE_BY?: string
@@ -191,6 +192,25 @@ export default class RegisterRequestServices {
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprForm`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    // Save requester-only GPR C notification setup
+    static saveGprCNotification(data: {
+        request_id: number
+        gpr_c_data: {
+            gpr_c_approver_name?: string
+            gpr_c_approver_email?: string
+            gpr_c_pc_pic_name?: string
+            gpr_c_pc_pic_email?: string
+            gpr_c_circular_list?: string[]
+        }
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprCNotification`,
             data,
             method: 'POST'
         })

@@ -48,10 +48,6 @@ import type { GprFormData, GprFormDialogProps } from './useGprForm'
 import {
     inferStepCode,
     isAccountStep,
-    isAgreementReachedStep,
-    isIssueGprBStep,
-    isIssueGprCStep,
-    isPendingAgreementStep,
 } from '@_workspace/utils/requestWorkflow'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
@@ -422,47 +418,6 @@ const GeneralInfoSection = React.memo(() => {
     )
 })
 
-const GprCNotificationSection = React.memo(() => {
-    const { register } = useFormContext<GprFormData>()
-
-    return (
-        <>
-            <SectionTitle no='C' title='GPR C Notification Setup' color='warning.main' />
-            <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'warning.main' }}>
-                <Grid container spacing={2.5}>
-                    <Grid item xs={12}>
-                        <Alert severity='warning' sx={{ py: 0 }}>
-                            Used when the workflow escalates from GPR B to GPR C. The system will email checker and the configured GPR C approver automatically.
-                        </Alert>
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CustomTextField fullWidth label='GPR C Approver Name' placeholder='Enter approver name...' {...register('gpr_c_approver_name')} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CustomTextField fullWidth label='GPR C Approver Email' placeholder='name@example.com' {...register('gpr_c_approver_email')} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CustomTextField fullWidth label='PC PIC Name' placeholder='Enter PC PIC name...' {...register('gpr_c_pc_pic_name')} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CustomTextField fullWidth label='PC PIC Email' placeholder='name@example.com' {...register('gpr_c_pc_pic_email')} />
-                    </Grid>
-                    {Array.from({ length: 6 }).map((_, index) => (
-                        <Grid item xs={12} md={6} key={index}>
-                            <CustomTextField
-                                fullWidth
-                                label={`Circular Email ${index + 1}`}
-                                placeholder='optional@example.com'
-                                {...register(`gpr_c_circular_list.${index}` as const)}
-                            />
-                        </Grid>
-                    ))}
-                </Grid>
-            </Paper>
-        </>
-    )
-})
-
 interface CriteriaSectionProps {
     criteriaUploading: Record<number, boolean>
     criteriaError: Record<number, string>
@@ -794,13 +749,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
     }, [approvalSteps])
 
     const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
-    const currentStep = useMemo(() => approvalSteps.find((s: any) => s?.step_status === 'in_progress'), [approvalSteps])
-    const showGprCNotificationSection = useMemo(() => (
-        isPendingAgreementStep(currentStep)
-        || isAgreementReachedStep(currentStep)
-        || isIssueGprBStep(currentStep)
-        || isIssueGprCStep(currentStep)
-    ), [currentStep])
 
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
@@ -926,7 +874,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                         <CompanyInfoSection />
                         <SanctionsSection />
                         <GeneralInfoSection />
-                        {showGprCNotificationSection && <GprCNotificationSection />}
                         <CriteriaSection
                             criteriaUploading={criteriaUploading}
                             criteriaError={criteriaError}
@@ -934,7 +881,11 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                             onRemoveUpload={removeCriteriaUpload}
                         />
                     </DisabledBlock>
-                    <SuggestionSection accountVendorCodeOnly={isAccountVendorCodeOnlyMode} readOnly={isReadOnlyMode} signatures={signatureSlots} />
+                    <SuggestionSection
+                        accountVendorCodeOnly={isAccountVendorCodeOnlyMode}
+                        readOnly={isReadOnlyMode}
+                        signatures={signatureSlots}
+                    />
                 </DialogContent>
 
                 <DialogActions sx={{ justifyContent: 'flex-start', px: 3, py: 1.5, gap: 1 }}>

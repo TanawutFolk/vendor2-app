@@ -181,3 +181,52 @@ export const getGprStageLabel = (currentStep: any, hasVendorRequested: boolean) 
     if (isPendingAgreementStep(currentStep) && hasVendorRequested) return 'Pending agreement'
     return 'GPR form'
 }
+
+export interface ParsedActionRequiredRemark {
+    isActionRequired: boolean
+    owner: string
+    dueDate: string
+    note: string
+    actor: string
+    capturedAt: string
+    rawRemark: string
+}
+
+export const parseActionRequiredRemark = (remark: any): ParsedActionRequiredRemark => {
+    const rawRemark = String(remark || '').trim()
+    if (!rawRemark.toLowerCase().startsWith('action required |')) {
+        return {
+            isActionRequired: false,
+            owner: '',
+            dueDate: '',
+            note: '',
+            actor: '',
+            capturedAt: '',
+            rawRemark,
+        }
+    }
+
+    const payloadRaw = rawRemark.split('|').slice(1).join('|').trim()
+    try {
+        const payload = JSON.parse(payloadRaw)
+        return {
+            isActionRequired: true,
+            owner: String(payload?.owner || ''),
+            dueDate: String(payload?.due_date || ''),
+            note: String(payload?.note || ''),
+            actor: String(payload?.actor || ''),
+            capturedAt: String(payload?.captured_at || ''),
+            rawRemark,
+        }
+    } catch {
+        return {
+            isActionRequired: true,
+            owner: '',
+            dueDate: '',
+            note: '',
+            actor: '',
+            capturedAt: '',
+            rawRemark,
+        }
+    }
+}

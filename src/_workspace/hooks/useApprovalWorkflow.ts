@@ -106,7 +106,7 @@ export const useApprovalWorkflow = (
                     },
                     {
                         key: 'disagree',
-                        label: 'Send GPR C to Vendor',
+                        label: 'Send GPR C to Requester',
                         color: 'warning',
                         nextStatus: issueGprCStatus,
                         isFinalStep: false,

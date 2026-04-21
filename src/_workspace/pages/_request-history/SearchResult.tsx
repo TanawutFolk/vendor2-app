@@ -42,6 +42,11 @@ import { useDxContext } from '@/_template/DxContextProvider'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import StatusTimeline from './StatusTimeline'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+import GprCNotificationDialog from './modal/GprCNotificationDialog'
+
+// React Query
+import { useQueryClient } from '@tanstack/react-query'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -391,9 +396,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main SearchResult Component
 // ─────────────────────────────────────────────────────────────────────────────
-import { useQueryClient } from '@tanstack/react-query'
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
-
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestHistoryFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -406,6 +408,12 @@ export default function SearchResult() {
     // ── Dialog State ─────────────────────────────────────────────────────────
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [selectedData, setSelectedData] = useState<any>(null)
+
+    // ── GPR C Notification Dialog State ──────────────────────────────────────
+    const [gprCOpen, setGprCOpen] = useState(false)
+    const [gprCRowData, setGprCRowData] = useState<any>(null)
+
+    const currentUserCode = String(getUserData()?.EMPLOYEE_CODE || '').trim()
 
     // ── Server-Side Datasource ────────────────────────────────────────────────
     const datasource = useMemo<IServerSideDatasource>(() => ({
@@ -465,22 +473,51 @@ export default function SearchResult() {
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
-            headerName: '',
+            headerName: 'Actions',
             field: 'view',
-            width: 50,
+            width: 110,
             pinned: 'left',
-            cellRenderer: (params: any) => (
-                <IconButton
-                    size='small'
-                    color='primary'
-                    onClick={() => {
-                        setSelectedData(params.data)
-                        setDrawerOpen(true)
-                    }}
-                >
-                    <i className='tabler-eye' style={{ fontSize: 18 }} />
-                </IconButton>
-            )
+            cellRenderer: (params: any) => {
+                const rowRequesterCode = String(
+                    params.data?.Request_By_EmployeeCode
+                    || params.data?.request_by_employeecode
+                    || params.data?.request_by_employee_code
+                    || params.data?.EMPLOYEE_CODE
+                    || ''
+                ).trim()
+                const isRequester = !!rowRequesterCode && rowRequesterCode === currentUserCode
+
+                return (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Tooltip title='View Details'>
+                            <IconButton
+                                size='small'
+                                color='primary'
+                                onClick={() => {
+                                    setSelectedData(params.data)
+                                    setDrawerOpen(true)
+                                }}
+                            >
+                                <i className='tabler-eye' style={{ fontSize: 18 }} />
+                            </IconButton>
+                        </Tooltip>
+                        {isRequester && (
+                            <Tooltip title='GPR C Notification Setup'>
+                                <IconButton
+                                    size='small'
+                                    color='warning'
+                                    onClick={() => {
+                                        setGprCRowData(params.data)
+                                        setGprCOpen(true)
+                                    }}
+                                >
+                                    <i className='tabler-bell-ringing' style={{ fontSize: 18 }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Box>
+                )
+            }
         },
         {
             field: 'request_status',
@@ -577,11 +614,10 @@ export default function SearchResult() {
             minWidth: 140,
             valueFormatter: p => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions])
+    ], [statusOptions, currentUserCode])
 
     return (
         <Grid container spacing={6}>
-
 
             {/* AG Grid */}
             <Grid item xs={12}>
@@ -644,6 +680,17 @@ export default function SearchResult() {
                     {selectedData && <DetailRenderer data={selectedData} />}
                 </DialogContent>
             </Dialog>
+
+            {/* GPR C Notification Dialog — Requester Action only */}
+            <GprCNotificationDialog
+                open={gprCOpen}
+                rowData={gprCRowData}
+                onClose={() => setGprCOpen(false)}
+                onSaved={() => {
+                    setGprCOpen(false)
+                    gridApiRef.current?.refreshServerSide({ purge: true })
+                }}
+            />
         </Grid>
     )
 }
