@@ -32,7 +32,6 @@ const Transition = forwardRef(function Transition(
 })
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
@@ -48,8 +47,12 @@ import {
     getApproveActionLabel,
     inferStepCode,
     getRejectActionLabel,
+    isAgreementReachedStep,
+    isIssueGprBStep,
+    isIssueGprCStep,
+    isPendingAgreementStep,
     isPicStep,
-    normalizeWorkflowText,
+    isVendorDisagreedStep,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
@@ -293,7 +296,6 @@ interface DetailPanelProps {
 const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [gprFormOpen, setGprFormOpen] = useState(false)
-    const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     if (!data) return null
 
@@ -317,9 +319,16 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
 
     // PIC step: description contains 'pic' — allow assign_to (not just approver_id) to action
     const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
+    const isPicOwnedNegotiationStep = !!currentStep && (
+        isPendingAgreementStep(currentStep) ||
+        isAgreementReachedStep(currentStep) ||
+        isIssueGprBStep(currentStep) ||
+        isIssueGprCStep(currentStep) ||
+        isVendorDisagreedStep(currentStep)
+    )
     const isCurrentStepMine = !!currentStep && (
         currentStep.approver_id === empCode ||
-        (isCurrentPicStep && data.assign_to === empCode)
+        ((isCurrentPicStep || isPicOwnedNegotiationStep) && data.assign_to === empCode)
     )
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
     const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
@@ -328,12 +337,12 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
+    const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
+        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+    )
 
     // Actionable only if there IS an in_progress step AND it belongs to this user
-    const normalizedRequestStatus = normalizeWorkflowText(data.request_status || '')
-    const isAgreementReachedComplete =
-        normalizedRequestStatus.includes('agreement reached') && normalizedRequestStatus.includes('complete')
-    const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedComplete
+    const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
 
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
@@ -342,8 +351,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
     const agreeAction = negotiationActions.find(action => action.key === 'agree')
     const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
-    const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
-    const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -580,13 +587,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
             {/* Approve / Reject Buttons */}
             {isActionable && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-                    <Button
-                        variant='tonal'
-                        color='warning'
-                        onClick={() => setReassignDialogOpen(true)}
-                    >
-                        Reassign Step
-                    </Button>
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
                             {renderDisagreeFirst && (
@@ -634,16 +634,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                     }}
                 />
             )}
-            <ReassignDialog
-                open={reassignDialogOpen}
-                requestId={data.request_id || null}
-                scope='CURRENT_STEP'
-                groupCode={currentGroupCode}
-                currentEmpCode={currentStep?.approver_id || data.assign_to}
-                updateBy={empCode || 'SYSTEM'}
-                onClose={() => setReassignDialogOpen(false)}
-                onSuccess={onRefresh}
-            />
         </Box>
     )
 }

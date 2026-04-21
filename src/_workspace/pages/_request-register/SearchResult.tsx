@@ -55,15 +55,18 @@ import GprFormDialog from './modal/GprFormDialog'
 
 // Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
-import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 import {
     getApproveActionLabel,
     getGprStageLabel,
     getRejectActionLabel,
     inferStepCode,
     isAccountStep,
+    isAgreementReachedStep,
+    isIssueGprBStep,
+    isIssueGprCStep,
+    isPendingAgreementStep,
     isPicStep,
-    normalizeWorkflowText,
+    isVendorDisagreedStep,
     WORKFLOW_STEP_CODE,
     resolveGroupCodeForStep,
     resolveNextStatus,
@@ -350,7 +353,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
-    const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
@@ -447,14 +449,26 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
     const currentStepCode = currentStep ? inferStepCode(currentStep) : ''
+    const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
+        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+    )
+    const isPicOwnedNegotiationStep = !!currentStep && (
+        isPendingAgreementStep(currentStep) ||
+        isAgreementReachedStep(currentStep) ||
+        isIssueGprBStep(currentStep) ||
+        isIssueGprCStep(currentStep) ||
+        isVendorDisagreedStep(currentStep)
+    )
     const isCurrentStepMine = !!currentStep && (
         currentStep.approver_id === user?.EMPLOYEE_CODE ||
-        (isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to)
+        ((isPicStep(currentStep) || isPicOwnedNegotiationStep) && user?.EMPLOYEE_CODE === data.assign_to)
     )
-    const normalizedRequestStatus = normalizeWorkflowText(data.request_status || '')
-    const isAgreementReachedComplete =
-        normalizedRequestStatus.includes('agreement reached') && normalizedRequestStatus.includes('complete')
-    const isActionable = isCurrentStepMine && !isAgreementReachedComplete
+    const isRequestRegisterActionStep = !!currentStep && (
+        isPicStep(currentStep) ||
+        isPicOwnedNegotiationStep ||
+        isAccountStep(currentStep)
+    )
+    const isActionable = isCurrentStepMine && isRequestRegisterActionStep && !isAgreementReachedCompleted
     const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
     const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
     const isPoMgrOrAboveStep = [
@@ -471,8 +485,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
     const gprStageLabel = getGprStageLabel(currentStep, hasVendorRequested)
-    const isOversea = String(data.vendor_region || '').toLowerCase() === 'oversea'
-    const currentGroupCode = currentStep ? resolveGroupCodeForStep(currentStep, isOversea) : ''
 
     const handleOpenEditDialog = () => {
         resetEdit({
@@ -901,15 +913,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
             {isActionable && !isCurrentAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-                    {isCurrentPicStep && (
-                        <Button
-                            variant='tonal'
-                            color='warning'
-                            onClick={() => setReassignDialogOpen(true)}
-                        >
-                            Reassign PIC
-                        </Button>
-                    )}
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
                             {renderDisagreeFirst && (
@@ -952,16 +955,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 readOnly={isGprReadOnly}
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
-            />
-            <ReassignDialog
-                open={reassignDialogOpen}
-                requestId={data.request_id || null}
-                scope='REQUEST_PIC'
-                groupCode={currentGroupCode}
-                currentEmpCode={data.assign_to}
-                updateBy={user?.EMPLOYEE_CODE || 'SYSTEM'}
-                onClose={() => setReassignDialogOpen(false)}
-                onSuccess={onEmailSent}
             />
 
             {/* Edit Vendor Modal (reuse from find-vendor — full Vendor Info + Contacts + Products editing) */}

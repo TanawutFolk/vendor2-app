@@ -47,6 +47,11 @@ export interface GprFormData {
     suggestion: string
     result: 'approval' | 'disapproval' | ''
     path: string
+    gpr_c_approver_name: string
+    gpr_c_approver_email: string
+    gpr_c_pc_pic_name: string
+    gpr_c_pc_pic_email: string
+    gpr_c_circular_list: string[]
     vendor_code_selector: string
     completion_date: string
 }
@@ -127,6 +132,20 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
         suggestion: source.suggestion,
         result: source.result ?? source.result_status,
         path: source.path ?? source.document_path,
+        gpr_c_approver_name: source.gpr_c_approver_name,
+        gpr_c_approver_email: source.gpr_c_approver_email,
+        gpr_c_pc_pic_name: source.gpr_c_pc_pic_name,
+        gpr_c_pc_pic_email: source.gpr_c_pc_pic_email,
+        gpr_c_circular_list: (() => {
+            try {
+                const parsed = typeof source.gpr_c_circular_json === 'string'
+                    ? JSON.parse(source.gpr_c_circular_json)
+                    : source.gpr_c_circular_json
+                return Array.isArray(parsed) ? parsed : []
+            } catch {
+                return []
+            }
+        })(),
         vendor_code_selector: source.vendor_code_selector,
         completion_date: source.completion_date,
         sales_profit: source.sales_profit,
@@ -175,6 +194,11 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
         suggestion: saved?.suggestion || '',
         result: saved?.result || '',
         path: saved?.path || '',
+        gpr_c_approver_name: saved?.gpr_c_approver_name || '',
+        gpr_c_approver_email: saved?.gpr_c_approver_email || '',
+        gpr_c_pc_pic_name: saved?.gpr_c_pc_pic_name || '',
+        gpr_c_pc_pic_email: saved?.gpr_c_pc_pic_email || '',
+        gpr_c_circular_list: Array.from({ length: 6 }, (_, index) => saved?.gpr_c_circular_list?.[index] || ''),
         vendor_code_selector: saved?.vendor_code_selector || (rowData?.vendor_code || ''),
         completion_date: saved?.completion_date || '',
     }
