@@ -69,12 +69,15 @@ import {
     isIssueGprCStep,
     isPendingAgreementStep,
     isPicStep,
+    resolveActionRequiredStage,
+    getActionRequiredStageLabel,
     isVendorDisagreedStep,
     WORKFLOW_STEP_CODE,
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
 import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
+import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,7 +306,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : `Confirm action: ${rejectActionLabel}`}
+                        {mode === 'approve' ? `Confirm action ${approveActionLabel}` : `Confirm action ${rejectActionLabel}`}
                     </Typography>
                 </Box>
 
@@ -358,6 +361,9 @@ interface DetailPanelProps {
 
 const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    const [allowApproveBypass, setAllowApproveBypass] = useState(false)
+    const [gprCSentInSession, setGprCSentInSession] = useState(false)
+    const [gprSavedInSession, setGprSavedInSession] = useState(false)
     // Account step: complete registration
     const [vendorCodeInput, setVendorCodeInput] = useState('')
     const [completing, setCompleting] = useState(false)
@@ -388,6 +394,11 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     })
     const files = buildFileUrls(data?.documents)
     if (!data) return null
+
+    useEffect(() => {
+        setGprSavedInSession(false)
+        setGprCSentInSession(false)
+    }, [data?.request_id])
 
 
     const handleCompleteRegistration = async () => {
@@ -462,6 +473,14 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
     const gprStageLabel = getGprStageLabel(currentStep, hasVendorRequested)
+    const actionRequiredSetup = safeParseJSON<any>(data.action_required_json, {})
+    const actionRequiredStage = resolveActionRequiredStage(currentStep)
+    const actionRequiredStageConfig = actionRequiredStage ? (actionRequiredSetup?.[actionRequiredStage] || {}) : null
+    const showActionRequiredBtn = Boolean(isActionable && actionRequiredStage)
+    const disableActionRequiredBtn = !String(actionRequiredStageConfig?.pic_email || '').trim()
+    const actionRequiredLabel = actionRequiredStage
+        ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
+        : 'Action Required'
     const circularListPreview = safeParseJSON<string[]>(data.gpr_c_circular_json, [])
     const hasGprCSetup = Boolean(
         data.gpr_c_approver_name
@@ -472,12 +491,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     )
 
     // GPR evaluation: determine pass/fail from gpr_criteria (joined via vendor_selection_criteria)
+    const parsedGprData = safeParseJSON<any>(data.gpr_data, null)
+    const gprCriteriaFromData = Array.isArray(parsedGprData?.criteria) ? parsedGprData.criteria : []
     const gprCriteria: any[] = (() => {
         const raw = data.gpr_criteria
         if (Array.isArray(raw)) return raw
-        try { return JSON.parse(raw) } catch { return [] }
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) && parsed.length > 0 ? parsed : gprCriteriaFromData
+        } catch {
+            return gprCriteriaFromData
+        }
     })()
-    const gprFormFilled = gprCriteria.length > 0
+    const hasPersistedGprData = Boolean(data.gpr_data) || gprCriteriaFromData.length > 0
+    const gprFormFilled = gprSavedInSession || hasPersistedGprData || gprCriteria.length > 0
     // 4.1–4.5 (Need): all must have uploaded_file (4.3 checked via remark='Accept' OR uploaded_file)
     const gprPassNeed = gprFormFilled && gprCriteria
         .filter((c: any) => {
@@ -493,22 +520,24 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         })
         .filter((c: any) => !!c?.uploaded_file).length >= 4
     const gprEvalPassed = gprPassNeed && gprPassOptional
-    // Any actionable PIC step where vendor has already been sent: GPR drives next action
-    const isPicPostVendorStep = isActionable && !!currentStep && (isPicStep(currentStep) || isPicOwnedNegotiationStep) && everRequestedVendor
+    const gprWorkflow = useGprWorkflowLogic({
+        currentStep,
+        approvalSteps,
+        hasSentGprCInSession: gprCSentInSession,
+        isActionable,
+        isPicOwnedNegotiationStep,
+        everRequestedVendor,
+        gprFormFilled,
+        gprEvalPassed,
+        allowApproveBypass,
+        statusOptions,
+    })
 
-    const resolveStatusValueByKeyword = (keyword: string, fallback: string) => {
-        const normalizedKeyword = keyword.trim().toLowerCase()
-        const matched = (statusOptions || []).find((so: any) => {
-            const value = String(so?.value || '').trim().toLowerCase()
-            const label = String(so?.label || '').trim().toLowerCase()
-            return value.includes(normalizedKeyword) || label.includes(normalizedKeyword)
-        })
-
-        return matched?.value || fallback
-    }
-
-    const agreementReachedStatusValue = resolveStatusValueByKeyword('agreement reached', 'Agreement Reached')
-    const issueGprBStatusValue = resolveStatusValueByKeyword('issue gpr b', 'Issue GPR B')
+    useEffect(() => {
+        if (gprWorkflow.isCurrentIssueGprBStep) {
+            setAllowApproveBypass(true)
+        }
+    }, [gprWorkflow.isCurrentIssueGprBStep])
 
     const handleOpenEditDialog = () => {
         resetEdit({
@@ -756,6 +785,15 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                                 }
                                             }}
                                         />
+                                        {isIssueGprCStep(s) && ['approved', 'completed'].includes(String(s?.step_status || '').toLowerCase()) && (
+                                            <Chip
+                                                size='small'
+                                                color='success'
+                                                variant='tonal'
+                                                label='Requester Completed'
+                                                sx={{ ml: 1, fontSize: '0.65rem', height: 20, verticalAlign: 'middle' }}
+                                            />
+                                        )}
                                         <Typography variant='body2' color='text.secondary'>
                                             {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
                                         </Typography>
@@ -810,7 +848,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 )
             })()}
 
-            {/* Decision Info */}
+            {/* Decision Info
             {(data.approve_by || data.approver_remark) && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-user-check' title='Decision Info' />
@@ -819,7 +857,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     {infoRow('Approver Remark', data.approver_remark)}
                     {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
                 </Box>
-            )}
+            )} */}
 
             {/* Attached Files */}
             <Box sx={{ mb: 3 }}>
@@ -907,16 +945,16 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {data.gpr_data && (
+                        {(hasPersistedGprData || gprSavedInSession) && (
                             <Chip label='Filled' size='small' color='success' variant='tonal'
                                 icon={<i className='tabler-circle-check' style={{ fontSize: 13 }} />}
                             />
                         )}
                         <Button size='small' variant='contained' color='primary'
-                            startIcon={<i className={isGprReadOnly ? 'tabler-eye' : (data.gpr_data ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
+                            startIcon={<i className={isGprReadOnly ? 'tabler-eye' : ((hasPersistedGprData || gprSavedInSession) ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
                             onClick={() => setGprDialogOpen(true)}
                         >
-                            {isGprReadOnly ? `View ${gprStageLabel}` : (data.gpr_data ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`)}
+                            {isGprReadOnly ? `View ${gprStageLabel}` : ((hasPersistedGprData || gprSavedInSession) ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`)}
                         </Button>
                     </Box>
                 </Box>
@@ -960,9 +998,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             {isActionable && !isCurrentAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {/* PIC post-vendor step: buttons determined by GPR evaluation */}
-                    {isPicPostVendorStep && (
+                    {gprWorkflow.isPicPostVendorStep && (
                         <>
-                            {!gprFormFilled && (
+                            {gprWorkflow.showMissingSheetWarning && (
                                 <Box sx={{
                                     width: '100%', p: 2, borderRadius: 1.5,
                                     bgcolor: 'info.lighter', border: '1px solid', borderColor: 'info.light',
@@ -974,32 +1012,105 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                     </Typography>
                                 </Box>
                             )}
-                            {gprFormFilled && !gprEvalPassed && (
+                            {gprWorkflow.showCriteriaWarning && (
                                 <Box sx={{
                                     width: '100%', p: 2, borderRadius: 1.5,
                                     bgcolor: 'warning.lighter', border: '1px solid', borderColor: 'warning.light',
                                     display: 'flex', alignItems: 'center', gap: 1.5
                                 }}>
-                                    <i className='tabler-alert-triangle' style={{ fontSize: 20, color: 'var(--mui-palette-warning-main)', flexShrink: 0 }} />
-                                    <Typography variant='body2' color='warning.dark' fontWeight={600}>
-                                        Vendor has not agreed yet from GPR criteria result. Approve is disabled until criteria pass.
+                                    
+                                    <Typography variant='body2' color='warning.dark' fontWeight={600} >
+                                        Vendor has not agreed yet from GPR (A) criteria result. Approve is disabled until criteria pass.
                                     </Typography>
                                 </Box>
                             )}
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                disabled={!gprFormFilled || !gprEvalPassed}
-                                onClick={() => onApprove(agreementReachedStatusValue || computedNextStatus, false, 'Approve and Send to Checker')}
-                            >Approve and Send to Checker</Button>
-                            <Button variant='contained' color='warning' fullWidth
-                                startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                disabled={!gprFormFilled}
-                                onClick={() => onApprove(issueGprBStatusValue || computedNextStatus, false, 'Send GPR B to Vendor')}
-                            >Send GPR B to Vendor</Button>
+                            {gprWorkflow.showGprCDecisionStatus && (
+                                <Box sx={{
+                                    width: '100%', p: 2, borderRadius: 1.5,
+                                    bgcolor: gprWorkflow.hasGprCApproved
+                                        ? 'success.lighter'
+                                        : (gprWorkflow.hasGprCRejected ? 'error.lighter' : 'warning.lighter'),
+                                    border: '1px solid',
+                                    borderColor: gprWorkflow.hasGprCApproved
+                                        ? 'success.light'
+                                        : (gprWorkflow.hasGprCRejected ? 'error.light' : 'warning.light'),
+                                    display: 'flex', alignItems: 'center', gap: 1.5
+                                }}>
+                                    <i
+                                        className={gprWorkflow.hasGprCApproved ? 'tabler-circle-check' : (gprWorkflow.hasGprCRejected ? 'tabler-circle-x' : 'tabler-clock')}
+                                        style={{
+                                            fontSize: 20,
+                                            color: gprWorkflow.hasGprCApproved
+                                                ? 'var(--mui-palette-success-main)'
+                                                : (gprWorkflow.hasGprCRejected ? 'var(--mui-palette-error-main)' : 'var(--mui-palette-warning-main)'),
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                    <Typography
+                                        variant='body2'
+                                        color={gprWorkflow.hasGprCApproved ? 'success.dark' : (gprWorkflow.hasGprCRejected ? 'error.dark' : 'warning.dark')}
+                                        fontWeight={600}
+                                    >
+                                        {gprWorkflow.hasGprCApproved
+                                            ? 'GPR C approvers approved. PIC can continue with Approve GPR (B) and Send To Checker.'
+                                            : (gprWorkflow.hasGprCRejected
+                                                ? 'GPR C approvers rejected/disagreed. PIC should choose Reject to continue rejection loop.'
+                                                : 'Waiting for requester and GPR C approvers decision.')}
+                                    </Typography>
+                                </Box>
+                            )}
+                            {gprWorkflow.showSendToCheckerBtn && (
+                                <Button variant='contained' color='success' fullWidth
+                                    startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                    disabled={gprWorkflow.disableSendToCheckerBtn}
+                                    onClick={() => onApprove(gprWorkflow.agreementReachedStatusValue || computedNextStatus, false, gprWorkflow.approveLabel)}
+                                >{gprWorkflow.approveLabel}</Button>
+                            )}
+                            {showActionRequiredBtn && (
+                                <Button variant='contained' color='info' fullWidth
+                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                    disabled={disableActionRequiredBtn}
+                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
+                                >{actionRequiredLabel}</Button>
+                            )}
+                            {gprWorkflow.showSendToRequesterBtn && (
+                                <Button variant='contained' color='warning' fullWidth
+                                    startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                    disabled={gprWorkflow.disableSendToRequesterBtn}
+                                    onClick={() => {
+                                        setGprCSentInSession(true)
+                                        onApprove(gprWorkflow.issueGprCStatusValue || computedNextStatus, false, gprWorkflow.sendToRequesterLabel)
+                                    }}
+                                >{gprWorkflow.sendToRequesterLabel}</Button>
+                            )}
+                            {gprWorkflow.showRejectBtn && (
+                                <Button variant='contained' color='error' fullWidth
+                                    startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                                    disabled={gprWorkflow.disableRejectBtn}
+                                    onClick={() => onApprove(gprWorkflow.vendorDisagreedStatusValue || computedNextStatus, true, gprWorkflow.rejectLabel)}
+                                >{gprWorkflow.rejectLabel}</Button>
+                            )}
+                            {gprWorkflow.showSendToVendorBtn && (
+                                <Button variant='contained' color='warning' fullWidth
+                                    startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
+                                    disabled={gprWorkflow.disableSendToVendorBtn}
+                                    onClick={() => {
+                                        setAllowApproveBypass(true)
+                                        onApprove(gprWorkflow.issueGprBStatusValue || computedNextStatus, false, gprWorkflow.sendToVendorLabel)
+                                    }}
+                                >{gprWorkflow.sendToVendorLabel}</Button>
+                            )}
                         </>
                     )}
-                    {!isPicPostVendorStep && isNegotiationStep && agreeAction && disagreeAction && (
+                    {!gprWorkflow.isPicPostVendorStep && isNegotiationStep && agreeAction && disagreeAction && (
                         <>
+                            {showActionRequiredBtn && (
+                                <Button variant='contained' color='info' fullWidth
+                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                    disabled={disableActionRequiredBtn}
+                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
+                                >{actionRequiredLabel}</Button>
+                            )}
                             {renderDisagreeFirst && (
                                 <Button variant='contained' color={disagreeAction.color} fullWidth
                                     startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
@@ -1018,8 +1129,15 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             )}
                         </>
                     )}
-                    {!isPicPostVendorStep && !isNegotiationStep && (
+                    {!gprWorkflow.isPicPostVendorStep && !isNegotiationStep && (
                         <>
+                            {showActionRequiredBtn && (
+                                <Button variant='contained' color='info' fullWidth
+                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                    disabled={disableActionRequiredBtn}
+                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
+                                >{actionRequiredLabel}</Button>
+                            )}
                             <Button variant='contained' color='success' fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
                                 onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
@@ -1039,7 +1157,11 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 rowData={data}
                 readOnly={isGprReadOnly}
                 onClose={() => setGprDialogOpen(false)}
-                onSaved={() => { setGprDialogOpen(false); onEmailSent() }}
+                onSaved={() => {
+                    setGprSavedInSession(true)
+                    setGprDialogOpen(false)
+                    onEmailSent()
+                }}
             />
             <GprCNotificationDialog
                 open={gprCDialogOpen}
@@ -1059,7 +1181,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 <DialogTitle>Action Required Detail</DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                        <Typography variant='body2'><strong>Stage:</strong> {selectedActionRequired?.stage || '-'}</Typography>
                         <Typography variant='body2'><strong>Owner:</strong> {selectedActionRequired?.owner || '-'}</Typography>
+                        <Typography variant='body2'><strong>Owner Email:</strong> {selectedActionRequired?.ownerEmail || '-'}</Typography>
                         <Typography variant='body2'><strong>Due Date:</strong> {selectedActionRequired?.dueDate || '-'}</Typography>
                         <Typography variant='body2'><strong>Note:</strong> {selectedActionRequired?.note || '-'}</Typography>
                         <Typography variant='body2'><strong>Actor:</strong> {selectedActionRequired?.actor || '-'}</Typography>
@@ -1151,7 +1275,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         variant='contained'
                         color='primary'
                         disabled={editSaving}
-                        startIcon={editSaving ? <CircularProgress size={16} /> : <i className='tabler-device-floppy' style={{ fontSize: 16 }} />}
                     >Save</Button>
                     <Button onClick={() => setEditDialogOpen(false)} variant='tonal' color='secondary' disabled={editSaving}>Cancel</Button>
                 </DialogActions>
@@ -1435,8 +1558,16 @@ export default function SearchResult() {
                     '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
                 }}
             >
-                <DialogTitle>
+                <DialogTitle sx={{ position: 'relative' }}>
                     <Typography variant='h5' component='span'>Request Details</Typography>
+                    <Box sx={{ position: 'absolute', top: 14, right: 56, textAlign: 'right' }}>
+                        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', lineHeight: 1 }}>
+                            Request No.
+                        </Typography>
+                        <Typography variant='body2' fontWeight={700} color='text.secondary'>
+                            {String(selectedData?.request_number || selectedData?.request_id || '-')}
+                        </Typography>
+                    </Box>
                     <DialogCloseButton onClick={() => setDrawerOpen(false)} disableRipple>
                         <i className='tabler-x' />
                     </DialogCloseButton>

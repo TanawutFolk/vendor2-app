@@ -47,6 +47,7 @@ import {
 import { useGprForm, BUSINESS_CATEGORIES } from './useGprForm'
 import type { GprFormData, GprFormDialogProps } from './useGprForm'
 import {
+    inferActorType,
     inferStepCode,
     isAccountStep,
 } from '@_workspace/utils/requestWorkflow'
@@ -375,7 +376,7 @@ const GeneralInfoSection = React.memo(() => {
                             {...register('address')}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
                         <Controller
                             name='business_category'
                             control={control}
@@ -414,6 +415,154 @@ const GeneralInfoSection = React.memo(() => {
                     <Grid item xs={12} sm={6}>
                         <CustomTextField fullWidth label="Vendor's Original Country" placeholder='e.g. Japan' {...register('vendor_original_country')} />
                     </Grid>
+                </Grid>
+            </Paper>
+        </>
+    )
+})
+
+const ACTION_REQUIRED_STAGE_META = [
+    { key: 'engineer', title: 'Engineer Judgement' },
+    { key: 'emr', title: 'EMR Judgement' },
+    { key: 'qms', title: 'QMS Judgement' },
+    { key: 'pm_manager', title: 'PM Manager Approval' },
+] as const
+
+const ActionRequiredSection = React.memo(() => {
+    const { control, register } = useFormContext<GprFormData>()
+
+    return (
+        <>
+            <SectionTitle no='AR' title='Action Required Side Flow' color='info.main' />
+            <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'info.main' }}>
+                <Grid container spacing={2.5}>
+                    <Grid item xs={12}>
+                        <Alert severity='info' sx={{ py: 0 }}>
+                            Additional PIC follow-up for Engineer, EMR, QMS, and PM Manager. Main approval flow continues automatically.
+                        </Alert>
+                    </Grid>
+                    {ACTION_REQUIRED_STAGE_META.map(stage => (
+                        <Grid item xs={12} key={stage.key}>
+                            <Paper variant='outlined' sx={{ p: 2, borderRadius: 1.5 }}>
+                                <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1.5 }}>
+                                    {stage.title}
+                                </Typography>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <CustomTextField
+                                            fullWidth
+                                            label='Add PIC Name'
+                                            placeholder='Enter PIC name...'
+                                            {...register(`action_required_setup.${stage.key}.pic_name` as const)}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <CustomTextField
+                                            fullWidth
+                                            label='Add PIC Email'
+                                            placeholder='name@example.com'
+                                            {...register(`action_required_setup.${stage.key}.pic_email` as const)}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                        <FormControl fullWidth size='small'>
+                                            <InputLabel>Result Status</InputLabel>
+                                            <Controller
+                                                name={`action_required_setup.${stage.key}.result_status` as const}
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <Select label='Result Status' {...field}>
+                                                        <MenuItem value=''>-</MenuItem>
+                                                        <MenuItem value='pending'>Pending</MenuItem>
+                                                        <MenuItem value='completed'>Completed</MenuItem>
+                                                    </Select>
+                                                )}
+                                            />
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                        <CustomTextField
+                                            fullWidth
+                                            label='Result Updated At'
+                                            placeholder='dd/mm/yyyy'
+                                            {...register(`action_required_setup.${stage.key}.result_updated_at` as const)}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                        <CustomTextField
+                                            fullWidth
+                                            multiline
+                                            rows={2}
+                                            label='Record Result'
+                                            placeholder='Enter result / follow-up note...'
+                                            {...register(`action_required_setup.${stage.key}.result_note` as const)}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+            </Paper>
+        </>
+    )
+})
+
+const GprCNotificationSection = React.memo(() => {
+    const { register } = useFormContext<GprFormData>()
+
+    return (
+        <>
+            <SectionTitle no='C' title='GPR C Notification Setup' color='warning.main' />
+            <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'warning.main' }}>
+                <Grid container spacing={2.5}>
+                    <Grid item xs={12}>
+                        <Alert severity='warning' sx={{ py: 0 }}>
+                            Used when the workflow escalates to GPR C. The system will notify checker, GPR C approver, PC PIC, and circular list automatically.
+                        </Alert>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <CustomTextField
+                            fullWidth
+                            label='GPR C Approver Name'
+                            placeholder='Enter approver name...'
+                            {...register('gpr_c_approver_name')}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <CustomTextField
+                            fullWidth
+                            label='GPR C Approver Email'
+                            placeholder='approver@example.com'
+                            {...register('gpr_c_approver_email')}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <CustomTextField
+                            fullWidth
+                            label='PC PIC Name'
+                            placeholder='Enter PC PIC name...'
+                            {...register('gpr_c_pc_pic_name')}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <CustomTextField
+                            fullWidth
+                            label='PC PIC Email'
+                            placeholder='pc-pic@example.com'
+                            {...register('gpr_c_pc_pic_email')}
+                        />
+                    </Grid>
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <Grid item xs={12} md={6} key={index}>
+                            <CustomTextField
+                                fullWidth
+                                label={`Circular List ${index + 1}`}
+                                placeholder='cc@example.com'
+                                {...register(`gpr_c_circular_list.${index}` as const)}
+                            />
+                        </Grid>
+                    ))}
                 </Grid>
             </Paper>
         </>
@@ -805,6 +954,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
     }, [approvalSteps])
 
     const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
+    const requestRef = rowData?.request_number || rowData?.request_id || '-'
 
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
@@ -852,6 +1002,26 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             return matched[0]
         }
 
+        const findLatestApprovedPicStep = () => {
+            const matched = approvalSteps.filter((step: any) => {
+                const status = String(step?.step_status || '').toLowerCase()
+                if (!approvedStatuses.has(status)) return false
+
+                return inferActorType(step) === 'PIC'
+            })
+
+            matched.sort((a: any, b: any) => {
+                const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+                if (orderDiff !== 0) return orderDiff
+
+                const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
+                const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
+                return bTime - aTime
+            })
+
+            return matched[0]
+        }
+
         const mapSlot = (role: string, step: any): SignatureSlot => ({
             role,
             code: String(step?.approver_id || '').trim(),
@@ -860,7 +1030,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         })
 
         return [
-            mapSlot('Issuer', findLatestApprovedStep('PIC_REVIEW')),
+            mapSlot('Issuer', findLatestApprovedPicStep()),
             mapSlot('Manager', findLatestApprovedStep('PO_MGR_APPROVAL')),
             mapSlot('General Manager', findLatestApprovedStep('PO_GM_APPROVAL')),
             mapSlot('Managing Director', findLatestApprovedStep('MD_APPROVAL')),
@@ -894,6 +1064,14 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                         Supplier / Outsourcing Selection Sheet
                     </Typography>
                     <DialogSubtitle fallbackName={rowData?.company_name} />
+                    <Box sx={{ position: 'absolute', top: 16, right: 56, textAlign: 'right' }}>
+                        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', lineHeight: 1 }}>
+                            Request No.
+                        </Typography>
+                        <Typography variant='body2' fontWeight={700} color='text.secondary'>
+                            {requestRef}
+                        </Typography>
+                    </Box>
                     <DialogCloseButton onClick={handleCloseClick} disableRipple>
                         <i className='tabler-x' />
                     </DialogCloseButton>
@@ -916,6 +1094,8 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                         <CompanyInfoSection />
                         <SanctionsSection />
                         <GeneralInfoSection />
+                        <GprCNotificationSection />
+                        <ActionRequiredSection />
                         <CriteriaSection
                             criteriaUploading={criteriaUploading}
                             criteriaError={criteriaError}

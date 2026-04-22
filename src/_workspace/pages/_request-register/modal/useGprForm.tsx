@@ -26,6 +26,21 @@ export interface GprCriteria {
     uploaded_name?: string
 }
 
+export interface ActionRequiredStageConfig {
+    pic_name: string
+    pic_email: string
+    result_status: 'pending' | 'completed' | ''
+    result_note: string
+    result_updated_at: string
+}
+
+export interface ActionRequiredSetup {
+    engineer: ActionRequiredStageConfig
+    emr: ActionRequiredStageConfig
+    qms: ActionRequiredStageConfig
+    pm_manager: ActionRequiredStageConfig
+}
+
 export interface GprFormData {
     company_name: string
     pic_name: string
@@ -52,6 +67,7 @@ export interface GprFormData {
     gpr_c_pc_pic_name: string
     gpr_c_pc_pic_email: string
     gpr_c_circular_list: string[]
+    action_required_setup: ActionRequiredSetup
     vendor_code_selector: string
     completion_date: string
 }
@@ -93,6 +109,21 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
     { no: '4.13', detail: 'Document to request for Automatic Account Transfer', criteria: 'Optional' },
     { no: '4.14', detail: 'Other', criteria: 'Optional' },
 ]
+
+const createActionRequiredStage = (): ActionRequiredStageConfig => ({
+    pic_name: '',
+    pic_email: '',
+    result_status: '',
+    result_note: '',
+    result_updated_at: '',
+})
+
+export const buildDefaultActionRequiredSetup = (saved?: Partial<ActionRequiredSetup>): ActionRequiredSetup => ({
+    engineer: { ...createActionRequiredStage(), ...(saved?.engineer || {}) },
+    emr: { ...createActionRequiredStage(), ...(saved?.emr || {}) },
+    qms: { ...createActionRequiredStage(), ...(saved?.qms || {}) },
+    pm_manager: { ...createActionRequiredStage(), ...(saved?.pm_manager || {}) },
+})
 
 // ── Helper Functions ──────────────────────────────────────────────────────────
 
@@ -144,6 +175,16 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
                 return Array.isArray(parsed) ? parsed : []
             } catch {
                 return []
+            }
+        })(),
+        action_required_setup: (() => {
+            try {
+                const parsed = typeof source.action_required_json === 'string'
+                    ? JSON.parse(source.action_required_json)
+                    : source.action_required_json
+                return buildDefaultActionRequiredSetup(parsed || {})
+            } catch {
+                return buildDefaultActionRequiredSetup()
             }
         })(),
         vendor_code_selector: source.vendor_code_selector,
@@ -199,6 +240,7 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
         gpr_c_pc_pic_name: saved?.gpr_c_pc_pic_name || '',
         gpr_c_pc_pic_email: saved?.gpr_c_pc_pic_email || '',
         gpr_c_circular_list: Array.from({ length: 6 }, (_, index) => saved?.gpr_c_circular_list?.[index] || ''),
+        action_required_setup: buildDefaultActionRequiredSetup(saved?.action_required_setup),
         vendor_code_selector: saved?.vendor_code_selector || (rowData?.vendor_code || ''),
         completion_date: saved?.completion_date || '',
     }
@@ -307,13 +349,13 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             })
 
             if (response.data.Status) {
-                setFeedback({ type: 'success', msg: 'GPR form saved successfully.' })
+                setFeedback({ type: 'success', msg: 'Supplier / Outsourcing Selection Sheet saved successfully.' })
                 onSaved?.()
             } else {
                 setFeedback({ type: 'error', msg: response.data.Message })
             }
         } catch (error: any) {
-            setFeedback({ type: 'error', msg: error?.response?.data?.Message || 'Failed to save GPR form' })
+            setFeedback({ type: 'error', msg: error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' })
         } finally {
             setSaving(false)
         }

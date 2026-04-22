@@ -149,6 +149,30 @@ export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRI
 
 export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('vendor disagre')
 
+export const resolveActionRequiredStage = (step: any) => {
+    const source = normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label)
+    if (source.includes('engineer')) return 'engineer'
+    if (source.includes('emr')) return 'emr'
+    if (source.includes('qms')) return 'qms'
+    if (source.includes('pm manager') || source.includes('manager approval')) return 'pm_manager'
+    return ''
+}
+
+export const getActionRequiredStageLabel = (step: any) => {
+    switch (resolveActionRequiredStage(step)) {
+        case 'engineer':
+            return 'Engineer Judgement'
+        case 'emr':
+            return 'EMR Judgement'
+        case 'qms':
+            return 'QMS Judgement'
+        case 'pm_manager':
+            return 'PM Manager Approval'
+        default:
+            return 'Action Required'
+    }
+}
+
 export const getApproveActionLabel = (currentStep: any, hasVendorRequested: boolean) => {
     if (!currentStep) return 'Confirm'
 
@@ -175,19 +199,21 @@ export const getRejectActionLabel = (currentStep: any) => {
 }
 
 export const getGprStageLabel = (currentStep: any, hasVendorRequested: boolean) => {
-    if (!currentStep) return 'GPR form'
+    if (!currentStep) return 'Supplier / Outsourcing Selection Sheet'
     if (isIssueGprBStep(currentStep)) return 'GPR B'
     if (isIssueGprCStep(currentStep)) return 'GPR C'
     if (isPendingAgreementStep(currentStep) && hasVendorRequested) return 'Pending agreement'
-    return 'GPR form'
+    return 'Supplier / Outsourcing Selection Sheet'
 }
 
 export interface ParsedActionRequiredRemark {
     isActionRequired: boolean
     owner: string
+    ownerEmail: string
     dueDate: string
     note: string
     actor: string
+    stage: string
     capturedAt: string
     rawRemark: string
 }
@@ -198,9 +224,11 @@ export const parseActionRequiredRemark = (remark: any): ParsedActionRequiredRema
         return {
             isActionRequired: false,
             owner: '',
+            ownerEmail: '',
             dueDate: '',
             note: '',
             actor: '',
+            stage: '',
             capturedAt: '',
             rawRemark,
         }
@@ -212,9 +240,11 @@ export const parseActionRequiredRemark = (remark: any): ParsedActionRequiredRema
         return {
             isActionRequired: true,
             owner: String(payload?.owner || ''),
+            ownerEmail: String(payload?.owner_email || ''),
             dueDate: String(payload?.due_date || ''),
             note: String(payload?.note || ''),
             actor: String(payload?.actor || ''),
+            stage: String(payload?.stage || ''),
             capturedAt: String(payload?.captured_at || ''),
             rawRemark,
         }
@@ -222,9 +252,11 @@ export const parseActionRequiredRemark = (remark: any): ParsedActionRequiredRema
         return {
             isActionRequired: true,
             owner: '',
+            ownerEmail: '',
             dueDate: '',
             note: '',
             actor: '',
+            stage: '',
             capturedAt: '',
             rawRemark,
         }

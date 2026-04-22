@@ -53,6 +53,8 @@ import {
     isIssueGprCStep,
     isPendingAgreementStep,
     isPicStep,
+    resolveActionRequiredStage,
+    getActionRequiredStageLabel,
     isVendorDisagreedStep,
     resolveGroupCodeForStep,
     resolveNextStatus,
@@ -259,7 +261,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action: ${approveActionLabel}` : `Confirm action: ${rejectActionLabel}`}
+                        {mode === 'approve' ? `Confirm action ${approveActionLabel}` : `Confirm action ${rejectActionLabel}`}
                     </Typography>
                 </Box>
 
@@ -354,6 +356,16 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
+    const actionRequiredSetup = (() => {
+        try { return typeof data.action_required_json === 'string' ? JSON.parse(data.action_required_json) : (data.action_required_json || {}) } catch { return {} }
+    })()
+    const actionRequiredStage = resolveActionRequiredStage(currentStep)
+    const actionRequiredStageConfig = actionRequiredStage ? (actionRequiredSetup?.[actionRequiredStage] || {}) : null
+    const showActionRequiredBtn = Boolean(isCurrentStepMine && isCurrentStepMatchingQueue && actionRequiredStage)
+    const disableActionRequiredBtn = !String(actionRequiredStageConfig?.pic_email || '').trim()
+    const actionRequiredLabel = actionRequiredStage
+        ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
+        : 'Action Required'
     const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
         isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
     )
@@ -453,7 +465,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                             startIcon={<i className='tabler-file-report' style={{ fontSize: 16 }} />}
                             onClick={() => setGprFormOpen(true)}
                         >
-                            Open GPR Form
+                            Open Supplier / Outsourcing Selection Sheet
                         </Button>
                     )}
                 </Box>
@@ -636,6 +648,13 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
+                            {showActionRequiredBtn && (
+                                <Button variant='contained' color='info' fullWidth
+                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                    disabled={disableActionRequiredBtn}
+                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
+                                >{actionRequiredLabel}</Button>
+                            )}
                             {renderDisagreeFirst && (
                                 <Button variant='contained' color={disagreeAction.color} fullWidth
                                     startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
@@ -656,6 +675,13 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                     )}
                     {!isNegotiationStep && (
                         <>
+                            {showActionRequiredBtn && (
+                                <Button variant='contained' color='info' fullWidth
+                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                    disabled={disableActionRequiredBtn}
+                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
+                                >{actionRequiredLabel}</Button>
+                            )}
                             <Button variant='contained' color='success' fullWidth
                                 startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
                                 onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
@@ -691,7 +717,9 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                 <DialogTitle>Action Required Detail</DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                        <Typography variant='body2'><strong>Stage:</strong> {selectedActionRequired?.stage || '-'}</Typography>
                         <Typography variant='body2'><strong>Owner:</strong> {selectedActionRequired?.owner || '-'}</Typography>
+                        <Typography variant='body2'><strong>Owner Email:</strong> {selectedActionRequired?.ownerEmail || '-'}</Typography>
                         <Typography variant='body2'><strong>Due Date:</strong> {selectedActionRequired?.dueDate || '-'}</Typography>
                         <Typography variant='body2'><strong>Note:</strong> {selectedActionRequired?.note || '-'}</Typography>
                         <Typography variant='body2'><strong>Actor:</strong> {selectedActionRequired?.actor || '-'}</Typography>
