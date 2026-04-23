@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import AssigneesServices from '../services/_task-manager/AssigneesServices'
+import { PREFIX_QUERY_KEY } from './useAssignees'
 
 export const useSaveAssignee = () => {
     const queryClient = useQueryClient()
@@ -13,29 +14,10 @@ export const useSaveAssignee = () => {
             if (resData.Status) {
                 ToastMessageSuccess({ message: resData.Message || 'Saved successfully' })
             }
-            queryClient.invalidateQueries({ queryKey: ['assignees'] })
+            queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         },
         onError: (error: any) => {
             ToastMessageError({ message: error?.response?.data?.Message || error.message || 'Failed to save assignee' })
-        }
-    })
-}
-
-export const useDeleteAssignee = () => {
-    const queryClient = useQueryClient()
-    return useMutation({
-        mutationFn: async (id: number) => {
-            const res = await AssigneesServices.delete(id)
-            return res.data
-        },
-        onSuccess: (resData) => {
-            if (resData.Status) {
-                ToastMessageSuccess({ message: resData.Message || 'Deleted successfully' })
-            }
-            queryClient.invalidateQueries({ queryKey: ['assignees'] })
-        },
-        onError: (error: any) => {
-            ToastMessageError({ message: error?.response?.data?.Message || error.message || 'Failed to delete assignee' })
         }
     })
 }

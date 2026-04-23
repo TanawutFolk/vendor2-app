@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-    Box,
-    Button,
-    CardContent,
-    Chip,
-    Grid,
-    MenuItem,
-    TextField,
-    Typography
-} from '@mui/material'
+import { Button, Chip, Grid } from '@mui/material'
 import type { ColDef } from 'ag-grid-community'
 
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
-import DxAGgridTable from '@/_template/DxAGgridTable'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -21,10 +12,10 @@ import {
     inferStepCode,
     isPicStep,
     resolveGroupCodeForStep,
-    ASSIGNEE_GROUP_LABEL_MAP
+    ASSIGNEE_GROUP_LABEL_MAP,
 } from '@_workspace/utils/requestWorkflow'
-import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
-import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+import TaskSearchFilter from './TaskSearchFilter'
+import TaskSearchResult from './TaskSearchResult'
 
 const MENU_NAME = 'Task Manager'
 const breadcrumbNavigation = [{ menuName: 'Home', href: '/' }, { menuName: 'Task Manager' }]
@@ -39,10 +30,12 @@ const parseJsonArray = (value: any) => {
 
 export default function Page() {
     const user = getUserData()
-    const [collapse, setCollapse] = useState(false)
     const [loading, setLoading] = useState(false)
     const [searchText, setSearchText] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
+    const [groupFilter, setGroupFilter] = useState('')
+    const [scopeFilter, setScopeFilter] = useState('')
+    const [impactedOnly, setImpactedOnly] = useState('')
     const [rows, setRows] = useState<any[]>([])
     const [dialogRow, setDialogRow] = useState<any | null>(null)
     const { data: statusOptions = [] } = useRequestStatusOptions()
@@ -50,15 +43,25 @@ export default function Page() {
     const loadRows = async () => {
         setLoading(true)
         try {
-            const res = await RegisterRequestServices.getAll({
-                SearchFilters: [],
-                ColumnFilters: [],
-                Order: [{ id: 'request_id', desc: true }],
-                Start: 0,
-                Limit: 500
-            })
+            const [requestRes, assigneeRes] = await Promise.all([
+                RegisterRequestServices.getAll({
+                    SearchFilters: [],
+                    ColumnFilters: [],
+                    Order: [{ id: 'request_id', desc: true }],
+                    Start: 0,
+                    Limit: 500,
+                }),
+                AssigneesServices.search({}),
+            ])
 
-            const rawRows = res.data?.ResultOnDb || []
+            const rawRows = requestRes.data?.ResultOnDb || []
+            const assigneeRows = assigneeRes.data?.ResultOnDb || []
+            const activeAssigneeKeys = new Set(
+                assigneeRows
+                    .filter((row: any) => Number(row?.INUSE) === 1)
+                    .map((row: any) => `${String(row?.empcode || '').trim().toUpperCase()}|${String(row?.group_code || '').trim().toUpperCase()}`)
+            )
+
             const activeRows = rawRows
                 .map((row: any) => {
                     const approvalSteps = parseJsonArray(row.approval_steps).sort((a: any, b: any) => a.step_order - b.step_order)
@@ -69,6 +72,8 @@ export default function Page() {
                     const isOversea = String(row.vendor_region || '').toLowerCase() === 'oversea'
                     const groupCode = resolveGroupCodeForStep(currentStep, isOversea)
                     const ownerEmpCode = isPicStep(currentStep) ? row.assign_to : currentStep.approver_id
+                    const ownerGroupKey = `${String(ownerEmpCode || '').trim().toUpperCase()}|${String(groupCode || '').trim().toUpperCase()}`
+                    const currentOwnerActive = !groupCode || !ownerEmpCode ? false : activeAssigneeKeys.has(ownerGroupKey)
 
                     return {
                         ...row,
@@ -78,7 +83,9 @@ export default function Page() {
                         current_group_code: groupCode,
                         current_group_name: ASSIGNEE_GROUP_LABEL_MAP[groupCode] || groupCode || '-',
                         current_owner_empcode: ownerEmpCode || '-',
-                        assignment_scope: isPicStep(currentStep) ? 'REQUEST_PIC' : 'CURRENT_STEP'
+                        assignment_scope: isPicStep(currentStep) ? 'REQUEST_PIC' : 'CURRENT_STEP',
+                        current_owner_active: currentOwnerActive,
+                        assignment_health: currentOwnerActive ? 'Healthy' : 'Needs Reassign',
                     }
                 })
                 .filter(Boolean)
@@ -98,6 +105,9 @@ export default function Page() {
 
         return rows.filter((row: any) => {
             const matchesStatus = !statusFilter || row.request_status === statusFilter
+            const matchesGroup = !groupFilter || row.current_group_code === groupFilter
+            const matchesScope = !scopeFilter || row.assignment_scope === scopeFilter
+            const matchesImpact = !impactedOnly || (impactedOnly === '1' ? !row.current_owner_active : row.current_owner_active)
             const matchesKeyword =
                 !keyword ||
                 String(row.company_name || '').toLowerCase().includes(keyword) ||
@@ -105,9 +115,9 @@ export default function Page() {
                 String(row.current_owner_empcode || '').toLowerCase().includes(keyword) ||
                 String(row.current_step_name || '').toLowerCase().includes(keyword)
 
-            return matchesStatus && matchesKeyword
+            return matchesStatus && matchesGroup && matchesScope && matchesImpact && matchesKeyword
         })
-    }, [rows, searchText, statusFilter])
+    }, [rows, searchText, statusFilter, groupFilter, scopeFilter, impactedOnly])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -124,7 +134,7 @@ export default function Page() {
                 >
                     Reassign
                 </Button>
-            )
+            ),
         },
         { field: 'request_id', headerName: 'Request ID', width: 120 },
         { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 220 },
@@ -142,23 +152,39 @@ export default function Page() {
                         sx={{ bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40`, fontWeight: 700 }}
                     />
                 )
-            }
+            },
         },
         { field: 'current_step_name', headerName: 'Current Step', flex: 1.2, minWidth: 220 },
         { field: 'current_group_name', headerName: 'Workflow Group', flex: 1.1, minWidth: 190 },
         { field: 'current_owner_empcode', headerName: 'Current Owner', width: 160 },
         {
+            field: 'assignment_health',
+            headerName: 'Owner Status',
+            width: 150,
+            cellRenderer: (params: any) => {
+                const healthy = params.data?.current_owner_active
+                return (
+                    <Chip
+                        label={healthy ? 'Active' : 'Needs Reassign'}
+                        size='small'
+                        color={healthy ? 'success' : 'warning'}
+                        variant='tonal'
+                    />
+                )
+            },
+        },
+        {
             field: 'assignment_scope',
             headerName: 'Scope',
             width: 150,
-            valueFormatter: (params: any) => params.value === 'REQUEST_PIC' ? 'PIC' : 'Current Step'
+            valueFormatter: (params: any) => (params.value === 'REQUEST_PIC' ? 'PIC' : 'Current Step'),
         },
         {
             field: 'CREATE_DATE',
             headerName: 'Submitted Date',
             width: 150,
-            valueFormatter: (params: any) => params.value ? new Date(params.value).toLocaleDateString('th-TH') : '-'
-        }
+            valueFormatter: (params: any) => (params.value ? new Date(params.value).toLocaleDateString('th-TH') : '-'),
+        },
     ], [statusOptions])
 
     return (
@@ -168,70 +194,36 @@ export default function Page() {
             </Grid>
 
             <Grid item xs={12}>
-                <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12}>
-                            <Typography variant='body2' color='text.secondary'>
-                                Use this page to move ongoing work to another responsible person.
-                            </Typography>
-                        </Grid>
-                        <Grid item xs={12} md={5}>
-                            <TextField
-                                fullWidth
-                                label='Search'
-                                placeholder='Company, request id, owner, current step'
-                                value={searchText}
-                                onChange={e => setSearchText(e.target.value)}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                select
-                                fullWidth
-                                label='Status'
-                                value={statusFilter}
-                                onChange={e => setStatusFilter(e.target.value)}
-                            >
-                                <MenuItem value=''>All</MenuItem>
-                                {statusOptions.map((item: any) => (
-                                    <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>
-                                ))}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} md={3} className='flex gap-3'>
-                            <Button variant='contained' onClick={() => loadRows().catch(console.error)}>Search</Button>
-                            <Button variant='tonal' color='secondary' onClick={() => { setSearchText(''); setStatusFilter('') }}>Clear</Button>
-                        </Grid>
-                    </Grid>
-                </SearchFilterCard>
+                <TaskSearchFilter
+                    statusOptions={statusOptions}
+                    searchText={searchText}
+                    statusFilter={statusFilter}
+                    groupFilter={groupFilter}
+                    scopeFilter={scopeFilter}
+                    impactedOnly={impactedOnly}
+                    onSearchTextChange={setSearchText}
+                    onStatusFilterChange={setStatusFilter}
+                    onGroupFilterChange={setGroupFilter}
+                    onScopeFilterChange={setScopeFilter}
+                    onImpactedOnlyChange={setImpactedOnly}
+                    onSearch={() => loadRows().catch(console.error)}
+                    onClear={() => {
+                        setSearchText('')
+                        setStatusFilter('')
+                        setGroupFilter('')
+                        setScopeFilter('')
+                        setImpactedOnly('')
+                    }}
+                />
             </Grid>
 
             <Grid item xs={12}>
-                <SearchResultCard action={
-                    <Button
-                        size='small'
-                        variant='tonal'
-                        startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                        onClick={() => loadRows().catch(console.error)}
-                    >
-                        Refresh
-                    </Button>
-                }>
-                    <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                            <Typography variant='subtitle1' fontWeight={700}>
-                                Results ({filteredRows.length})
-                            </Typography>
-                        </Box>
-                        <DxAGgridTable
-                            rowData={filteredRows}
-                            columnDefs={colDefs}
-                            loading={loading}
-                            pagination={true}
-                            height={650}
-                        />
-                    </CardContent>
-                </SearchResultCard>
+                <TaskSearchResult
+                    filteredRows={filteredRows}
+                    colDefs={colDefs}
+                    loading={loading}
+                    onRefresh={() => loadRows().catch(console.error)}
+                />
             </Grid>
 
             <ReassignDialog

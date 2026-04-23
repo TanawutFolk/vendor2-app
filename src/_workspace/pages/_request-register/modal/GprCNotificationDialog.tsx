@@ -22,31 +22,69 @@ interface GprCNotificationDialogProps {
     onSaved?: () => void
 }
 
+interface CircularMemberInfo {
+    empcode: string
+    name: string
+    email: string
+}
+
+interface ActionRequiredStageConfig {
+    pic_name: string
+    pic_email: string
+    result_status: 'pending' | 'completed' | ''
+    result_note: string
+    result_updated_at: string
+    stage_label?: string
+    flow_empcode?: string
+    flow_order?: number | string
+}
+
 interface GprCFormState {
+    gpr_c_approver_empcode: string
     gpr_c_approver_name: string
     gpr_c_approver_email: string
     gpr_c_pc_pic_name: string
     gpr_c_pc_pic_email: string
-    gpr_c_circular_list: string[]
+    gpr_c_circular_empcodes: string[]
+    gpr_c_circular_members: CircularMemberInfo[]
+    action_required_setup: {
+        engineer: ActionRequiredStageConfig
+        emr: ActionRequiredStageConfig
+        qms: ActionRequiredStageConfig
+        pm_manager: ActionRequiredStageConfig
+    }
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const buildEmptyForm = (): GprCFormState => ({
+    gpr_c_approver_empcode: '',
     gpr_c_approver_name: '',
     gpr_c_approver_email: '',
     gpr_c_pc_pic_name: '',
     gpr_c_pc_pic_email: '',
-    gpr_c_circular_list: Array.from({ length: 6 }, () => ''),
+    gpr_c_circular_empcodes: Array.from({ length: 6 }, () => ''),
+    gpr_c_circular_members: [],
+    action_required_setup: {
+        engineer: { pic_name: '', pic_email: '', result_status: '', result_note: '', result_updated_at: '' },
+        emr: { pic_name: '', pic_email: '', result_status: '', result_note: '', result_updated_at: '' },
+        qms: { pic_name: '', pic_email: '', result_status: '', result_note: '', result_updated_at: '' },
+        pm_manager: { pic_name: '', pic_email: '', result_status: '', result_note: '', result_updated_at: '' },
+    },
 })
 
-const normalizeCircularList = (raw: any): string[] => {
+const normalizeCircularMembers = (raw: any): CircularMemberInfo[] => {
     if (!raw) return []
 
     try {
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
         if (!Array.isArray(parsed)) return []
-        return parsed.map(item => String(item || '').trim()).filter(Boolean).slice(0, 6)
+
+        return parsed.map(item => ({
+            empcode: String(item?.empcode || '').trim(),
+            name: String(item?.name || '').trim(),
+            email: String(item?.email || '').trim(),
+        })).filter(item => item.empcode || item.name || item.email)
     } catch {
         return []
     }
@@ -81,25 +119,39 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 if (!active) return
 
                 const result = res?.data?.ResultOnDb || {}
-                const circularList = normalizeCircularList(result.gpr_c_circular_json)
+                const circularMembers = normalizeCircularMembers(result.gpr_c_circular_members || result.gpr_c_circular_json)
+                const circularEmpcodes = Array.isArray(result.gpr_c_circular_empcodes)
+                    ? result.gpr_c_circular_empcodes.map((item: any) => String(item || '').trim())
+                    : circularMembers.map(item => item.empcode).filter(Boolean)
+
+                const actionRequiredSetup = (() => {
+                    try {
+                        const parsed = typeof result.action_required_json === 'string'
+                            ? JSON.parse(result.action_required_json)
+                            : result.action_required_json
+
+                        return {
+                            ...buildEmptyForm().action_required_setup,
+                            ...(parsed || {}),
+                        }
+                    } catch {
+                        return buildEmptyForm().action_required_setup
+                    }
+                })()
 
                 setForm({
+                    gpr_c_approver_empcode: String(result.gpr_c_approver_empcode || '').trim(),
                     gpr_c_approver_name: String(result.gpr_c_approver_name || rowData?.gpr_c_approver_name || '').trim(),
                     gpr_c_approver_email: String(result.gpr_c_approver_email || rowData?.gpr_c_approver_email || '').trim(),
                     gpr_c_pc_pic_name: String(result.gpr_c_pc_pic_name || rowData?.gpr_c_pc_pic_name || '').trim(),
                     gpr_c_pc_pic_email: String(result.gpr_c_pc_pic_email || rowData?.gpr_c_pc_pic_email || '').trim(),
-                    gpr_c_circular_list: Array.from({ length: 6 }, (_, idx) => circularList[idx] || ''),
+                    gpr_c_circular_empcodes: Array.from({ length: 6 }, (_, idx) => circularEmpcodes[idx] || ''),
+                    gpr_c_circular_members: circularMembers,
+                    action_required_setup: actionRequiredSetup,
                 })
             } catch {
                 if (!active) return
-                const circularList = normalizeCircularList(rowData?.gpr_c_circular_json)
-                setForm({
-                    gpr_c_approver_name: String(rowData?.gpr_c_approver_name || '').trim(),
-                    gpr_c_approver_email: String(rowData?.gpr_c_approver_email || '').trim(),
-                    gpr_c_pc_pic_name: String(rowData?.gpr_c_pc_pic_name || '').trim(),
-                    gpr_c_pc_pic_email: String(rowData?.gpr_c_pc_pic_email || '').trim(),
-                    gpr_c_circular_list: Array.from({ length: 6 }, (_, idx) => circularList[idx] || ''),
-                })
+                setForm(buildEmptyForm())
             } finally {
                 if (active) setLoading(false)
             }
@@ -114,9 +166,11 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
 
     const emailValidationError = useMemo(() => {
         const emails = [
-            form.gpr_c_approver_email,
             form.gpr_c_pc_pic_email,
-            ...form.gpr_c_circular_list,
+            form.action_required_setup.engineer.pic_email,
+            form.action_required_setup.emr.pic_email,
+            form.action_required_setup.qms.pic_email,
+            form.action_required_setup.pm_manager.pic_email,
         ].map(v => String(v || '').trim()).filter(Boolean)
 
         const invalid = emails.find(email => !EMAIL_REGEX.test(email))
@@ -125,9 +179,9 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
 
     const handleCircularChange = (index: number, value: string) => {
         setForm(prev => {
-            const next = [...prev.gpr_c_circular_list]
+            const next = [...prev.gpr_c_circular_empcodes]
             next[index] = value
-            return { ...prev, gpr_c_circular_list: next }
+            return { ...prev, gpr_c_circular_empcodes: next }
         })
     }
 
@@ -149,11 +203,11 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
             const response = await RegisterRequestServices.saveGprCNotification({
                 request_id: Number(rowData.request_id),
                 gpr_c_data: {
-                    gpr_c_approver_name: form.gpr_c_approver_name,
-                    gpr_c_approver_email: form.gpr_c_approver_email,
+                    gpr_c_approver_empcode: form.gpr_c_approver_empcode,
                     gpr_c_pc_pic_name: form.gpr_c_pc_pic_name,
                     gpr_c_pc_pic_email: form.gpr_c_pc_pic_email,
-                    gpr_c_circular_list: form.gpr_c_circular_list.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
+                    gpr_c_circular_empcodes: form.gpr_c_circular_empcodes.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
+                    action_required_setup: form.action_required_setup,
                 },
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
@@ -180,7 +234,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                         <Alert severity='warning'>Only requester can edit this section.</Alert>
                     )}
                     <Alert severity='info' sx={{ py: 0 }}>
-                        Fill approver and circular list for GPR C escalation flow. Circular list supports up to 6 persons.
+                        Enter employee codes for GPR C approver and circular list. The system will resolve name and email from `person.member_fed` when you save.
                     </Alert>
                     {feedback && <Alert severity={feedback.type}>{feedback.msg}</Alert>}
                     {loading ? (
@@ -189,20 +243,28 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                         </Box>
                     ) : (
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
+                            <Grid item xs={12} md={4}>
                                 <CustomTextField
                                     fullWidth
-                                    label='GPR C Approver Name'
-                                    value={form.gpr_c_approver_name}
-                                    onChange={e => setForm(prev => ({ ...prev, gpr_c_approver_name: e.target.value }))}
+                                    label='GPR C Approver EmpCode'
+                                    value={form.gpr_c_approver_empcode}
+                                    onChange={e => setForm(prev => ({ ...prev, gpr_c_approver_empcode: e.target.value }))}
                                 />
                             </Grid>
-                            <Grid item xs={12} md={6}>
+                            <Grid item xs={12} md={4}>
                                 <CustomTextField
                                     fullWidth
-                                    label='GPR C Approver Email'
+                                    label='Approver Name'
+                                    value={form.gpr_c_approver_name}
+                                    disabled
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <CustomTextField
+                                    fullWidth
+                                    label='Approver Email'
                                     value={form.gpr_c_approver_email}
-                                    onChange={e => setForm(prev => ({ ...prev, gpr_c_approver_email: e.target.value }))}
+                                    disabled
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
@@ -221,15 +283,69 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     onChange={e => setForm(prev => ({ ...prev, gpr_c_pc_pic_email: e.target.value }))}
                                 />
                             </Grid>
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <Grid key={index} item xs={12} md={6}>
-                                    <CustomTextField
-                                        fullWidth
-                                        label={`Circular Email ${index + 1}`}
-                                        placeholder='optional@example.com'
-                                        value={form.gpr_c_circular_list[index] || ''}
-                                        onChange={e => handleCircularChange(index, e.target.value)}
-                                    />
+                            {Array.from({ length: 6 }).map((_, index) => {
+                                const memberInfo = form.gpr_c_circular_members[index]
+                                return (
+                                    <Grid key={index} item xs={12} md={6}>
+                                        <CustomTextField
+                                            fullWidth
+                                            label={`Circular EmpCode ${index + 1}`}
+                                            placeholder='S00000'
+                                            value={form.gpr_c_circular_empcodes[index] || ''}
+                                            onChange={e => handleCircularChange(index, e.target.value)}
+                                            helperText={memberInfo ? `${memberInfo.name || '-'} | ${memberInfo.email || '-'}` : ''}
+                                        />
+                                    </Grid>
+                                )
+                            })}
+                            {[
+                                { key: 'engineer', fallbackLabel: 'Engineer Judgement' },
+                                { key: 'emr', fallbackLabel: 'EMR Judgement' },
+                                { key: 'qms', fallbackLabel: 'QMS Judgement' },
+                                { key: 'pm_manager', fallbackLabel: 'PM Manager Approval' },
+                            ].map(stage => (
+                                <Grid item xs={12} key={stage.key}>
+                                    <Box sx={{ mt: 1, p: 2, borderRadius: 1.5, border: '1px solid', borderColor: 'info.main' }}>
+                                        <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1.5 }}>
+                                            {form.action_required_setup[stage.key as keyof GprCFormState['action_required_setup']].stage_label || stage.fallbackLabel}
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={12} md={6}>
+                                                <CustomTextField
+                                                    fullWidth
+                                                    label='PIC Name'
+                                                    value={form.action_required_setup[stage.key as keyof GprCFormState['action_required_setup']].pic_name}
+                                                    onChange={e => setForm(prev => ({
+                                                        ...prev,
+                                                        action_required_setup: {
+                                                            ...prev.action_required_setup,
+                                                            [stage.key]: {
+                                                                ...prev.action_required_setup[stage.key as keyof GprCFormState['action_required_setup']],
+                                                                pic_name: e.target.value,
+                                                            }
+                                                        }
+                                                    }))}
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} md={6}>
+                                                <CustomTextField
+                                                    fullWidth
+                                                    label='PIC Email'
+                                                    value={form.action_required_setup[stage.key as keyof GprCFormState['action_required_setup']].pic_email}
+                                                    onChange={e => setForm(prev => ({
+                                                        ...prev,
+                                                        action_required_setup: {
+                                                            ...prev.action_required_setup,
+                                                            [stage.key]: {
+                                                                ...prev.action_required_setup[stage.key as keyof GprCFormState['action_required_setup']],
+                                                                pic_email: e.target.value,
+                                                            }
+                                                        }
+                                                    }))}
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
                                 </Grid>
                             ))}
                         </Grid>

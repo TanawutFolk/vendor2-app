@@ -14,6 +14,7 @@ interface ActionCellRendererProps extends ICellRendererParams {
 export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const vendorId = params.data?.vendor_id;
   const isAlreadyRegistered = params.data?.status_check === 'Registered';
+  const isInProgress = params.data?.status_check === 'In Progress';
 
   const isCannotRegister = params.data?.status_check === 'Cannot Register';
 
@@ -32,7 +33,7 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
 
   return (
     <Box style={{ display: 'flex', gap: '5px' }}>
-      {!isAlreadyRegistered && !isCannotRegister && (
+      {!isAlreadyRegistered && !isInProgress && !isCannotRegister && (
         <IconButton onClick={onRegister} size="small" color="warning" title="Send Register Request">
           <ForwardToInboxIcon />
         </IconButton>

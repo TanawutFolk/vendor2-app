@@ -455,6 +455,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
         icon: 'tabler-users',
         href: '/employee-manager'
       },
+      {
+        id: 545,
+        label: dictionary['navigation'].blackList,
+        icon: 'tabler-user-x',
+        href: '/blacklist'
+      }
     ]
   },
   // {

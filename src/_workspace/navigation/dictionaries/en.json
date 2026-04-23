@@ -78,6 +78,7 @@
     "documentCheck": "Document Check",
     "poGmApproval": "PO GM Approval",
     "accRegister": "Account Register Vendor Code",
-    "approvalGprC": "Approval GPR C"
+    "approvalGprC": "Approval GPR C",
+    "blackList": "blacklist"
   }
 }

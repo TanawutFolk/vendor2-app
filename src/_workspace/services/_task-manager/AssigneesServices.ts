@@ -11,6 +11,14 @@ export interface AssigneesResponseI<T = any> {
 }
 
 export default class AssigneesServices {
+    static getGroups(data?: { keyword?: string }): Promise<AxiosResponse<AssigneesResponseI<any[]>>> {
+        return axiosRequest<AssigneesResponseI<any[]>>({
+            url: `${AssigneesAPI.API_ROOT_URL}/groups`,
+            data: data || {},
+            method: 'POST'
+        })
+    }
+
     static search(data: any): Promise<AxiosResponse<AssigneesResponseI<any[]>>> {
         return axiosRequest<AssigneesResponseI<any[]>>({
             url: `${AssigneesAPI.API_ROOT_URL}/search`,
@@ -24,13 +32,6 @@ export default class AssigneesServices {
             url: `${AssigneesAPI.API_ROOT_URL}/save`,
             data,
             method: 'POST'
-        })
-    }
-
-    static delete(id: number): Promise<AxiosResponse<AssigneesResponseI<any>>> {
-        return axiosRequest<AssigneesResponseI<any>>({
-            url: `${AssigneesAPI.API_ROOT_URL}/${id}`,
-            method: 'DELETE'
         })
     }
 }

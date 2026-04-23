@@ -31,6 +31,10 @@ interface StatusOptionLike {
     description?: string
 }
 
+interface UseApprovalWorkflowOptions {
+    isRequesterGprCSetupPhase?: boolean
+}
+
 const normalize = (value: unknown) => normalizeWorkflowText(String(value || ''))
 
 const resolveStatusValue = (
@@ -58,9 +62,11 @@ const resolveStatusValue = (
 
 export const useApprovalWorkflow = (
     currentStep: unknown,
-    statusOptions: StatusOptionLike[] = []
+    statusOptions: StatusOptionLike[] = [],
+    options: UseApprovalWorkflowOptions = {}
 ): UseApprovalWorkflowResult => {
     return useMemo(() => {
+        const { isRequesterGprCSetupPhase = false } = options
         const agreementReachedStatus = resolveStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
         const issueGprBStatus = resolveStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
         const issueGprCStatus = resolveStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
@@ -106,7 +112,7 @@ export const useApprovalWorkflow = (
                     },
                     {
                         key: 'disagree',
-                        label: 'Send GPR C to Requester',
+                        label: 'Send GPR C to Requester Approval',
                         color: 'warning',
                         nextStatus: issueGprCStatus,
                         isFinalStep: false,
@@ -121,7 +127,7 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: 'Approve',
+                        label: isRequesterGprCSetupPhase ? 'Submit to Requester Head Approval' : 'Approve GPR C',
                         color: 'success',
                         nextStatus: agreementReachedStatus,
                         isFinalStep: false,
@@ -143,7 +149,7 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: 'Approve',
+                        label: 'Approve and Send to Doc Checker',
                         color: 'success',
                         nextStatus: documentCheckStatus || agreementReachedStatus,
                         isFinalStep: false,
@@ -163,7 +169,7 @@ export const useApprovalWorkflow = (
             isNegotiationStep: false,
             actions: [],
         }
-    }, [currentStep, statusOptions])
+    }, [currentStep, options, statusOptions])
 }
 
 export default useApprovalWorkflow

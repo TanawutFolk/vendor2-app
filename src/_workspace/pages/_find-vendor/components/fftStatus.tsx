@@ -13,6 +13,7 @@ const FFT_STATUS_CONFIG = {
 const STATUS_CHECK_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default' }> = {
     'Registered': { label: 'Registered', color: 'success' },
     'Not Registered': { label: 'Not Registered', color: 'error' },
+    'In Progress': { label: 'In Progress', color: 'warning' },
     'Cannot Register': { label: 'Cannot Register', color: 'default' }
 }
 

@@ -26,6 +26,7 @@ type UseEditVendorFormArgs = {
 const emptyDefaultValues: EditVendorSchemaType = {
     company_name: '',
     vendor_type_id: null,
+    vendor_type_name: '',
     contacts: [],
     products: [],
 }

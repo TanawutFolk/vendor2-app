@@ -172,7 +172,8 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
                 const parsed = typeof source.gpr_c_circular_json === 'string'
                     ? JSON.parse(source.gpr_c_circular_json)
                     : source.gpr_c_circular_json
-                return Array.isArray(parsed) ? parsed : []
+                if (!Array.isArray(parsed)) return []
+                return parsed.map((item: any) => String(item?.email || item || '').trim()).filter(Boolean)
             } catch {
                 return []
             }

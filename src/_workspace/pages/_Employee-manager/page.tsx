@@ -7,10 +7,10 @@ import SkeletonCustom from '@components/SkeletonCustom'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 
-import type { AssigneesFormData } from '@_workspace/pages/_task-manager/validateSchema'
-import { AssigneesSchema, fetchDefaultValues } from '@_workspace/pages/_task-manager/validateSchema'
-import SearchFilter from '@_workspace/pages/_task-manager/SearchFilter'
-import SearchResult from '@_workspace/pages/_task-manager/SearchResult'
+import type { AssigneesFormData } from './validateSchema'
+import { AssigneesSchema, fetchDefaultValues } from './validateSchema'
+import SearchFilter from './SearchFilter'
+import SearchResult from './SearchResult'
 import { MENU_NAME, breadcrumbNavigation } from './env'
 
 function Page() {

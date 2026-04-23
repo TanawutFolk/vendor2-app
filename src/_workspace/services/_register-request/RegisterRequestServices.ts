@@ -189,11 +189,10 @@ export default class RegisterRequestServices {
     static saveGprCNotification(data: {
         request_id: number
         gpr_c_data: {
-            gpr_c_approver_name?: string
-            gpr_c_approver_email?: string
+            gpr_c_approver_empcode?: string
             gpr_c_pc_pic_name?: string
             gpr_c_pc_pic_email?: string
-            gpr_c_circular_list?: string[]
+            gpr_c_circular_empcodes?: string[]
         }
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {

@@ -125,7 +125,7 @@ const EditVendorModal = ({
         <>
             <FormProvider {...formMethods}>
             <Dialog
-                maxWidth='sm'
+                maxWidth='lg'
                 fullWidth={true}
                 onClose={(event, reason) => {
                     if (reason !== 'backdropClick') {
@@ -134,7 +134,12 @@ const EditVendorModal = ({
                 }}
                 TransitionComponent={Transition}
                 open={open}
-                PaperProps={{ sx: { bgcolor: 'background.default' } }}
+                PaperProps={{
+                    sx: {
+                        bgcolor: 'background.default',
+                        width: 'min(1200px, calc(100vw - 32px))'
+                    }
+                }}
                 sx={{
                     '& .MuiDialog-paper': { overflow: 'visible' },
                     '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }

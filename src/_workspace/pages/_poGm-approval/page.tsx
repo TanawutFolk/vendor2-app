@@ -14,6 +14,7 @@ export default function PoGmApprovalPage() {
                     pageTitle='PO GM Approval'
                     queueStepCode='PO_GM_APPROVAL'
                     accentColor='#FF9F43'
+                    showSelectionSheetReadOnly
                 />
             </Grid>
         </Grid>

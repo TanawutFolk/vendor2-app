@@ -14,6 +14,7 @@ export default function MdApprovalPage() {
                     pageTitle='MD Approval'
                     queueStepCode='MD_APPROVAL'
                     accentColor='#28C76F'
+                    showSelectionSheetReadOnly
                 />
             </Grid>
         </Grid>

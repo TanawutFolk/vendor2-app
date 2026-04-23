@@ -141,6 +141,13 @@ export default function ReassignDialog({
                 />
 
                 <TextField
+                    fullWidth
+                    label='Current Owner'
+                    value={currentEmpCode || '-'}
+                    InputProps={{ readOnly: true }}
+                />
+
+                <TextField
                     select
                     fullWidth
                     label='Assign To'

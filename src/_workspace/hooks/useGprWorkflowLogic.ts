@@ -11,6 +11,7 @@ interface UseGprWorkflowLogicParams {
     approvalSteps: any[]
     hasSentGprCInSession?: boolean
     isActionable: boolean
+    isAssignedPicUser: boolean
     isPicOwnedNegotiationStep: boolean
     everRequestedVendor: boolean
     gprFormFilled: boolean
@@ -39,6 +40,7 @@ const useGprWorkflowLogic = ({
     approvalSteps,
     hasSentGprCInSession = false,
     isActionable,
+    isAssignedPicUser,
     isPicOwnedNegotiationStep,
     everRequestedVendor,
     gprFormFilled,
@@ -53,6 +55,7 @@ const useGprWorkflowLogic = ({
         const isPicPostVendorStep =
             isActionable
             && !!currentStep
+            && isAssignedPicUser
             && (isPicStep(currentStep) || isPicOwnedNegotiationStep)
             && everRequestedVendor
 
@@ -70,10 +73,11 @@ const useGprWorkflowLogic = ({
         const hasGprCApproved = gprCSteps.some((step: any) => completedStatuses.has(String(step?.step_status || '').toLowerCase()))
         const hasGprCRejected = gprCSteps.some((step: any) => rejectedStatuses.has(String(step?.step_status || '').toLowerCase()))
         const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.step_status || '').toLowerCase()))
+        const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
 
         const showSendToCheckerBtn = isPicPostVendorStep
         const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow
-        const showSendToRequesterBtn = isPicPostVendorStep && isPostSendGprBFlow
+        const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
         const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
 
         const showMissingSheetWarning = isPicPostVendorStep && !gprFormFilled
@@ -103,6 +107,7 @@ const useGprWorkflowLogic = ({
             hasGprCApproved,
             hasGprCRejected,
             hasGprCInProgress,
+            hasGprCSent,
             disableSendToCheckerBtn,
             disableSendToVendorBtn,
             disableSendToRequesterBtn,
@@ -111,9 +116,11 @@ const useGprWorkflowLogic = ({
             issueGprBStatusValue,
             issueGprCStatusValue,
             vendorDisagreedStatusValue,
-            approveLabel: isPostSendGprBFlow ? 'Approve GPR (B) and Send To Checker' : 'Approve and Send to Checker',
+            approveLabel: isCurrentIssueGprCStep
+                ? 'Approve GPR C'
+                : (isPostSendGprBFlow ? 'Approve and Send to Doc Checker' : 'Approve and Send to Doc Checker'),
             sendToVendorLabel: 'Send GPR B to Vendor',
-            sendToRequesterLabel: 'Send GPR (C) To Requester',
+            sendToRequesterLabel: 'Send GPR C to Requester Approval',
             rejectLabel: 'Reject',
         }
     }, [
@@ -125,6 +132,7 @@ const useGprWorkflowLogic = ({
         gprFormFilled,
         hasSentGprCInSession,
         isActionable,
+        isAssignedPicUser,
         isPicOwnedNegotiationStep,
         statusOptions,
     ])

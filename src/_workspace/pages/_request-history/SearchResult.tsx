@@ -43,6 +43,8 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 import StatusTimeline from './StatusTimeline'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import GprCNotificationDialog from './modal/GprCNotificationDialog'
+import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDialog'
+import { buildGprCriteriaSummary } from '@_workspace/utils/gprCriteriaSummary'
 
 // React Query
 import { useQueryClient } from '@tanstack/react-query'
@@ -168,8 +170,47 @@ const FileViewerDialog = ({ open, files, onClose }: {
 // ─────────────────────────────────────────────────────────────────────────────
 const DetailRenderer = ({ data }: { data: any }) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
+    const [gprDialogOpen, setGprDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const files = buildFileUrls(data?.documents)
+    const approvalSteps = useMemo(() => {
+        try {
+            return typeof data?.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data?.approval_steps || [])
+        } catch {
+            return []
+        }
+    }, [data?.approval_steps])
+    const approvalLogs = useMemo(() => {
+        try {
+            return typeof data?.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data?.approval_logs || [])
+        } catch {
+            return []
+        }
+    }, [data?.approval_logs])
+    const currentStep = approvalSteps.find((step: any) => step?.step_status === 'in_progress')
+    const parsedGprData = useMemo(() => {
+        try {
+            return typeof data?.gpr_data === 'string' ? JSON.parse(data.gpr_data) : (data?.gpr_data || null)
+        } catch {
+            return null
+        }
+    }, [data?.gpr_data])
+    const gprCriteriaFromData = Array.isArray(parsedGprData?.criteria) ? parsedGprData.criteria : []
+    const gprCriteria = useMemo(() => {
+        const raw = data?.gpr_criteria
+        if (Array.isArray(raw)) return raw
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) && parsed.length > 0 ? parsed : gprCriteriaFromData
+        } catch {
+            return gprCriteriaFromData
+        }
+    }, [data?.gpr_criteria, gprCriteriaFromData])
+    const gprCriteriaSummary = buildGprCriteriaSummary(gprCriteria)
+    const showRequesterReviewSummary = gprCriteriaSummary.hasIssues && (
+        isIssueGprCStep(currentStep)
+        || String(data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase().includes('issue gpr c')
+    )
 
     const workflowSteps = useMemo(() => {
         try {
@@ -352,14 +393,105 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         </Box>
                         <StatusTimeline
                             steps={workflowSteps}
-                            approvalSteps={(() => {
-                                try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
-                            })()}
-                            approvalLogs={(() => {
-                                try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
-                            })()}
+                            approvalSteps={approvalSteps}
+                            approvalLogs={approvalLogs}
                         />
                     </Box>
+
+                    {showRequesterReviewSummary && (
+                        <Box sx={{ mb: 4 }}>
+                            <SectionHeader icon='tabler-alert-triangle' title='Conditions Requiring Requester Review' />
+                            <Box sx={{
+                                p: 2,
+                                borderRadius: 1.5,
+                                border: '1px solid',
+                                borderColor: 'warning.light',
+                                bgcolor: 'warning.lighter'
+                            }}>
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 1.5 }}>
+                                    <Typography variant='body2' color='text.secondary'>
+                                        {gprCriteriaSummary.headline || 'Please review the unresolved Selection Sheet conditions before proceeding with GPR C setup.'}
+                                    </Typography>
+                                    <Button
+                                        size='small'
+                                        variant='outlined'
+                                        color='warning'
+                                        startIcon={<i className='tabler-clipboard-text' style={{ fontSize: 14 }} />}
+                                        onClick={() => setGprDialogOpen(true)}
+                                    >
+                                        View Selection Sheet
+                                    </Button>
+                                </Box>
+
+                                <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                    {gprCriteriaSummary.items.map(item => (
+                                        <ListItem
+                                            key={`${item.no}-${item.detail}`}
+                                            disableGutters
+                                            sx={{
+                                                alignItems: 'flex-start',
+                                                px: 1.25,
+                                                py: 1,
+                                                borderRadius: 1,
+                                                bgcolor: 'background.paper',
+                                                border: '1px solid',
+                                                borderColor: 'divider'
+                                            }}
+                                        >
+                                            <ListItemIcon sx={{ minWidth: 28, mt: 0.25 }}>
+                                                <i
+                                                    className={item.explicitNotAccept ? 'tabler-circle-x' : 'tabler-alert-circle'}
+                                                    style={{
+                                                        fontSize: 16,
+                                                        color: item.explicitNotAccept
+                                                            ? 'var(--mui-palette-error-main)'
+                                                            : 'var(--mui-palette-warning-main)'
+                                                    }}
+                                                />
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                        <Typography variant='body2' fontWeight={700}>
+                                                            {item.no} {item.detail}
+                                                        </Typography>
+                                                        <Chip
+                                                            size='small'
+                                                            color={item.criteriaType === 'Need' ? 'error' : 'warning'}
+                                                            variant='tonal'
+                                                            label={item.criteriaType}
+                                                            sx={{ height: 20, fontSize: '0.65rem' }}
+                                                        />
+                                                        {item.explicitNotAccept && (
+                                                            <Chip
+                                                                size='small'
+                                                                color='error'
+                                                                variant='outlined'
+                                                                label='Not Accept'
+                                                                sx={{ height: 20, fontSize: '0.65rem' }}
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                }
+                                                secondary={
+                                                    <Box sx={{ mt: 0.5 }}>
+                                                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block' }}>
+                                                            {item.reason}
+                                                        </Typography>
+                                                        {item.remark && (
+                                                            <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 0.25 }}>
+                                                                PIC Remark: {item.remark}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </Box>
+                        </Box>
+                    )}
 
                     {/* Attached Files */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
@@ -390,6 +522,12 @@ const DetailRenderer = ({ data }: { data: any }) => {
             </Card>
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
+            <GprFormDialog
+                open={gprDialogOpen}
+                rowData={data}
+                readOnly={true}
+                onClose={() => setGprDialogOpen(false)}
+            />
         </Box>
     )
 }

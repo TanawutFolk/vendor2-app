@@ -1,46 +1,43 @@
-import { useState, useMemo } from 'react'
-import { CardContent, IconButton, Button, Typography, Chip, Box } from '@mui/material'
-import type { ColDef } from 'ag-grid-community'
+import { useState, useMemo, useEffect } from 'react'
+import { CardContent, IconButton, Button, Chip, Box } from '@mui/material'
+import type { ColDef, ICellRendererParams } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useFormContext } from 'react-hook-form'
 import type { AssigneesFormData } from './validateSchema'
 import { useDxContext } from '@/_template/DxContextProvider'
 import { useAssignees } from '@_workspace/react-query/useAssignees'
-import { useDeleteAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import AddEditForm from './AddEditForm'
 import { GroupChip } from '@_workspace/utils/groupChipHelper'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+
+type AssigneeRow = {
+    empcode?: string
+    empName?: string
+    empEmail?: string
+    group_code?: string
+    group_name?: string
+    INUSE?: number | string
+    Assignees_id?: number
+}
 
 const SearchResult = () => {
     const { getValues } = useFormContext<AssigneesFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
-    // Manage Form Modal State
     const [openDialog, setOpenDialog] = useState(false)
-    const [editingData, setEditingData] = useState<any>(null)
+    const [editingData, setEditingData] = useState<AssigneeRow | null>(null)
 
-    // Fetch Data
     const { data: rowData = [], isLoading, isFetching } = useAssignees(getValues(), isEnableFetching)
 
-    // Delete Mutation
-    const { mutate: deleteAssignee } = useDeleteAssignee()
-
-    // Stop fetching loop after load
-    useMemo(() => {
+    useEffect(() => {
         if (!isLoading && !isFetching && isEnableFetching) {
             setIsEnableFetching(false)
         }
     }, [isLoading, isFetching, isEnableFetching, setIsEnableFetching])
 
-    const handleEdit = (data: any) => {
+    const handleEdit = (data: AssigneeRow) => {
         setEditingData(data)
         setOpenDialog(true)
-    }
-
-    const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this assignee?')) {
-            deleteAssignee(id)
-        }
     }
 
     const handleAddNew = () => {
@@ -54,15 +51,12 @@ const SearchResult = () => {
             colId: 'actions',
             pinned: 'left',
             width: 120,
-            cellRenderer: (params: any) => {
+            cellRenderer: (params: ICellRendererParams<AssigneeRow>) => {
                 if (!params.data) return null
                 return (
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
                         <IconButton size='small' color='primary' onClick={() => handleEdit(params.data)}>
                             <i className='tabler-edit' style={{ fontSize: 18 }} />
-                        </IconButton>
-                        <IconButton size='small' color='error' onClick={() => handleDelete(params.data.Assignees_id)}>
-                            <i className='tabler-trash' style={{ fontSize: 18 }} />
                         </IconButton>
                     </Box>
                 )
@@ -76,13 +70,13 @@ const SearchResult = () => {
             field: 'group_name',
             headerName: 'Group',
             flex: 1.5,
-            cellRenderer: (params: any) => <GroupChip value={params.data?.group_code || params.value} label={params.value} />
+            cellRenderer: (params: ICellRendererParams<AssigneeRow>) => <GroupChip value={params.data?.group_code || params.value} label={String(params.value || '')} />
         },
         {
             field: 'INUSE',
             headerName: 'Status',
             flex: 1,
-            cellRenderer: (params: any) => {
+            cellRenderer: (params: ICellRendererParams<AssigneeRow>) => {
                 const isActive = params.value === 1 || params.value === '1'
                 return (
                     <Chip
@@ -111,12 +105,12 @@ const SearchResult = () => {
                         pagination={true}
                     />
                 </div>
-                {/* Add/Edit Modal */}
-            <AddEditForm
-                open={openDialog}
-                onClose={() => setOpenDialog(false)}
-                initialData={editingData}
-            />
+                <AddEditForm
+                    open={openDialog}
+                    onClose={() => setOpenDialog(false)}
+                    onSaved={() => setIsEnableFetching(true)}
+                    initialData={editingData}
+                />
             </CardContent>
         </SearchResultCard>
     )

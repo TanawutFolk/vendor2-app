@@ -15,6 +15,7 @@ import SelectCustom from '@components/react-select/SelectCustom'
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -70,11 +71,11 @@ const SearchFilter = () => {
     }
 
     const onMutateSuccess = () => {
-        console.log('onMutateSuccess')
+        ToastMessageSuccess({ message: 'Search action completed successfully' })
     }
 
     const onMutateError = (e: any) => {
-        console.log('onMutateError', e)
+        ToastMessageError({ message: e?.response?.data?.Message || e?.message || 'Search action failed' })
     }
 
     const { mutate } = useCreate(onMutateSuccess, onMutateError)

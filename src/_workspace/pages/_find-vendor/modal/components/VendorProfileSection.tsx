@@ -1,5 +1,5 @@
-import { Box, Chip, Divider, Grid, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
-import { Controller, useFormContext } from 'react-hook-form'
+import { Box, Chip, Divider, Grid, MenuItem, Typography } from '@mui/material'
+import { Controller, useFormContext, useWatch } from 'react-hook-form'
 
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
@@ -17,10 +17,27 @@ type VendorProfileSectionProps = {
 const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: VendorProfileSectionProps) => {
     const {
         control,
-        getValues,
         setValue,
         formState: { errors },
     } = useFormContext<EditVendorSchemaType>()
+
+    const watchedVendorTypeId = useWatch({
+        control,
+        name: 'vendor_type_id',
+    })
+    const watchedVendorTypeName = useWatch({
+        control,
+        name: 'vendor_type_name',
+    })
+
+    const currentVendorTypeLabel =
+        watchedVendorTypeName
+        || originalData?.vendor_type_name
+        || ''
+    const currentVendorTypeId =
+        watchedVendorTypeId
+        ?? originalData?.vendor_type_id
+        ?? null
 
     return (
         <Box sx={{ position: 'relative', zIndex: 4 }}>
@@ -57,23 +74,36 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                             name='vendor_type_id'
                             control={control}
                             render={({ field }) => (
-                                <AsyncSelectCustom
-                                    label='Vendor Type'
-                                    {...field}
-                                    value={field.value ? { value: field.value, label: getValues('vendor_type_name') || 'Unknown' } : null}
-                                    onChange={(val: any) => {
-                                        const newValue = val && val.value !== undefined ? val.value : null
-                                        field.onChange(newValue)
-                                        setValue('vendor_type_name', val?.label || null)
-                                    }}
-                                    placeholder='Select Type...'
-                                    defaultOptions
-                                    cacheOptions
-                                    isClearable
-                                    loadOptions={fetchVendorTypes}
-                                    classNamePrefix='select'
-                                    isDisabled={editingMode === 'view'}
-                                />
+                                editingMode === 'view' ? (
+                                    <CustomTextField
+                                        fullWidth
+                                        label='Vendor Type'
+                                        value={currentVendorTypeLabel || ''}
+                                        size='small'
+                                        disabled
+                                        InputProps={{ readOnly: true }}
+                                    />
+                                ) : (
+                                    <AsyncSelectCustom
+                                        key={`${currentVendorTypeId ?? 'empty'}-${currentVendorTypeLabel || 'unknown'}`}
+                                        label='Vendor Type'
+                                        {...field}
+                                        value={currentVendorTypeId ? { value: currentVendorTypeId, label: currentVendorTypeLabel || 'Unknown' } : null}
+                                        defaultValue={currentVendorTypeId ? { value: currentVendorTypeId, label: currentVendorTypeLabel || 'Unknown' } : null}
+                                        onChange={(val: any) => {
+                                            const newValue = val && val.value !== undefined ? val.value : null
+                                            field.onChange(newValue)
+                                            setValue('vendor_type_name', val?.label || null)
+                                        }}
+                                        placeholder='Select Type...'
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        loadOptions={fetchVendorTypes}
+                                        classNamePrefix='select'
+                                        isDisabled={false}
+                                    />
+                                )
                             )}
                         />
                     </Grid>
@@ -82,11 +112,11 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                             name='vendor_region'
                             control={control}
                             render={({ field }) => (
-                                <Box>
-                                    <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                                        Vendor Region
-                                    </Typography>
-                                    {editingMode === 'view' ? (
+                                editingMode === 'view' ? (
+                                    <Box>
+                                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                                            Vendor Region
+                                        </Typography>
                                         <Chip
                                             label={field.value === 'Oversea' ? 'Oversea' : 'Local'}
                                             color={field.value === 'Oversea' ? 'info' : 'success'}
@@ -94,25 +124,20 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                                             variant='tonal'
                                             sx={{ fontWeight: 600 }}
                                         />
-                                    ) : (
-                                        <ToggleButtonGroup
-                                            value={field.value || 'Local'}
-                                            exclusive
-                                            onChange={(_, val) => {
-                                                if (val !== null) field.onChange(val)
-                                            }}
-                                            size='small'
-                                            color='primary'
-                                        >
-                                            <ToggleButton value='Local' sx={{ px: 3, fontWeight: 600 }}>
-                                                Local
-                                            </ToggleButton>
-                                            <ToggleButton value='Oversea' sx={{ px: 3, fontWeight: 600 }}>
-                                                Oversea
-                                            </ToggleButton>
-                                        </ToggleButtonGroup>
-                                    )}
-                                </Box>
+                                    </Box>
+                                ) : (
+                                    <CustomTextField
+                                        {...field}
+                                        select
+                                        fullWidth
+                                        label='Vendor Region'
+                                        value={field.value || 'Local'}
+                                        size='small'
+                                    >
+                                        <MenuItem value='Local'>Local</MenuItem>
+                                        <MenuItem value='Oversea'>Oversea</MenuItem>
+                                    </CustomTextField>
+                                )
                             )}
                         />
                     </Grid>

@@ -53,13 +53,11 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 
 // GPR Form Dialog
 import GprFormDialog from './modal/GprFormDialog'
-import GprCNotificationDialog from './modal/GprCNotificationDialog'
 
 // Reuse EditVendorModal from find-vendor page (Vendor Info + Contacts + Products editing)
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import {
     getApproveActionLabel,
-    getGprStageLabel,
     parseActionRequiredRemark,
     getRejectActionLabel,
     inferStepCode,
@@ -370,7 +368,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
-    const [gprCDialogOpen, setGprCDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
@@ -455,24 +452,35 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const isActionable = isCurrentStepMine && isRequestRegisterActionStep && !isAgreementReachedCompleted
     const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
     const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
+    const isAssignedPicUser = String(user?.EMPLOYEE_CODE || '').trim() === String(data.assign_to || '').trim()
     const isPoMgrOrAboveStep = [
         WORKFLOW_STEP_CODE.PO_MGR_APPROVAL,
         WORKFLOW_STEP_CODE.PO_GM_APPROVAL,
         WORKFLOW_STEP_CODE.MD_APPROVAL,
     ].includes(currentStepCode as any)
     const isRequester = String(data?.Request_By_EmployeeCode || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
+    const isRequesterGprCSetupPhase = Boolean(
+        isRequester
+        && currentStep
+        && isIssueGprCStep(currentStep)
+        && String(currentStep?.approver_id || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
+    )
     const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const everRequestedVendor = approvalLogs.some((l: any) => l.action_type === 'vendor_requested')
 
     const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep) && everRequestedVendor
-    const canOpenRequesterGprCDialog = isRequester && !isCurrentAccountStep
     const isGprReadOnly = !isCurrentAccountStep && isPoMgrOrAboveStep
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )
+    const isWaitingForExternalGprCApproval = Boolean(
+        currentStep
+        && isIssueGprCStep(currentStep)
+        && currentStep.approver_id
+        && currentStep.approver_id !== user?.EMPLOYEE_CODE
+    )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
-    const gprStageLabel = getGprStageLabel(currentStep, hasVendorRequested)
     const actionRequiredSetup = safeParseJSON<any>(data.action_required_json, {})
     const actionRequiredStage = resolveActionRequiredStage(currentStep)
     const actionRequiredStageConfig = actionRequiredStage ? (actionRequiredSetup?.[actionRequiredStage] || {}) : null
@@ -481,15 +489,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const actionRequiredLabel = actionRequiredStage
         ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
         : 'Action Required'
-    const circularListPreview = safeParseJSON<string[]>(data.gpr_c_circular_json, [])
-    const hasGprCSetup = Boolean(
-        data.gpr_c_approver_name
-        || data.gpr_c_approver_email
-        || data.gpr_c_pc_pic_name
-        || data.gpr_c_pc_pic_email
-        || (Array.isArray(circularListPreview) && circularListPreview.some(Boolean))
-    )
-
     // GPR evaluation: determine pass/fail from gpr_criteria (joined via vendor_selection_criteria)
     const parsedGprData = safeParseJSON<any>(data.gpr_data, null)
     const gprCriteriaFromData = Array.isArray(parsedGprData?.criteria) ? parsedGprData.criteria : []
@@ -525,6 +524,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         approvalSteps,
         hasSentGprCInSession: gprCSentInSession,
         isActionable,
+        isAssignedPicUser,
         isPicOwnedNegotiationStep,
         everRequestedVendor,
         gprFormFilled,
@@ -575,7 +575,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
-    const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions)
+    const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions, {
+        isRequesterGprCSetupPhase,
+    })
     const agreeAction = negotiationActions.find(action => action.key === 'agree')
     const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
@@ -937,10 +939,10 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
                             <Typography variant='caption' color='text.secondary'>
                                 {isGprReadOnly
-                                    ? `${gprStageLabel} (read-only)`
+                                    ? 'Selection Sheet (read-only)'
                                     : (data.gpr_data
-                                        ? `${gprStageLabel} filled - click to edit`
-                                        : `Fill in ${gprStageLabel} from vendor response`)}
+                                        ? 'Selection Sheet filled - click to edit'
+                                        : 'Fill in Selection Sheet from vendor response')}
                             </Typography>
                         </Box>
                     </Box>
@@ -954,41 +956,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             startIcon={<i className={isGprReadOnly ? 'tabler-eye' : ((hasPersistedGprData || gprSavedInSession) ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
                             onClick={() => setGprDialogOpen(true)}
                         >
-                            {isGprReadOnly ? `View ${gprStageLabel}` : ((hasPersistedGprData || gprSavedInSession) ? `Edit ${gprStageLabel}` : `Fill ${gprStageLabel}`)}
-                        </Button>
-                    </Box>
-                </Box>
-            )}
-
-            {canOpenRequesterGprCDialog && (
-                <Box sx={{
-                    mb: 3, p: 2, borderRadius: 1,
-                    border: '1px solid', borderColor: 'warning.main',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1
-                }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <i className='tabler-users' style={{ fontSize: 20, color: 'var(--mui-palette-warning-main)' }} />
-                        <Box>
-                            <Typography variant='subtitle2' fontWeight={700}>Requester GPR C Notification Setup</Typography>
-                            <Typography variant='caption' color='text.secondary'>
-                                Fill approver name and email, PC PIC, and circular list. This section belongs to requester.
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {hasGprCSetup && (
-                            <Chip label='Configured' size='small' color='success' variant='tonal'
-                                icon={<i className='tabler-circle-check' style={{ fontSize: 13 }} />}
-                            />
-                        )}
-                        <Button
-                            size='small'
-                            variant='contained'
-                            color='warning'
-                            startIcon={<i className={hasGprCSetup ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
-                            onClick={() => setGprCDialogOpen(true)}
-                        >
-                            {hasGprCSetup ? 'Edit Setup' : 'Setup'}
+                            {isGprReadOnly ? 'View Selection Sheet' : ((hasPersistedGprData || gprSavedInSession) ? 'Edit Selection Sheet' : 'Fill Selection Sheet')}
                         </Button>
                     </Box>
                 </Box>
@@ -1052,17 +1020,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                         fontWeight={600}
                                     >
                                         {gprWorkflow.hasGprCApproved
-                                            ? 'GPR C approvers approved. PIC can continue with Approve GPR (B) and Send To Checker.'
+                                            ? 'Requester head approved GPR C. PIC can continue with Approve and Send to Doc Checker.'
                                             : (gprWorkflow.hasGprCRejected
-                                                ? 'GPR C approvers rejected/disagreed. PIC should choose Reject to continue rejection loop.'
-                                                : 'Waiting for requester and GPR C approvers decision.')}
+                                                ? 'Requester head rejected/disagreed GPR C. PIC should choose Reject to continue rejection loop.'
+                                                : (isWaitingForExternalGprCApproval
+                                                    ? `Waiting for requester head (${currentStep?.approver_id}) to approve GPR C.`
+                                                    : 'Waiting for requester head approval decision.'))}
                                     </Typography>
                                 </Box>
                             )}
                             {gprWorkflow.showSendToCheckerBtn && (
                                 <Button variant='contained' color='success' fullWidth
                                     startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                    disabled={gprWorkflow.disableSendToCheckerBtn}
+                                    disabled={gprWorkflow.disableSendToCheckerBtn || isWaitingForExternalGprCApproval}
                                     onClick={() => onApprove(gprWorkflow.agreementReachedStatusValue || computedNextStatus, false, gprWorkflow.approveLabel)}
                                 >{gprWorkflow.approveLabel}</Button>
                             )}
@@ -1160,15 +1130,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 onSaved={() => {
                     setGprSavedInSession(true)
                     setGprDialogOpen(false)
-                    onEmailSent()
-                }}
-            />
-            <GprCNotificationDialog
-                open={gprCDialogOpen}
-                rowData={data}
-                onClose={() => setGprCDialogOpen(false)}
-                onSaved={() => {
-                    setGprCDialogOpen(false)
                     onEmailSent()
                 }}
             />
@@ -1336,6 +1297,7 @@ export default function SearchResult() {
             try {
                 const res = await RegisterRequestServices.getAll({
                     assign_to: empCode,
+                    approver_id: empCode,
                     SearchFilters: [
                         { id: 'company_name', value: f.vendor_name || null },
                         { id: 'Request_By_EmployeeCode', value: f.submitted_by || null },

@@ -58,8 +58,8 @@ import {
     isVendorDisagreedStep,
     resolveGroupCodeForStep,
     resolveNextStatus,
+    normalizeWorkflowText,
 } from '@_workspace/utils/requestWorkflow'
-import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -99,6 +99,187 @@ const getMyQueueStepStatus = (row: any, empCode?: string, queueStepCode?: string
     if (myQueueSteps.some((step: any) => step.step_status === 'rejected')) return 'rejected'
 
     return 'pending'
+}
+
+const normalizeStatusText = (value: unknown) => normalizeWorkflowText(String(value || ''))
+
+const resolveWorkflowStatusValue = (statusOptions: any[] = [], preferredText: string, fallbackValue: string) => {
+    const target = normalizeStatusText(preferredText)
+    const matched = statusOptions.find(option => {
+        const candidates = [
+            option?.value,
+            option?.label,
+            option?.status_value,
+            option?.status_label,
+            option?.DESCRIPTION,
+            option?.description,
+        ]
+        return candidates.some(candidate => normalizeStatusText(candidate) === target)
+    })
+
+    return matched?.value || fallbackValue
+}
+
+const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []) => {
+    const agreementReachedStatus = resolveWorkflowStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
+    const issueGprBStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
+    const issueGprCStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
+    const vendorDisagreedStatus = resolveWorkflowStatusValue(statusOptions, 'Vendor Disagreed', 'Vendor Disagreed')
+    const documentCheckStatus =
+        resolveWorkflowStatusValue(statusOptions, 'PO & SCM Check All Document', '')
+        || resolveWorkflowStatusValue(statusOptions, 'PO & SCM Checker', '')
+        || resolveWorkflowStatusValue(statusOptions, 'Check All Document', '')
+        || resolveWorkflowStatusValue(statusOptions, 'Document Checker', '')
+
+    if (isPendingAgreementStep(currentStep)) {
+        return {
+            isNegotiationStep: true,
+            actions: [
+                { key: 'agree', label: 'Approve', color: 'success', nextStatus: agreementReachedStatus, isFinalStep: false },
+                { key: 'disagree', label: 'Send GPR B to Vendor', color: 'warning', nextStatus: issueGprBStatus, isFinalStep: false },
+            ],
+        }
+    }
+
+    if (isIssueGprBStep(currentStep)) {
+        return {
+            isNegotiationStep: true,
+            actions: [
+                { key: 'agree', label: 'Approve', color: 'success', nextStatus: agreementReachedStatus, isFinalStep: false },
+                { key: 'disagree', label: 'Send GPR C to Requester Approval', color: 'warning', nextStatus: issueGprCStatus, isFinalStep: false },
+            ],
+        }
+    }
+
+    if (isIssueGprCStep(currentStep)) {
+        return {
+            isNegotiationStep: true,
+            actions: [
+                { key: 'agree', label: 'Approve GPR C', color: 'success', nextStatus: agreementReachedStatus, isFinalStep: false },
+                { key: 'disagree', label: 'Vendor Disagreed (Close)', color: 'error', nextStatus: vendorDisagreedStatus, isFinalStep: true },
+            ],
+        }
+    }
+
+    if (isAgreementReachedStep(currentStep)) {
+        return {
+            isNegotiationStep: true,
+            actions: [
+                { key: 'agree', label: 'Approve and Send to Doc Checker', color: 'success', nextStatus: documentCheckStatus || agreementReachedStatus, isFinalStep: false },
+                { key: 'disagree', label: 'Send GPR B to Vendor', color: 'warning', nextStatus: issueGprBStatus, isFinalStep: false },
+            ],
+        }
+    }
+
+    return {
+        isNegotiationStep: false,
+        actions: [],
+    }
+}
+
+const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string, statusOptions: any[] = []) => {
+    const approvalSteps: any[] = parseApprovalSteps(row?.approval_steps)
+        .sort((a: any, b: any) => a.step_order - b.step_order)
+
+    const logs: any[] = (() => {
+        try {
+            const parsed = typeof row?.approval_logs === 'string' ? JSON.parse(row.approval_logs) : (row?.approval_logs || [])
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+        } catch {
+            return []
+        }
+    })()
+
+    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+    const myActionedStep = approvalSteps.find((s: any) =>
+        s.approver_id === empCode && (s.step_status === 'approved' || s.step_status === 'rejected')
+    )
+
+    const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
+    const isPicOwnedNegotiationStep = !!currentStep && (
+        isPendingAgreementStep(currentStep) ||
+        isAgreementReachedStep(currentStep) ||
+        isIssueGprBStep(currentStep) ||
+        isIssueGprCStep(currentStep) ||
+        isVendorDisagreedStep(currentStep)
+    )
+    const isCurrentStepMine = !!currentStep && (
+        currentStep.approver_id === empCode ||
+        ((isCurrentPicStep || isPicOwnedNegotiationStep) && row.assign_to === empCode)
+    )
+    const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
+    const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
+    const hasVendorRequested = !!currentStep && logs.some((l: any) =>
+        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+    )
+    const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
+    const rejectButtonLabel = getRejectActionLabel(currentStep)
+    const actionRequiredSetup = (() => {
+        try {
+            return typeof row?.action_required_json === 'string' ? JSON.parse(row.action_required_json) : (row?.action_required_json || {})
+        } catch {
+            return {}
+        }
+    })()
+    const actionRequiredStage = resolveActionRequiredStage(currentStep)
+    const actionRequiredStageConfig = actionRequiredStage ? (actionRequiredSetup?.[actionRequiredStage] || {}) : null
+    const showActionRequiredBtn = Boolean(isCurrentStepMine && isCurrentStepMatchingQueue && actionRequiredStage)
+    const disableActionRequiredBtn = !String(actionRequiredStageConfig?.pic_email || '').trim()
+    const actionRequiredLabel = actionRequiredStage
+        ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
+        : 'Action Required'
+    const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
+        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+    )
+    const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
+    const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const isFinalStep = !!currentStep && !nextStep
+    const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
+    const workflowState = getNegotiationWorkflowState(currentStep, statusOptions)
+    const agreeAction = workflowState.actions.find(action => action.key === 'agree')
+    const disagreeAction = workflowState.actions.find(action => action.key === 'disagree')
+    const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
+
+    return {
+        approvalSteps,
+        logs,
+        myActionedStep,
+        isActionable,
+        approveButtonLabel,
+        rejectButtonLabel,
+        showActionRequiredBtn,
+        disableActionRequiredBtn,
+        actionRequiredLabel,
+        isFinalStep,
+        computedNextStatus,
+        isNegotiationStep: workflowState.isNegotiationStep,
+        agreeAction,
+        disagreeAction,
+        renderDisagreeFirst,
+    }
+}
+
+const getBulkApproveTarget = (row: any, empCode?: string, queueStepCode?: string, statusOptions: any[] = []) => {
+    const approvalState = getRowApprovalState(row, empCode, queueStepCode, statusOptions)
+
+    if (!approvalState.isActionable) return null
+
+    if (approvalState.isNegotiationStep) {
+        if (!approvalState.agreeAction) return null
+        return {
+            requestId: Number(row?.request_id),
+            nextStatus: approvalState.agreeAction.nextStatus,
+            isFinalStep: approvalState.agreeAction.isFinalStep,
+            approveActionLabel: approvalState.agreeAction.label,
+        }
+    }
+
+    return {
+        requestId: Number(row?.request_id),
+        nextStatus: approvalState.computedNextStatus,
+        isFinalStep: approvalState.isFinalStep,
+        approveActionLabel: approvalState.approveButtonLabel,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,55 +363,81 @@ const FileViewerDialog = ({ open, files, onClose }: {
 interface ActionDialogProps {
     open: boolean
     mode: 'approve' | 'reject'
-    requestId: number | null
-    nextStatus: string
-    isFinalStep: boolean
+    actions: Array<{
+        requestId: number
+        nextStatus: string
+        isFinalStep: boolean
+        approveActionLabel?: string
+        rejectActionLabel?: string
+    }>
     approveActionLabel: string
     rejectActionLabel: string
     onClose: () => void
     onSuccess: () => void
 }
 
-const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
+const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const [remark, setRemark] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const user = getUserData()
+    const actionCount = actions.length
+
+    useEffect(() => {
+        if (!open) {
+            setRemark('')
+            setError(null)
+        }
+    }, [open])
 
     const handleSubmit = async () => {
-        if (!requestId) return
+        if (actions.length === 0) return
         setLoading(true)
         setError(null)
         try {
-            const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
-            const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
-            const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
-                mode === 'reject'
-                    ? 'REJECT'
-                    : (normalizedApproveLabel.includes('action required')
-                        ? 'ACTION_REQUIRED'
-                        : (normalizedNextStatus.includes('issue gpr b')
-                            || normalizedNextStatus.includes('issue gpr c')
-                            || normalizedNextStatus.includes('vendor disagre')
-                            ? 'DISAGREE'
-                            : 'APPROVE'))
+            const failedRequestIds: number[] = []
+            let failedMessage = 'Failed to update status'
 
-            const res = await RegisterRequestServices.updateStatus({
-                request_id: requestId,
-                request_status: mode === 'approve' ? nextStatus : 'Rejected',
-                workflow_action: workflowAction,
-                approve_by: user?.EMPLOYEE_CODE || '',
-                approver_remark: remark,
-                UPDATE_BY: user?.EMPLOYEE_CODE || '',
-                isFinalStep: mode === 'approve' ? isFinalStep : false,
-            })
-            if (res.data.Status) {
-                setRemark('')
-                onSuccess()
-                onClose()
-            } else {
-                setError(res.data.Message || 'Failed to update status')
+            for (const action of actions) {
+                const effectiveNextStatus = String(action.nextStatus || '').trim()
+                const effectiveApproveLabel = String(action.approveActionLabel || approveActionLabel || '').trim()
+                const normalizedNextStatus = effectiveNextStatus.toLowerCase()
+                const normalizedApproveLabel = effectiveApproveLabel.toLowerCase()
+                const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
+                    mode === 'reject'
+                        ? 'REJECT'
+                        : (normalizedApproveLabel.includes('action required')
+                            ? 'ACTION_REQUIRED'
+                            : (normalizedNextStatus.includes('issue gpr b')
+                                || normalizedNextStatus.includes('issue gpr c')
+                                || normalizedNextStatus.includes('vendor disagre')
+                                ? 'DISAGREE'
+                                : 'APPROVE'))
+
+                const res = await RegisterRequestServices.updateStatus({
+                    request_id: action.requestId,
+                    request_status: mode === 'approve' ? effectiveNextStatus : 'Rejected',
+                    workflow_action: workflowAction,
+                    approve_by: user?.EMPLOYEE_CODE || '',
+                    approver_remark: remark,
+                    UPDATE_BY: user?.EMPLOYEE_CODE || '',
+                    isFinalStep: mode === 'approve' ? action.isFinalStep : false,
+                })
+
+                if (!res.data.Status) {
+                    failedRequestIds.push(action.requestId)
+                    failedMessage = res.data.Message || failedMessage
+                }
             }
+
+            if (failedRequestIds.length > 0) {
+                setError(`${failedMessage} (Request: ${failedRequestIds.join(', ')})`)
+                onSuccess()
+                return
+            }
+
+            onSuccess()
+            onClose()
         } catch (e: any) {
             setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
         } finally {
@@ -261,7 +468,9 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action ${approveActionLabel}` : `Confirm action ${rejectActionLabel}`}
+                        {mode === 'approve'
+                            ? (actionCount > 1 ? `Confirm approve ${actionCount} selected requests` : `Confirm action ${approveActionLabel}`)
+                            : `Confirm action ${rejectActionLabel}`}
                     </Typography>
                 </Box>
 
@@ -305,12 +514,13 @@ interface DetailPanelProps {
     data: any
     empCode: string | undefined
     queueStepCode?: string
+    showSelectionSheetReadOnly?: boolean
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: (rejectActionLabel: string) => void
     onRefresh: () => void
 }
 
-const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefresh }: DetailPanelProps) => {
+const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly = false, onApprove, onReject, onRefresh }: DetailPanelProps) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [gprFormOpen, setGprFormOpen] = useState(false)
     const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
@@ -376,7 +586,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
-    const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions)
+    const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(currentStep, statusOptions)
     const agreeAction = negotiationActions.find(action => action.key === 'agree')
     const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
@@ -460,7 +670,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, onApprove, onReject, onRefr
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
                         <Divider sx={{ flex: 1 }} />
                     </Box>
-                    {data.supportProduct_Process && (
+                    {showSelectionSheetReadOnly && (
                         <Button size='small' variant='tonal' color='primary' sx={{ ml: 2 }}
                             startIcon={<i className='tabler-file-report' style={{ fontSize: 16 }} />}
                             onClick={() => setGprFormOpen(true)}
@@ -746,6 +956,7 @@ const DetailRenderer = (props: any) => {
             data={props.data}
             empCode={props.context.empCode}
             queueStepCode={props.context.queueStepCode}
+            showSelectionSheetReadOnly={props.context.showSelectionSheetReadOnly}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
             onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
             onRefresh={() => props.context.onRefresh()}
@@ -764,26 +975,28 @@ interface ApprovalPageContentProps {
     queueStepCode?: string
     /** Accent color for the page header strip */
     accentColor?: string
+    /** Show selection sheet in read-only mode for approval pages. */
+    showSelectionSheetReadOnly?: boolean
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0' }: ApprovalPageContentProps) {
+export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const [totalCount, setTotalCount] = useState(0)
     const [collapse, setCollapse] = useState(false)
     const gridApiRef = useRef<any>(null)
     const [vendorNameFilter, setVendorNameFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState<any>(null)
+    const [selectedRows, setSelectedRows] = useState<any[]>([])
 
     const [selectedData, setSelectedData] = useState<any | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
 
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
-    const [nextStatus, setNextStatus] = useState('')
-    const [isFinalStep, setIsFinalStep] = useState(false)
+    const [pendingActions, setPendingActions] = useState<ActionDialogProps['actions']>([])
     const [approveActionLabel, setApproveActionLabel] = useState('Approve')
     const [rejectActionLabel, setRejectActionLabel] = useState('Reject')
 
@@ -835,10 +1048,23 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     const handleClear = useCallback(() => {
         setVendorNameFilter('')
         setStatusFilter(null)
+        setSelectedRows([])
         setTimeout(() => gridApiRef.current?.refreshServerSide({ purge: true }), 50)
     }, [])
 
     const colDefs = useMemo<ColDef[]>(() => [
+        {
+            headerName: '',
+            field: 'select',
+            width: 56,
+            pinned: 'left',
+            sortable: false,
+            filter: false,
+            resizable: false,
+            checkboxSelection: (params: any) => Boolean(getBulkApproveTarget(params.data, empCode, queueStepCode, statusOptions)),
+            headerCheckboxSelection: true,
+            headerCheckboxSelectionFilteredOnly: true,
+        },
         {
             headerName: '',
             field: 'view',
@@ -977,29 +1203,48 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         gridApiRef.current?.refreshServerSide({ purge: true })
         setDrawerOpen(false)
         setSelectedData(null)
+        setSelectedRows([])
+        setPendingActions([])
     }, [])
+
+    const bulkApproveTargets = useMemo(
+        () => selectedRows
+            .map(row => getBulkApproveTarget(row, empCode, queueStepCode, statusOptions))
+            .filter(Boolean),
+        [selectedRows, empCode, queueStepCode, statusOptions]
+    )
 
     const gridContext = useMemo(() => ({
         empCode,
         queueStepCode,
+        showSelectionSheetReadOnly,
         onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
             setSelectedData(data)
-            setNextStatus(status)
-            setIsFinalStep(finalStep)
+            setPendingActions([{
+                requestId: Number(data?.request_id),
+                nextStatus: status,
+                isFinalStep: finalStep,
+                approveActionLabel: actionLabel,
+            }])
             setApproveActionLabel(actionLabel || 'Approve')
             setActionMode('approve')
             setActionDialogOpen(true)
         },
         onReject: (data: any, actionLabel: string) => {
             setSelectedData(data)
-            setIsFinalStep(false)
+            setPendingActions([{
+                requestId: Number(data?.request_id),
+                nextStatus: 'Rejected',
+                isFinalStep: false,
+                rejectActionLabel: actionLabel,
+            }])
             setApproveActionLabel('Approve')
             setRejectActionLabel(actionLabel || 'Reject')
             setActionMode('reject')
             setActionDialogOpen(true)
         },
         onRefresh: handleActionSuccess
-    }), [empCode, queueStepCode, handleActionSuccess])
+    }), [empCode, queueStepCode, showSelectionSheetReadOnly, handleActionSuccess])
 
     return (
         <Grid container spacing={6}>
@@ -1050,14 +1295,31 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             <Grid item xs={12}>
                 <SearchResultCard
                     action={
-                        <Typography
-                            variant='body2'
-                            color='text.secondary'
-                            title={pageTitle}
-                            sx={{ color: accentColor, fontWeight: 600 }}
-                        >
-                            Total: {totalCount}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                            <Typography
+                                variant='body2'
+                                color='text.secondary'
+                                title={pageTitle}
+                                sx={{ color: accentColor, fontWeight: 600 }}
+                            >
+                                Total: {totalCount}
+                            </Typography>
+                            <Button
+                                variant='contained'
+                                color='success'
+                                size='small'
+                                startIcon={<i className='tabler-checks' style={{ fontSize: 16 }} />}
+                                disabled={bulkApproveTargets.length === 0}
+                                onClick={() => {
+                                    setPendingActions(bulkApproveTargets as ActionDialogProps['actions'])
+                                    setApproveActionLabel('Approve Selected')
+                                    setActionMode('approve')
+                                    setActionDialogOpen(true)
+                                }}
+                            >
+                                Approve Selected ({bulkApproveTargets.length})
+                            </Button>
+                        </Box>
                     }
                 >
                     <CardContent sx={{ p: '24px !important' }}>
@@ -1068,10 +1330,12 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                             overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
                             getRowId={(p: any) => String(p.data.request_id)}
                             onGridReady={(p: any) => { gridApiRef.current = p.api }}
+                            onSelectionChanged={(p: any) => setSelectedRows(p.api.getSelectedRows())}
                             masterDetail={true}
                             detailCellRenderer={DetailRenderer}
                             detailRowHeight={800}
                             context={gridContext}
+                            rowSelection='multiple'
                         />
                     </CardContent>
                 </SearchResultCard>
@@ -1081,9 +1345,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             <ActionDialog
                 open={actionDialogOpen}
                 mode={actionMode}
-                requestId={selectedData?.request_id || null}
-                nextStatus={nextStatus}
-                isFinalStep={isFinalStep}
+                actions={pendingActions}
                 approveActionLabel={approveActionLabel}
                 rejectActionLabel={rejectActionLabel}
                 onClose={() => setActionDialogOpen(false)}

@@ -180,12 +180,14 @@ export const getApproveActionLabel = (currentStep: any, hasVendorRequested: bool
         if (!hasVendorRequested) return 'Approve and Send Email To Vendor'
         if (isPendingAgreementStep(currentStep)) return 'Vendor Agreed (Continue)'
         if (isIssueGprBStep(currentStep)) return 'Send GPR B to Vendor'
-            if (isIssueGprCStep(currentStep)) return 'Send GPR C to Requester'
+        if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
         return 'Confirm'
     }
 
     if (isPendingAgreementStep(currentStep)) return 'Confirm Agreement'
-    if (isIssueGprBStep(currentStep) || isIssueGprCStep(currentStep)) return 'Continue Negotiation'
+    if (isIssueGprBStep(currentStep)) return 'Send GPR C to Requester Approval'
+    if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
+    if (isAgreementReachedStep(currentStep)) return 'Approve and Send to Doc Checker'
 
     return 'Confirm'
 }
@@ -197,11 +199,11 @@ export const getRejectActionLabel = (currentStep: any) => {
     }
     return 'Reject'
 }
-
+// ทำทำไม โฟค 22/04/2026
 export const getGprStageLabel = (currentStep: any, hasVendorRequested: boolean) => {
     if (!currentStep) return 'Supplier / Outsourcing Selection Sheet'
-    if (isIssueGprBStep(currentStep)) return 'GPR B'
-    if (isIssueGprCStep(currentStep)) return 'GPR C'
+    if (isIssueGprBStep(currentStep)) return 'Supplier / Outsourcing Selection Sheet'
+    if (isIssueGprCStep(currentStep)) return 'Supplier / Outsourcing Selection Sheet'
     if (isPendingAgreementStep(currentStep) && hasVendorRequested) return 'Pending agreement'
     return 'Supplier / Outsourcing Selection Sheet'
 }
