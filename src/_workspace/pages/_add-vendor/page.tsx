@@ -17,8 +17,6 @@ import { SectionCheck, SectionProfile, SectionContacts, SectionProducts } from '
 
 // Modal Components
 import ConfirmModal from '@components/ConfirmModal'
-import SuccessModal from './modal/SuccessModal'
-import ErrorModal from './modal/ErrorModal'
 
 // React Query Imports
 import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
@@ -37,11 +35,6 @@ const AddVendorPage = () => {
     // States
     const [isVerified, setIsVerified] = useState(false)
     const [confirmModal, setConfirmModal] = useState(false)
-    const [successModal, setSuccessModal] = useState(false)
-    const [successVendorId, setSuccessVendorId] = useState<number | undefined>(undefined)
-    const [successVendorData, setSuccessVendorData] = useState<AddVendorFormData | undefined>(undefined)
-    const [errorModal, setErrorModal] = useState(false)
-    const [errorMessage, setErrorMessage] = useState<string>('')
 
     // Hooks : react-hook-form
     const methods = useForm<AddVendorFormData>({
@@ -61,28 +54,17 @@ const AddVendorPage = () => {
             const result = response.data || response
             setConfirmModal(false)
             if (result.Status) {
-                setSuccessVendorId(result.vendorId)
-                setSuccessVendorData(getValues())
-                setSuccessModal(true)
-            } else {
-                setErrorMessage(result.Message || 'Failed to create vendor')
-                setErrorModal(true)
+                handleReset()
             }
         },
-        (error: Error) => {
+        () => {
             setConfirmModal(false)
-            setErrorMessage(`Failed to create vendor: ${error?.message}`)
-            setErrorModal(true)
         }
     )
 
     // Functions
-    const handleVerifyChange = (verified: boolean, errorMsg?: string) => {
+    const handleVerifyChange = (verified: boolean) => {
         setIsVerified(verified)
-        if (errorMsg) {
-            setErrorMessage(errorMsg)
-            setErrorModal(true)
-        }
     }
 
     const handleReset = () => {
@@ -92,8 +74,6 @@ const AddVendorPage = () => {
         })
         setIsVerified(false)
         setConfirmModal(false)
-        setSuccessModal(false)
-        setErrorModal(false)
     }
 
     const onSubmit: SubmitHandler<AddVendorFormData> = () => {
@@ -203,20 +183,6 @@ const AddVendorPage = () => {
                     onCloseClick={() => setConfirmModal(false)}
                     isDelete={false}
                     isLoading={isSaving}
-                />
-                <SuccessModal
-                    show={successModal}
-                    title='Saved Successfully!'
-                    message='New vendor information has been added.'
-                    vendorId={successVendorId}
-                    vendorData={successVendorData}
-                    onCloseClick={() => { setSuccessModal(false); handleReset(); }}
-                />
-                <ErrorModal
-                    show={errorModal}
-                    title='This vendor is already in the system.'
-                    message='Please check the vendor name and try again.'
-                    onCloseClick={() => setErrorModal(false)}
                 />
             </Grid>
         </>

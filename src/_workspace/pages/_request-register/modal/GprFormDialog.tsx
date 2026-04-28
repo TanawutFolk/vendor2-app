@@ -1,8 +1,7 @@
-import React, { forwardRef, useMemo } from 'react'
+import React, { forwardRef, useMemo, useState } from 'react'
 import type { ReactElement, Ref } from 'react'
 import type { SlideProps } from '@mui/material'
 import {
-    Alert,
     Box,
     Button,
     Checkbox,
@@ -36,6 +35,7 @@ import {
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import SelectCustom from '@components/react-select/SelectCustom'
+import ConfirmModal from '@components/ConfirmModal'
 import ReactApexChart from 'react-apexcharts'
 import {
     Controller,
@@ -45,11 +45,11 @@ import {
     useWatch,
 } from 'react-hook-form'
 import { useGprForm, BUSINESS_CATEGORIES } from './useGprForm'
-import type { GprFormData, GprFormDialogProps } from './useGprForm'
+import type { GprFormData, GprFormDialogProps, SanctionsCheckState } from './useGprForm'
 import {
-    inferActorType,
     inferStepCode,
     isAccountStep,
+    isAgreementReachedStep,
 } from '@_workspace/utils/requestWorkflow'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
@@ -148,48 +148,130 @@ const CompanyInfoSection = React.memo(() => {
     )
 })
 
-const SanctionsSection = React.memo(() => {
+const SanctionsSection = React.memo(({
+    checking,
+    checkState,
+    onRecheck,
+}: {
+    checking: boolean
+    checkState: SanctionsCheckState | null
+    onRecheck: () => void
+}) => {
     const { control } = useFormContext<GprFormData>()
+    const checkedAt = checkState?.checkedAt
+        ? new Date(checkState.checkedAt).toLocaleString()
+        : ''
+    const hasMatches = Boolean(checkState?.matches.length)
+    const autoSanctions = checkState
+        ? (hasMatches ? 'concerned' : 'non-concerned')
+        : ''
 
     return (
         <>
             <SectionTitle no={2} title='List of two political parties subject to sanctions' />
             <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
-                <FormControl>
-                    <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.75, color: 'text.primary' }}>
-                        Sanctions status
-                    </FormLabel>
-                    <Controller
-                        name='sanctions'
-                        control={control}
-                        render={({ field }) => (
-                            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            size='small'
-                                            color='success'
-                                            checked={field.value === 'non-concerned'}
-                                            onChange={() => field.onChange(field.value === 'non-concerned' ? '' : 'non-concerned')}
-                                        />
-                                    }
-                                    label={<Typography variant='body2' fontWeight={600} color='success.main'>Non-concerned</Typography>}
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            size='small'
-                                            color='error'
-                                            checked={field.value === 'concerned'}
-                                            onChange={() => field.onChange(field.value === 'concerned' ? '' : 'concerned')}
-                                        />
-                                    }
-                                    label={<Typography variant='body2' fontWeight={600} color='error.main'>Concerned</Typography>}
-                                />
-                            </Box>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                    <FormControl>
+                        <FormLabel sx={{ fontSize: '0.8rem', fontWeight: 600, mb: 0.75, color: 'text.primary' }}>
+                            Sanctions status
+                        </FormLabel>
+                        <Controller
+                            name='sanctions'
+                            control={control}
+                            render={() => (
+                                <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size='small'
+                                                color='success'
+                                                checked={autoSanctions === 'non-concerned'}
+                                                disabled
+                                            />
+                                        }
+                                        label={<Typography variant='body2' fontWeight={600} color='success.main'>Non-concerned</Typography>}
+                                    />
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                size='small'
+                                                color='error'
+                                                checked={autoSanctions === 'concerned'}
+                                                disabled
+                                            />
+                                        }
+                                        label={<Typography variant='body2' fontWeight={600} color='error.main'>Concerned</Typography>}
+                                    />
+                                </Box>
+                            )}
+                        />
+                    </FormControl>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {hasMatches && (
+                            <Chip
+                                size='small'
+                                color='error'
+                                variant='tonal'
+                                label={`${checkState?.matches.length || 0} blacklist match(es)`}
+                            />
                         )}
-                    />
-                </FormControl>
+                        <Button
+                            size='small'
+                            variant='tonal'
+                            color='primary'
+                            onClick={onRecheck}
+                            disabled={checking}
+                        >
+                            {checking ? 'Checking...' : 'Re-check Blacklist'}
+                        </Button>
+                    </Box>
+                </Box>
+                {checkState && (
+                    <Box sx={{ mt: 1.5 }}>
+                        {hasMatches && (
+                            <Typography variant='caption' color='error.main' sx={{ display: 'block' }}>
+                                {checkState.message}
+                            </Typography>
+                        )}
+                        {checkedAt && (
+                            <Typography variant='caption' color='text.disabled'>
+                                Last checked: {checkedAt}
+                            </Typography>
+                        )}
+                    </Box>
+                )}
+                {hasMatches && (
+                    <Box sx={{ overflowX: 'auto', mt: 2 }}>
+                        <Table size='small' sx={{ minWidth: 640 }}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {checkState.matches.map((match, idx) => (
+                                    <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                                        <TableCell>
+                                            <Chip
+                                                label={match.group_code}
+                                                size='small'
+                                                color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
+                                        <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                        <TableCell>{match.source_name || '-'}</TableCell>
+                                        <TableCell>{match.entity_number || '-'}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Box>
+                )}
             </Paper>
         </>
     )
@@ -770,7 +852,8 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         methods,
         saving,
         generatingPdf,
-        feedback,
+        sanctionsChecking,
+        sanctionsCheck,
         criteriaUploading,
         criteriaError,
         fileInputRef,
@@ -780,10 +863,11 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         removeCriteriaUpload,
         handleSave,
         handleExportPdf,
-        clearFeedback,
+        checkSanctions,
         handleDialogClose,
         handleCloseClick,
     } = useGprForm({ open, rowData, onClose, onSaved })
+    const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
 
     const approvalSteps = useMemo(() => {
         const rawSteps = rowData?.approval_steps
@@ -807,6 +891,15 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
 
     const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
     const requestRef = rowData?.request_number || rowData?.request_id || '-'
+    const handleConfirmAction = async () => {
+        if (confirmAction === 'save') {
+            await handleSave()
+        } else if (confirmAction === 'export') {
+            await handleExportPdf()
+        }
+
+        setConfirmAction(null)
+    }
 
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
@@ -854,12 +947,12 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             return matched[0]
         }
 
-        const findLatestApprovedPicStep = () => {
+        const findLatestApprovedAgreementReachedStep = () => {
             const matched = approvalSteps.filter((step: any) => {
                 const status = String(step?.step_status || '').toLowerCase()
                 if (!approvedStatuses.has(status)) return false
 
-                return inferActorType(step) === 'PIC'
+                return isAgreementReachedStep(step)
             })
 
             matched.sort((a: any, b: any) => {
@@ -882,7 +975,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         })
 
         return [
-            mapSlot('Issuer', findLatestApprovedPicStep()),
+            mapSlot('Issuer', findLatestApprovedAgreementReachedStep()),
             mapSlot('Manager', findLatestApprovedStep('PO_MGR_APPROVAL')),
             mapSlot('General Manager', findLatestApprovedStep('PO_GM_APPROVAL')),
             mapSlot('Managing Director', findLatestApprovedStep('MD_APPROVAL')),
@@ -930,21 +1023,21 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                 </DialogTitle>
 
                 <DialogContent dividers sx={{ px: 4, py: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-                    {feedback && (
-                        <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={clearFeedback}>
-                            {feedback.msg}
-                        </Alert>
-                    )}
-
                     {isReadOnlyMode && (
-                        <Alert severity='info' sx={{ mb: 2 }}>
+                        <Box sx={{ mb: 2, px: 2, py: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
+                            <Typography variant='body2' color='text.secondary'>
                             This sheet is in read-only mode at the current workflow step.
-                        </Alert>
+                            </Typography>
+                        </Box>
                     )}
 
                     <DisabledBlock disabled={isAccountVendorCodeOnlyMode || isReadOnlyMode}>
                         <CompanyInfoSection />
-                        <SanctionsSection />
+                        <SanctionsSection
+                            checking={sanctionsChecking}
+                            checkState={sanctionsCheck}
+                            onRecheck={checkSanctions}
+                        />
                         <GeneralInfoSection />
                         <CriteriaSection
                             criteriaUploading={criteriaUploading}
@@ -964,7 +1057,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     <Button
                         variant='tonal'
                         color='primary'
-                        onClick={handleSave}
+                        onClick={() => setConfirmAction('save')}
                         disabled={isBusy || isReadOnlyMode}
                         startIcon={saving ? <CircularProgress size={14} /> : <i className='tabler-device-floppy' style={{ fontSize: 16 }} />}
                     >
@@ -973,7 +1066,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     <Button
                         variant='contained'
                         color='primary'
-                        onClick={handleExportPdf}
+                        onClick={() => setConfirmAction('export')}
                         disabled={isBusy || isReadOnlyMode}
                         startIcon={generatingPdf ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-file-type-pdf' style={{ fontSize: 16 }} />}
                     >
@@ -984,6 +1077,13 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     </Button>
                 </DialogActions>
             </Dialog>
+            <ConfirmModal
+                show={Boolean(confirmAction)}
+                onConfirmClick={handleConfirmAction}
+                onCloseClick={() => setConfirmAction(null)}
+                isDelete={false}
+                isLoading={isBusy}
+            />
         </FormProvider>
     )
 }

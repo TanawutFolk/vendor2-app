@@ -6,7 +6,7 @@
 
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
 import type { GprFormData } from './useGprForm'
-import { inferStepCode } from '@_workspace/utils/requestWorkflow'
+import { inferStepCode, isAgreementReachedStep } from '@_workspace/utils/requestWorkflow'
 import fitelLogo from '@_workspace/utils/fitelLogo.png'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
@@ -273,13 +273,33 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         return matched[0]
     }
 
+    const findLatestApprovedAgreementReachedStep = () => {
+        const matched = approvalSteps.filter((step: any) => {
+            const status = String(step?.step_status || '').toLowerCase()
+            if (!approvedStatuses.has(status)) return false
+
+            return isAgreementReachedStep(step)
+        })
+
+        matched.sort((a: any, b: any) => {
+            const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+            if (orderDiff !== 0) return orderDiff
+
+            const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
+            const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
+            return bTime - aTime
+        })
+
+        return matched[0]
+    }
+
     const signatureSlots: SignatureSlot[] = [
-        { role: 'Issuer', stepCode: 'PIC_REVIEW' },
-        { role: 'Manager', stepCode: 'PO_MGR_APPROVAL' },
-        { role: 'General Manager', stepCode: 'PO_GM_APPROVAL' },
-        { role: 'Managing Director', stepCode: 'MD_APPROVAL' },
+        { role: 'Issuer', step: findLatestApprovedAgreementReachedStep() },
+        { role: 'Manager', step: findLatestApprovedStep('PO_MGR_APPROVAL') },
+        { role: 'General Manager', step: findLatestApprovedStep('PO_GM_APPROVAL') },
+        { role: 'Managing Director', step: findLatestApprovedStep('MD_APPROVAL') },
     ].map((item: any) => {
-        const step = findLatestApprovedStep(item.stepCode)
+        const step = item.step
         return {
             role: item.role,
             code: String(step?.approver_id || '').trim(),

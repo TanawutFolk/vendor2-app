@@ -81,11 +81,12 @@ const useGprWorkflowLogic = ({
         const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
 
         const showMissingSheetWarning = isPicPostVendorStep && !gprFormFilled
-        const showCriteriaWarning = isPicPostVendorStep && gprFormFilled && !gprEvalPassed && !isApproveBypassEnabled
+        const shouldEnforceGprACriteria = !isPostSendGprBFlow && !isApproveBypassEnabled
+        const showCriteriaWarning = isPicPostVendorStep && gprFormFilled && !gprEvalPassed && shouldEnforceGprACriteria
         const showGprCDecisionStatus = isPicPostVendorStep && isPostSendGprBFlow
 
         const disableSendToCheckerBtn = !gprFormFilled
-            || (!gprEvalPassed && !isApproveBypassEnabled)
+            || (!gprEvalPassed && shouldEnforceGprACriteria)
             || (isPostSendGprBFlow && !hasGprCApproved)
         const disableSendToVendorBtn = !gprFormFilled
         const disableSendToRequesterBtn = !gprFormFilled

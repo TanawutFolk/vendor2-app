@@ -16,6 +16,8 @@ const useCreate = (onSuccess: any, onError: any) => {
             const result = response.data || response
             if (result.Status) {
                 ToastMessageSuccess({ message: 'Vendor added successfully' })
+            } else {
+                ToastMessageError({ message: result.Message || 'Failed to create vendor' })
             }
             onSuccess?.(response)
         },

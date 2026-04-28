@@ -5,18 +5,19 @@ import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDial
 
 // MUI Imports
 import {
-    Grid, Card, CardContent, Box, Typography, Chip, Divider,
+    Grid, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
+    Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress, CardContent,
     TextField, Alert
 } from '@mui/material'
+import type { ButtonProps } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 
 import undraw_clean_up_re_504g from '@assets/images/common/undraw_clean_up_re_504g.svg'
 import undraw_notify_re_65on from '@assets/images/common/undraw_notify_re_65on.svg'
 
 // AG Grid Imports
-import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
+import type { ColDef, IServerSideDatasource } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
 import type { ReactElement, Ref } from 'react'
@@ -32,7 +33,7 @@ const Transition = forwardRef(function Transition(
 })
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
+import SearchFilter from './SearchFilter'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
@@ -56,10 +57,70 @@ import {
     resolveActionRequiredStage,
     getActionRequiredStageLabel,
     isVendorDisagreedStep,
-    resolveGroupCodeForStep,
     resolveNextStatus,
     normalizeWorkflowText,
 } from '@_workspace/utils/requestWorkflow'
+
+interface SearchResultSectionProps {
+    enableMultiSelect: boolean
+    bulkApproveCount: number
+    onBulkApprove: () => void
+    columnDefs: ColDef[]
+    datasource: IServerSideDatasource
+    onGridReady: (params: any) => void
+    onSelectionChanged: (params: any) => void
+    detailCellRenderer: any
+    detailRowHeight: number
+    context: Record<string, any>
+}
+
+const SearchResultSection = ({
+    enableMultiSelect,
+    bulkApproveCount,
+    onBulkApprove,
+    columnDefs,
+    datasource,
+    onGridReady,
+    onSelectionChanged,
+    detailCellRenderer,
+    detailRowHeight,
+    context,
+}: SearchResultSectionProps) => {
+    return (
+        <SearchResultCard
+            action={enableMultiSelect ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                        variant='contained'
+                        color='success'
+                        size='small'
+                        disabled={bulkApproveCount === 0}
+                        onClick={onBulkApprove}
+                    >
+                        {`Approve Selected (${bulkApproveCount})`}
+                    </Button>
+                </Box>
+            ) : null}
+        >
+            <CardContent sx={{ p: '24px !important' }}>
+                <DxAGgridTable
+                    columnDefs={columnDefs}
+                    serverSideDatasource={datasource}
+                    height={600}
+                    overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
+                    getRowId={(params: any) => String(params.data.request_id)}
+                    onGridReady={onGridReady}
+                    onSelectionChanged={onSelectionChanged}
+                    masterDetail={true}
+                    detailCellRenderer={detailCellRenderer}
+                    detailRowHeight={detailRowHeight}
+                    context={context}
+                    rowSelection={enableMultiSelect ? 'multiple' : 'single'}
+                />
+            </CardContent>
+        </SearchResultCard>
+    )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -120,7 +181,20 @@ const resolveWorkflowStatusValue = (statusOptions: any[] = [], preferredText: st
     return matched?.value || fallbackValue
 }
 
-const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []) => {
+type WorkflowActionColor = Extract<ButtonProps['color'], 'success' | 'warning' | 'error'>
+
+interface NegotiationAction {
+    key: 'agree' | 'disagree'
+    label: string
+    color: WorkflowActionColor
+    nextStatus: string
+    isFinalStep: boolean
+}
+
+const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []): {
+    isNegotiationStep: boolean
+    actions: NegotiationAction[]
+} => {
     const agreementReachedStatus = resolveWorkflowStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
     const issueGprBStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
     const issueGprCStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
@@ -540,13 +614,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     })().filter(Boolean)
 
     const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
-
-    // Find the step this approver has already actioned (approved/rejected) — for showing history badge
     const myActionedStep = approvalSteps.find((s: any) =>
         s.approver_id === empCode && (s.step_status === 'approved' || s.step_status === 'rejected')
     )
 
-    // PIC step: description contains 'pic' — allow assign_to (not just approver_id) to action
     const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
     const isPicOwnedNegotiationStep = !!currentStep && (
         isPendingAgreementStep(currentStep) ||
@@ -579,10 +650,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
         isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
     )
-
-    // Actionable only if there IS an in_progress step AND it belongs to this user
     const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
-
     const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
@@ -625,8 +693,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
 
     return (
         <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
-
-            {/* Header Banner */}
             <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
@@ -638,31 +704,19 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                                 {data.EMPLOYEE_DEPT ? ` · ${data.EMPLOYEE_DEPT}` : ''}
                             </Typography>
                         </Box>
-                        {/* Your action badge — shows when this approver has already actioned this request */}
                         {myActionedStep && (
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1,
-                                px: 1.25, py: 0.4, borderRadius: 5,
-                                bgcolor: myActionedStep.step_status === 'approved' ? '#e8f5e9' : '#ffebee',
-                                border: '1px solid',
-                                borderColor: myActionedStep.step_status === 'approved' ? '#a5d6a7' : '#ef9a9a',
-                            }}>
-                                <i
-                                    className={myActionedStep.step_status === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'}
-                                    style={{ fontSize: 13, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828' }}
-                                />
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.step_status === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.step_status === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
+                                <i className={myActionedStep.step_status === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828' }} />
                                 <Typography variant='caption' sx={{ fontWeight: 700, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828', lineHeight: 1 }}>
                                     Your action: {myActionedStep.step_status === 'approved' ? 'Approved' : 'Rejected'} · {myActionedStep.DESCRIPTION}
                                 </Typography>
                             </Box>
                         )}
                     </Box>
-                    <Chip label={data.request_status} size='medium'
-                        sx={{ fontWeight: 700, bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }}
-                    />
+                    <Chip label={data.request_status} size='medium' sx={{ fontWeight: 700, bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }} />
                 </Box>
             </Box>
 
-            {/* Request Info */}
             <Box sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
@@ -671,10 +725,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         <Divider sx={{ flex: 1 }} />
                     </Box>
                     {showSelectionSheetReadOnly && (
-                        <Button size='small' variant='tonal' color='primary' sx={{ ml: 2 }}
-                            startIcon={<i className='tabler-file-report' style={{ fontSize: 16 }} />}
-                            onClick={() => setGprFormOpen(true)}
-                        >
+                        <Button size='small' variant='tonal' color='primary' sx={{ ml: 2 }} startIcon={<i className='tabler-file-report' style={{ fontSize: 16 }} />} onClick={() => setGprFormOpen(true)}>
                             Open Supplier / Outsourcing Selection Sheet
                         </Button>
                     )}
@@ -686,7 +737,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 {data.requester_remark && infoRow('Requester Remark', data.requester_remark)}
             </Box>
 
-            {/* Vendor Info */}
             <Box sx={{ mb: 3 }}>
                 <SectionHeader icon='tabler-building-store' title='Vendor Info' />
                 {infoRow('Vendor Type', data.vendor_type_name)}
@@ -699,7 +749,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 {infoRow('Email (Main)', data.emailmain)}
             </Box>
 
-            {/* Contacts */}
             {contacts.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
@@ -721,7 +770,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {/* Products */}
             {products.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
@@ -743,20 +791,15 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {/* Files */}
             {files.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-paperclip' title={`Attached Files (${files.length})`} />
-                    <Button size='small' variant='tonal'
-                        startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
-                        onClick={() => setFileDialogOpen(true)}
-                    >
+                    <Button size='small' variant='tonal' startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />} onClick={() => setFileDialogOpen(true)}>
                         View {files.length} File{files.length > 1 ? 's' : ''}
                     </Button>
                 </Box>
             )}
 
-            {/* Approval Steps */}
             {approvalSteps.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-list-check' title={`Approval Steps (${approvalSteps.length})`} />
@@ -777,17 +820,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                                         icon={<i className={stCfg.icon} style={{ fontSize: 13, color: stCfg.txtColor }} />}
                                         label={stCfg.label}
                                         size='small'
-                                        sx={{
-                                            bgcolor: stCfg.bgColor,
-                                            color: stCfg.txtColor,
-                                            border: '1px solid',
-                                            borderColor: stCfg.borderColor,
-                                            fontWeight: 600,
-                                            fontSize: '0.68rem',
-                                            height: 22,
-                                            width: 'fit-content',
-                                            '& .MuiChip-icon': { color: stCfg.txtColor }
-                                        }}
+                                        sx={{ bgcolor: stCfg.bgColor, color: stCfg.txtColor, border: '1px solid', borderColor: stCfg.borderColor, fontWeight: 600, fontSize: '0.68rem', height: 22, width: 'fit-content', '& .MuiChip-icon': { color: stCfg.txtColor } }}
                                     />
                                     <Typography variant='body2' color='text.secondary'>
                                         {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
@@ -831,7 +864,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                                                     />
                                                 )}
                                                 <Typography variant='caption' color='text.secondary'>
-                                                    <strong>{l.action_by}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                                    <strong>{l.action_by}</strong> - {actionTypeLabel} {detailText ? `(${detailText})` : ''} - {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
                                                 </Typography>
                                             </>
                                         )
@@ -843,7 +876,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {/* Decision Info */}
             {(data.approve_by || data.approver_remark) && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-user-check' title='Decision Info' />
@@ -853,60 +885,35 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {/* Approve / Reject Buttons */}
             {isActionable && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
                             {showActionRequiredBtn && (
-                                <Button variant='contained' color='info' fullWidth
-                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
-                                    disabled={disableActionRequiredBtn}
-                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
-                                >{actionRequiredLabel}</Button>
+                                <Button variant='contained' color='info' fullWidth startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />} disabled={disableActionRequiredBtn} onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}>{actionRequiredLabel}</Button>
                             )}
                             {renderDisagreeFirst && (
-                                <Button variant='contained' color={disagreeAction.color} fullWidth
-                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
-                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
-                                >{disagreeAction.label}</Button>
+                                <Button variant='contained' color={disagreeAction.color} fullWidth startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />} onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}>{disagreeAction.label}</Button>
                             )}
-                            <Button variant='contained' color={agreeAction.color} fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}
-                            >{agreeAction.label}</Button>
+                            <Button variant='contained' color={agreeAction.color} fullWidth startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />} onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}>{agreeAction.label}</Button>
                             {!renderDisagreeFirst && (
-                                <Button variant='contained' color={disagreeAction.color} fullWidth
-                                    startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
-                                    onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
-                                >{disagreeAction.label}</Button>
+                                <Button variant='contained' color={disagreeAction.color} fullWidth startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />} onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}>{disagreeAction.label}</Button>
                             )}
                         </>
                     )}
                     {!isNegotiationStep && (
                         <>
                             {showActionRequiredBtn && (
-                                <Button variant='contained' color='info' fullWidth
-                                    startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
-                                    disabled={disableActionRequiredBtn}
-                                    onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
-                                >{actionRequiredLabel}</Button>
+                                <Button variant='contained' color='info' fullWidth startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />} disabled={disableActionRequiredBtn} onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}>{actionRequiredLabel}</Button>
                             )}
-                            <Button variant='contained' color='success' fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}
-                            >{approveButtonLabel}</Button>
-                            <Button variant='contained' color='error' fullWidth
-                                startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
-                                onClick={() => onReject(rejectButtonLabel)}
-                            >{rejectButtonLabel}</Button>
+                            <Button variant='contained' color='success' fullWidth startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />} onClick={() => onApprove(computedNextStatus, isFinalStep, approveButtonLabel)}>{approveButtonLabel}</Button>
+                            <Button variant='contained' color='error' fullWidth startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />} onClick={() => onReject(rejectButtonLabel)}>{rejectButtonLabel}</Button>
                         </>
                     )}
                 </Box>
             )}
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
-            {/* Extra Modals for Detail Panel */}
             {gprFormOpen && (
                 <GprFormDialog
                     open={gprFormOpen}
@@ -914,16 +921,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                     readOnly={true}
                     onClose={() => setGprFormOpen(false)}
                     onSaved={() => {
-                        // Usually this forces reload, but here we just let it be silent saving
                     }}
                 />
             )}
-            <Dialog
-                maxWidth='sm'
-                fullWidth={true}
-                open={actionRequiredDialogOpen}
-                onClose={() => setActionRequiredDialogOpen(false)}
-            >
+            <Dialog maxWidth='sm' fullWidth={true} open={actionRequiredDialogOpen} onClose={() => setActionRequiredDialogOpen(false)}>
                 <DialogTitle>Action Required Detail</DialogTitle>
                 <DialogContent dividers>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
@@ -964,27 +965,16 @@ const DetailRenderer = (props: any) => {
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Props interface
-// ─────────────────────────────────────────────────────────────────────────────
 interface ApprovalPageContentProps {
-    /** The status label that identifies requests belonging to this approver's queue.
-     *  Used only for display — filtering is done server-side by approver_id. */
     pageTitle: string
-    /** Restrict queue and actions to this workflow step code (e.g. MD_APPROVAL). */
     queueStepCode?: string
-    /** Accent color for the page header strip */
     accentColor?: string
-    /** Show selection sheet in read-only mode for approval pages. */
     showSelectionSheetReadOnly?: boolean
+    enableMultiSelect?: boolean
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
-export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
+export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false, enableMultiSelect = true }: ApprovalPageContentProps) {
     const { data: statusOptions = [] } = useRequestStatusOptions()
-    const [totalCount, setTotalCount] = useState(0)
     const [collapse, setCollapse] = useState(false)
     const gridApiRef = useRef<any>(null)
     const [vendorNameFilter, setVendorNameFilter] = useState('')
@@ -1003,10 +993,14 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
 
-    // ── Server-Side Datasource ─────────────────────────────────────────────
+    useEffect(() => {
+        if (!enableMultiSelect) {
+            setSelectedRows([])
+        }
+    }, [enableMultiSelect])
+
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
-            // Guard: do not fetch without empCode — would return all records and cause crashes
             if (!empCode) {
                 params.success({ rowData: [], rowCount: 0 })
                 return
@@ -1029,7 +1023,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                     Limit: (endRow ?? 50) - (startRow ?? 0)
                 })
                 if (res.data?.Status) {
-                    setTotalCount(res.data.TotalCountOnDb)
                     params.success({ rowData: res.data.ResultOnDb, rowCount: res.data.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -1056,14 +1049,15 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         {
             headerName: '',
             field: 'select',
+            hide: !enableMultiSelect,
             width: 56,
             pinned: 'left',
             sortable: false,
             filter: false,
             resizable: false,
-            checkboxSelection: (params: any) => Boolean(getBulkApproveTarget(params.data, empCode, queueStepCode, statusOptions)),
-            headerCheckboxSelection: true,
-            headerCheckboxSelectionFilteredOnly: true,
+            checkboxSelection: (params: any) => enableMultiSelect && Boolean(getBulkApproveTarget(params.data, empCode, queueStepCode, statusOptions)),
+            headerCheckboxSelection: enableMultiSelect,
+            headerCheckboxSelectionFilteredOnly: enableMultiSelect,
         },
         {
             headerName: '',
@@ -1071,9 +1065,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             width: 50,
             pinned: 'left',
             cellRenderer: (params: any) => (
-                <IconButton size='small' color='primary'
-                    onClick={() => { setSelectedData(params.data); setDrawerOpen(true) }}
-                >
+                <IconButton size='small' color='primary' onClick={() => { setSelectedData(params.data); setDrawerOpen(true) }}>
                     <i className='tabler-eye' style={{ fontSize: 18 }} />
                 </IconButton>
             )
@@ -1090,17 +1082,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                     const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
                     const txtColor = statusCfg?.accent || '#8A8D99'
                     return (
-                        <Chip label={params.value || '-'} size='small'
-                            sx={{
-                                bgcolor: bgColor,
-                                color: txtColor,
-                                border: '1px solid',
-                                borderColor: `${txtColor}40`,
-                                fontWeight: 700,
-                                fontSize: '0.72rem',
-                                height: 24
-                            }}
-                        />
+                        <Chip label={params.value || '-'} size='small' sx={{ bgcolor: bgColor, color: txtColor, border: '1px solid', borderColor: `${txtColor}40`, fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
                     )
                 }
             }
@@ -1115,47 +1097,14 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 const myStepStatus = getMyQueueStepStatus(params.data, empCode, queueStepCode)
 
                 if (myStepStatus === 'approved') {
-                    return (
-                        <Chip label='Approved' size='small'
-                            sx={{
-                                bgcolor: '#2e7d3220',
-                                color: '#2e7d32',
-                                border: '1px solid #2e7d3240',
-                                fontWeight: 700,
-                                fontSize: '0.72rem',
-                                height: 24
-                            }}
-                        />
-                    )
+                    return <Chip label='Approved' size='small' sx={{ bgcolor: '#2e7d3220', color: '#2e7d32', border: '1px solid #2e7d3240', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
                 }
 
                 if (myStepStatus === 'rejected') {
-                    return (
-                        <Chip label='Rejected' size='small'
-                            sx={{
-                                bgcolor: '#d6454520',
-                                color: '#d64545',
-                                border: '1px solid #d6454540',
-                                fontWeight: 700,
-                                fontSize: '0.72rem',
-                                height: 24
-                            }}
-                        />
-                    )
+                    return <Chip label='Rejected' size='small' sx={{ bgcolor: '#d6454520', color: '#d64545', border: '1px solid #d6454540', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
                 }
 
-                return (
-                    <Chip label='Waiting' size='small'
-                        sx={{
-                            bgcolor: '#fff4e5',
-                            color: '#f08a24',
-                            border: '1px solid #f6c07e',
-                            fontWeight: 700,
-                            fontSize: '0.72rem',
-                            height: 24
-                        }}
-                    />
-                )
+                return <Chip label='Waiting' size='small' sx={{ bgcolor: '#fff4e5', color: '#f08a24', border: '1px solid #f6c07e', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
             }
         },
         { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
@@ -1174,20 +1123,9 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             width: 100,
             cellRenderer: (params: any) => {
                 const count = buildFileUrls(params.value).length
-                if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
+                if (count === 0) return <Typography variant='caption' color='text.disabled'>-</Typography>
                 return (
-                    <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
-                        icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
-                        sx={{
-                            bgcolor: '#1976d220',
-                            color: '#1976d2',
-                            border: '1px solid #1976d240',
-                            fontWeight: 700,
-                            fontSize: '0.72rem',
-                            height: 24,
-                            '& .MuiChip-icon': { color: '#1976d2' }
-                        }}
-                    />
+                    <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small' icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />} sx={{ bgcolor: '#1976d220', color: '#1976d2', border: '1px solid #1976d240', fontWeight: 700, fontSize: '0.72rem', height: 24, '& .MuiChip-icon': { color: '#1976d2' } }} />
                 )
             }
         },
@@ -1197,7 +1135,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             width: 150,
             valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions, empCode, queueStepCode])
+    ], [statusOptions, empCode, queueStepCode, enableMultiSelect])
 
     const handleActionSuccess = useCallback(() => {
         gridApiRef.current?.refreshServerSide({ purge: true })
@@ -1246,102 +1184,46 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         onRefresh: handleActionSuccess
     }), [empCode, queueStepCode, showSelectionSheetReadOnly, handleActionSuccess])
 
+    const searchFilterDataItem = useMemo(() => ({
+        collapse,
+        onToggle: () => setCollapse(!collapse),
+        vendorNameFilter,
+        onVendorNameFilterChange: setVendorNameFilter,
+        statusFilter,
+        onStatusFilterChange: setStatusFilter,
+        statusOptions,
+        onSearch: handleSearch,
+        onClear: handleClear,
+    }), [collapse, vendorNameFilter, statusFilter, statusOptions, handleSearch, handleClear])
+
+    const searchResultDataItem = useMemo(() => ({
+        enableMultiSelect,
+        bulkApproveCount: bulkApproveTargets.length,
+        onBulkApprove: () => {
+            setPendingActions(bulkApproveTargets as ActionDialogProps['actions'])
+            setApproveActionLabel('Approve Selected')
+            setActionMode('approve')
+            setActionDialogOpen(true)
+        },
+        columnDefs: colDefs,
+        datasource,
+        onGridReady: (params: any) => { gridApiRef.current = params.api },
+        onSelectionChanged: (params: any) => setSelectedRows(params.api.getSelectedRows()),
+        detailCellRenderer: DetailRenderer,
+        detailRowHeight: 800,
+        context: gridContext,
+    }), [enableMultiSelect, bulkApproveTargets, colDefs, datasource, gridContext])
+
     return (
         <Grid container spacing={6}>
-            {/* Search Filter Card */}
             <Grid item xs={12}>
-                <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                                fullWidth
-                                size='small'
-                                label='Vendor Name'
-                                placeholder='Enter ...'
-                                value={vendorNameFilter}
-                                onChange={e => setVendorNameFilter(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
-                                autoComplete='off'
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                                select
-                                fullWidth
-                                size='small'
-                                label='Status'
-                                value={statusFilter?.value || ''}
-                                onChange={e => {
-                                    const found = statusOptions.find(s => s.value === e.target.value)
-                                    setStatusFilter(found ? { value: found.value, label: found.label } : null)
-                                }}
-                                SelectProps={{ native: true }}
-                            >
-                                <option value=''>All Statuses</option>
-                                {statusOptions.map(s => (
-                                    <option key={s.value} value={s.value}>{s.label}</option>
-                                ))}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} className='flex gap-3'>
-                            <Button onClick={handleSearch} variant='contained' type='button'>Search</Button>
-                            <Button variant='tonal' color='secondary' type='button' onClick={handleClear}>Clear</Button>
-                        </Grid>
-                    </Grid>
-                </SearchFilterCard>
+                <SearchFilter {...searchFilterDataItem} />
             </Grid>
 
-            {/* AG Grid */}
             <Grid item xs={12}>
-                <SearchResultCard
-                    action={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                            <Typography
-                                variant='body2'
-                                color='text.secondary'
-                                title={pageTitle}
-                                sx={{ color: accentColor, fontWeight: 600 }}
-                            >
-                                Total: {totalCount}
-                            </Typography>
-                            <Button
-                                variant='contained'
-                                color='success'
-                                size='small'
-                                startIcon={<i className='tabler-checks' style={{ fontSize: 16 }} />}
-                                disabled={bulkApproveTargets.length === 0}
-                                onClick={() => {
-                                    setPendingActions(bulkApproveTargets as ActionDialogProps['actions'])
-                                    setApproveActionLabel('Approve Selected')
-                                    setActionMode('approve')
-                                    setActionDialogOpen(true)
-                                }}
-                            >
-                                Approve Selected ({bulkApproveTargets.length})
-                            </Button>
-                        </Box>
-                    }
-                >
-                    <CardContent sx={{ p: '24px !important' }}>
-                        <DxAGgridTable
-                            columnDefs={colDefs}
-                            serverSideDatasource={datasource}
-                            height={600}
-                            overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
-                            getRowId={(p: any) => String(p.data.request_id)}
-                            onGridReady={(p: any) => { gridApiRef.current = p.api }}
-                            onSelectionChanged={(p: any) => setSelectedRows(p.api.getSelectedRows())}
-                            masterDetail={true}
-                            detailCellRenderer={DetailRenderer}
-                            detailRowHeight={800}
-                            context={gridContext}
-                            rowSelection='multiple'
-                        />
-                    </CardContent>
-                </SearchResultCard>
+                <SearchResultSection {...searchResultDataItem} />
             </Grid>
 
-            {/* Action Dialog */}
             <ActionDialog
                 open={actionDialogOpen}
                 mode={actionMode}
@@ -1352,7 +1234,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 onSuccess={handleActionSuccess}
             />
 
-            {/* Detail Dialog */}
             <Dialog
                 maxWidth='lg'
                 fullWidth={true}
@@ -1370,7 +1251,10 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 }}
             >
                 <DialogTitle>
-                    <Typography variant='h5' component='span'>Request Details</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: accentColor, flexShrink: 0 }} />
+                        <Typography variant='h5' component='span'>{pageTitle} Details</Typography>
+                    </Box>
                     <DialogCloseButton onClick={() => setDrawerOpen(false)} disableRipple>
                         <i className='tabler-x' />
                     </DialogCloseButton>

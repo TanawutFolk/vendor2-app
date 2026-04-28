@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Controller, useFormContext, useFormState, useFieldArray } from 'react-hook-form'
 
 // MUI Imports
-import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, CardContent, Divider, Box, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, CardContent, Divider, Box, ToggleButton, ToggleButtonGroup, Alert, Table, TableBody, TableCell, TableHead, TableRow, Backdrop, Fade, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -11,10 +11,12 @@ import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import SelectCustom from '@components/react-select/SelectCustom'
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import AddProductGroupModal from './modal/AddProductGroupModal'
+import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Fetch functions & React Query
 import { useCheckDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
-import type { CheckDuplicateResponseI } from '@_workspace/types/_add-vendor/AddVendorTypes'
+import type { CheckDuplicateResponseI, BlacklistMatchI } from '@_workspace/types/_add-vendor/AddVendorTypes'
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 import { fetchVendorRegions } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorRegions'
@@ -38,7 +40,10 @@ export interface SectionDisabledProps {
 export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) => {
     const [verifyError, setVerifyError] = useState<string | null>(null)
     const [existingVendorId, setExistingVendorId] = useState<number | null>(null)
+    const [blacklistMatches, setBlacklistMatches] = useState<BlacklistMatchI[]>([])
     const [editModalOpen, setEditModalOpen] = useState(false)
+    const [resultModalOpen, setResultModalOpen] = useState(false)
+    const [resultModalType, setResultModalType] = useState<'duplicate' | 'blacklist' | null>(null)
 
     const { control, trigger, getValues } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
@@ -46,25 +51,50 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
     const { mutate: checkDuplicate, isPending: isLoading } = useCheckDuplicate(
         (data: CheckDuplicateResponseI) => {
             if (data.isDuplicate && data.existingVendorId) {
-                const errorMsg = `Vendor already exists! (ID: ${data.existingVendorId})`
+                const errorMsg = `Vendor already exists in the system (ID: ${data.existingVendorId})`
                 setVerifyError(errorMsg)
                 setExistingVendorId(data.existingVendorId)
+                setBlacklistMatches([])
+                setResultModalType('duplicate')
+                setResultModalOpen(true)
+                ToastMessageError({ message: errorMsg })
                 onVerifyChange(false, errorMsg)
+            } else if (data.isBlacklisted) {
+                const blacklistMessage = data.Message || 'Vendor matched the blacklist and cannot be registered'
+                setVerifyError(blacklistMessage)
+                setExistingVendorId(null)
+                setBlacklistMatches(data.blacklistMatches || [])
+                setResultModalType('blacklist')
+                setResultModalOpen(true)
+                ToastMessageError({ message: blacklistMessage })
+                onVerifyChange(false, blacklistMessage)
             } else {
                 setVerifyError(null)
                 setExistingVendorId(null)
+                setBlacklistMatches([])
+                setResultModalType(null)
+                setResultModalOpen(false)
+                ToastMessageSuccess({ message: 'Vendor is available for adding' })
                 onVerifyChange(true)
             }
         },
         (error: Error) => {
             const msg = error?.message || 'Failed to verify vendor'
             setVerifyError(msg)
+            setExistingVendorId(null)
+            setBlacklistMatches([])
+            setResultModalType(null)
+            setResultModalOpen(false)
             onVerifyChange(false, msg)
         }
     )
 
     const handleVerify = async () => {
         setVerifyError(null)
+        setExistingVendorId(null)
+        setBlacklistMatches([])
+        setResultModalType(null)
+        setResultModalOpen(false)
         const isValid = await trigger(['company_name', 'province', 'postal_code'])
         if (isValid) {
             const values = getValues()
@@ -77,6 +107,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
     }
 
     return (
+        <>
         <Grid container spacing={4}>
             <Grid item xs={12} sm={6}>
                 <Controller
@@ -163,6 +194,57 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 </Grid>
             </Grid>
 
+            {/* ── Duplicate Error ── */}
+            {/* ── Blacklist Warning ── */}
+            {false && blacklistMatches.length > 0 && (
+                <Grid item xs={12}>
+                    <Alert
+                        severity='error'
+                        icon={<i className='tabler-shield-x' style={{ fontSize: '1.5rem' }} />}
+                        sx={{ alignItems: 'flex-start' }}
+                    >
+                        <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1 }}>
+                            🚫 Vendor is Blacklisted — Registration Blocked
+                        </Typography>
+                        <Typography variant='body2' sx={{ mb: 2 }}>
+                            Company name matches {blacklistMatches.length} record(s) in the Blacklist. Contact your compliance team before proceeding.
+                        </Typography>
+                        <Box sx={{ overflowX: 'auto' }}>
+                            <Table size='small' sx={{ minWidth: 500, bgcolor: 'background.paper', borderRadius: 1 }}>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {blacklistMatches.map((match, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell>
+                                                <Chip
+                                                    label={match.group_code}
+                                                    size='small'
+                                                    color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                                />
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
+                                            <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                            <TableCell>{match.source_name || '-'}</TableCell>
+                                            <TableCell>{match.entity_number || '-'}</TableCell>
+                                            <TableCell>{match.programs || '-'}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Box>
+                    </Alert>
+                </Grid>
+            )}
+
             <EditVendorModal
                 open={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
@@ -173,7 +255,154 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                     setVerifyError(null)
                 }}
             />
+            <Dialog
+                maxWidth={resultModalType === 'blacklist' ? 'lg' : 'sm'}
+                fullWidth={true}
+                open={resultModalOpen}
+                onClose={() => setResultModalOpen(false)}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5' component='span'>
+                        {resultModalType === 'blacklist' ? 'Blacklist Match Found' : 'Duplicate Vendor Found'}
+                    </Typography>
+                    <DialogCloseButton onClick={() => setResultModalOpen(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
+                <DialogContent>
+                    {resultModalType === 'blacklist' ? (
+                        <Box sx={{ pt: 2 }}>
+                            <Typography variant='body1' sx={{ mb: 1.5 }}>
+                                {verifyError || 'This vendor matched blacklist data and registration is blocked.'}
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+                                Company name matches {blacklistMatches.length} record(s) in the blacklist. Please contact your compliance team before proceeding.
+                            </Typography>
+                            <Box sx={{ overflowX: 'auto' }}>
+                                <Table size='small' sx={{ minWidth: 720 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {blacklistMatches.map((match, idx) => (
+                                            <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                                                <TableCell>
+                                                    <Chip
+                                                        label={match.group_code}
+                                                        size='small'
+                                                        color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                                    />
+                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
+                                                <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                                <TableCell>{match.source_name || '-'}</TableCell>
+                                                <TableCell>{match.entity_number || '-'}</TableCell>
+                                                <TableCell>{match.programs || '-'}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        </Box>
+                    ) : (
+                        <Box sx={{ pt: 2 }}>
+                            <Typography variant='body1' sx={{ mb: 1.5 }}>
+                                {verifyError || 'This vendor already exists in the system.'}
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary'>
+                                Please review the existing vendor record before creating a new one.
+                            </Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'flex-start' }}>
+                    {resultModalType === 'duplicate' && existingVendorId && (
+                        <Button
+                            variant='contained'
+                            color='success'
+                            onClick={() => {
+                                setResultModalOpen(false)
+                                setEditModalOpen(true)
+                            }}
+                            startIcon={<i className='tabler-edit' />}
+                        >
+                            Edit Existing Vendor
+                        </Button>
+                    )}
+                    <Button variant='tonal' color='secondary' onClick={() => setResultModalOpen(false)}>
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Grid>
+
+        <Backdrop
+            open={isLoading}
+            sx={{
+                zIndex: (theme) => theme.zIndex.modal + 1,
+                backgroundColor: 'rgba(15, 23, 42, 0.28)',
+                backdropFilter: 'blur(4px)'
+            }}
+        >
+            <Fade in={isLoading}>
+                <Box
+                    sx={{
+                        minWidth: 320,
+                        maxWidth: 380,
+                        px: 5,
+                        py: 4,
+                        borderRadius: 3,
+                        bgcolor: 'background.paper',
+                        boxShadow: '0 24px 60px rgba(15, 23, 42, 0.18)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2
+                    }}
+                >
+                    <Box
+                        sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'primary.lightOpacity'
+                        }}
+                    >
+                        <CircularProgress
+                            size={30}
+                            thickness={4.5}
+                            sx={{
+                                color: 'primary.main'
+                            }}
+                        />
+                    </Box>
+
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant='h6' sx={{ mb: 0.5 }}>
+                            Checking Vendor
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                            We are checking duplicate vendor data and blacklist matches from both US and CN lists.
+                        </Typography>
+                    </Box>
+                </Box>
+            </Fade>
+        </Backdrop>
+        </>
     )
 }
 
@@ -271,7 +500,7 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                                 label='Vendor Region'
                                 loadOptions={(inputValue: string) => fetchVendorRegions(inputValue)}
                                 value={field.value ? { label: field.value, value: field.value } : null}
-                                onChange={(val: any) => field.onChange(val?.value || '')}
+                                onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
                                 defaultOptions
                                 cacheOptions
                                 isClearable

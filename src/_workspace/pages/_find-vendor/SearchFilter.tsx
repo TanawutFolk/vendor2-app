@@ -16,7 +16,6 @@ import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfile
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 import { useDxContext } from '@/_template/DxContextProvider'
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Fetch functions
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
@@ -93,15 +92,7 @@ const SearchFilter = () => {
         mutate(dataItem)
     }
 
-    const onMutateSuccess = () => {
-        ToastMessageSuccess({ message: 'Search action completed successfully' })
-    }
-
-    const onMutateError = (e: any) => {
-        ToastMessageError({ message: e?.response?.data?.Message || e?.message || 'Search action failed' })
-    }
-
-    const { mutate } = useCreate(onMutateSuccess, onMutateError)
+    const { mutate } = useCreate(() => {}, () => {})
 
 
 

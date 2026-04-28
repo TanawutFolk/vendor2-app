@@ -192,6 +192,7 @@ export default class RegisterRequestServices {
             gpr_c_approver_empcode?: string
             gpr_c_pc_pic_name?: string
             gpr_c_pc_pic_email?: string
+            gpr_c_pc_pic_empcode?: string
             gpr_c_circular_empcodes?: string[]
         }
         UPDATE_BY?: string
@@ -199,6 +200,119 @@ export default class RegisterRequestServices {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprCNotification`,
             data,
+            method: 'POST'
+        })
+    }
+
+    static gprCGetFlow(data: {
+        request_id: number
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/get-flow`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCSubmitSetup(data: {
+        request_id: number
+        gpr_c_data: Record<string, unknown>
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/submit-setup`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCQueue(data: {
+        approver_empcode: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+        return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/queue`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCApproveStep(data: {
+        request_id: number
+        action_by: string
+        remark?: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/approve-step`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCRejectStep(data: {
+        request_id: number
+        action_by: string
+        remark?: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/reject-step`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCActionRequired(data: {
+        request_id: number
+        action_by: string
+        pic_name: string
+        pic_email: string
+        required_detail: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/action-required`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCRecordActionResult(data: {
+        action_required_id: number
+        result_status?: string
+        result_remark?: string
+        result_by: string
+        UPDATE_BY?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/record-action-result`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static gprCActionRequiredQueue(data: {
+        pic_email: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+        return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/action-required-queue`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static resolveEmployeeProfile(empcode: string): Promise<AxiosResponse<RegisterRequestResponseI<{
+        empcode: string
+        name: string
+        email: string
+    }>>> {
+        return axiosRequest<RegisterRequestResponseI<{
+            empcode: string
+            name: string
+            email: string
+        }>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/resolveEmployeeProfile`,
+            data: { empcode },
             method: 'POST'
         })
     }

@@ -31,12 +31,10 @@ const parseJsonArray = (value: any) => {
 export default function Page() {
     const user = getUserData()
     const [loading, setLoading] = useState(false)
-    const [searchText, setSearchText] = useState('')
-    const [statusFilter, setStatusFilter] = useState('')
-    const [groupFilter, setGroupFilter] = useState('')
-    const [scopeFilter, setScopeFilter] = useState('')
-    const [impactedOnly, setImpactedOnly] = useState('')
+    const [picFilter, setPicFilter] = useState<{ value: string; label: string } | null>(null)
+    const [statusFilter, setStatusFilter] = useState<{ value: string; label: string } | null>(null)
     const [rows, setRows] = useState<any[]>([])
+    const [picOptions, setPicOptions] = useState<Array<{ value: string; label: string }>>([])
     const [dialogRow, setDialogRow] = useState<any | null>(null)
     const { data: statusOptions = [] } = useRequestStatusOptions()
 
@@ -91,6 +89,26 @@ export default function Page() {
                 .filter(Boolean)
 
             setRows(activeRows)
+            setPicOptions(
+                Array.from(
+                    new Map(
+                        assigneeRows
+                            .filter((row: any) => Number(row?.INUSE) === 1 && String(row?.empcode || '').trim())
+                            .map((row: any) => {
+                                const empcode = String(row.empcode || '').trim()
+                                const empName = String(row.empName || '').trim()
+
+                                return [
+                                    empcode,
+                                    {
+                                        value: empcode,
+                                        label: empName ? `${empcode} - ${empName}` : empcode,
+                                    },
+                                ]
+                            })
+                    ).values()
+                )
+            )
         } finally {
             setLoading(false)
         }
@@ -101,23 +119,17 @@ export default function Page() {
     }, [])
 
     const filteredRows = useMemo(() => {
-        const keyword = searchText.trim().toLowerCase()
+        const normalizedPic = String(picFilter?.value || '').trim().toLowerCase()
 
         return rows.filter((row: any) => {
-            const matchesStatus = !statusFilter || row.request_status === statusFilter
-            const matchesGroup = !groupFilter || row.current_group_code === groupFilter
-            const matchesScope = !scopeFilter || row.assignment_scope === scopeFilter
-            const matchesImpact = !impactedOnly || (impactedOnly === '1' ? !row.current_owner_active : row.current_owner_active)
-            const matchesKeyword =
-                !keyword ||
-                String(row.company_name || '').toLowerCase().includes(keyword) ||
-                String(row.request_id || '').toLowerCase().includes(keyword) ||
-                String(row.current_owner_empcode || '').toLowerCase().includes(keyword) ||
-                String(row.current_step_name || '').toLowerCase().includes(keyword)
+            const matchesStatus = !statusFilter?.value || row.request_status === statusFilter.value
+            const matchesPic =
+                !normalizedPic ||
+                String(row.current_owner_empcode || '').toLowerCase().includes(normalizedPic)
 
-            return matchesStatus && matchesGroup && matchesScope && matchesImpact && matchesKeyword
+            return matchesStatus && matchesPic
         })
-    }, [rows, searchText, statusFilter, groupFilter, scopeFilter, impactedOnly])
+    }, [rows, picFilter, statusFilter])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -196,23 +208,15 @@ export default function Page() {
             <Grid item xs={12}>
                 <TaskSearchFilter
                     statusOptions={statusOptions}
-                    searchText={searchText}
+                    picOptions={picOptions}
+                    picFilter={picFilter}
                     statusFilter={statusFilter}
-                    groupFilter={groupFilter}
-                    scopeFilter={scopeFilter}
-                    impactedOnly={impactedOnly}
-                    onSearchTextChange={setSearchText}
+                    onPicFilterChange={setPicFilter}
                     onStatusFilterChange={setStatusFilter}
-                    onGroupFilterChange={setGroupFilter}
-                    onScopeFilterChange={setScopeFilter}
-                    onImpactedOnlyChange={setImpactedOnly}
                     onSearch={() => loadRows().catch(console.error)}
                     onClear={() => {
-                        setSearchText('')
-                        setStatusFilter('')
-                        setGroupFilter('')
-                        setScopeFilter('')
-                        setImpactedOnly('')
+                        setPicFilter(null)
+                        setStatusFilter(null)
                     }}
                 />
             </Grid>

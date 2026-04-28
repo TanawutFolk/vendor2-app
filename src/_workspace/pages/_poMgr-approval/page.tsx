@@ -1,7 +1,7 @@
 import { Grid } from '@mui/material'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { MENU_NAME, breadcrumbNavigation } from './env'
-import ApprovalPageContent from '@_workspace/pages/_shared/ApprovalPageContent'
+import ApprovalPageContent from '@_workspace/pages/_shared/SearchResult'
 
 export default function PoMgrApprovalPage() {
     return (

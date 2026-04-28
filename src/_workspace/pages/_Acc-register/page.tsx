@@ -1,7 +1,7 @@
 import { Grid } from '@mui/material'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { MENU_NAME, breadcrumbNavigation } from './env'
-import ApprovalPageContent from '@_workspace/pages/_shared/ApprovalPageContent'
+import ApprovalPageContent from '@_workspace/pages/_shared/SearchResult'
 
 export default function AccRegisterPage() {
     return (
@@ -14,6 +14,7 @@ export default function AccRegisterPage() {
                     pageTitle='Account Register Vendor'
                     queueStepCode='ACCOUNT_REGISTERED'
                     accentColor='#28C76F'
+                    enableMultiSelect={false}
                 />
             </Grid>
         </Grid>

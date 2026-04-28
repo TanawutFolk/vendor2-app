@@ -5,6 +5,9 @@ import { pdf } from '@react-pdf/renderer'
 import ApexCharts from 'apexcharts'
 import { GprPdfDocument } from './GprPdfDocument'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import AddVendorServices from '@_workspace/services/_add-vendor/AddVendorServices'
+import type { BlacklistMatchI } from '@_workspace/types/_add-vendor/AddVendorTypes'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -78,6 +81,12 @@ export interface GprFormDialogProps {
     onClose: () => void
     onSaved?: () => void
     readOnly?: boolean
+}
+
+export interface SanctionsCheckState {
+    checkedAt: string
+    matches: BlacklistMatchI[]
+    message: string
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -258,29 +267,81 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
     const [saving, setSaving] = useState(false)
     const [generatingPdf, setGeneratingPdf] = useState(false)
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+    const [sanctionsChecking, setSanctionsChecking] = useState(false)
+    const [sanctionsCheck, setSanctionsCheck] = useState<SanctionsCheckState | null>(null)
     const [criteriaUploading, setCriteriaUploading] = useState<Record<number, boolean>>({})
     const [criteriaError, setCriteriaError] = useState<Record<number, string>>({})
     const fileInputRef = useRef<HTMLInputElement>(null)
     const uploadTargetRef = useRef<number>(-1)
 
+    const checkSanctions = useCallback(async (companyName?: string) => {
+        const name = String(companyName ?? getValues('company_name') ?? '').trim()
+
+        if (!name) {
+            setValue('sanctions', '', { shouldDirty: true })
+            setSanctionsCheck({
+                checkedAt: new Date().toISOString(),
+                matches: [],
+                message: 'Company name is required before blacklist checking.',
+            })
+            return false
+        }
+
+        setSanctionsChecking(true)
+
+        try {
+            const response = await AddVendorServices.checkBlacklist({
+                company_name: name,
+            })
+            const result = response.data
+            const matches = result.blacklistMatches || []
+            const isConcerned = Boolean(result.isBlacklisted && matches.length)
+
+            setValue('sanctions', isConcerned ? 'concerned' : 'non-concerned', { shouldDirty: true })
+            setSanctionsCheck({
+                checkedAt: new Date().toISOString(),
+                matches,
+                message: isConcerned
+                    ? result.Message || `Vendor name matches ${matches.length} record(s) in the Blacklist`
+                    : 'No blacklist match found.',
+            })
+            return true
+        } catch (error: any) {
+            setSanctionsCheck({
+                checkedAt: new Date().toISOString(),
+                matches: [],
+                message: error?.response?.data?.Message || error?.message || 'Failed to check blacklist.',
+            })
+            return false
+        } finally {
+            setSanctionsChecking(false)
+        }
+    }, [getValues, setValue])
+
     useEffect(() => {
         if (!open || !rowData?.request_id) return
 
         let active = true
-        setFeedback(null)
         setCriteriaError({})
+        setSanctionsCheck(null)
 
         const loadForm = async () => {
             try {
                 const response = await RegisterRequestServices.getGprForm(rowData.request_id)
                 if (!active) return
 
+                const saved = response.data.Status && response.data.ResultOnDb
+                    ? normalizeSavedGpr(response.data.ResultOnDb)
+                    : undefined
+                const defaults = buildDefault(rowData, saved)
+
                 if (response.data.Status && response.data.ResultOnDb) {
-                    reset(buildDefault(rowData, normalizeSavedGpr(response.data.ResultOnDb)))
+                    reset(defaults)
                 } else {
-                    reset(buildDefault(rowData))
+                    reset(defaults)
                 }
+
+                await checkSanctions(defaults.company_name)
             } catch {
                 if (active) reset(buildDefault(rowData))
             }
@@ -291,7 +352,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         return () => {
             active = false
         }
-    }, [open, reset, rowData])
+    }, [checkSanctions, open, reset, rowData])
 
     const handleCriteriaUploadClick = useCallback((index: number) => {
         uploadTargetRef.current = index
@@ -340,7 +401,6 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         if (!rowData?.request_id) return
 
         setSaving(true)
-        setFeedback(null)
 
         try {
             const response = await RegisterRequestServices.saveGprForm({
@@ -350,13 +410,16 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             })
 
             if (response.data.Status) {
-                setFeedback({ type: 'success', msg: 'Supplier / Outsourcing Selection Sheet saved successfully.' })
+                const message = 'Supplier / Outsourcing Selection Sheet saved successfully.'
+                ToastMessageSuccess({ message })
                 onSaved?.()
             } else {
-                setFeedback({ type: 'error', msg: response.data.Message })
+                const message = response.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
+                ToastMessageError({ message })
             }
         } catch (error: any) {
-            setFeedback({ type: 'error', msg: error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' })
+            const message = error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
+            ToastMessageError({ message })
         } finally {
             setSaving(false)
         }
@@ -366,15 +429,19 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         if (!rowData?.request_id) return
 
         setGeneratingPdf(true)
-        setFeedback(null)
 
         try {
             const currentForm = getValues()
-            await RegisterRequestServices.saveGprForm({
+            const saveResponse = await RegisterRequestServices.saveGprForm({
                 request_id: rowData.request_id,
                 gpr_data: currentForm,
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
+
+            if (!saveResponse.data.Status) {
+                ToastMessageError({ message: saveResponse.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' })
+                return
+            }
 
             let chartDataUri = ''
             try {
@@ -401,20 +468,23 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             documentForm.append('request_id', String(Number(rowData?.request_id) || 0))
             documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
             documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
-            await RegisterRequestServices.addDocument(documentForm)
+            const documentResponse = await RegisterRequestServices.addDocument(documentForm)
 
-            setFeedback({ type: 'success', msg: 'PDF generated, saved, and attached to request.' })
+            if (!documentResponse.data.Status) {
+                ToastMessageError({ message: documentResponse.data.Message || 'Failed to attach generated PDF' })
+                return
+            }
+
+            ToastMessageSuccess({ message: 'PDF generated, saved, and attached to request.' })
             onSaved?.()
         } catch (error: any) {
-            setFeedback({ type: 'error', msg: error?.message || 'Failed to generate PDF' })
+            ToastMessageError({ message: error?.message || 'Failed to generate PDF' })
         } finally {
             setGeneratingPdf(false)
         }
     }, [rowData, getValues, user?.EMPLOYEE_CODE, onSaved])
 
-    const clearFeedback = useCallback(() => setFeedback(null), [])
-
-    const isBusy = saving || generatingPdf
+    const isBusy = saving || generatingPdf || sanctionsChecking
 
     const handleDialogClose = useCallback((_event: unknown, reason?: string) => {
         if (reason !== 'backdropClick' && !isBusy) onClose()
@@ -428,7 +498,8 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         methods,
         saving,
         generatingPdf,
-        feedback,
+        sanctionsChecking,
+        sanctionsCheck,
         criteriaUploading,
         criteriaError,
         fileInputRef,
@@ -438,7 +509,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         removeCriteriaUpload,
         handleSave,
         handleExportPdf,
-        clearFeedback,
+        checkSanctions,
         handleDialogClose,
         handleCloseClick,
     }

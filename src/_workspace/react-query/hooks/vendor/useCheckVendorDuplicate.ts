@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 
 import AddVendorServices from '@_workspace/services/_add-vendor/AddVendorServices'
 import type { CheckDuplicateRequestI, CheckDuplicateResponseI } from '@_workspace/types/_add-vendor/AddVendorTypes'
@@ -9,13 +10,20 @@ const checkDuplicate = async (dataItem: CheckDuplicateRequestI): Promise<CheckDu
     return response.data
 }
 
-const useCheckDuplicate = (onSuccess: any, onError: any) => {
+const useCheckDuplicate = (
+    onSuccess?: (data: CheckDuplicateResponseI) => void,
+    onError?: (error: Error) => void
+) => {
     return useMutation({
         mutationFn: checkDuplicate,
         onSuccess,
-        onError: (error: any) => {
-            ToastMessageError({ message: error?.message || 'Verification failed' })
-            onError?.(error)
+        onError: (error: Error | AxiosError) => {
+            const errorMessage = error instanceof AxiosError
+                ? error.message
+                : error.message
+
+            ToastMessageError({ message: errorMessage || 'Verification failed' })
+            onError?.(error instanceof Error ? error : new Error(errorMessage))
         }
     })
 }

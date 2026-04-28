@@ -22,6 +22,14 @@ export default class AddVendorServices {
         })
     }
 
+    static checkBlacklist(params: Pick<CheckDuplicateRequestI, 'company_name'>): Promise<AxiosResponse<CheckDuplicateResponseI>> {
+        return axiosRequest<CheckDuplicateResponseI>({
+            url: `${AddVendorAPI.API_ROOT_URL}/check-blacklist`,
+            data: params,
+            method: 'POST'
+        })
+    }
+
     // Create new vendor with contacts and products
     static create(data: CreateVendorRequestI): Promise<AxiosResponse<CreateVendorResponseI>> {
         return axiosRequest<CreateVendorResponseI>({

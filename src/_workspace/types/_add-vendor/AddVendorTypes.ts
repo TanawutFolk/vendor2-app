@@ -79,10 +79,23 @@ export interface CheckDuplicateRequestI {
 }
 
 // --- Check Duplicate Response ---
+export interface BlacklistMatchI {
+    group_code: 'US' | 'CN'
+    matched_name: string
+    match_type: 'name' | 'alias'
+    source_name: string | null
+    entity_number: string | null
+    entity_type: string | null
+    addresses: string | null
+    programs: string | null
+}
+
 export interface CheckDuplicateResponseI {
     Status: boolean
     isDuplicate: boolean
     existingVendorId: number | null
+    isBlacklisted: boolean
+    blacklistMatches: BlacklistMatchI[]
     Message: string
 }
 
@@ -90,7 +103,7 @@ export interface CheckDuplicateResponseI {
 export interface CreateVendorResponseI {
     Status: boolean
     Message: string
-    ResultOnDb: any
+    ResultOnDb: unknown
     MethodOnDb: string
     TotalCountOnDb: number
     vendorId?: number

@@ -947,11 +947,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {(hasPersistedGprData || gprSavedInSession) && (
-                            <Chip label='Filled' size='small' color='success' variant='tonal'
-                                icon={<i className='tabler-circle-check' style={{ fontSize: 13 }} />}
-                            />
-                        )}
                         <Button size='small' variant='contained' color='primary'
                             startIcon={<i className={isGprReadOnly ? 'tabler-eye' : ((hasPersistedGprData || gprSavedInSession) ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
                             onClick={() => setGprDialogOpen(true)}
@@ -1129,7 +1124,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => {
                     setGprSavedInSession(true)
-                    setGprDialogOpen(false)
                     onEmailSent()
                 }}
             />

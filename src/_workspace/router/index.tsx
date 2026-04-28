@@ -91,6 +91,9 @@ const TaskManagerPage = lazy(() => import('@/_workspace/pages/_task-manager/page
 /* Employee Manager */
 const EmployeeManagerPage = lazy(() => import('@/_workspace/pages/_Employee-manager/page'))
 
+/* Blacklist */
+const BlackListPage = lazy(() => import('@/_workspace/pages/_black-list/page'))
+
 /* MD Approval */
 const MdApprovalPage = lazy(() => import('@/_workspace/pages/_md-approval/page'))
 
@@ -193,6 +196,9 @@ export default (
 
     {/* Employee Manager */}
     <Route path='/en/employee-manager' element={<EmployeeManagerPage />} />
+
+    {/* Blacklist */}
+    <Route path='/en/blacklist' element={<BlackListPage />} />
 
     {/* MD Approval */}
     <Route path='/en/md-approval' element={<MdApprovalPage />} />
