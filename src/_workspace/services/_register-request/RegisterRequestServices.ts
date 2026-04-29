@@ -147,7 +147,9 @@ export default class RegisterRequestServices {
 
     static reassign(data: {
         request_id: number
-        scope: 'REQUEST_PIC' | 'CURRENT_STEP'
+        scope: 'REQUEST_PIC' | 'CURRENT_STEP' | 'GPR_C_STEP'
+        gpr_c_step_id?: number
+        group_code?: string
         to_empcode: string
         reason?: string
         UPDATE_BY?: string
@@ -232,6 +234,14 @@ export default class RegisterRequestServices {
         return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/queue`,
             data,
+            method: 'POST'
+        })
+    }
+
+    static gprCTaskManagerQueue(): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+        return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/task-manager-queue`,
+            data: {},
             method: 'POST'
         })
     }

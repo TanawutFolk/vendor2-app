@@ -15,7 +15,11 @@ export const ASSIGNEE_GROUPS = [
     { label: 'PO Manager', value: 'PO_MGR' },
     { label: 'PO GM', value: 'PO_GM' },
     { label: 'Account Local Main', value: 'ACC_LOCAL_MAIN' },
-    { label: 'Account Oversea Main', value: 'ACC_OVERSEA_MAIN' }
+    { label: 'Account Oversea Main', value: 'ACC_OVERSEA_MAIN' },
+    { label: 'EMR Checker', value: 'EMR_CHECKER' },
+    { label: 'EMR Approver', value: 'EMR_APPROVER' },
+    { label: 'QMS Checker', value: 'QMS_CHECKER' },
+    { label: 'QMS Approver', value: 'QMS_APPROVER' }
 ] as const
 
 export const ASSIGNEE_GROUP_LABEL_MAP = ASSIGNEE_GROUPS.reduce<Record<string, string>>((acc, item) => {

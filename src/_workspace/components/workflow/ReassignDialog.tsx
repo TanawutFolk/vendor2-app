@@ -18,7 +18,8 @@ import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
 interface ReassignDialogProps {
     open: boolean
     requestId: number | null
-    scope: 'REQUEST_PIC' | 'CURRENT_STEP'
+    scope: 'REQUEST_PIC' | 'CURRENT_STEP' | 'GPR_C_STEP'
+    gprCStepId?: number | null
     groupCode?: string
     currentEmpCode?: string
     updateBy?: string
@@ -30,6 +31,7 @@ export default function ReassignDialog({
     open,
     requestId,
     scope,
+    gprCStepId,
     groupCode,
     currentEmpCode,
     updateBy,
@@ -94,6 +96,8 @@ export default function ReassignDialog({
             const res = await RegisterRequestServices.reassign({
                 request_id: requestId,
                 scope,
+                gpr_c_step_id: gprCStepId || undefined,
+                group_code: groupCode || undefined,
                 to_empcode: toEmpcode,
                 reason: reason.trim(),
                 UPDATE_BY: updateBy || 'SYSTEM'
@@ -127,7 +131,9 @@ export default function ReassignDialog({
             }}
         >
             <DialogTitle>
-                <Typography variant='h5'>{scope === 'REQUEST_PIC' ? 'Reassign PIC' : 'Reassign Current Step'}</Typography>
+                <Typography variant='h5'>
+                    {scope === 'REQUEST_PIC' ? 'Reassign PIC' : scope === 'GPR_C_STEP' ? 'Reassign GPR C Step' : 'Reassign Current Step'}
+                </Typography>
                 <DialogCloseButton onClick={onClose} disableRipple>
                     <i className='tabler-x' />
                 </DialogCloseButton>

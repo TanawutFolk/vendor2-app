@@ -28,6 +28,36 @@ const parseJsonArray = (value: any) => {
     }
 }
 
+const getValue = (row: any, ...keys: string[]) => {
+    for (const key of keys) {
+        if (row?.[key] !== undefined && row?.[key] !== null) return row[key]
+    }
+    return ''
+}
+
+const normalizeGroupToken = (value: any) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_').replace(/[().]+/g, '')
+
+const compactGroupToken = (value: any) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+
+const buildAssigneeKeys = (row: any) => {
+    const empcode = String(row?.empcode || '').trim().toUpperCase()
+    if (!empcode) return []
+
+    return [row?.group_code, row?.group_name]
+        .flatMap(group => {
+            const normalized = normalizeGroupToken(group)
+            const compact = compactGroupToken(group)
+            return [normalized, compact].filter(Boolean).map(item => `${empcode}|${item}`)
+        })
+}
+
+const resolveGprCGroupCode = (stepCodeRaw: any) => {
+    const stepCode = String(stepCodeRaw || '').trim().toUpperCase()
+    if (['EMR_CHECKER', 'EMR_APPROVER', 'QMS_CHECKER', 'QMS_APPROVER'].includes(stepCode)) return stepCode
+    if (['PM_MANAGER_CHECKER', 'PM_MANAGER_APPROVER'].includes(stepCode)) return 'PO_MGR'
+    return ''
+}
+
 export default function Page() {
     const user = getUserData()
     const [loading, setLoading] = useState(false)
@@ -41,7 +71,7 @@ export default function Page() {
     const loadRows = async () => {
         setLoading(true)
         try {
-            const [requestRes, assigneeRes] = await Promise.all([
+            const [requestRes, assigneeRes, gprCRes] = await Promise.all([
                 RegisterRequestServices.getAll({
                     SearchFilters: [],
                     ColumnFilters: [],
@@ -50,14 +80,16 @@ export default function Page() {
                     Limit: 500,
                 }),
                 AssigneesServices.search({}),
+                RegisterRequestServices.gprCTaskManagerQueue(),
             ])
 
             const rawRows = requestRes.data?.ResultOnDb || []
             const assigneeRows = assigneeRes.data?.ResultOnDb || []
+            const gprCRows = gprCRes.data?.ResultOnDb || []
             const activeAssigneeKeys = new Set(
                 assigneeRows
                     .filter((row: any) => Number(row?.INUSE) === 1)
-                    .map((row: any) => `${String(row?.empcode || '').trim().toUpperCase()}|${String(row?.group_code || '').trim().toUpperCase()}`)
+                    .flatMap(buildAssigneeKeys)
             )
 
             const activeRows = rawRows
@@ -68,27 +100,68 @@ export default function Page() {
                     if (!currentStep) return null
 
                     const isOversea = String(row.vendor_region || '').toLowerCase() === 'oversea'
+                    const currentStepCode = inferStepCode(currentStep)
+                    const isGprCHolderStep = currentStepCode === 'ISSUE_GPR_C'
                     const groupCode = resolveGroupCodeForStep(currentStep, isOversea)
                     const ownerEmpCode = isPicStep(currentStep) ? row.assign_to : currentStep.approver_id
-                    const ownerGroupKey = `${String(ownerEmpCode || '').trim().toUpperCase()}|${String(groupCode || '').trim().toUpperCase()}`
-                    const currentOwnerActive = !groupCode || !ownerEmpCode ? false : activeAssigneeKeys.has(ownerGroupKey)
+                    const normalizedOwner = String(ownerEmpCode || '').trim().toUpperCase()
+                    const currentOwnerActive = !groupCode || !ownerEmpCode
+                        ? false
+                        : activeAssigneeKeys.has(`${normalizedOwner}|${normalizeGroupToken(groupCode)}`)
+                            || activeAssigneeKeys.has(`${normalizedOwner}|${compactGroupToken(groupCode)}`)
 
                     return {
                         ...row,
+                        workflow_type: isGprCHolderStep ? 'Main Workflow (GPR C Holder)' : 'Main Workflow',
                         currentStep,
-                        current_step_name: currentStep.DESCRIPTION || inferStepCode(currentStep) || '-',
-                        current_step_code: inferStepCode(currentStep),
+                        current_step_name: currentStep.DESCRIPTION || currentStepCode || '-',
+                        current_step_code: currentStepCode,
                         current_group_code: groupCode,
-                        current_group_name: ASSIGNEE_GROUP_LABEL_MAP[groupCode] || groupCode || '-',
+                        current_group_name: isGprCHolderStep ? 'GPR C Sub-Workflow' : ASSIGNEE_GROUP_LABEL_MAP[groupCode] || groupCode || '-',
                         current_owner_empcode: ownerEmpCode || '-',
                         assignment_scope: isPicStep(currentStep) ? 'REQUEST_PIC' : 'CURRENT_STEP',
-                        current_owner_active: currentOwnerActive,
-                        assignment_health: currentOwnerActive ? 'Healthy' : 'Needs Reassign',
+                        current_owner_active: isGprCHolderStep ? true : currentOwnerActive,
+                        reassign_enabled: !isGprCHolderStep && !!groupCode && !!ownerEmpCode,
+                        assignment_health: isGprCHolderStep ? 'Not Managed' : currentOwnerActive ? 'Healthy' : 'Needs Reassign',
                     }
                 })
                 .filter(Boolean)
 
-            setRows(activeRows)
+            const gprCActiveRows = gprCRows.map((row: any) => {
+                const stepCode = String(getValue(row, 'STEP_CODE', 'step_code') || '').trim().toUpperCase()
+                const groupCode = resolveGprCGroupCode(stepCode)
+                const ownerEmpCode = getValue(row, 'APPROVER_EMPCODE', 'approver_empcode')
+                const normalizedOwner = String(ownerEmpCode || '').trim().toUpperCase()
+                const currentOwnerActive = !groupCode || !ownerEmpCode
+                    ? false
+                    : activeAssigneeKeys.has(`${normalizedOwner}|${normalizeGroupToken(groupCode)}`)
+                        || activeAssigneeKeys.has(`${normalizedOwner}|${compactGroupToken(groupCode)}`)
+
+                return {
+                    request_id: Number(getValue(row, 'REQUEST_ID', 'request_id')),
+                    request_number: getValue(row, 'request_number', 'REQUEST_NUMBER'),
+                    company_name: getValue(row, 'company_name', 'COMPANY_NAME'),
+                    request_status: getValue(row, 'request_status', 'REQUEST_STATUS'),
+                    vendor_region: getValue(row, 'vendor_region', 'VENDOR_REGION'),
+                    CREATE_DATE: getValue(row, 'REQUEST_CREATE_DATE', 'request_create_date'),
+                    workflow_type: 'GPR C Sub-Workflow',
+                    current_step_name: getValue(row, 'STEP_NAME', 'step_name') || stepCode || '-',
+                    current_step_code: stepCode,
+                    current_group_code: groupCode,
+                    current_group_name: ASSIGNEE_GROUP_LABEL_MAP[groupCode] || groupCode || 'Requester Approver',
+                    current_owner_empcode: ownerEmpCode || '-',
+                    assignment_scope: 'GPR_C_STEP',
+                    gpr_c_flow_id: Number(getValue(row, 'GPR_C_FLOW_ID', 'gpr_c_flow_id')),
+                    gpr_c_step_id: Number(getValue(row, 'GPR_C_STEP_ID', 'gpr_c_step_id')),
+                    current_owner_active: groupCode ? currentOwnerActive : true,
+                    reassign_enabled: !!groupCode && !!ownerEmpCode,
+                    assignment_health: groupCode
+                        ? (currentOwnerActive ? 'Healthy' : 'Needs Reassign')
+                        : 'Not Managed',
+                }
+            })
+
+            setRows([...gprCActiveRows, ...activeRows])
             setPicOptions(
                 Array.from(
                     new Map(
@@ -142,10 +215,24 @@ export default function Page() {
                     size='small'
                     variant='contained'
                     color='warning'
+                    disabled={!params.data?.reassign_enabled}
                     onClick={() => setDialogRow(params.data)}
                 >
                     Reassign
                 </Button>
+            ),
+        },
+        {
+            field: 'workflow_type',
+            headerName: 'Workflow',
+            width: 180,
+            cellRenderer: (params: any) => (
+                <Chip
+                    label={params.value || '-'}
+                    size='small'
+                    color={String(params.value || '').includes('GPR C') ? 'info' : 'default'}
+                    variant='tonal'
+                />
             ),
         },
         { field: 'request_id', headerName: 'Request ID', width: 120 },
@@ -175,6 +262,9 @@ export default function Page() {
             width: 150,
             cellRenderer: (params: any) => {
                 const healthy = params.data?.current_owner_active
+                if (params.data?.assignment_health === 'Not Managed') {
+                    return <Chip label='Not Managed' size='small' variant='tonal' />
+                }
                 return (
                     <Chip
                         label={healthy ? 'Active' : 'Needs Reassign'}
@@ -189,7 +279,9 @@ export default function Page() {
             field: 'assignment_scope',
             headerName: 'Scope',
             width: 150,
-            valueFormatter: (params: any) => (params.value === 'REQUEST_PIC' ? 'PIC' : 'Current Step'),
+            valueFormatter: (params: any) => (
+                params.value === 'REQUEST_PIC' ? 'PIC' : params.value === 'GPR_C_STEP' ? 'GPR C Step' : 'Current Step'
+            ),
         },
         {
             field: 'CREATE_DATE',
@@ -226,7 +318,6 @@ export default function Page() {
                     filteredRows={filteredRows}
                     colDefs={colDefs}
                     loading={loading}
-                    onRefresh={() => loadRows().catch(console.error)}
                 />
             </Grid>
 
@@ -234,6 +325,7 @@ export default function Page() {
                 open={!!dialogRow}
                 requestId={dialogRow?.request_id || null}
                 scope={dialogRow?.assignment_scope || 'CURRENT_STEP'}
+                gprCStepId={dialogRow?.gpr_c_step_id || null}
                 groupCode={dialogRow?.current_group_code || ''}
                 currentEmpCode={dialogRow?.current_owner_empcode || ''}
                 updateBy={user?.EMPLOYEE_CODE || 'SYSTEM'}

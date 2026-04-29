@@ -1,4 +1,3 @@
-import { Button } from '@mui/material'
 import type { ColDef } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
@@ -7,14 +6,12 @@ interface TaskSearchResultProps {
     filteredRows: any[]
     colDefs: ColDef[]
     loading: boolean
-    onRefresh: () => void
 }
 
 const TaskSearchResult = ({
     filteredRows,
     colDefs,
     loading,
-    onRefresh,
 }: TaskSearchResultProps) => {
     return (
         <SearchResultCard

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDebounce } from 'react-use'
 import {
-    Alert,
     Box,
     Button,
     CircularProgress,
@@ -14,7 +14,7 @@ import {
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import ConfirmModal from '@components/ConfirmModal'
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
+import { ToastMessageError } from '@/components/ToastMessage'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useSaveGprCNotification } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
@@ -85,20 +85,18 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
 
     const [form, setForm] = useState<GprCFormState>(buildEmptyForm)
     const [loading, setLoading] = useState(false)
-    const [saving, setSaving] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
     const [circularCount, setCircularCount] = useState(1)
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
     const approverLookupSeq = useRef(0)
     const pcPicLookupSeq = useRef(0)
     const circularLookupSeq = useRef(Array.from({ length: 6 }, () => 0))
+    const employeeProfileCache = useRef<Record<string, CircularMemberInfo>>({})
 
     useEffect(() => {
         if (!open || !rowData?.request_id) return
 
         let active = true
         setLoading(true)
-        setFeedback(null)
 
         const load = async () => {
             try {
@@ -109,10 +107,10 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 const circularMembers = normalizeCircularMembers(result.gpr_c_circular_members || result.gpr_c_circular_json)
 
                 const nextForm = {
-                    gpr_c_approver_empcode: String(result.gpr_c_approver_empcode || '').trim(),
+                    gpr_c_approver_empcode: String(result.gpr_c_approver_empcode || rowData?.gpr_c_approver_empcode || '').trim(),
                     gpr_c_approver_name: String(result.gpr_c_approver_name || rowData?.gpr_c_approver_name || '').trim(),
                     gpr_c_approver_email: String(result.gpr_c_approver_email || rowData?.gpr_c_approver_email || '').trim(),
-                    gpr_c_pc_pic_empcode: String(result.gpr_c_pc_pic_empcode || '').trim(),
+                    gpr_c_pc_pic_empcode: String(result.gpr_c_pc_pic_empcode || rowData?.gpr_c_pc_pic_empcode || '').trim(),
                     gpr_c_pc_pic_name: String(result.gpr_c_pc_pic_name || rowData?.gpr_c_pc_pic_name || '').trim(),
                     gpr_c_pc_pic_email: String(result.gpr_c_pc_pic_email || rowData?.gpr_c_pc_pic_email || '').trim(),
                     gpr_c_circular_empcodes: Array.from({ length: 6 }, (_, idx) => circularMembers[idx]?.empcode || ''),
@@ -124,10 +122,10 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 if (!active) return
                 const circularMembers = normalizeCircularMembers(rowData?.gpr_c_circular_members || rowData?.gpr_c_circular_json)
                 const fallbackForm = {
-                    gpr_c_approver_empcode: '',
+                    gpr_c_approver_empcode: String(rowData?.gpr_c_approver_empcode || '').trim(),
                     gpr_c_approver_name: String(rowData?.gpr_c_approver_name || '').trim(),
                     gpr_c_approver_email: String(rowData?.gpr_c_approver_email || '').trim(),
-                    gpr_c_pc_pic_empcode: '',
+                    gpr_c_pc_pic_empcode: String(rowData?.gpr_c_pc_pic_empcode || '').trim(),
                     gpr_c_pc_pic_name: String(rowData?.gpr_c_pc_pic_name || '').trim(),
                     gpr_c_pc_pic_email: String(rowData?.gpr_c_pc_pic_email || '').trim(),
                     gpr_c_circular_empcodes: Array.from({ length: 6 }, (_, idx) => circularMembers[idx]?.empcode || ''),
@@ -151,27 +149,27 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         const empcode = String(empcodeRaw || '').trim()
         if (!empcode) return null
 
+        const cacheKey = empcode.toUpperCase()
+        if (employeeProfileCache.current[cacheKey]) return employeeProfileCache.current[cacheKey]
+
         const response = await RegisterRequestServices.resolveEmployeeProfile(empcode)
         if (!response.data.Status) {
             throw new Error(response.data.Message || `Employee code not found: ${empcode}`)
         }
 
-        return response.data.ResultOnDb || null
+        const profile = response.data.ResultOnDb || null
+        if (profile) employeeProfileCache.current[cacheKey] = profile
+
+        return profile
     }
 
-    const handleApproverChange = (value: string) => {
-        setForm(prev => ({
-            ...prev,
-            gpr_c_approver_empcode: value,
-            gpr_c_approver_name: '',
-            gpr_c_approver_email: '',
-        }))
-
-        const empcode = String(value || '').trim()
+    useDebounce(() => {
+        const empcode = String(form.gpr_c_approver_empcode || '').trim()
         approverLookupSeq.current += 1
         const requestSeq = approverLookupSeq.current
 
-        if (!empcode) return
+        if (!open || !empcode) return
+        if (form.gpr_c_approver_name && form.gpr_c_approver_email) return
 
         void lookupEmployeeProfile(empcode)
             .then(member => {
@@ -195,21 +193,15 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                         : prev
                 ))
             })
-    }
+    }, 450, [form.gpr_c_approver_empcode, open])
 
-    const handlePcPicChange = (value: string) => {
-        setForm(prev => ({
-            ...prev,
-            gpr_c_pc_pic_empcode: value,
-            gpr_c_pc_pic_name: '',
-            gpr_c_pc_pic_email: '',
-        }))
-
-        const empcode = String(value || '').trim()
+    useDebounce(() => {
+        const empcode = String(form.gpr_c_pc_pic_empcode || '').trim()
         pcPicLookupSeq.current += 1
         const requestSeq = pcPicLookupSeq.current
 
-        if (!empcode) return
+        if (!open || !empcode) return
+        if (form.gpr_c_pc_pic_name && form.gpr_c_pc_pic_email) return
 
         void lookupEmployeeProfile(empcode)
             .then(member => {
@@ -233,6 +225,76 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                         : prev
                 ))
             })
+    }, 450, [form.gpr_c_pc_pic_empcode, open])
+
+    useDebounce(() => {
+        if (!open) return
+
+        form.gpr_c_circular_empcodes.slice(0, circularCount).forEach((rawEmpcode, index) => {
+            const empcode = String(rawEmpcode || '').trim()
+            circularLookupSeq.current[index] += 1
+            const requestSeq = circularLookupSeq.current[index]
+
+            if (!empcode) return
+            const currentMember = form.gpr_c_circular_members[index]
+            if (
+                String(currentMember?.empcode || '').trim().toUpperCase() === empcode.toUpperCase()
+                && currentMember?.name
+                && currentMember?.email
+            ) return
+
+            void lookupEmployeeProfile(empcode)
+                .then(member => {
+                    if (!member || requestSeq !== circularLookupSeq.current[index]) return
+
+                    setForm(prev => {
+                        if (String(prev.gpr_c_circular_empcodes[index] || '').trim() !== empcode) return prev
+
+                        const nextMembers = [...prev.gpr_c_circular_members]
+                        nextMembers[index] = {
+                            empcode: member.empcode || empcode,
+                            name: member.name || '',
+                            email: member.email || '',
+                        }
+
+                        return { ...prev, gpr_c_circular_members: nextMembers }
+                    })
+                })
+                .catch(() => {
+                    if (requestSeq !== circularLookupSeq.current[index]) return
+
+                    setForm(prev => {
+                        if (String(prev.gpr_c_circular_empcodes[index] || '').trim() !== empcode) return prev
+
+                        const nextMembers = [...prev.gpr_c_circular_members]
+                        nextMembers[index] = { empcode: '', name: '', email: '' }
+
+                        return { ...prev, gpr_c_circular_members: nextMembers }
+                    })
+                })
+        })
+    }, 450, [form.gpr_c_circular_empcodes.slice(0, circularCount).join('|'), circularCount, open])
+
+    const handleApproverChange = (value: string) => {
+        setForm(prev => ({
+            ...prev,
+            gpr_c_approver_empcode: value,
+            gpr_c_approver_name: '',
+            gpr_c_approver_email: '',
+        }))
+
+        if (!String(value || '').trim()) approverLookupSeq.current += 1
+    }
+
+    const handlePcPicChange = (value: string) => {
+        setForm(prev => ({
+            ...prev,
+            gpr_c_pc_pic_empcode: value,
+            gpr_c_pc_pic_name: '',
+            gpr_c_pc_pic_email: '',
+        }))
+
+        if (!String(value || '').trim()) pcPicLookupSeq.current += 1
     }
 
     const handleCircularChange = (index: number, value: string) => {
@@ -244,41 +306,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
             return { ...prev, gpr_c_circular_empcodes: next, gpr_c_circular_members: nextMembers }
         })
 
-        const empcode = String(value || '').trim()
-        circularLookupSeq.current[index] += 1
-        const requestSeq = circularLookupSeq.current[index]
-
-        if (!empcode) return
-
-        void lookupEmployeeProfile(empcode)
-            .then(member => {
-                if (!member || requestSeq !== circularLookupSeq.current[index]) return
-
-                setForm(prev => {
-                    if (String(prev.gpr_c_circular_empcodes[index] || '').trim() !== empcode) return prev
-
-                    const nextMembers = [...prev.gpr_c_circular_members]
-                    nextMembers[index] = {
-                        empcode: member.empcode || empcode,
-                        name: member.name || '',
-                        email: member.email || '',
-                    }
-
-                    return { ...prev, gpr_c_circular_members: nextMembers }
-                })
-            })
-            .catch(() => {
-                if (requestSeq !== circularLookupSeq.current[index]) return
-
-                setForm(prev => {
-                    if (String(prev.gpr_c_circular_empcodes[index] || '').trim() !== empcode) return prev
-
-                    const nextMembers = [...prev.gpr_c_circular_members]
-                    nextMembers[index] = { empcode: '', name: '', email: '' }
-
-                    return { ...prev, gpr_c_circular_members: nextMembers }
-                })
-            })
+        if (!String(value || '').trim()) circularLookupSeq.current[index] += 1
     }
 
     const handleAddCircular = () => {
@@ -302,14 +330,12 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         if (!rowData?.request_id) return
         if (!isRequester) {
             ToastMessageError({ message: 'Only requester can update this section.' })
-            setFeedback({ type: 'error', msg: 'Only requester can update this section.' })
             return
         }
         setConfirmOpen(true)
     }
 
     const saveMutation = useSaveGprCNotification(() => {
-        setFeedback({ type: 'success', msg: 'GPR C notification setup saved.' })
         setConfirmOpen(false)
         onSaved?.()
     })
@@ -317,26 +343,20 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     const handleSave = () => {
         if (!rowData?.request_id) return
         if (!isRequester) {
-            setFeedback({ type: 'error', msg: 'Only requester can update this section.' })
             ToastMessageError({ message: 'Only requester can update this section.' })
             return
         }
-
-        setFeedback(null)
 
         saveMutation.mutate({
             request_id: Number(rowData.request_id),
             gpr_c_data: {
                 gpr_c_approver_empcode: form.gpr_c_approver_empcode,
+                gpr_c_pc_pic_empcode: form.gpr_c_pc_pic_empcode,
                 gpr_c_pc_pic_name: form.gpr_c_pc_pic_name,
                 gpr_c_pc_pic_email: form.gpr_c_pc_pic_email,
                 gpr_c_circular_empcodes: form.gpr_c_circular_empcodes.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
             },
             UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-        }, {
-            onError: (error: any) => {
-                setFeedback({ type: 'error', msg: error?.message || 'Failed to save GPR C notification setup' })
-            }
         })
     }
 
@@ -362,26 +382,23 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
             </DialogTitle>
             <DialogContent dividers sx={{ px: 4, py: 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {!isRequester && (
-                        <Alert severity='warning'>Only requester can edit this section.</Alert>
-                    )}
-                    {feedback && <Alert severity={feedback.type}>{feedback.msg}</Alert>}
                     {loading ? (
                         <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
                             <CircularProgress size={24} />
                         </Box>
                     ) : (
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={2.5}>
+                            <Grid item xs={12} md={2}>
                                 <CustomTextField
                                     fullWidth
-                                    label='GPR C Approver EmpCode'
+                                    placeholder='Employee Code'
+                                    label='GPR C Approver'
                                     value={form.gpr_c_approver_empcode}
                                     onChange={e => handleApproverChange(e.target.value)}
                                     disabled={!isRequester}
                                 />
                             </Grid>
-                            <Grid item xs={12} md={4.25}>
+                            <Grid item xs={12} md={4.2}>
                                 <CustomTextField
                                     fullWidth
                                     label='Approver Name'
@@ -389,7 +406,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     disabled
                                 />
                             </Grid>
-                            <Grid item xs={12} md={5.25}>
+                            <Grid item xs={12} md={5.80}>
                                 <CustomTextField
                                     fullWidth
                                     label='Approver Email'
@@ -397,7 +414,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     disabled
                                 />
                             </Grid>
-                            <Grid item xs={12} md={2.5}>
+                            <Grid item xs={12} md={2}>
                                 <CustomTextField
                                     fullWidth
                                     label='PC PIC EmpCode'
@@ -407,7 +424,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     disabled={!isRequester}
                                 />
                             </Grid>
-                            <Grid item xs={12} md={4.25}>
+                            <Grid item xs={12} md={4.2}>
                                 <CustomTextField
                                     fullWidth
                                     label='PC PIC Name'
@@ -416,7 +433,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     disabled={!isRequester}
                                 />
                             </Grid>
-                            <Grid item xs={12} md={5.25}>
+                            <Grid item xs={12} md={5.80}>
                                 <CustomTextField
                                     fullWidth
                                     label='PC PIC Email'
@@ -429,9 +446,9 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                 const memberInfo = form.gpr_c_circular_members[index]
 
                                 return (
-                                    <Grid key={index} item xs={12}>
+                                    <Grid key={index} item xs={12} sx={{ position: 'relative' }}>
                                         <Grid container spacing={2} alignItems='center'>
-                                            <Grid item xs={12} md={2.5}>
+                                            <Grid item xs={12} md={2}>
                                                 <CustomTextField
                                                     fullWidth
                                                     label={`Circular EmpCode ${index + 1}`}
@@ -441,7 +458,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                                     disabled={!isRequester}
                                                 />
                                             </Grid>
-                                            <Grid item xs={12} md={4.25}>
+                                            <Grid item xs={12} md={4.2}>
                                                 <CustomTextField
                                                     fullWidth
                                                     label={`Circular Name ${index + 1}`}
@@ -449,7 +466,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                                     disabled
                                                 />
                                             </Grid>
-                                            <Grid item xs={12} md={5.25}>
+                                            <Grid item xs={12} md={5.80}>
                                                 <CustomTextField
                                                     fullWidth
                                                     label={`Circular Email ${index + 1}`}
@@ -457,21 +474,33 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                                     disabled
                                                 />
                                             </Grid>
-                                            <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                                                {circularCount > 1 && (
-                                                    <Button
-                                                        size='small'
-                                                        color='error'
-                                                        variant='tonal'
-                                                        onClick={() => handleRemoveCircular(index)}
-                                                        disabled={!isRequester}
-                                                        sx={{ minWidth: 40, height: 40 }}
-                                                    >
-                                                        <i className='tabler-trash' />
-                                                    </Button>
-                                                )}
-                                            </Grid>
                                         </Grid>
+                                        {circularCount > 1 && (
+                                            <Button
+                                                size='small'
+                                                color='error'
+                                                variant='tonal'
+                                                onClick={() => handleRemoveCircular(index)}
+                                                disabled={!isRequester}
+                                                sx={{
+                                                    minWidth: 28,
+                                                    width: 28,
+                                                    height: 28,
+                                                    p: 0,
+                                                    mt: 1,
+                                                    display: 'flex',
+                                                    ml: 'auto',
+                                                    '@media (min-width: 900px)': {
+                                                        position: 'absolute',
+                                                        right: -34,
+                                                        top: 28,
+                                                        mt: 0,
+                                                    },
+                                                }}
+                                            >
+                                                <i className='tabler-trash' style={{ fontSize: 15 }} />
+                                            </Button>
+                                        )}
                                     </Grid>
                                 )
                             })}

@@ -668,20 +668,6 @@ export default function SearchResult() {
             <Grid item xs={12}>
                 <SearchResultCard>
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                            <Typography variant='subtitle1' fontWeight={700}>
-                                Results ({totalCount})
-                            </Typography>
-                            <Button
-                                size='small'
-                                variant='tonal'
-                                startIcon={<i className='tabler-refresh' style={{ fontSize: 16 }} />}
-                                onClick={() => gridApiRef.current?.refreshServerSide({ purge: true })}
-                            >
-                                Refresh
-                            </Button>
-                        </Box>
-
                         <DxAGgridTable
                             columnDefs={colDefs}
                             serverSideDatasource={datasource}
