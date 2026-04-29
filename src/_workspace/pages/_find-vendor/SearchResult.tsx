@@ -39,7 +39,9 @@ import EmailCellRenderer from './components/EmailCellRenderer'
 import EditVendorModal from './modal/EditVendorModal'
 import RegisterConfirmModal from './register-request/RegisterConfirmModal'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
 
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<FindVendorFormData>()
@@ -203,20 +205,29 @@ const SearchResult = () => {
     const handleConfirmRegister = async (formData?: any) => {
         if (!selectedRegisterVendor) return
         try {
+            // const requesterEmailForCc = getUserData()?.EMAIL || ''
+            const requesterEmailForCc = 'tanawut.patrawan@furukawaelectric.com'
             const payload = new FormData()
             payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
             payload.append('vendor_contact_id', formData?.vendorContactId || '')
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
+            payload.append('cc_emails', requesterEmailForCc ? JSON.stringify([requesterEmailForCc]) : '[]')
             payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))
             }
-            await RegisterRequestServices.create(payload)
-            setRegisterModalOpen(false)
-            setSelectedRegisterVendor(null)
+            const response = await RegisterRequestServices.create(payload)
+            if (response.data?.Status) {
+                ToastMessageSuccess({ message: response.data?.Message || 'Registration request created successfully' })
+                setRegisterModalOpen(false)
+                setSelectedRegisterVendor(null)
+            } else {
+                ToastMessageError({ message: response.data?.Message || 'Failed to create registration request' })
+            }
         } catch (error: any) {
+            ToastMessageError({ message: error?.message || 'Failed to create registration request' })
             console.error('Failed to create registration request:', error)
         }
     }
@@ -249,13 +260,13 @@ const SearchResult = () => {
             cellRenderer: (params: any) => {
                 const val = params.value
                 if (!val) return <span style={{ color: '#9e9e9e' }}>—</span>
+                const tone = getRegionTone(val)
                 return (
                     <Chip
                         size="small"
-                        label={val === 'Oversea' ? '✈️ Oversea' : '🏠 Local'}
+                        label={val === 'Oversea' ? 'Oversea' : 'Local'}
                         color={val === 'Oversea' ? 'info' : 'success'}
-                        variant="tonal"
-                        sx={{ fontWeight: 600, height: 22, fontSize: '0.7rem' }}
+                        sx={getChipSx(tone, { height: 22 })}
                     />
                 )
             }

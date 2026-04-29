@@ -66,25 +66,13 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
     // Hooks : React Query
     const { mutate, isPending } = useCreate(
         (data: any) => {
-            if (data.Status) {
-                ToastMessageSuccess({
-                    title: 'Add Product Group',
-                    message: data.Message
-                })
+            if (data?.Status) {
                 handleClose()
                 onSuccess?.()
-            } else {
-                ToastMessageError({
-                    title: 'Add Product Group',
-                    message: data.Message
-                })
             }
         },
         (error: any) => {
-            ToastMessageError({
-                title: 'Add Product Group',
-                message: error?.message || 'Failed to create product group'
-            })
+            // Error is handled by the hook
         }
     )
 

@@ -15,6 +15,7 @@ import ConfirmModal from '@components/ConfirmModal'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useSaveGprCNotification } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
 
 interface GprCNotificationDialogProps {
     open: boolean
@@ -106,7 +107,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
-    const [showPcPicFields, setShowPcPicFields] = useState(false)
+    const [circularCount, setCircularCount] = useState(1)
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
     const approverLookupSeq = useRef(0)
     const pcPicLookupSeq = useRef(0)
@@ -157,11 +158,11 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                     action_required_setup: actionRequiredSetup,
                 }
                 setForm(nextForm)
-                setShowPcPicFields(Boolean(nextForm.gpr_c_pc_pic_name || nextForm.gpr_c_pc_pic_email || nextForm.gpr_c_pc_pic_empcode))
+                setCircularCount(Math.max(1, Math.min(6, circularEmpcodes.filter(Boolean).length || circularMembers.length || 1)))
             } catch {
                 if (!active) return
                 setForm(buildEmptyForm())
-                setShowPcPicFields(false)
+                setCircularCount(1)
             } finally {
                 if (active) setLoading(false)
             }
@@ -308,6 +309,23 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
             })
     }
 
+    const handleAddCircular = () => {
+        setCircularCount(prev => Math.min(6, prev + 1))
+    }
+
+    const handleRemoveCircular = (index: number) => {
+        setForm(prev => {
+            const nextEmpcodes = prev.gpr_c_circular_empcodes.filter((_, idx) => idx !== index)
+            const nextMembers = prev.gpr_c_circular_members.filter((_, idx) => idx !== index)
+            return {
+                ...prev,
+                gpr_c_circular_empcodes: [...nextEmpcodes, ''].slice(0, 6),
+                gpr_c_circular_members: [...nextMembers, { empcode: '', name: '', email: '' }].slice(0, 6),
+            }
+        })
+        setCircularCount(prev => Math.max(1, prev - 1))
+    }
+
     const openConfirmSave = () => {
         if (!rowData?.request_id) return
         if (!isRequester) {
@@ -318,7 +336,13 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         setConfirmOpen(true)
     }
 
-    const handleSave = async () => {
+    const saveMutation = useSaveGprCNotification(() => {
+        setFeedback({ type: 'success', msg: 'GPR C notification setup saved.' })
+        setConfirmOpen(false)
+        onSaved?.()
+    })
+
+    const handleSave = () => {
         if (!rowData?.request_id) return
         if (!isRequester) {
             setFeedback({ type: 'error', msg: 'Only requester can update this section.' })
@@ -326,38 +350,23 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
             return
         }
 
-        setSaving(true)
         setFeedback(null)
 
-        try {
-            const response = await RegisterRequestServices.saveGprCNotification({
-                request_id: Number(rowData.request_id),
-                gpr_c_data: {
-                    gpr_c_approver_empcode: form.gpr_c_approver_empcode,
-                    gpr_c_pc_pic_name: form.gpr_c_pc_pic_name,
-                    gpr_c_pc_pic_email: form.gpr_c_pc_pic_email,
-                    gpr_c_circular_empcodes: form.gpr_c_circular_empcodes.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
-                    action_required_setup: form.action_required_setup,
-                },
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-
-            if (response.data.Status) {
-                setFeedback({ type: 'success', msg: 'GPR C notification setup saved.' })
-                ToastMessageSuccess({ message: 'GPR C notification setup saved.' })
-                setConfirmOpen(false)
-                onSaved?.()
-            } else {
-                setFeedback({ type: 'error', msg: response.data.Message || 'Save failed' })
-                ToastMessageError({ message: response.data.Message || 'Save failed' })
+        saveMutation.mutate({
+            request_id: Number(rowData.request_id),
+            gpr_c_data: {
+                gpr_c_approver_empcode: form.gpr_c_approver_empcode,
+                gpr_c_pc_pic_name: form.gpr_c_pc_pic_name,
+                gpr_c_pc_pic_email: form.gpr_c_pc_pic_email,
+                gpr_c_circular_empcodes: form.gpr_c_circular_empcodes.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
+                action_required_setup: form.action_required_setup,
+            },
+            UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+        }, {
+            onError: (error: any) => {
+                setFeedback({ type: 'error', msg: error?.message || 'Failed to save GPR C notification setup' })
             }
-        } catch (error: unknown) {
-            const message = (error as { response?: { data?: { Message?: string } } })?.response?.data?.Message || 'Failed to save GPR C notification setup'
-            setFeedback({ type: 'error', msg: message })
-            ToastMessageError({ message })
-        } finally {
-            setSaving(false)
-        }
+        })
     }
 
     return (
@@ -402,74 +411,47 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                     disabled
                                 />
                             </Grid>
-                            <Grid item xs={12}>
-                                <Button
-                                    variant='tonal'
-                                    color={showPcPicFields ? 'secondary' : 'primary'}
-                                    startIcon={<i className={showPcPicFields ? 'tabler-user-minus' : 'tabler-user-plus'} />}
-                                    onClick={() => {
-                                        setShowPcPicFields(prev => {
-                                            const next = !prev
-                                            if (!next) {
-                                                setForm(current => ({
-                                                    ...current,
-                                                    gpr_c_pc_pic_empcode: '',
-                                                    gpr_c_pc_pic_name: '',
-                                                    gpr_c_pc_pic_email: '',
-                                                }))
-                                            }
-                                            return next
-                                        })
-                                    }}
+                            <Grid item xs={12} md={4}>
+                                <CustomTextField
+                                    fullWidth
+                                    label='PC PIC EmpCode'
+                                    placeholder='S00000'
+                                    value={form.gpr_c_pc_pic_empcode}
+                                    onChange={e => handlePcPicChange(e.target.value)}
                                     disabled={!isRequester}
-                                >
-                                    {showPcPicFields ? 'Remove PC PIC' : 'Add PC PIC'}
-                                </Button>
+                                />
                             </Grid>
-                            {showPcPicFields && (
-                                <>
-                                    <Grid item xs={12} md={4}>
-                                        <CustomTextField
-                                            fullWidth
-                                            label='PC PIC EmpCode'
-                                            placeholder='S00000'
-                                            value={form.gpr_c_pc_pic_empcode}
-                                            onChange={e => handlePcPicChange(e.target.value)}
-                                            disabled={!isRequester}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <CustomTextField
-                                            fullWidth
-                                            label='PC PIC Name'
-                                            value={form.gpr_c_pc_pic_name}
-                                            onChange={e => setForm(prev => ({ ...prev, gpr_c_pc_pic_name: e.target.value }))}
-                                            disabled={!isRequester}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <CustomTextField
-                                            fullWidth
-                                            label='PC PIC Email'
-                                            value={form.gpr_c_pc_pic_email}
-                                            onChange={e => setForm(prev => ({ ...prev, gpr_c_pc_pic_email: e.target.value }))}
-                                            disabled={!isRequester}
-                                        />
-                                    </Grid>
-                                </>
-                            )}
-                            {Array.from({ length: 6 }).map((_, index) => {
+                            <Grid item xs={12} md={4}>
+                                <CustomTextField
+                                    fullWidth
+                                    label='PC PIC Name'
+                                    value={form.gpr_c_pc_pic_name}
+                                    onChange={e => setForm(prev => ({ ...prev, gpr_c_pc_pic_name: e.target.value }))}
+                                    disabled={!isRequester}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <CustomTextField
+                                    fullWidth
+                                    label='PC PIC Email'
+                                    value={form.gpr_c_pc_pic_email}
+                                    onChange={e => setForm(prev => ({ ...prev, gpr_c_pc_pic_email: e.target.value }))}
+                                    disabled={!isRequester}
+                                />
+                            </Grid>
+                            {Array.from({ length: circularCount }).map((_, index) => {
                                 const memberInfo = form.gpr_c_circular_members[index]
                                 return (
                                     <Grid key={index} item xs={12}>
-                                        <Grid container spacing={2}>
-                                            <Grid item xs={12} md={4}>
+                                        <Grid container spacing={2} alignItems='center'>
+                                            <Grid item xs={12} md={3.5}>
                                                 <CustomTextField
                                                     fullWidth
                                                     label={`Circular EmpCode ${index + 1}`}
                                                     placeholder='S00000'
                                                     value={form.gpr_c_circular_empcodes[index] || ''}
                                                     onChange={e => handleCircularChange(index, e.target.value)}
+                                                    disabled={!isRequester}
                                                 />
                                             </Grid>
                                             <Grid item xs={12} md={4}>
@@ -480,7 +462,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                                     disabled
                                                 />
                                             </Grid>
-                                            <Grid item xs={12} md={4}>
+                                            <Grid item xs={12} md={3.5}>
                                                 <CustomTextField
                                                     fullWidth
                                                     label={`Circular Email ${index + 1}`}
@@ -488,30 +470,57 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                                                     disabled
                                                 />
                                             </Grid>
+                                            <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                                                {circularCount > 1 && (
+                                                    <Button
+                                                        size='small'
+                                                        color='error'
+                                                        variant='tonal'
+                                                        onClick={() => handleRemoveCircular(index)}
+                                                        disabled={!isRequester}
+                                                        sx={{ minWidth: 40, height: 40 }}
+                                                    >
+                                                        <i className='tabler-trash' />
+                                                    </Button>
+                                                )}
+                                            </Grid>
                                         </Grid>
                                     </Grid>
                                 )
                             })}
+                            {circularCount < 6 && (
+                                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Button
+                                        variant='outlined'
+                                        startIcon={<i className='tabler-plus' />}
+                                        onClick={handleAddCircular}
+                                        disabled={!isRequester}
+                                        sx={{ borderStyle: 'dashed' }}
+                                    >
+                                        Add Circular List
+                                    </Button>
+                                </Grid>
+                            )}
                         </Grid>
                     )}
                 </Box>
             </DialogContent>
             <DialogActions>
-                <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>Cancel</Button>
+                <Button variant='tonal' color='secondary' onClick={onClose} disabled={saveMutation.isPending}>Cancel</Button>
                 <Button
                     variant='contained'
                     onClick={openConfirmSave}
-                    disabled={saving || loading || !isRequester}
-                    startIcon={saving ? <CircularProgress size={14} color='inherit' /> : null}
+                    disabled={saveMutation.isPending || loading || !isRequester}
+                    startIcon={saveMutation.isPending ? <CircularProgress size={14} color='inherit' /> : null}
                 >
-                    {saving ? 'Saving...' : 'Save Setup'}
+                    {saveMutation.isPending ? 'Saving...' : 'Save Setup'}
                 </Button>
             </DialogActions>
             <ConfirmModal
                 show={confirmOpen}
                 onConfirmClick={handleSave}
                 onCloseClick={() => setConfirmOpen(false)}
-                isLoading={saving}
+                isLoading={saveMutation.isPending}
                 isDelete={false}
             />
         </Dialog>

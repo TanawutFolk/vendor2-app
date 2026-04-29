@@ -43,13 +43,13 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 import StatusTimeline from './StatusTimeline'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import GprCNotificationDialog from './modal/GprCNotificationDialog'
-import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDialog'
-import { buildGprCriteriaSummary } from '@_workspace/utils/gprCriteriaSummary'
 
 // React Query
 import { useQueryClient } from '@tanstack/react-query'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
 import { isIssueGprCStep } from '@_workspace/utils/requestWorkflow'
+import { formatFftStatus } from '@_workspace/utils/fftStatus'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,7 +170,6 @@ const FileViewerDialog = ({ open, files, onClose }: {
 // ─────────────────────────────────────────────────────────────────────────────
 const DetailRenderer = ({ data }: { data: any }) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
-    const [gprDialogOpen, setGprDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const files = buildFileUrls(data?.documents)
     const approvalSteps = useMemo(() => {
@@ -187,31 +186,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
             return []
         }
     }, [data?.approval_logs])
-    const currentStep = approvalSteps.find((step: any) => step?.step_status === 'in_progress')
-    const parsedGprData = useMemo(() => {
-        try {
-            return typeof data?.gpr_data === 'string' ? JSON.parse(data.gpr_data) : (data?.gpr_data || null)
-        } catch {
-            return null
-        }
-    }, [data?.gpr_data])
-    const gprCriteriaFromData = Array.isArray(parsedGprData?.criteria) ? parsedGprData.criteria : []
-    const gprCriteria = useMemo(() => {
-        const raw = data?.gpr_criteria
-        if (Array.isArray(raw)) return raw
-        try {
-            const parsed = JSON.parse(raw)
-            return Array.isArray(parsed) && parsed.length > 0 ? parsed : gprCriteriaFromData
-        } catch {
-            return gprCriteriaFromData
-        }
-    }, [data?.gpr_criteria, gprCriteriaFromData])
-    const gprCriteriaSummary = buildGprCriteriaSummary(gprCriteria)
-    const showRequesterReviewSummary = gprCriteriaSummary.hasIssues && (
-        isIssueGprCStep(currentStep)
-        || String(data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase().includes('issue gpr c')
-    )
-
     const workflowSteps = useMemo(() => {
         try {
             const approvalSteps = typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || [])
@@ -240,8 +214,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
     }, [statusOptions, data.request_status, data.approval_steps])
 
     if (!data) return null
-
-    const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
 
     const contacts: any[] = (() => {
         try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
@@ -319,7 +291,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 { label: 'Vendor Type', value: data.vendor_type_name },
                                 { label: 'Region', value: data.vendor_region },
                                 { label: 'FFT Vendor Code', value: data.fft_vendor_code },
-                                { label: 'FFT Status', value: data.fft_status },
+                                { label: 'FFT Status', value: formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }) },
                                 { label: 'Province', value: data.province },
                                 { label: 'Postal Code', value: data.postal_code },
                                 { label: 'Tel Center', value: data.tel_center },
@@ -398,101 +370,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         />
                     </Box>
 
-                    {showRequesterReviewSummary && (
-                        <Box sx={{ mb: 4 }}>
-                            <SectionHeader icon='tabler-alert-triangle' title='Conditions Requiring Requester Review' />
-                            <Box sx={{
-                                p: 2,
-                                borderRadius: 1.5,
-                                border: '1px solid',
-                                borderColor: 'warning.light',
-                                bgcolor: 'warning.lighter'
-                            }}>
-                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 1.5 }}>
-                                    <Typography variant='body2' color='text.secondary'>
-                                        {gprCriteriaSummary.headline || 'Please review the unresolved Selection Sheet conditions before proceeding with GPR C setup.'}
-                                    </Typography>
-                                    <Button
-                                        size='small'
-                                        variant='outlined'
-                                        color='warning'
-                                        startIcon={<i className='tabler-clipboard-text' style={{ fontSize: 14 }} />}
-                                        onClick={() => setGprDialogOpen(true)}
-                                    >
-                                        View Selection Sheet
-                                    </Button>
-                                </Box>
-
-                                <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                                    {gprCriteriaSummary.items.map(item => (
-                                        <ListItem
-                                            key={`${item.no}-${item.detail}`}
-                                            disableGutters
-                                            sx={{
-                                                alignItems: 'flex-start',
-                                                px: 1.25,
-                                                py: 1,
-                                                borderRadius: 1,
-                                                bgcolor: 'background.paper',
-                                                border: '1px solid',
-                                                borderColor: 'divider'
-                                            }}
-                                        >
-                                            <ListItemIcon sx={{ minWidth: 28, mt: 0.25 }}>
-                                                <i
-                                                    className={item.explicitNotAccept ? 'tabler-circle-x' : 'tabler-alert-circle'}
-                                                    style={{
-                                                        fontSize: 16,
-                                                        color: item.explicitNotAccept
-                                                            ? 'var(--mui-palette-error-main)'
-                                                            : 'var(--mui-palette-warning-main)'
-                                                    }}
-                                                />
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                                        <Typography variant='body2' fontWeight={700}>
-                                                            {item.no} {item.detail}
-                                                        </Typography>
-                                                        <Chip
-                                                            size='small'
-                                                            color={item.criteriaType === 'Need' ? 'error' : 'warning'}
-                                                            variant='tonal'
-                                                            label={item.criteriaType}
-                                                            sx={{ height: 20, fontSize: '0.65rem' }}
-                                                        />
-                                                        {item.explicitNotAccept && (
-                                                            <Chip
-                                                                size='small'
-                                                                color='error'
-                                                                variant='outlined'
-                                                                label='Not Accept'
-                                                                sx={{ height: 20, fontSize: '0.65rem' }}
-                                                            />
-                                                        )}
-                                                    </Box>
-                                                }
-                                                secondary={
-                                                    <Box sx={{ mt: 0.5 }}>
-                                                        <Typography variant='caption' color='text.secondary' sx={{ display: 'block' }}>
-                                                            {item.reason}
-                                                        </Typography>
-                                                        {item.remark && (
-                                                            <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 0.25 }}>
-                                                                PIC Remark: {item.remark}
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
-                                                }
-                                            />
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Box>
-                        </Box>
-                    )}
-
                     {/* Attached Files */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
                         <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
@@ -522,12 +399,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
             </Card>
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
-            <GprFormDialog
-                open={gprDialogOpen}
-                rowData={data}
-                readOnly={true}
-                onClose={() => setGprDialogOpen(false)}
-            />
         </Box>
     )
 }
@@ -711,19 +582,10 @@ export default function SearchResult() {
             cellRendererParams: {
                 innerRenderer: (params: any) => {
                     const statusCfg = statusOptions.find(s => s.value === params.value)
-                    const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
-                    const txtColor = statusCfg?.accent || '#8A8D99'
+                    const tone = getReadableStatusTone(params.value, statusCfg?.accent)
                     return (
                         <Chip label={params.value || '-'} size='small'
-                            sx={{
-                                bgcolor: bgColor,
-                                color: txtColor,
-                                border: '1px solid',
-                                borderColor: `${txtColor}40`,
-                                fontWeight: 700,
-                                fontSize: '0.72rem',
-                                height: 24
-                            }}
+                            sx={getChipSx(tone)}
                         />
                     )
                 }

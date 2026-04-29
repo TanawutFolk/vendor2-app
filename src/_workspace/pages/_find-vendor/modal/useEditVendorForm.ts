@@ -125,6 +125,13 @@ export const useEditVendorForm = ({
 
     const updateVendor = useUpdateVendor(
         (data: any, variables: any) => {
+            if (data?.Status === false) {
+                setErrorMessage(data?.Message || 'Failed to save changes')
+                setErrorDetails(data)
+                setErrorModalOpen(true)
+                return
+            }
+
             queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY, 'DETAIL', variables.vendorId] })
             queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
 

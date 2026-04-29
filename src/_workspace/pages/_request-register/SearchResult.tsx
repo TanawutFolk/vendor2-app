@@ -74,9 +74,11 @@ import {
     resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
+import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -662,7 +664,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 {infoRow('Vendor Type', data.vendor_type_name)}
                 {infoRow('Region', data.vendor_region)}
                 {infoRow('FFT Vendor Code', data.fft_vendor_code)}
-                {infoRow('FFT Status', data.fft_status)}
+                {infoRow('FFT Status', formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }))}
                 {infoRow('Address', data.address)}
                 {infoRow('Province', data.province)}
                 {infoRow('Postal Code', data.postal_code)}
@@ -1358,19 +1360,10 @@ export default function SearchResult() {
             cellRendererParams: {
                 innerRenderer: (params: any) => {
                     const statusCfg = statusOptions.find(s => s.value === params.value)
-                    const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
-                    const txtColor = statusCfg?.accent || '#8A8D99'
+                    const tone = getReadableStatusTone(params.value, statusCfg?.accent)
                     return (
                         <Chip label={params.value || '-'} size='small'
-                            sx={{
-                                bgcolor: bgColor,
-                                color: txtColor,
-                                border: '1px solid',
-                                borderColor: `${txtColor}40`,
-                                fontWeight: 700,
-                                fontSize: '0.72rem',
-                                height: 24
-                            }}
+                            sx={getChipSx(tone)}
                         />
                     )
                 }

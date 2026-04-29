@@ -26,6 +26,7 @@ import { useDropzone } from 'react-dropzone'
 import AppReactDropzone from '@/libs/styles/AppReactDropzone'
 import ConfirmModal from '@components/ConfirmModal'
 import CustomTextField from '@components/mui/TextField'
+import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
 
 // Third-party Imports
 import { useForm, Controller } from 'react-hook-form'
@@ -333,13 +334,12 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                         label="Region"
                                         value={
                                             vendorData.vendor_region ? (
-                                                <Chip
-                                                    size="small"
-                                                    label={vendorData.vendor_region === 'Oversea' ? '✈️ Oversea' : '🏠 Local'}
-                                                    color={vendorData.vendor_region === 'Oversea' ? 'info' : 'success'}
-                                                    variant="tonal"
-                                                    sx={{ fontWeight: 600, height: 22, fontSize: '0.7rem' }}
-                                                />
+                                                    <Chip
+                                                        size="small"
+                                                        label={vendorData.vendor_region === 'Oversea' ? 'Oversea' : 'Local'}
+                                                        color={vendorData.vendor_region === 'Oversea' ? 'info' : 'success'}
+                                                        sx={getChipSx(getRegionTone(vendorData.vendor_region), { height: 22 })}
+                                                    />
                                             ) : undefined
                                         }
                                     />

@@ -9,6 +9,7 @@ import AddVendorServices from '@_workspace/services/_add-vendor/AddVendorService
 import type { BlacklistMatchI } from '@_workspace/types/_add-vendor/AddVendorTypes'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useSaveGprFormMutation, useAddDocumentMutation } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

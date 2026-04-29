@@ -57,7 +57,6 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 setBlacklistMatches([])
                 setResultModalType('duplicate')
                 setResultModalOpen(true)
-                ToastMessageError({ message: errorMsg })
                 onVerifyChange(false, errorMsg)
             } else if (data.isBlacklisted) {
                 const blacklistMessage = data.Message || 'Vendor matched the blacklist and cannot be registered'
@@ -66,7 +65,6 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 setBlacklistMatches(data.blacklistMatches || [])
                 setResultModalType('blacklist')
                 setResultModalOpen(true)
-                ToastMessageError({ message: blacklistMessage })
                 onVerifyChange(false, blacklistMessage)
             } else {
                 setVerifyError(null)
@@ -74,7 +72,6 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 setBlacklistMatches([])
                 setResultModalType(null)
                 setResultModalOpen(false)
-                ToastMessageSuccess({ message: 'Vendor is available for adding' })
                 onVerifyChange(true)
             }
         },
@@ -108,182 +105,104 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
 
     return (
         <>
-        <Grid container spacing={4}>
-            <Grid item xs={12} sm={6}>
-                <Controller
-                    name='company_name'
-                    control={control}
-                    render={({ field }) => (
-                        <CustomTextField
-                            {...field}
-                            fullWidth
-                            label='Company Name'
-                            placeholder='Enter company name...'
-                            autoComplete='off'
-                            disabled={isVerified}
-                            {...(errors.company_name && { error: true, helperText: errors.company_name.message })}
-                        />
-                    )}
-                />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-                <Controller
-                    name='province'
-                    control={control}
-                    render={({ field }) => (
-                        <CustomTextField
-                            {...field}
-                            fullWidth
-                            label='Province'
-                            placeholder='Enter province...'
-                            autoComplete='off'
-                            disabled={isVerified}
-                            {...(errors.province && { error: true, helperText: errors.province.message })}
-                        />
-                    )}
-                />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-                <Controller
-                    name='postal_code'
-                    control={control}
-                    render={({ field }) => (
-                        <CustomTextField
-                            {...field}
-                            fullWidth
-                            label='Postal Code'
-                            placeholder='Enter postal code...'
-                            autoComplete='off'
-                            disabled={isVerified}
-                            {...(errors.postal_code && { error: true, helperText: errors.postal_code.message })}
-                        />
-                    )}
-                />
-            </Grid>
+            <Grid container spacing={4}>
+                <Grid item xs={12} sm={6}>
+                    <Controller
+                        name='company_name'
+                        control={control}
+                        render={({ field }) => (
+                            <CustomTextField
+                                {...field}
+                                fullWidth
+                                label='Company Name'
+                                placeholder='Enter company name...'
+                                autoComplete='off'
+                                disabled={isVerified}
+                                {...(errors.company_name && { error: true, helperText: errors.company_name.message })}
+                            />
+                        )}
+                    />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                    <Controller
+                        name='province'
+                        control={control}
+                        render={({ field }) => (
+                            <CustomTextField
+                                {...field}
+                                fullWidth
+                                label='Province'
+                                placeholder='Enter province...'
+                                autoComplete='off'
+                                disabled={isVerified}
+                                {...(errors.province && { error: true, helperText: errors.province.message })}
+                            />
+                        )}
+                    />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                    <Controller
+                        name='postal_code'
+                        control={control}
+                        render={({ field }) => (
+                            <CustomTextField
+                                {...field}
+                                fullWidth
+                                label='Postal Code'
+                                placeholder='Enter postal code...'
+                                autoComplete='off'
+                                disabled={isVerified}
+                                {...(errors.postal_code && { error: true, helperText: errors.postal_code.message })}
+                            />
+                        )}
+                    />
+                </Grid>
 
-            <Grid item xs={12}>
-                <Grid container spacing={2} alignItems='center'>
-                    <Grid item>
-                        <Button
-                            variant='contained'
-                            color={isVerified ? 'success' : 'primary'}
-                            onClick={handleVerify}
-                            disabled={isLoading || isVerified}
-                            startIcon={isLoading ? <CircularProgress size={16} color='inherit' /> : null}
-                        >
-                            {isLoading ? 'Checking...' : isVerified ? 'Verified ✓' : 'Check Duplicate'}
-                        </Button>
-                    </Grid>
-                    {isVerified && (
-                        <Grid item>
-                            <Chip label='Vendor is available for Adding' color='success' variant='outlined' />
-                        </Grid>
-                    )}
-                    {existingVendorId && (
+                <Grid item xs={12}>
+                    <Grid container spacing={2} alignItems='center'>
                         <Grid item>
                             <Button
                                 variant='contained'
-                                color='success'
-                                onClick={() => setEditModalOpen(true)}
-                                startIcon={<i className='tabler-edit' />}
+                                color={isVerified ? 'success' : 'primary'}
+                                onClick={handleVerify}
+                                disabled={isLoading || isVerified}
+                                startIcon={isLoading ? <CircularProgress size={16} color='inherit' /> : null}
                             >
-                                Edit Existing Vendor
+                                {isLoading ? 'Checking...' : isVerified ? 'Verified ✓' : 'Check Duplicate'}
                             </Button>
                         </Grid>
-                    )}
+                        {existingVendorId && (
+                            <Grid item>
+                                <Button
+                                    variant='contained'
+                                    color='success'
+                                    onClick={() => setEditModalOpen(true)}
+                                    startIcon={<i className='tabler-edit' />}
+                                >
+                                    Edit Existing Vendor
+                                </Button>
+                            </Grid>
+                        )}
+                    </Grid>
                 </Grid>
-            </Grid>
 
-            {/* ── Duplicate Error ── */}
-            {/* ── Blacklist Warning ── */}
-            {false && blacklistMatches.length > 0 && (
-                <Grid item xs={12}>
-                    <Alert
-                        severity='error'
-                        icon={<i className='tabler-shield-x' style={{ fontSize: '1.5rem' }} />}
-                        sx={{ alignItems: 'flex-start' }}
-                    >
-                        <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1 }}>
-                            🚫 Vendor is Blacklisted — Registration Blocked
-                        </Typography>
-                        <Typography variant='body2' sx={{ mb: 2 }}>
-                            Company name matches {blacklistMatches.length} record(s) in the Blacklist. Contact your compliance team before proceeding.
-                        </Typography>
-                        <Box sx={{ overflowX: 'auto' }}>
-                            <Table size='small' sx={{ minWidth: 500, bgcolor: 'background.paper', borderRadius: 1 }}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {blacklistMatches.map((match, idx) => (
-                                        <TableRow key={idx}>
-                                            <TableCell>
-                                                <Chip
-                                                    label={match.group_code}
-                                                    size='small'
-                                                    color={match.group_code === 'US' ? 'primary' : 'warning'}
-                                                />
-                                            </TableCell>
-                                            <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
-                                            <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
-                                            <TableCell>{match.source_name || '-'}</TableCell>
-                                            <TableCell>{match.entity_number || '-'}</TableCell>
-                                            <TableCell>{match.programs || '-'}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Box>
-                    </Alert>
-                </Grid>
-            )}
-
-            <EditVendorModal
-                open={editModalOpen}
-                onClose={() => setEditModalOpen(false)}
-                vendorId={existingVendorId}
-                onSuccess={() => {
-                    setEditModalOpen(false)
-                    setExistingVendorId(null)
-                    setVerifyError(null)
-                }}
-            />
-            <Dialog
-                maxWidth={resultModalType === 'blacklist' ? 'lg' : 'sm'}
-                fullWidth={true}
-                open={resultModalOpen}
-                onClose={() => setResultModalOpen(false)}
-                sx={{
-                    '& .MuiDialog-paper': { overflow: 'visible' },
-                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
-                }}
-            >
-                <DialogTitle>
-                    <Typography variant='h5' component='span'>
-                        {resultModalType === 'blacklist' ? 'Blacklist Match Found' : 'Duplicate Vendor Found'}
-                    </Typography>
-                    <DialogCloseButton onClick={() => setResultModalOpen(false)} disableRipple>
-                        <i className='tabler-x' />
-                    </DialogCloseButton>
-                </DialogTitle>
-                <DialogContent>
-                    {resultModalType === 'blacklist' ? (
-                        <Box sx={{ pt: 2 }}>
-                            <Typography variant='body1' sx={{ mb: 1.5 }}>
-                                {verifyError || 'This vendor matched blacklist data and registration is blocked.'}
+                {/* ── Duplicate Error ── */}
+                {/* ── Blacklist Warning ── */}
+                {false && blacklistMatches.length > 0 && (
+                    <Grid item xs={12}>
+                        <Alert
+                            severity='error'
+                            icon={<i className='tabler-shield-x' style={{ fontSize: '1.5rem' }} />}
+                            sx={{ alignItems: 'flex-start' }}
+                        >
+                            <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1 }}>
+                                🚫 Vendor is Blacklisted — Registration Blocked
                             </Typography>
-                            <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-                                Company name matches {blacklistMatches.length} record(s) in the blacklist. Please contact your compliance team before proceeding.
+                            <Typography variant='body2' sx={{ mb: 2 }}>
+                                Company name matches {blacklistMatches.length} record(s) in the Blacklist. Contact your compliance team before proceeding.
                             </Typography>
                             <Box sx={{ overflowX: 'auto' }}>
-                                <Table size='small' sx={{ minWidth: 720 }}>
+                                <Table size='small' sx={{ minWidth: 500, bgcolor: 'background.paper', borderRadius: 1 }}>
                                     <TableHead>
                                         <TableRow>
                                             <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
@@ -296,7 +215,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                     </TableHead>
                                     <TableBody>
                                         {blacklistMatches.map((match, idx) => (
-                                            <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                                            <TableRow key={idx}>
                                                 <TableCell>
                                                     <Chip
                                                         label={match.group_code}
@@ -314,94 +233,167 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                     </TableBody>
                                 </Table>
                             </Box>
-                        </Box>
-                    ) : (
-                        <Box sx={{ pt: 2 }}>
-                            <Typography variant='body1' sx={{ mb: 1.5 }}>
-                                {verifyError || 'This vendor already exists in the system.'}
-                            </Typography>
-                            <Typography variant='body2' color='text.secondary'>
-                                Please review the existing vendor record before creating a new one.
-                            </Typography>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions sx={{ justifyContent: 'flex-start' }}>
-                    {resultModalType === 'duplicate' && existingVendorId && (
-                        <Button
-                            variant='contained'
-                            color='success'
-                            onClick={() => {
-                                setResultModalOpen(false)
-                                setEditModalOpen(true)
-                            }}
-                            startIcon={<i className='tabler-edit' />}
-                        >
-                            Edit Existing Vendor
-                        </Button>
-                    )}
-                    <Button variant='tonal' color='secondary' onClick={() => setResultModalOpen(false)}>
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </Grid>
+                        </Alert>
+                    </Grid>
+                )}
 
-        <Backdrop
-            open={isLoading}
-            sx={{
-                zIndex: (theme) => theme.zIndex.modal + 1,
-                backgroundColor: 'rgba(15, 23, 42, 0.28)',
-                backdropFilter: 'blur(4px)'
-            }}
-        >
-            <Fade in={isLoading}>
-                <Box
+                <EditVendorModal
+                    open={editModalOpen}
+                    onClose={() => setEditModalOpen(false)}
+                    vendorId={existingVendorId}
+                    onSuccess={() => {
+                        setEditModalOpen(false)
+                        setExistingVendorId(null)
+                        setVerifyError(null)
+                    }}
+                />
+                <Dialog
+                    maxWidth={resultModalType === 'blacklist' ? 'lg' : 'sm'}
+                    fullWidth={true}
+                    open={resultModalOpen}
+                    onClose={() => setResultModalOpen(false)}
                     sx={{
-                        minWidth: 320,
-                        maxWidth: 380,
-                        px: 5,
-                        py: 4,
-                        borderRadius: 3,
-                        bgcolor: 'background.paper',
-                        boxShadow: '0 24px 60px rgba(15, 23, 42, 0.18)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 2
+                        '& .MuiDialog-paper': { overflow: 'visible' },
+                        '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
                     }}
                 >
+                    <DialogTitle>
+                        <Typography variant='h5' component='span'>
+                            {resultModalType === 'blacklist' ? 'Blacklist Match Found' : 'Duplicate Vendor Found'}
+                        </Typography>
+                        <DialogCloseButton onClick={() => setResultModalOpen(false)} disableRipple>
+                            <i className='tabler-x' />
+                        </DialogCloseButton>
+                    </DialogTitle>
+                    <DialogContent>
+                        {resultModalType === 'blacklist' ? (
+                            <Box sx={{ pt: 2 }}>
+                                <Typography variant='body1' sx={{ mb: 1.5 }}>
+                                    {verifyError || 'This vendor matched blacklist data and registration is blocked.'}
+                                </Typography>
+                                <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+                                    Company name matches {blacklistMatches.length} record(s) in the blacklist. Please contact your compliance team before proceeding.
+                                </Typography>
+                                <Box sx={{ overflowX: 'auto' }}>
+                                    <Table size='small' sx={{ minWidth: 720 }}>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {blacklistMatches.map((match, idx) => (
+                                                <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={match.group_code}
+                                                            size='small'
+                                                            color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
+                                                    <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                                    <TableCell>{match.source_name || '-'}</TableCell>
+                                                    <TableCell>{match.entity_number || '-'}</TableCell>
+                                                    <TableCell>{match.programs || '-'}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </Box>
+                            </Box>
+                        ) : (
+                            <Box sx={{ pt: 2 }}>
+                                <Typography variant='body1' sx={{ mb: 1.5 }}>
+                                    {verifyError || 'This vendor already exists in the system.'}
+                                </Typography>
+                                <Typography variant='body2' color='text.secondary'>
+                                    Please review the existing vendor record before creating a new one.
+                                </Typography>
+                            </Box>
+                        )}
+                    </DialogContent>
+                    <DialogActions sx={{ justifyContent: 'flex-start' }}>
+                        {resultModalType === 'duplicate' && existingVendorId && (
+                            <Button
+                                variant='contained'
+                                color='success'
+                                onClick={() => {
+                                    setResultModalOpen(false)
+                                    setEditModalOpen(true)
+                                }}
+                                startIcon={<i className='tabler-edit' />}
+                            >
+                                Edit Existing Vendor
+                            </Button>
+                        )}
+                        <Button variant='tonal' color='secondary' onClick={() => setResultModalOpen(false)}>
+                            Close
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            </Grid>
+
+            <Backdrop
+                open={isLoading}
+                sx={{
+                    zIndex: (theme) => theme.zIndex.modal + 1,
+                    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+                    backdropFilter: 'blur(4px)'
+                }}
+            >
+                <Fade in={isLoading}>
                     <Box
                         sx={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: '50%',
+                            minWidth: 320,
+                            maxWidth: 380,
+                            px: 5,
+                            py: 4,
+                            borderRadius: 3,
+                            bgcolor: 'background.paper',
+                            boxShadow: '0 24px 60px rgba(15, 23, 42, 0.18)',
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: 'primary.lightOpacity'
+                            gap: 2
                         }}
                     >
-                        <CircularProgress
-                            size={30}
-                            thickness={4.5}
+                        <Box
                             sx={{
-                                color: 'primary.main'
+                                width: 64,
+                                height: 64,
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: 'primary.lightOpacity'
                             }}
-                        />
-                    </Box>
+                        >
+                            <CircularProgress
+                                size={30}
+                                thickness={4.5}
+                                sx={{
+                                    color: 'primary.main'
+                                }}
+                            />
+                        </Box>
 
-                    <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant='h6' sx={{ mb: 0.5 }}>
-                            Checking Vendor
-                        </Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                            We are checking duplicate vendor data and blacklist matches from both US and CN lists.
-                        </Typography>
+                        <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant='h6' sx={{ mb: 0.5 }}>
+                                Checking Vendor
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary'>
+                                We are checking duplicate vendor data and blacklist matches from both US and CN lists.
+                            </Typography>
+                        </Box>
                     </Box>
-                </Box>
-            </Fade>
-        </Backdrop>
+                </Fade>
+            </Backdrop>
         </>
     )
 }

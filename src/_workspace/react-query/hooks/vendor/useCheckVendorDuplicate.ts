@@ -3,7 +3,7 @@ import { AxiosError } from 'axios'
 
 import AddVendorServices from '@_workspace/services/_add-vendor/AddVendorServices'
 import type { CheckDuplicateRequestI, CheckDuplicateResponseI } from '@_workspace/types/_add-vendor/AddVendorTypes'
-import { ToastMessageError } from '@/components/ToastMessage'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 const checkDuplicate = async (dataItem: CheckDuplicateRequestI): Promise<CheckDuplicateResponseI> => {
     const response = await AddVendorServices.checkDuplicate(dataItem)
@@ -16,7 +16,14 @@ const useCheckDuplicate = (
 ) => {
     return useMutation({
         mutationFn: checkDuplicate,
-        onSuccess,
+        onSuccess: (data: CheckDuplicateResponseI) => {
+            if (data?.Status === false) {
+                ToastMessageError({ message: data?.Message || 'Verification failed' })
+            } else {
+                ToastMessageSuccess({ message: data?.Message || 'Vendor is available for adding' })
+            }
+            onSuccess?.(data)
+        },
         onError: (error: Error | AxiosError) => {
             const errorMessage = error instanceof AxiosError
                 ? error.message

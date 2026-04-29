@@ -21,12 +21,10 @@ function Page() {
             <InnerApp />
         </DxProvider>
     )
-}
+import { useUploadBlacklist } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
 
 const InnerApp = () => {
-    const user = getUserData()
     const { setIsEnableFetching } = useDxContext()
-    const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
 
     const reactHookFormMethods = useForm<BlacklistFormData>({
@@ -38,55 +36,27 @@ const InnerApp = () => {
         setIsEnableFetching(true)
     }, [setIsEnableFetching])
 
-    const handleUpload = async (payload: UploadBlacklistPayload) => {
-        const formData = new FormData()
-        formData.append('file', payload.file)
-        formData.append('CREATE_BY', String(user?.EMPLOYEE_CODE || 'SYSTEM'))
-        formData.append('UPDATE_BY', String(user?.EMPLOYEE_CODE || 'SYSTEM'))
+    const uploadMutation = useUploadBlacklist(() => {
+        setUploadProgress(100)
+        setIsEnableFetching(true)
+        setTimeout(() => setUploadProgress(0), 200)
+    })
 
-        const importFn = payload.format === 'US'
-            ? BlacklistServices.importFileUS
-            : BlacklistServices.importFileCN
-
-        setUploading(true)
+    const handleUpload = (payload: UploadBlacklistPayload) => {
         setUploadProgress(0)
-        try {
-            const response = await importFn(formData, (progressEvent) => {
+        uploadMutation.mutate({
+            payload,
+            onProgress: (progressEvent: any) => {
                 const total = Number(progressEvent.total || 0)
-
-                if (!total) {
-                    return
-                }
-
+                if (!total) return
                 const nextProgress = Math.min(100, Math.round((progressEvent.loaded * 100) / total))
                 setUploadProgress(nextProgress)
-            })
-
-            if (!response.data?.Status) {
-                throw new Error(response.data?.Message || 'Blacklist update failed')
             }
-
-            setUploadProgress(100)
-            setIsEnableFetching(true)
-            ToastMessageSuccess({
-                title: 'Blacklist',
-                message: response.data?.Message || 'Blacklist updated successfully',
-            })
-        } catch (error: unknown) {
-            const errorMessage = error instanceof AxiosError
-                ? (error.response?.data as { Message?: string } | undefined)?.Message || error.message
-                : error instanceof Error
-                    ? error.message
-                    : 'Blacklist update failed'
-
-            ToastMessageError({
-                title: 'Blacklist',
-                message: errorMessage,
-            })
-        } finally {
-            setUploading(false)
-            setTimeout(() => setUploadProgress(0), 200)
-        }
+        }, {
+            onError: () => {
+                setTimeout(() => setUploadProgress(0), 200)
+            }
+        })
     }
 
     return (
@@ -102,7 +72,7 @@ const InnerApp = () => {
 
                 <Grid item xs={12}>
                     <SearchResult
-                        uploading={uploading}
+                        uploading={uploadMutation.isPending}
                         uploadProgress={uploadProgress}
                         onUpload={handleUpload}
                     />

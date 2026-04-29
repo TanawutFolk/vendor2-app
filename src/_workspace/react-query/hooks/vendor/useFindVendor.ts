@@ -58,9 +58,13 @@ const updateVendorBatch = async (dataItem: UpdateVendorParamsI) => {
 export const useUpdateVendor = (onSuccess?: any, onError?: any) => {
     return useMutation({
         mutationFn: updateVendorBatch,
-        onSuccess: (data: any) => {
-            ToastMessageSuccess({ message: 'Vendor updated successfully' })
-            onSuccess?.(data)
+        onSuccess: (data: any, variables: any, context: any) => {
+            if (data?.Status === false) {
+                ToastMessageError({ message: data?.Message || 'Failed to update vendor' })
+            } else {
+                ToastMessageSuccess({ message: data?.Message || 'Vendor updated successfully' })
+            }
+            onSuccess?.(data, variables, context)
         },
         onError: (error: any) => {
             ToastMessageError({ message: error?.message || 'Failed to update vendor' })

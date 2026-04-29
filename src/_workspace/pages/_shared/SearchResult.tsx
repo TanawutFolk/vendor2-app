@@ -60,6 +60,7 @@ import {
     resolveNextStatus,
     normalizeWorkflowText,
 } from '@_workspace/utils/requestWorkflow'
+import { formatFftStatus } from '@_workspace/utils/fftStatus'
 
 interface SearchResultSectionProps {
     enableMultiSelect: boolean
@@ -742,7 +743,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 {infoRow('Vendor Type', data.vendor_type_name)}
                 {infoRow('Region', data.vendor_region)}
                 {infoRow('FFT Vendor Code', data.fft_vendor_code)}
-                {infoRow('FFT Status', data.fft_status)}
+                {infoRow('FFT Status', formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }))}
                 {infoRow('Address', data.address)}
                 {infoRow('Province', data.province)}
                 {infoRow('Tel Center', data.tel_center)}

@@ -3,10 +3,14 @@
 import { Chip } from '@mui/material'
 import type { ICellRendererParams } from 'ag-grid-community'
 
-// FFT Status configuration (for numeric values 0/1)
-const FFT_STATUS_CONFIG = {
+import { formatFftStatus } from '@_workspace/utils/fftStatus'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+
+// FFT Status configuration (for numeric values 0/1/2)
+const FFT_STATUS_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default' }> = {
     1: { label: 'Registered', color: 'success' as const },
-    0: { label: 'Not Registered', color: 'error' as const }
+    0: { label: 'Not Registered', color: 'error' as const },
+    2: { label: 'Cannot Register', color: 'default' as const }
 }
 
 // Status Check configuration (for string values from Prones check)
@@ -24,15 +28,17 @@ interface FftStatusChipProps {
 }
 
 export const FftStatusChip = ({ value, variant = 'filled' }: FftStatusChipProps) => {
-    const status = FFT_STATUS_CONFIG[value as keyof typeof FFT_STATUS_CONFIG] || FFT_STATUS_CONFIG[0]
+    const label = formatFftStatus(value)
+    const status = FFT_STATUS_CONFIG[String(value ?? '').trim()] || STATUS_CHECK_CONFIG[label] || STATUS_CHECK_CONFIG['Not Registered']
+    const tone = getReadableStatusTone(label)
 
     return (
         <Chip
-            label={status.label}
+            label={label}
             color={status.color}
             size='small'
             variant={variant}
-            sx={{ fontWeight: 500 }}
+            sx={getChipSx(tone)}
         />
     )
 }
@@ -45,6 +51,7 @@ interface StatusCheckChipProps {
 
 export const StatusCheckChip = ({ value, variant = 'filled' }: StatusCheckChipProps) => {
     const status = STATUS_CHECK_CONFIG[value || ''] || STATUS_CHECK_CONFIG['Not Registered']
+    const tone = getReadableStatusTone(status.label)
 
     return (
         <Chip
@@ -52,7 +59,7 @@ export const StatusCheckChip = ({ value, variant = 'filled' }: StatusCheckChipPr
             color={status.color}
             size='small'
             variant={variant}
-            sx={{ fontWeight: 500 }}
+            sx={getChipSx(tone)}
         />
     )
 }

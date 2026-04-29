@@ -9,20 +9,15 @@ import {
     DialogContent,
     DialogTitle,
     Grid,
-    LinearProgress,
-    Paper,
     Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Typography,
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
+import type { ColDef, ICellRendererParams } from 'ag-grid-community'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
+import DxAGgridTable from '@/_template/DxAGgridTable'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { MENU_NAME, breadcrumbNavigation } from './env'
@@ -166,6 +161,145 @@ export default function ApprovalGprCPage() {
         return 'Approve GPR C Step'
     }, [dialogMode])
 
+    const approvalColumnDefs = useMemo<ColDef<GprCQueueRow>[]>(() => [
+        {
+            headerName: 'Request No.',
+            field: 'request_number',
+            minWidth: 150,
+            valueGetter: params => params.data?.request_number || `REQ-${getRequestId(params.data || {})}`,
+        },
+        {
+            headerName: 'Vendor',
+            field: 'company_name',
+            minWidth: 220,
+            flex: 1,
+            valueGetter: params => params.data?.company_name || '-',
+        },
+        {
+            headerName: 'Step',
+            field: 'STEP_NAME',
+            minWidth: 220,
+            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
+                const stepCode = String(params.data?.STEP_CODE || '').toUpperCase()
+                return (
+                    <Stack spacing={0.5} sx={{ py: 0.75 }}>
+                        <Typography variant='body2' sx={{ fontWeight: 600 }}>
+                            {params.data?.STEP_NAME || stepCode || '-'}
+                        </Typography>
+                        <Chip size='small' label={stepCode || '-'} variant='tonal' color='info' sx={{ width: 'fit-content' }} />
+                    </Stack>
+                )
+            },
+        },
+        {
+            headerName: 'Product / Frequency',
+            minWidth: 220,
+            valueGetter: params => [params.data?.supportProduct_Process, params.data?.purchase_frequency].filter(Boolean).join(' / ') || '-',
+        },
+        {
+            headerName: 'Status',
+            field: 'request_status',
+            minWidth: 150,
+            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => (
+                <Chip size='small' label={params.data?.request_status || 'In Progress'} color='warning' variant='tonal' />
+            ),
+        },
+        {
+            headerName: 'Action',
+            minWidth: 360,
+            pinned: 'right',
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
+                const row = params.data
+                if (!row) return null
+                const stepCode = String(row.STEP_CODE || '').toUpperCase()
+                const canActionRequired = actionRequiredStepCodes.has(stepCode)
+
+                return (
+                    <Stack direction='row' spacing={1} justifyContent='flex-end' sx={{ py: 0.75 }}>
+                        {canActionRequired && (
+                            <Button
+                                size='small'
+                                variant='tonal'
+                                color='warning'
+                                startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 16 }} />}
+                                onClick={() => openDialog('ACTION_REQUIRED', row)}
+                            >
+                                Action Required
+                            </Button>
+                        )}
+                        <Button
+                            size='small'
+                            variant='tonal'
+                            color='error'
+                            startIcon={<i className='tabler-x' style={{ fontSize: 16 }} />}
+                            onClick={() => openDialog('REJECT', row)}
+                        >
+                            Reject
+                        </Button>
+                        <Button
+                            size='small'
+                            variant='contained'
+                            color='success'
+                            startIcon={<i className='tabler-check' style={{ fontSize: 16 }} />}
+                            onClick={() => openDialog('APPROVE', row)}
+                        >
+                            Approve
+                        </Button>
+                    </Stack>
+                )
+            },
+        },
+    ], [])
+
+    const actionRequiredColumnDefs = useMemo<ColDef<GprCActionRequiredRow>[]>(() => [
+        {
+            headerName: 'Request No.',
+            field: 'request_number',
+            minWidth: 150,
+            valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_ID || ''}`,
+        },
+        { headerName: 'Vendor', field: 'company_name', minWidth: 220, flex: 1 },
+        {
+            headerName: 'Stage',
+            minWidth: 180,
+            valueGetter: params => params.data?.STAGE_NAME || params.data?.STAGE_CODE || '-',
+        },
+        {
+            headerName: 'Required Detail',
+            field: 'REQUIRED_DETAIL',
+            minWidth: 260,
+            flex: 1,
+            valueGetter: params => params.data?.REQUIRED_DETAIL || '-',
+        },
+        {
+            headerName: 'Status',
+            field: 'RESULT_STATUS',
+            minWidth: 140,
+            cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => (
+                <Chip size='small' label={params.data?.RESULT_STATUS || 'PENDING'} color='warning' variant='tonal' />
+            ),
+        },
+        {
+            headerName: 'Action',
+            minWidth: 170,
+            pinned: 'right',
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => params.data ? (
+                <Button
+                    size='small'
+                    variant='contained'
+                    startIcon={<i className='tabler-edit' style={{ fontSize: 16 }} />}
+                    onClick={() => openRecordDialog(params.data as GprCActionRequiredRow)}
+                >
+                    Record Result
+                </Button>
+            ) : null,
+        },
+    ], [])
+
     const handleSubmit = async () => {
         if (!selectedRow || !empCode) return
 
@@ -278,159 +412,36 @@ export default function ApprovalGprCPage() {
                         </Alert>
                     )}
 
-                    <TableContainer component={Paper} variant='outlined'>
-                        {loading && <LinearProgress />}
-                        <Table size='small'>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Request No.</TableCell>
-                                    <TableCell>Vendor</TableCell>
-                                    <TableCell>Step</TableCell>
-                                    <TableCell>Product / Frequency</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell align='right'>Action</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {rows.length === 0 && !loading && (
-                                    <TableRow>
-                                        <TableCell colSpan={6}>
-                                            <Box sx={{ py: 8, textAlign: 'center' }}>
-                                                <Typography color='text.secondary'>No GPR C approval task found.</Typography>
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-
-                                {rows.map(row => {
-                                    const requestId = getRequestId(row)
-                                    const stepCode = String(row.STEP_CODE || '').toUpperCase()
-                                    const canActionRequired = actionRequiredStepCodes.has(stepCode)
-
-                                    return (
-                                        <TableRow key={`${row.GPR_C_FLOW_ID || requestId}-${row.GPR_C_STEP_ID || stepCode}`} hover>
-                                            <TableCell>
-                                                <Typography variant='body2' sx={{ fontWeight: 700 }}>
-                                                    {row.request_number || `REQ-${requestId}`}
-                                                </Typography>
-                                                <Typography variant='caption' color='text.secondary'>
-                                                    ID {requestId}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant='body2'>{row.company_name || '-'}</Typography>
-                                                <Typography variant='caption' color='text.secondary'>
-                                                    {row.contact_name || row.vendor_email || '-'}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Stack spacing={0.75}>
-                                                    <Typography variant='body2' sx={{ fontWeight: 600 }}>
-                                                        {row.STEP_NAME || stepCode || '-'}
-                                                    </Typography>
-                                                    <Chip size='small' label={stepCode || '-'} variant='tonal' color='info' sx={{ width: 'fit-content' }} />
-                                                </Stack>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant='body2'>{row.supportProduct_Process || '-'}</Typography>
-                                                <Typography variant='caption' color='text.secondary'>
-                                                    {row.purchase_frequency || '-'}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip size='small' label={row.request_status || 'In Progress'} color='warning' variant='tonal' />
-                                            </TableCell>
-                                            <TableCell align='right'>
-                                                <Stack direction='row' spacing={1} justifyContent='flex-end' sx={{ flexWrap: 'wrap', rowGap: 1 }}>
-                                                    {canActionRequired && (
-                                                        <Button
-                                                            size='small'
-                                                            variant='tonal'
-                                                            color='warning'
-                                                            startIcon={<i className='tabler-alert-triangle' style={{ fontSize: 16 }} />}
-                                                            onClick={() => openDialog('ACTION_REQUIRED', row)}
-                                                        >
-                                                            Action Required
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        size='small'
-                                                        variant='tonal'
-                                                        color='error'
-                                                        startIcon={<i className='tabler-x' style={{ fontSize: 16 }} />}
-                                                        onClick={() => openDialog('REJECT', row)}
-                                                    >
-                                                        Reject
-                                                    </Button>
-                                                    <Button
-                                                        size='small'
-                                                        variant='contained'
-                                                        color='success'
-                                                        startIcon={<i className='tabler-check' style={{ fontSize: 16 }} />}
-                                                        onClick={() => openDialog('APPROVE', row)}
-                                                    >
-                                                        Approve
-                                                    </Button>
-                                                </Stack>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <SearchResultCard>
+                        <Box sx={{ p: 4 }}>
+                            <DxAGgridTable
+                                rowData={rows}
+                                columnDefs={approvalColumnDefs}
+                                height={560}
+                                loading={loading}
+                                getRowId={params => String(params.data.GPR_C_STEP_ID || params.data.GPR_C_FLOW_ID || getRequestId(params.data))}
+                                rowHeight={64}
+                                overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No GPR C approval task found.</span>'
+                            />
+                        </Box>
+                    </SearchResultCard>
 
                     <Box>
                         <Typography variant='h6' sx={{ fontWeight: 700, mb: 2 }}>
                             Action Required Results
                         </Typography>
-                        <TableContainer component={Paper} variant='outlined'>
-                            <Table size='small'>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Request No.</TableCell>
-                                        <TableCell>Vendor</TableCell>
-                                        <TableCell>Stage</TableCell>
-                                        <TableCell>Required Detail</TableCell>
-                                        <TableCell>Status</TableCell>
-                                        <TableCell align='right'>Action</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {actionRows.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={6}>
-                                                <Box sx={{ py: 5, textAlign: 'center' }}>
-                                                    <Typography color='text.secondary'>No pending Action Required result.</Typography>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-
-                                    {actionRows.map(row => (
-                                        <TableRow key={row.ACTION_REQUIRED_ID} hover>
-                                            <TableCell>{row.request_number || `REQ-${row.REQUEST_ID || ''}`}</TableCell>
-                                            <TableCell>{row.company_name || '-'}</TableCell>
-                                            <TableCell>{row.STAGE_NAME || row.STAGE_CODE || '-'}</TableCell>
-                                            <TableCell>{row.REQUIRED_DETAIL || '-'}</TableCell>
-                                            <TableCell>
-                                                <Chip size='small' label={row.RESULT_STATUS || 'PENDING'} color='warning' variant='tonal' />
-                                            </TableCell>
-                                            <TableCell align='right'>
-                                                <Button
-                                                    size='small'
-                                                    variant='contained'
-                                                    startIcon={<i className='tabler-edit' style={{ fontSize: 16 }} />}
-                                                    onClick={() => openRecordDialog(row)}
-                                                >
-                                                    Record Result
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                        <SearchResultCard>
+                            <Box sx={{ p: 4 }}>
+                                <DxAGgridTable
+                                    rowData={actionRows}
+                                    columnDefs={actionRequiredColumnDefs}
+                                    height={360}
+                                    loading={loading}
+                                    getRowId={params => String(params.data.ACTION_REQUIRED_ID || params.data.REQUEST_ID || '')}
+                                    overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No pending Action Required result.</span>'
+                                />
+                            </Box>
+                        </SearchResultCard>
                     </Box>
                 </Stack>
             </Grid>
