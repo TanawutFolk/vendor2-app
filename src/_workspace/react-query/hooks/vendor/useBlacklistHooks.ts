@@ -1,24 +1,17 @@
 import { useMutation } from '@tanstack/react-query'
-import { AxiosError } from 'axios'
+import { AxiosError, type AxiosProgressEvent } from 'axios'
 import BlacklistServices from '@_workspace/services/_black-list/BlacklistServices'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import type { UploadBlacklistPayload } from '@_workspace/pages/_black-list/types'
+import type { UploadBlacklistImportPayload } from '@_workspace/pages/_black-list/types'
 
 export const useUploadBlacklist = (onSuccessCallback?: () => void) => {
     return useMutation({
-        mutationFn: async ({ payload, onProgress }: { payload: UploadBlacklistPayload, onProgress: (event: any) => void }) => {
-            const user = getUserData()
-            const formData = new FormData()
-            formData.append('file', payload.file)
-            formData.append('CREATE_BY', String(user?.EMPLOYEE_CODE || 'SYSTEM'))
-            formData.append('UPDATE_BY', String(user?.EMPLOYEE_CODE || 'SYSTEM'))
-
+        mutationFn: async ({ payload, onProgress }: { payload: UploadBlacklistImportPayload, onProgress: (event: AxiosProgressEvent) => void }) => {
             const importFn = payload.format === 'US'
                 ? BlacklistServices.importFileUS
                 : BlacklistServices.importFileCN
 
-            const response = await importFn(formData, onProgress)
+            const response = await importFn(payload.formData, onProgress)
             if (!response.data?.Status) {
                 throw new Error(response.data?.Message || 'Blacklist update failed')
             }

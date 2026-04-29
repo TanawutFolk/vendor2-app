@@ -28,3 +28,8 @@ export interface UploadBlacklistPayload {
     format: BlacklistGroup
     file: File
 }
+
+export interface UploadBlacklistImportPayload {
+    format: BlacklistGroup
+    formData: FormData
+}

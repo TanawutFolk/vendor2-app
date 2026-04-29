@@ -1,17 +1,16 @@
 import Grid from '@mui/material/Grid'
-import { AxiosError } from 'axios'
+import type { AxiosProgressEvent } from 'axios'
 import { FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useUploadBlacklist } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
 import { MENU_NAME, breadcrumbNavigation } from './env'
 import type { UploadBlacklistPayload } from './types'
-import BlacklistServices from '@_workspace/services/_black-list/BlacklistServices'
 import type { BlacklistFormData } from './validateSchema'
 import { BlacklistSchema, defaultBlacklistValues } from './validateSchema'
 
@@ -21,7 +20,7 @@ function Page() {
             <InnerApp />
         </DxProvider>
     )
-import { useUploadBlacklist } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
+}
 
 const InnerApp = () => {
     const { setIsEnableFetching } = useDxContext()
@@ -43,10 +42,23 @@ const InnerApp = () => {
     })
 
     const handleUpload = (payload: UploadBlacklistPayload) => {
+        const user = getUserData()
+        const formData = new FormData()
+        const dataItem = {
+            CREATE_BY: String(user?.EMPLOYEE_CODE || 'SYSTEM'),
+            UPDATE_BY: String(user?.EMPLOYEE_CODE || 'SYSTEM'),
+        }
+
+        formData.append('file', payload.file)
+        formData.append('dataItem', JSON.stringify(dataItem))
+
         setUploadProgress(0)
         uploadMutation.mutate({
-            payload,
-            onProgress: (progressEvent: any) => {
+            payload: {
+                format: payload.format,
+                formData,
+            },
+            onProgress: (progressEvent: AxiosProgressEvent) => {
                 const total = Number(progressEvent.total || 0)
                 if (!total) return
                 const nextProgress = Math.min(100, Math.round((progressEvent.loaded * 100) / total))
