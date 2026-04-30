@@ -13,6 +13,7 @@ import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
+import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -26,44 +27,34 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useDxContext } from '@/_template/DxContextProvider'
 
 // Types & Schema
-import type { BlacklistFormData } from './validateSchema'
-import { defaultSearchFilters } from './validateSchema'
+import type { RequestRegisterFormData } from './validataeSchema'
+import { defaultSearchFilters } from './validataeSchema'
 import { MENU_ID } from './env'
-
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
-
-const groupOptions = [
-  { value: 'ALL', label: 'All' },
-  { value: 'US', label: 'US' },
-  { value: 'CN', label: 'CN' }
-]
 
 const SearchFilter = () => {
   // Context
   const { setIsEnableFetching } = useDxContext()
 
   // React Hook Form
-  const { control, setValue, getValues, handleSubmit } = useFormContext<BlacklistFormData>()
+  const { setValue, getValues, control, handleSubmit } = useFormContext<RequestRegisterFormData>()
   const { isLoading } = useFormState()
 
-  // React Query
-  const queryClient = useQueryClient()
+  // Status options from DB
+  const { data: statusOptions = [] } = useRequestStatusOptions()
 
   const onHandleClearSearchFilters = () => {
     setValue('searchFilters', defaultSearchFilters)
 
     setIsEnableFetching(true)
-    queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
     handleAdd()
   }
 
-  const onSubmit: SubmitHandler<BlacklistFormData> = () => {
+  const onSubmit: SubmitHandler<RequestRegisterFormData> = () => {
     setIsEnableFetching(true)
-    queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
     handleAdd()
   }
 
-  const onError: SubmitErrorHandler<BlacklistFormData> = data => {
+  const onError: SubmitErrorHandler<RequestRegisterFormData> = data => {
     console.log(getValues())
     console.log(data)
   }
@@ -74,14 +65,11 @@ const SearchFilter = () => {
       APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
       MENU_ID: MENU_ID.toString(),
       USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: {
-          vendor_name: getValues('searchFilters.vendor_name'),
-          group_code: getValues('searchFilters.group_code')
-        },
+        searchFilters: getValues('searchFilters'),
         searchResults: {
           agGridState: getValues('searchResults.agGridState')
         }
-      } as BlacklistFormData
+      } as RequestRegisterFormData
     }
 
     mutate(dataItem)
@@ -110,7 +98,8 @@ const SearchFilter = () => {
         ) : (
           <>
             <Grid container spacing={4}>
-              <Grid item xs={12} sm={6} md={4}>
+              {/* Vendor Name */}
+              <Grid item xs={12} sm={6} md={3}>
                 <Controller
                   name='searchFilters.vendor_name'
                   control={control}
@@ -126,27 +115,42 @@ const SearchFilter = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={4}>
+              {/* Submitted By */}
+              <Grid item xs={12} sm={6} md={3}>
                 <Controller
-                  name='searchFilters.group_code'
+                  name='searchFilters.submitted_by'
+                  control={control}
+                  render={({ field }) => (
+                    <CustomTextField
+                      {...field}
+                      fullWidth
+                      label='Submitted By'
+                      placeholder='Enter ...'
+                      autoComplete='off'
+                    />
+                  )}
+                />
+              </Grid>
+
+              {/* Status */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Controller
+                  name='searchFilters.overall_status'
                   control={control}
                   render={({ field: { ref, ...fieldProps } }) => (
                     <SelectCustom
                       {...fieldProps}
-                      label='Group'
+                      options={statusOptions}
+                      isClearable
+                      label='Status'
                       placeholder='Select ...'
-                      isClearable={false}
-                      options={groupOptions}
-                      value={groupOptions.find(option => option.value === fieldProps.value) || groupOptions[0]}
-                      onChange={value =>
-                        fieldProps.onChange(((value as { value: 'ALL' | 'US' | 'CN' } | null)?.value || 'ALL'))
-                      }
                       classNamePrefix='select'
                     />
                   )}
                 />
               </Grid>
 
+              {/* Buttons */}
               <Grid item xs={12} className='flex gap-3'>
                 <Button onClick={() => handleSubmit(onSubmit, onError)()} variant='contained' type='button'>
                   Search

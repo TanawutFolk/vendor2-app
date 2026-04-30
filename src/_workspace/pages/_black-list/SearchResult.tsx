@@ -18,7 +18,8 @@ import type {
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useDxContext } from '@/_template/DxContextProvider'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
-import BlacklistServices from '@_workspace/services/_black-list/BlacklistServices'
+import { useQueryClient } from '@tanstack/react-query'
+import { getBlacklistQueryOptions } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
 import UploadBlacklistModal from './modal/UploadBlacklistModal'
 import type { BlacklistRow, UploadBlacklistPayload } from './types'
 import type { BlacklistFormData } from './validateSchema'
@@ -100,6 +101,7 @@ const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridF
 const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps) => {
     const { getValues, setValue } = useFormContext<BlacklistFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const queryClient = useQueryClient()
 
     const gridApiRef = useRef<GridApi<BlacklistRow> | null>(null)
     const [openUploadModal, setOpenUploadModal] = useState(false)
@@ -111,7 +113,7 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 const limit = (endRow ?? 20) - (startRow ?? 0)
                 const currentFilters = getValues('searchFilters')
 
-                const response = await BlacklistServices.search({
+                const payload = {
                     SearchFilters: [
                         { id: 'vendor_name', value: currentFilters.vendor_name || '' },
                         { id: 'group_code', value: currentFilters.group_code === 'ALL' ? '' : currentFilters.group_code },
@@ -122,7 +124,9 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                         : [{ id: 'updated_date', desc: true }],
                     Start: startRow ?? 0,
                     Limit: limit || 20,
-                })
+                }
+
+                const response = await queryClient.fetchQuery(getBlacklistQueryOptions(payload))
 
                 const result = response?.data
 

@@ -1010,9 +1010,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     </Typography>
                     <DialogSubtitle fallbackName={rowData?.company_name} />
                     <Box sx={{ position: 'absolute', top: 16, right: 56, textAlign: 'right' }}>
-                        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', lineHeight: 1 }}>
-                            Request No.
-                        </Typography>
                         <Typography variant='body2' fontWeight={700} color='text.secondary'>
                             {requestRef}
                         </Typography>

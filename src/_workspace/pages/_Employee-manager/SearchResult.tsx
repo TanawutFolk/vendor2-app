@@ -1,33 +1,23 @@
 import { useState, useMemo, useEffect } from 'react'
 import { CardContent, IconButton, Button, Chip, Box } from '@mui/material'
-import type { ColDef, ICellRendererParams } from 'ag-grid-community'
+import type { ColDef, ICellRendererParams, StateUpdatedEvent } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useFormContext } from 'react-hook-form'
-import type { AssigneesFormData } from './validateSchema'
+import type { AssigneeRow, AssigneesFormData } from './validateSchema'
 import { useDxContext } from '@/_template/DxContextProvider'
 import { useAssignees } from '@_workspace/react-query/useAssignees'
 import AddEditForm from './AddEditForm'
 import { GroupChip } from '@_workspace/utils/groupChipHelper'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
-type AssigneeRow = {
-    empcode?: string
-    empName?: string
-    empEmail?: string
-    group_code?: string
-    group_name?: string
-    INUSE?: number | string
-    Assignees_id?: number
-}
-
 const SearchResult = () => {
-    const { getValues } = useFormContext<AssigneesFormData>()
+    const { getValues, setValue } = useFormContext<AssigneesFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
     const [openDialog, setOpenDialog] = useState(false)
     const [editingData, setEditingData] = useState<AssigneeRow | null>(null)
 
-    const { data: rowData = [], isLoading, isFetching } = useAssignees(getValues(), isEnableFetching)
+    const { data: rowData = [], isLoading, isFetching } = useAssignees(getValues('searchFilters'), isEnableFetching)
 
     useEffect(() => {
         if (!isLoading && !isFetching && isEnableFetching) {
@@ -43,6 +33,12 @@ const SearchResult = () => {
     const handleAddNew = () => {
         setEditingData(null)
         setOpenDialog(true)
+    }
+
+    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleStateUpdated = (event: StateUpdatedEvent) => {
+        setValue('searchResults.agGridState', event.state, { shouldDirty: false })
     }
 
     const colDefs = useMemo<ColDef[]>(() => [
@@ -103,6 +99,8 @@ const SearchResult = () => {
                         columnDefs={colDefs}
                         loading={isFetching || isLoading}
                         pagination={true}
+                        initialState={savedGridState}
+                        onStateUpdated={handleStateUpdated}
                     />
                 </div>
                 <AddEditForm

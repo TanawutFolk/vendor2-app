@@ -4,13 +4,13 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, Slide,
 import type { SlideProps } from '@mui/material'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
 import { useSaveAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
+import { AssigneesFormSchema, defaultAssigneeFormValues, type AssigneeFormData, type AssigneeRow } from './validateSchema'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement },
@@ -36,23 +36,11 @@ type GroupOptionSource = {
     group_code?: string
 }
 
-const FormSchema = z.object({
-    Assignees_id: z.number().optional(),
-    empcode: z.string().min(1, 'EmpCode is required'),
-    empName: z.string().min(1, 'Name is required'),
-    empEmail: z.string().email('Invalid email format').min(1, 'Email is required'),
-    group_code: z.string().min(1, 'Group is required'),
-    group_name: z.string().min(1, 'Group is required'),
-    INUSE: z.number()
-})
-
-type FormData = z.infer<typeof FormSchema>
-
 interface Props {
     open: boolean
     onClose: () => void
     onSaved?: () => void
-    initialData?: Partial<FormData> | null
+    initialData?: AssigneeRow | null
 }
 
 const normalizeInUse = (value: unknown) => {
@@ -69,17 +57,9 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
     const { mutate: saveAssignee, isPending } = useSaveAssignee()
     const [defaultGroupOptions, setDefaultGroupOptions] = useState<GroupOption[]>([])
 
-    const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
-        resolver: zodResolver(FormSchema),
-        defaultValues: {
-            Assignees_id: undefined,
-            empcode: '',
-            empName: '',
-            empEmail: '',
-            group_code: '',
-            group_name: '',
-            INUSE: 1
-        }
+    const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<AssigneeFormData>({
+        resolver: zodResolver(AssigneesFormSchema),
+        defaultValues: defaultAssigneeFormValues
     })
     const watchedGroupCode = useWatch({ control, name: 'group_code' })
     const watchedGroupName = useWatch({ control, name: 'group_name' })
@@ -97,15 +77,7 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
                     INUSE: normalizeInUse(initialData.INUSE)
                 })
             } else {
-                reset({
-                    Assignees_id: undefined,
-                    empcode: '',
-                    empName: '',
-                    empEmail: '',
-                    group_code: '',
-                    group_name: '',
-                    INUSE: 1
-                })
+                reset(defaultAssigneeFormValues)
             }
         }
     }, [open, initialData, reset])
@@ -133,7 +105,7 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
         }
     }, [open])
 
-    const onSubmit = (data: FormData) => {
+    const onSubmit = (data: AssigneeFormData) => {
         saveAssignee({
             ...data,
             INUSE: normalizeInUse(data.INUSE)

@@ -1511,9 +1511,6 @@ export default function SearchResult() {
                 <DialogTitle sx={{ position: 'relative' }}>
                     <Typography variant='h5' component='span'>Request Details</Typography>
                     <Box sx={{ position: 'absolute', top: 14, right: 56, textAlign: 'right' }}>
-                        <Typography variant='caption' color='text.disabled' sx={{ display: 'block', lineHeight: 1 }}>
-                            Request No.
-                        </Typography>
                         <Typography variant='body2' fontWeight={700} color='text.secondary'>
                             {String(selectedData?.request_number || selectedData?.request_id || '-')}
                         </Typography>

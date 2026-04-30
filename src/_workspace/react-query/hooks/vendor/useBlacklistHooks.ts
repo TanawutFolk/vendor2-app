@@ -1,8 +1,18 @@
 import { useMutation } from '@tanstack/react-query'
-import { AxiosError, type AxiosProgressEvent } from 'axios'
+import { AxiosError, type AxiosProgressEvent, type AxiosResponse } from 'axios'
 import BlacklistServices from '@_workspace/services/_black-list/BlacklistServices'
+import type { BlacklistResponseI, BlacklistSearchRequestI } from '@_workspace/services/_black-list/BlacklistServices'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
-import type { UploadBlacklistImportPayload } from '@_workspace/pages/_black-list/types'
+import type { BlacklistRow, UploadBlacklistImportPayload } from '@_workspace/pages/_black-list/types'
+
+export const PREFIX_QUERY_KEY = 'BLACKLIST'
+
+export const getBlacklistQueryOptions = (params: BlacklistSearchRequestI) => ({
+    queryKey: [PREFIX_QUERY_KEY, params],
+    queryFn: (): Promise<AxiosResponse<BlacklistResponseI<BlacklistRow[]>>> =>
+        BlacklistServices.search(params) as Promise<AxiosResponse<BlacklistResponseI<BlacklistRow[]>>>,
+    staleTime: 0,
+})
 
 export const useUploadBlacklist = (onSuccessCallback?: () => void) => {
     return useMutation({

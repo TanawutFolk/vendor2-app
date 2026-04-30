@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import type { AssigneesFormData } from '../pages/_Employee-manager/validateSchema'
+import type { AssigneesSearchFiltersFormData } from '../pages/_Employee-manager/validateSchema'
 import AssigneesServices from '../services/_task-manager/AssigneesServices'
 
 export const PREFIX_QUERY_KEY = 'ASSIGNEES'
 
-export const useAssignees = (filters: AssigneesFormData, isEnabled: boolean) => {
+export const useAssignees = (filters: AssigneesSearchFiltersFormData, isEnabled: boolean) => {
     return useQuery({
         queryKey: [PREFIX_QUERY_KEY, filters],
         queryFn: async () => {

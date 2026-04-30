@@ -217,19 +217,28 @@ const SearchResult = () => {
             }
             const response = await RegisterRequestServices.create(payload)
             if (response.data?.Status) {
-                ToastMessageSuccess({ message: response.data?.Message || 'Registration request created successfully' })
+                ToastMessageSuccess({ 
+                    title: 'Registration Request',
+                    message: response.data?.Message || 'Registration request created successfully' 
+                })
                 setRegisterModalOpen(false)
                 setSelectedRegisterVendor(null)
             } else {
-                ToastMessageError({ message: response.data?.Message || 'Failed to create registration request' })
+                ToastMessageError({ 
+                    title: 'Registration Request',
+                    message: response.data?.Message || 'Failed to create registration request' 
+                })
             }
         } catch (error: any) {
-            ToastMessageError({ message: error?.message || 'Failed to create registration request' })
+            ToastMessageError({ 
+                title: 'Registration Request',
+                message: error?.message || 'Failed to create registration request' 
+            })
             console.error('Failed to create registration request:', error)
         }
     }
 
-    // â”€â”€ Column Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Column Definitions ──────────────────────────────────────────────────────────────────
     const columnDefs = useMemo<ColDef[]>(() => [
         {
             headerName: 'Actions',

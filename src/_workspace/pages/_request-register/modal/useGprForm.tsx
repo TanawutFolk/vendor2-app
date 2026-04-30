@@ -410,17 +410,24 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
 
-            if (response.data.Status) {
-                const message = 'Supplier / Outsourcing Selection Sheet saved successfully.'
-                ToastMessageSuccess({ message })
+            if (response.data?.Status) {
+                const message = response.data.Message || 'Supplier / Outsourcing Selection Sheet saved successfully.'
+                ToastMessageSuccess({ 
+                    title: 'Save GPR Form',
+                    message 
+                })
                 onSaved?.()
             } else {
-                const message = response.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
-                ToastMessageError({ message })
+                ToastMessageError({ 
+                    title: 'Save GPR Form',
+                    message: response.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' 
+                })
             }
         } catch (error: any) {
-            const message = error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
-            ToastMessageError({ message })
+            ToastMessageError({ 
+                title: 'Save GPR Form',
+                message: error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' 
+            })
         } finally {
             setSaving(false)
         }

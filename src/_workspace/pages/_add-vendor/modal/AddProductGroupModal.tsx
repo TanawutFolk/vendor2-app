@@ -63,18 +63,32 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
         }
     })
 
-    // Hooks : React Query
-    const { mutate, isPending } = useCreate(
-        (data: any) => {
-            if (data?.Status) {
-                handleClose()
-                onSuccess?.()
+    const onMutateSuccess = (data: any) => {
+        if (data && data.Status == true) {
+            const message = {
+                message: data.Message || 'Add Product Group Success',
+                title: 'Add Product Group'
             }
-        },
-        (error: any) => {
-            // Error is handled by the hook
+
+            ToastMessageSuccess(message)
+            handleClose()
+            if (onSuccess) onSuccess()
+        } else {
+            const message = {
+                title: 'Add Product Group',
+                message: data?.Message || 'Error'
+            }
+
+            ToastMessageError(message)
         }
-    )
+    }
+
+    const onMutateError = () => {
+        console.log('onMutateError')
+    }
+
+    // Hooks : React Query
+    const { mutate, isPending } = useCreate(onMutateSuccess, onMutateError)
 
     // Functions
     const handleClose = () => {

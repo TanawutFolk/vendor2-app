@@ -77,14 +77,7 @@ const SearchFilter = () => {
                     fft_vendor_code: getValues('searchFilters.fft_vendor_code')
                 },
                 searchResults: {
-                    pageSize: getValues('searchResults.pageSize'),
-                    columnFilters: getValues('searchResults.columnFilters'),
-                    sorting: getValues('searchResults.sorting'),
-                    density: getValues('searchResults.density'),
-                    columnVisibility: getValues('searchResults.columnVisibility'),
-                    columnPinning: getValues('searchResults.columnPinning'),
-                    columnOrder: getValues('searchResults.columnOrder'),
-                    columnFilterFns: getValues('searchResults.columnFilterFns')
+                    agGridState: getValues('searchResults.agGridState')
                 }
             }
         }

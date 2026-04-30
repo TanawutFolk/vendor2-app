@@ -1,5 +1,6 @@
 // React Imports
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useDxContext } from '@/_template/DxContextProvider'
 
 import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDialog'
 
@@ -33,7 +34,8 @@ const Transition = forwardRef(function Transition(
 })
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import SearchFilter from './SearchFilter'
+import { useFormContext } from 'react-hook-form'
+import type { RequestRegisterFormData } from './validataeSchema'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
@@ -976,11 +978,18 @@ interface ApprovalPageContentProps {
 
 export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false, enableMultiSelect = true }: ApprovalPageContentProps) {
     const { data: statusOptions = [] } = useRequestStatusOptions()
-    const [collapse, setCollapse] = useState(false)
     const gridApiRef = useRef<any>(null)
-    const [vendorNameFilter, setVendorNameFilter] = useState('')
-    const [statusFilter, setStatusFilter] = useState<any>(null)
     const [selectedRows, setSelectedRows] = useState<any[]>([])
+    const { getValues } = useFormContext<RequestRegisterFormData>()
+    const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    
+    // Trigger refresh when Search / Clear button sets isEnableFetching = true
+    useEffect(() => {
+        if (isEnableFetching && gridApiRef.current) {
+            setIsEnableFetching(false)
+            gridApiRef.current.refreshServerSide({ purge: true })
+        }
+    }, [isEnableFetching, setIsEnableFetching])
 
     const [selectedData, setSelectedData] = useState<any | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
@@ -1015,8 +1024,9 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                     approver_id: empCode,
                     queue_step_code: queueStepCode,
                     SearchFilters: [
-                        { id: 'company_name', value: vendorNameFilter || null },
-                        { id: 'request_status', value: statusFilter?.value || null }
+                        { id: 'company_name', value: getValues('searchFilters.vendor_name') || null },
+                        { id: 'Request_By_EmployeeCode', value: getValues('searchFilters.submitted_by') || null },
+                        { id: 'request_status', value: getValues('searchFilters.overall_status')?.value || null }
                     ].filter((x: any) => x.value !== null && x.value !== ''),
                     ColumnFilters: [],
                     Order: order,
@@ -1034,17 +1044,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [empCode, queueStepCode])
-
-    const handleSearch = useCallback(() => {
-        gridApiRef.current?.refreshServerSide({ purge: true })
-    }, [])
-
-    const handleClear = useCallback(() => {
-        setVendorNameFilter('')
-        setStatusFilter(null)
-        setSelectedRows([])
-        setTimeout(() => gridApiRef.current?.refreshServerSide({ purge: true }), 50)
-    }, [])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -1185,18 +1184,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         onRefresh: handleActionSuccess
     }), [empCode, queueStepCode, showSelectionSheetReadOnly, handleActionSuccess])
 
-    const searchFilterDataItem = useMemo(() => ({
-        collapse,
-        onToggle: () => setCollapse(!collapse),
-        vendorNameFilter,
-        onVendorNameFilterChange: setVendorNameFilter,
-        statusFilter,
-        onStatusFilterChange: setStatusFilter,
-        statusOptions,
-        onSearch: handleSearch,
-        onClear: handleClear,
-    }), [collapse, vendorNameFilter, statusFilter, statusOptions, handleSearch, handleClear])
-
     const searchResultDataItem = useMemo(() => ({
         enableMultiSelect,
         bulkApproveCount: bulkApproveTargets.length,
@@ -1217,10 +1204,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
 
     return (
         <Grid container spacing={6}>
-            <Grid item xs={12}>
-                <SearchFilter {...searchFilterDataItem} />
-            </Grid>
-
             <Grid item xs={12}>
                 <SearchResultSection {...searchResultDataItem} />
             </Grid>

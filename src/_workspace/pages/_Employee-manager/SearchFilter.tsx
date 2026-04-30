@@ -1,5 +1,5 @@
 // MUI Imports
-import { Alert, Button, Grid, Typography } from '@mui/material'
+import { Button, Grid } from '@mui/material'
 
 // Third-party Imports
 import { useState } from 'react'
@@ -17,7 +17,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 
 // Types & Schema
 import type { AssigneesFormData } from './validateSchema'
-import { fetchDefaultValues } from './validateSchema'
+import { defaultSearchFilters } from './validateSchema'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 
@@ -50,10 +50,7 @@ const SearchFilter = () => {
     const { setIsEnableFetching } = useDxContext()
 
     const onResetFormSearch = async () => {
-        const defaults = await fetchDefaultValues()
-        setValue('keyword', defaults.keyword)
-        setValue('group_code', defaults.group_code)
-        setValue('in_use', defaults.in_use)
+        setValue('searchFilters', defaultSearchFilters)
     }
 
     const onSubmit = () => {
@@ -75,7 +72,7 @@ const SearchFilter = () => {
 
                 <Grid item xs={12} sm={6} md={4}>
                     <Controller
-                        name='keyword'
+                        name='searchFilters.keyword'
                         control={control}
                         render={({ field }) => (
                             <CustomTextField
@@ -91,7 +88,7 @@ const SearchFilter = () => {
 
                 <Grid item xs={12} sm={6} md={4}>
                     <Controller
-                        name='group_code'
+                        name='searchFilters.group_code'
                         control={control}
                         render={({ field }) => (
                             <AsyncSelectCustom
@@ -110,7 +107,7 @@ const SearchFilter = () => {
 
                 <Grid item xs={12} sm={6} md={4}>
                     <Controller
-                        name='in_use'
+                        name='searchFilters.in_use'
                         control={control}
                         render={({ field }) => (
                             <SelectCustom

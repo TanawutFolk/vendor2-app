@@ -71,6 +71,28 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
 // ─────────────────────────────────────────────────────────────────────────────
 // File Viewer Dialog
 // ─────────────────────────────────────────────────────────────────────────────
+const parseGprCCircularList = (raw: unknown): unknown[] => {
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+    } catch {
+        return []
+    }
+}
+
+const hasCompletedGprCSetup = (row: Record<string, unknown>) => {
+    const hasText = (value: unknown) => String(value || '').trim().length > 0
+
+    return (
+        hasText(row?.gpr_c_approver_name) &&
+        hasText(row?.gpr_c_approver_email) &&
+        hasText(row?.gpr_c_pc_pic_name) &&
+        hasText(row?.gpr_c_pc_pic_email) &&
+        parseGprCCircularList(row?.gpr_c_circular_json).length > 0
+    )
+}
+
 const FileViewerDialog = ({ open, files, onClose }: {
     open: boolean
     files: { name: string; url: string }[]
@@ -544,6 +566,10 @@ export default function SearchResult() {
 
                 if (!inGprCStep || !isRequester) {
                     return <Typography variant='caption' color='text.disabled'>—</Typography>
+                }
+
+                if (hasCompletedGprCSetup(params.data)) {
+                    return <Typography variant='caption' color='text.disabled'>Setup completed</Typography>
                 }
 
                 return (
