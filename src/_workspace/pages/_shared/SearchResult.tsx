@@ -37,7 +37,7 @@ import SearchFilter from './SearchFilter'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -489,7 +489,7 @@ const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLab
                                 ? 'DISAGREE'
                                 : 'APPROVE'))
 
-                const res = await RegisterRequestServices.updateStatus({
+                const res = await ApprovalQueueServices.updateStatus({
                     request_id: action.requestId,
                     request_status: mode === 'approve' ? effectiveNextStatus : 'Rejected',
                     workflow_action: workflowAction,
@@ -1011,7 +1011,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
                 : [{ id: 'request_id', desc: true }]
             try {
-                const res = await RegisterRequestServices.getAll({
+                const res = await ApprovalQueueServices.getAll({
                     approver_id: empCode,
                     queue_step_code: queueStepCode,
                     SearchFilters: [

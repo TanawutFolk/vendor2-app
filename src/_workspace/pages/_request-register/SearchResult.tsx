@@ -36,6 +36,7 @@ import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -256,7 +257,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                             ? 'DISAGREE'
                             : 'APPROVE'))
 
-            const res = await RegisterRequestServices.updateStatus({
+            const res = await ApprovalQueueServices.updateStatus({
                 request_id: requestId,
                 request_status: mode === 'approve' ? nextStatus : 'Rejected',
                 workflow_action: workflowAction,
@@ -1291,7 +1292,7 @@ export default function SearchResult() {
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
                 : [{ id: 'request_id', desc: true }]
             try {
-                const res = await RegisterRequestServices.getAll({
+                const res = await ApprovalQueueServices.getAll({
                     assign_to: empCode,
                     approver_id: empCode,
                     SearchFilters: [

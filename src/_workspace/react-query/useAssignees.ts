@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { AssigneesFormData } from '../pages/_Employee-manager/validateSchema'
 import AssigneesServices from '../services/_task-manager/AssigneesServices'
 
-export const QUERY_KEY_PREFIX = 'ASSIGNEES'
-export const PREFIX_QUERY_KEY = QUERY_KEY_PREFIX
+export const PREFIX_QUERY_KEY = 'ASSIGNEES'
 
 export const useAssignees = (filters: AssigneesFormData, isEnabled: boolean) => {
     return useQuery({

@@ -205,15 +205,12 @@ const SearchResult = () => {
     const handleConfirmRegister = async (formData?: any) => {
         if (!selectedRegisterVendor) return
         try {
-            // const requesterEmailForCc = getUserData()?.EMAIL || ''
-            const requesterEmailForCc = 'tanawut.patrawan@furukawaelectric.com'
             const payload = new FormData()
             payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
             payload.append('vendor_contact_id', formData?.vendorContactId || '')
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
-            payload.append('cc_emails', requesterEmailForCc ? JSON.stringify([requesterEmailForCc]) : '[]')
             payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))

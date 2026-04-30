@@ -2,6 +2,8 @@ import RegisterRequestAPI from '@_workspace/api/_register-request/RegisterReques
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 
+const APPROVAL_QUEUE_ROOT_URL = 'approval-queue'
+
 export interface RegisterRequestResponseI<T = any> {
     Status: boolean
     ResultOnDb: T
@@ -24,7 +26,7 @@ export default class RegisterRequestServices {
     // Get all registration requests (optionally filtered)
     static getAll(data?: Record<string, any>): Promise<AxiosResponse<RegisterRequestResponseI<any[]>>> {
         return axiosRequest<RegisterRequestResponseI<any[]>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/searchRequest`,
+            url: `${APPROVAL_QUEUE_ROOT_URL}/searchRequest`,
             data: data || {},
             method: 'POST'
         })
@@ -66,7 +68,7 @@ export default class RegisterRequestServices {
         isFinalStep?: boolean
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/updateStatus`,
+            url: `${APPROVAL_QUEUE_ROOT_URL}/updateStatus`,
             data,
             method: 'POST'
         })
@@ -84,7 +86,7 @@ export default class RegisterRequestServices {
     // Get all active status options from m_request_status
     static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
         return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/getStatusOptions`,
+            url: `${APPROVAL_QUEUE_ROOT_URL}/getStatusOptions`,
             method: 'GET'
         })
     }
@@ -155,7 +157,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
-            url: `${RegisterRequestAPI.API_ROOT_URL}/reassign`,
+            url: `${APPROVAL_QUEUE_ROOT_URL}/reassign`,
             data,
             method: 'POST'
         })

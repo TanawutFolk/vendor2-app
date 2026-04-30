@@ -26,8 +26,7 @@ const Transition = forwardRef(function Transition(
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
-// Services
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -450,7 +449,7 @@ export default function SearchResult() {
                 // Fetch using React Query client to integrate with devtools and app-wide caching invalidation
                 const res = await queryClient.fetchQuery({
                     queryKey: [PREFIX_QUERY_KEY, payload],
-                    queryFn: () => RegisterRequestServices.getAll(payload),
+                    queryFn: () => ApprovalQueueServices.getAll(payload),
                     staleTime: 0 // Fetch fresh data for the grid always
                 })
 

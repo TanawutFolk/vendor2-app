@@ -12,7 +12,7 @@ import {
 } from '@mui/material'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
 
 interface ReassignDialogProps {
@@ -93,7 +93,7 @@ export default function ReassignDialog({
         setSaving(true)
         setError(null)
         try {
-            const res = await RegisterRequestServices.reassign({
+            const res = await ApprovalQueueServices.reassign({
                 request_id: requestId,
                 scope,
                 gpr_c_step_id: gprCStepId || undefined,

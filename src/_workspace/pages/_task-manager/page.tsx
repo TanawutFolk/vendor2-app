@@ -4,6 +4,7 @@ import type { ColDef } from 'ag-grid-community'
 
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
@@ -72,7 +73,7 @@ export default function Page() {
         setLoading(true)
         try {
             const [requestRes, assigneeRes, gprCRes] = await Promise.all([
-                RegisterRequestServices.getAll({
+                ApprovalQueueServices.getAll({
                     SearchFilters: [],
                     ColumnFilters: [],
                     Order: [{ id: 'request_id', desc: true }],
