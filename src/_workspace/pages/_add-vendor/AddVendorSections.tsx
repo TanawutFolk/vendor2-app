@@ -168,7 +168,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                 disabled={isLoading || isVerified}
                                 startIcon={isLoading ? <CircularProgress size={16} color='inherit' /> : null}
                             >
-                                {isLoading ? 'Checking...' : isVerified ? 'Verified ✓' : 'Check Duplicate'}
+                                {isLoading ? 'Checking...' : isVerified ? 'Verified ✓' : 'Check Duplicate and Blacklist'}
                             </Button>
                         </Grid>
                         {existingVendorId && (

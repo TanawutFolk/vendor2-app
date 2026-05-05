@@ -199,6 +199,7 @@ export default class RegisterRequestServices {
             gpr_c_pc_pic_empcode?: string
             gpr_c_circular_empcodes?: string[]
         }
+        CREATE_BY?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({

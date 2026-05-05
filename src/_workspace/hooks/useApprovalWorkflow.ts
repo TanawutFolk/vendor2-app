@@ -105,17 +105,17 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: 'Approve',
-                        color: 'success',
-                        nextStatus: agreementReachedStatus,
-                        isFinalStep: false,
-                    },
-                    {
-                        key: 'disagree',
                         label: 'Send GPR C to Requester Approval',
                         color: 'warning',
                         nextStatus: issueGprCStatus,
                         isFinalStep: false,
+                    },
+                    {
+                        key: 'disagree',
+                        label: 'Reject',
+                        color: 'error',
+                        nextStatus: vendorDisagreedStatus,
+                        isFinalStep: true,
                     },
                 ],
             }

@@ -3,11 +3,21 @@ import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import { RegisterRequestResponseI, StatusOption } from '@_workspace/services/_register-request/RegisterRequestServices'
 
+type ApprovalQueuePayload = Record<string, unknown>
+
 export default class ApprovalQueueServices {
-    static getAll(data?: Record<string, any>): Promise<AxiosResponse<RegisterRequestResponseI<any[]>>> {
-        return axiosRequest<RegisterRequestResponseI<any[]>>({
+    static getAll(data?: ApprovalQueuePayload): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalQueuePayload[]>>> {
+        return axiosRequest<RegisterRequestResponseI<ApprovalQueuePayload[]>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/searchRequest`,
             data: data || {},
+            method: 'POST'
+        })
+    }
+
+    static getById(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalQueuePayload | null>>> {
+        return axiosRequest<RegisterRequestResponseI<ApprovalQueuePayload | null>>({
+            url: `${ApprovalQueueAPI.API_ROOT_URL}/getById`,
+            data: { request_id },
             method: 'POST'
         })
     }
@@ -20,8 +30,8 @@ export default class ApprovalQueueServices {
         approver_remark?: string
         UPDATE_BY?: string
         isFinalStep?: boolean
-    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
-        return axiosRequest<RegisterRequestResponseI<any>>({
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/updateStatus`,
             data,
             method: 'POST'
@@ -43,8 +53,8 @@ export default class ApprovalQueueServices {
         to_empcode: string
         reason?: string
         UPDATE_BY?: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
-        return axiosRequest<RegisterRequestResponseI<any>>({
+    }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/reassign`,
             data,
             method: 'POST'

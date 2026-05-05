@@ -183,7 +183,7 @@ export const getApproveActionLabel = (currentStep: any, hasVendorRequested: bool
     if (isPicStep(currentStep)) {
         if (!hasVendorRequested) return 'Approve and Send Email To Vendor'
         if (isPendingAgreementStep(currentStep)) return 'Vendor Agreed (Continue)'
-        if (isIssueGprBStep(currentStep)) return 'Send GPR B to Vendor'
+        if (isIssueGprBStep(currentStep)) return 'Send GPR C to Requester Approval'
         if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
         return 'Confirm'
     }
@@ -198,7 +198,8 @@ export const getApproveActionLabel = (currentStep: any, hasVendorRequested: bool
 
 export const getRejectActionLabel = (currentStep: any) => {
     if (!currentStep) return 'Reject'
-    if (isPendingAgreementStep(currentStep) || isIssueGprBStep(currentStep) || isIssueGprCStep(currentStep)) {
+    if (isIssueGprBStep(currentStep)) return 'Reject'
+    if (isPendingAgreementStep(currentStep) || isIssueGprCStep(currentStep)) {
         return 'Vendor Disagreed'
     }
     return 'Reject'

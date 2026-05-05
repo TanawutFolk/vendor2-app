@@ -1,17 +1,37 @@
 import { Grid } from '@mui/material'
-import { FormProvider, useForm } from 'react-hook-form'
+import { FormProvider, useForm, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useUpdateEffect } from 'react-use'
+import SkeletonCustom from '@components/SkeletonCustom'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
+import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 import { MENU_NAME, breadcrumbNavigation } from './env'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
 import { ApprovalGprCSchema, fetchDefaultValues, type ApprovalGprCFormData } from './validateSchema'
 
-export default function ApprovalGprCPage() {
+function Page() {
+    return (
+        <DxProvider>
+            <InnerApp />
+        </DxProvider>
+    )
+}
+
+const InnerApp = () => {
+    const { setIsEnableFetching } = useDxContext()
+
     const reactHookFormMethods = useForm<ApprovalGprCFormData>({
         resolver: zodResolver(ApprovalGprCSchema),
         defaultValues: fetchDefaultValues,
     })
+
+    const { control } = reactHookFormMethods
+    const { isLoading: isLoadingReactHookForm } = useFormState({ control })
+
+    useUpdateEffect(() => {
+        setIsEnableFetching(true)
+    }, [isLoadingReactHookForm, setIsEnableFetching])
 
     return (
         <FormProvider {...reactHookFormMethods}>
@@ -25,9 +45,11 @@ export default function ApprovalGprCPage() {
                 </Grid>
 
                 <Grid item xs={12}>
-                    <SearchResult />
+                    {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
                 </Grid>
             </Grid>
         </FormProvider>
     )
 }
+
+export default Page

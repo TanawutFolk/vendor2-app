@@ -356,6 +356,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 gpr_c_pc_pic_email: form.gpr_c_pc_pic_email,
                 gpr_c_circular_empcodes: form.gpr_c_circular_empcodes.map(v => String(v || '').trim()).filter(Boolean).slice(0, 6),
             },
+            CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
         })
     }

@@ -246,14 +246,16 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
         try {
             const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
             const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
+            const isSendGprCToRequesterAction = normalizedApproveLabel.includes('send gpr c to requester approval')
             const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
                 mode === 'reject'
                     ? 'REJECT'
                     : (normalizedApproveLabel.includes('action required')
                         ? 'ACTION_REQUIRED'
-                        : (normalizedNextStatus.includes('issue gpr b')
+                        : ((normalizedNextStatus.includes('issue gpr b')
                             || normalizedNextStatus.includes('issue gpr c')
                             || normalizedNextStatus.includes('vendor disagre')
+                            ) && !isSendGprCToRequesterAction
                             ? 'DISAGREE'
                             : 'APPROVE'))
 
