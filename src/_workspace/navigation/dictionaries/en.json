@@ -79,6 +79,7 @@
     "poGmApproval": "PO GM Approval",
     "accRegister": "Account Register Vendor Code",
     "approvalGprC": "Approval GPR C",
-    "blackList": "blacklist"
+    "blackList": "blacklist",
+    "reRegister": "Re-Register"
   }
 }

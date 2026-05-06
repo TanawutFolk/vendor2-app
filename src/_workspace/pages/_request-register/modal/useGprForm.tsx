@@ -110,7 +110,7 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
     { no: '4.4', detail: 'Manufacture location survey', criteria: 'Need' },
     { no: '4.5', detail: 'Company Environmental and Energy Policy', criteria: 'Need' },
     { no: '4.6', detail: 'Quality Management Certification', criteria: 'Optional' },
-    { no: '4.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Optional' },
+    { no: '4.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Need' },
     { no: '4.8', detail: 'Environmental Management Certification', criteria: 'Optional' },
     { no: '4.9', detail: 'History reliability', criteria: 'Optional' },
     { no: '4.10', detail: 'Reliable performance', criteria: 'Optional' },

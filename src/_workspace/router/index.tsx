@@ -73,6 +73,9 @@ const AddVendorPage = lazy(() => import('@/_workspace/pages/_add-vendor/page'))
 /* Find Vendor */
 const FindVendorPage = lazy(() => import('@/_workspace/pages/_find-vendor/page'))
 
+/* Re-register */
+const ReRegisterPage = lazy(() => import('@/_workspace/pages/_Re-register/page'))
+
 /* Request Register History */
 const RequestRegisterHistoryPage = lazy(() => import('@/_workspace/pages/_request-history/page'))
 
@@ -178,6 +181,9 @@ export default (
 
     {/* Find Vendor */}
     <Route path='/en/find-vendor' element={<FindVendorPage />} />
+
+    {/* Re-register */}
+    <Route path='/en/re-register' element={<ReRegisterPage />} />
 
     {/* Request Register History */}
     <Route path='/en/request-register-history' element={<RequestRegisterHistoryPage />} />

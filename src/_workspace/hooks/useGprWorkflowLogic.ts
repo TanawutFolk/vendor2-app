@@ -87,7 +87,7 @@ const useGprWorkflowLogic = ({
 
         const disableSendToCheckerBtn = !gprFormFilled
             || (!gprEvalPassed && shouldEnforceGprACriteria)
-            || (isPostSendGprBFlow && !hasGprCApproved)
+            || (isPostSendGprBFlow && !isCurrentIssueGprBStep && !hasGprCApproved)
         const disableSendToVendorBtn = !gprFormFilled
         const disableSendToRequesterBtn = !gprFormFilled
         const disableRejectBtn = false

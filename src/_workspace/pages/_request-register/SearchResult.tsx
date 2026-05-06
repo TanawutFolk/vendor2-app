@@ -509,20 +509,23 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     })()
     const hasPersistedGprData = Boolean(data.gpr_data) || gprCriteriaFromData.length > 0
     const gprFormFilled = gprSavedInSession || hasPersistedGprData || gprCriteria.length > 0
-    // 4.1–4.5 (Need): all must have uploaded_file (4.3 checked via remark='Accept' OR uploaded_file)
+    // Need criteria require documents, while item 4.3 decides whether GPR B / Form B is needed.
+    const gpr43Decision = String(gprCriteria.find((c: any) => String(c?.no || '') === '4.3')?.remark || '').trim()
+    const isGpr43Accepted = gpr43Decision === 'Accept'
     const gprPassNeed = gprFormFilled && gprCriteria
         .filter((c: any) => {
             const no = String(c?.no || '')
-            return ['4.1', '4.2', '4.3', '4.4', '4.5'].includes(no)
+            return ['4.1', '4.2', '4.4', '4.5', '4.7'].includes(no)
         })
         .every((c: any) => !!c?.uploaded_file)
-    // 4.6-4.13 (Optional): at least 4 must have uploaded_file
+        && isGpr43Accepted
+    // Optional criteria require at least 3 documents.
     const gprPassOptional = gprFormFilled && gprCriteria
         .filter((c: any) => {
             const no = String(c?.no || '')
-            return ['4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'].includes(no)
+            return ['4.6', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'].includes(no)
         })
-        .filter((c: any) => !!c?.uploaded_file).length >= 4
+        .filter((c: any) => !!c?.uploaded_file).length >= 3
     const gprEvalPassed = gprPassNeed && gprPassOptional
     const gprWorkflow = useGprWorkflowLogic({
         currentStep,

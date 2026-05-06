@@ -384,6 +384,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/request-register-history'
   },
   {
+    label: dictionary['navigation'].ReRegister,
+    icon: 'tabler-refresh',
+    id: 546,
+    href: '/re-register'
+  },
+  {
     label:dictionary['navigation'].approvalGprC,
     icon: 'tabler-file-check',
     id: 544,
