@@ -1,14 +1,14 @@
 'use client'
 
 // React Imports
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
+import { useCallback, useRef, useState, useMemo } from 'react'
 
 // MUI Imports
-import { Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
+import { Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
-import type { ColDef, GridReadyEvent, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
+import type { ColDef, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community'
 
 // Common AG Grid Table
 import DxAGgridTable from '@/_template/DxAGgridTable'
@@ -31,12 +31,13 @@ import type { FindVendorFormData } from './validateSchema'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
 // Custom Cell Renderers
 import ActionCellRenderer from './components/ActionCellRenderer'
 import { StatusCheckCellRenderer } from './components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer'
-import EditVendorModal from './modal/EditVendorModal'
+import VendorDetailsModal from './modal/VendorDetailsModal'
 import RegisterConfirmModal from './register-request/RegisterConfirmModal'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
@@ -47,8 +48,7 @@ const SearchResult = () => {
     const { getValues, setValue } = useFormContext<FindVendorFormData>()
 
     const gridApiRef = useRef<any>(null)
-    const [editModalOpen, setEditModalOpen] = useState(false)
-    const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false)
     const [selectedRowData, setSelectedRowData] = useState<any>(null)
 
     // Export Excel states
@@ -58,6 +58,12 @@ const SearchResult = () => {
 
     // DxContext: set true by Search/Clear button
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const { savedGridState, handleGridReady, handleStateUpdated } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     // â”€â”€ Server-Side Datasource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const datasource = useMemo<IServerSideDatasource>(() => ({
@@ -107,22 +113,10 @@ const SearchResult = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), []) // getValues is a stable ref â€” no need to re-create datasource
 
-    // Trigger refresh when Search button is clicked
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
-
     // â”€â”€ Column State Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Read saved state once on mount â€” AG Grid restores it via initialState prop
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Persist to RHF whenever AG Grid state changes (sort, pin, reorder, hide)
-    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', e.state, { shouldDirty: false })
-    }, [setValue])
 
     // â”€â”€ Export helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const buildSearchFilters = () => {
@@ -179,19 +173,14 @@ const SearchResult = () => {
 
     // â”€â”€ Edit / Register handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleEditClick = useCallback((vendorId: number, data: any) => {
-        setSelectedVendorId(vendorId)
+        void vendorId
         setSelectedRowData(data)
-        setEditModalOpen(true)
+        setDetailsModalOpen(true)
     }, [])
 
-    const handleCloseEditModal = useCallback(() => {
-        setEditModalOpen(false)
-        setSelectedVendorId(null)
+    const handleCloseSelection = useCallback(() => {
+        setDetailsModalOpen(false)
         setSelectedRowData(null)
-    }, [])
-
-    const handleEditSuccess = useCallback(() => {
-        gridApiRef.current?.refreshServerSide({ purge: true })
     }, [])
 
     const [registerModalOpen, setRegisterModalOpen] = useState(false)
@@ -206,8 +195,13 @@ const SearchResult = () => {
         if (!selectedRegisterVendor) return
         try {
             const payload = new FormData()
+            const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
+
             payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
-            payload.append('vendor_contact_id', formData?.vendorContactId || '')
+            payload.append('vendor_contact_id', selectedContactIds[0] || '')
+            selectedContactIds.forEach((contactId: string) => {
+                payload.append('vendor_contact_ids[]', contactId)
+            })
             payload.append('support_type', formData?.supportType || '')
             payload.append('purchase_frequency', formData?.purchaseFreq || '')
             payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
@@ -246,6 +240,11 @@ const SearchResult = () => {
             width: 94,
             pinned: 'left',
             cellRenderer: ActionCellRenderer,
+            cellRendererParams: {
+                onEditClick: handleEditClick,
+                onRegisterClick: handleRegisterClick,
+                showMoreActions: false
+            },
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
             sortable: false,
             filter: false,
@@ -286,7 +285,7 @@ const SearchResult = () => {
         { field: 'contact_name', headerName: 'Contact Name',  width: 180, filter: 'agTextColumnFilter' },
         { field: 'tel_phone',    headerName: 'Tel. Contact',  width: 125, filter: 'agTextColumnFilter' },
         { field: 'email',        headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer }
-    ], [])
+    ], [handleEditClick, handleRegisterClick])
 
     return (
         <SearchResultCard action={
@@ -318,10 +317,16 @@ const SearchResult = () => {
                 serverSideDatasource={datasource}
                 height={600}
                 boxSx={{ p: 2 }}
-                context={{ onEditClick: handleEditClick, onRegisterClick: handleRegisterClick }}
+                context={{
+                    onEditClick: handleEditClick,
+                    onRegisterClick: handleRegisterClick
+                }}
                 initialState={savedGridState}
                 onStateUpdated={handleStateUpdated}
-                onGridReady={(params: GridReadyEvent) => { gridApiRef.current = params.api }}
+                onGridReady={(params: GridReadyEvent) => {
+                    handleGridReady(params)
+                    gridApiRef.current = params.api
+                }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: any) => {
                     const vendorId   = params.data.vendor_id || 0
@@ -331,12 +336,10 @@ const SearchResult = () => {
                 }}
             />
 
-            <EditVendorModal
-                open={editModalOpen}
-                onClose={handleCloseEditModal}
-                vendorId={selectedVendorId}
-                rowData={selectedRowData}
-                onSuccess={handleEditSuccess}
+            <VendorDetailsModal
+                open={detailsModalOpen}
+                onClose={handleCloseSelection}
+                data={selectedRowData}
             />
 
             <RegisterConfirmModal
@@ -345,6 +348,7 @@ const SearchResult = () => {
                 onClose={() => { setRegisterModalOpen(false); setSelectedRegisterVendor(null) }}
                 onConfirm={handleConfirmRegister}
             />
+
         </SearchResultCard>
     )
 }

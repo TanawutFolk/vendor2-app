@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     Box,
     Button,
@@ -16,9 +16,17 @@ import {
     Typography,
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
-import type { ColDef, ICellRendererParams, StateUpdatedEvent } from 'ag-grid-community'
-import { useFormContext, useWatch } from 'react-hook-form'
-import { useQueryClient } from '@tanstack/react-query'
+import type {
+    ColDef,
+    GetRowIdParams,
+    GridApi,
+    GridReadyEvent,
+    ICellRendererParams,
+    IServerSideDatasource,
+    SortModelItem,
+    StateUpdatedEvent,
+} from 'ag-grid-community'
+import { useFormContext } from 'react-hook-form'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useDxContext } from '@/_template/DxContextProvider'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
@@ -28,6 +36,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import type { ApprovalGprCFormData } from './validateSchema'
 import ActionRequiredDialog from './modal/ActionRequiredDialog'
 import RequestDetailDialog from './modal/RequestDetailDialog'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
 export type GprCQueueRow = {
     REQUEST_ID?: number
@@ -66,6 +75,20 @@ export type GprCActionRequiredRow = {
 
 type DialogMode = 'APPROVE' | 'REJECT'
 
+type AgGridColumnFilter = {
+    id: string
+    columnFns?: string
+    value: string | string[]
+}
+
+type AgGridFilterModelValue = {
+    filterType?: 'text' | 'number' | 'date' | 'set'
+    type?: string
+    filter?: string | number
+    dateFrom?: string
+    values?: string[]
+}
+
 const actionRequiredStepCodes = new Set([
     'EMR_CHECKER',
     'EMR_APPROVER',
@@ -76,10 +99,36 @@ const actionRequiredStepCodes = new Set([
 ])
 
 const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_ID || row.request_id || 0)
-const PREFIX_QUERY_KEY = 'APPROVAL_GPR_C'
 
-const includesKeyword = (value: unknown, keyword: string) =>
-    String(value || '').toLowerCase().includes(keyword.trim().toLowerCase())
+const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridFilterModelValue>): AgGridColumnFilter[] => {
+    return Object.entries(filterModel || {}).flatMap(([id, model]) => {
+        if (!model) return []
+
+        if (model.filterType === 'text' || model.filterType === 'number') {
+            if (model.type === 'blank' || model.type === 'notBlank') return []
+
+            return [{
+                id,
+                columnFns: model.type || 'contains',
+                value: String(model.filter ?? ''),
+            }]
+        }
+
+        if (model.filterType === 'date') {
+            return [{
+                id,
+                columnFns: model.type || 'equals',
+                value: String(model.dateFrom ?? ''),
+            }]
+        }
+
+        if (model.filterType === 'set') {
+            return model.values?.length ? [{ id, value: model.values }] : []
+        }
+
+        return []
+    }).filter(item => Array.isArray(item.value) ? item.value.length > 0 : String(item.value || '').trim().length > 0)
+}
 
 interface RowActionMenuProps {
     canActionRequired: boolean
@@ -139,15 +188,10 @@ const RowActionMenu = ({ canActionRequired, onApprove, onReject, onActionRequire
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<ApprovalGprCFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
-    const queryClient = useQueryClient()
-    const approvalInitialState = useMemo(() => getValues('searchResults.approvalGridState'), [getValues])
-    const actionRequiredInitialState = useMemo(() => getValues('searchResults.actionRequiredGridState'), [getValues])
     const user = getUserData()
     const empCode = String(user?.EMPLOYEE_CODE || '').trim()
     const userEmail = String(user?.EMAIL || '').trim()
-    const [rows, setRows] = useState<GprCQueueRow[]>([])
-    const [actionRows, setActionRows] = useState<GprCActionRequiredRow[]>([])
-    const [loading, setLoading] = useState(false)
+
     const [submitting, setSubmitting] = useState(false)
     const [selectedRow, setSelectedRow] = useState<GprCQueueRow | null>(null)
     const [actionRequiredRow, setActionRequiredRow] = useState<GprCQueueRow | null>(null)
@@ -158,104 +202,160 @@ const SearchResult = () => {
     const [remark, setRemark] = useState('')
     const [resultStatus, setResultStatus] = useState('COMPLETED')
     const [, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+    const [actionRequiredTotalCount, setActionRequiredTotalCount] = useState(0)
+
+    const actionRequiredGridApiRef = useRef<GridApi | null>(null)
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching,
+        statePath: 'searchResults.approvalGridState',
+    })
+
+    const actionRequiredInitialState = useMemo(
+        () => getValues('searchResults.actionRequiredGridState'),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    )
+
+    const handleActionRequiredGridReady = useCallback((params: GridReadyEvent) => {
+        actionRequiredGridApiRef.current = params.api
+    }, [])
+
+    const handleActionRequiredStateUpdated = useCallback((event: StateUpdatedEvent) => {
+        setValue('searchResults.actionRequiredGridState', event.state, { shouldDirty: false })
+    }, [setValue])
 
     const dialogOpen = Boolean(selectedRow)
     const actionRequiredDialogOpen = Boolean(actionRequiredRow)
     const recordDialogOpen = Boolean(selectedActionRow)
     const detailDialogOpen = Boolean(detailRow)
 
-    const searchFilters = useWatch({ name: 'searchFilters' })
+    const buildSearchFilters = useCallback(() => {
+        const searchFilters = getValues('searchFilters')
 
-    const filteredRows = useMemo(() => {
-        const requestNumber = String(searchFilters.request_number || '').trim()
-        const vendorName = String(searchFilters.vendor_name || '').trim()
-        const stepKeyword = String(searchFilters.step_keyword || '').trim()
-        const statusKeyword = String(searchFilters.status_keyword || '').trim()
+        return [
+            { id: 'request_number', value: searchFilters.request_number || '' },
+            { id: 'vendor_name', value: searchFilters.vendor_name || '' },
+            { id: 'step_keyword', value: searchFilters.step_keyword || '' },
+            { id: 'status_keyword', value: searchFilters.status_keyword || '' },
+        ]
+    }, [getValues])
 
-        return rows.filter(row => {
-            if (requestNumber && !includesKeyword(row.request_number, requestNumber) && !includesKeyword(getRequestId(row), requestNumber)) {
-                return false
-            }
-            if (vendorName && !includesKeyword(row.company_name, vendorName)) return false
-            if (stepKeyword && !includesKeyword(`${row.STEP_NAME || ''} ${row.STEP_CODE || ''}`, stepKeyword)) return false
-            if (statusKeyword && !includesKeyword(row.request_status, statusKeyword)) return false
-
-            return true
-        })
-    }, [rows, searchFilters])
-
-    const filteredActionRows = useMemo(() => {
-        const requestNumber = String(searchFilters.request_number || '').trim()
-        const vendorName = String(searchFilters.vendor_name || '').trim()
-        const stepKeyword = String(searchFilters.step_keyword || '').trim()
-        const statusKeyword = String(searchFilters.status_keyword || '').trim()
-
-        return actionRows.filter(row => {
-            if (requestNumber && !includesKeyword(row.request_number, requestNumber) && !includesKeyword(row.REQUEST_ID, requestNumber)) {
-                return false
-            }
-            if (vendorName && !includesKeyword(row.company_name, vendorName)) return false
-            if (stepKeyword && !includesKeyword(`${row.STAGE_NAME || ''} ${row.STAGE_CODE || ''}`, stepKeyword)) return false
-            if (statusKeyword && !includesKeyword(row.RESULT_STATUS || row.request_status, statusKeyword)) return false
-
-            return true
-        })
-    }, [actionRows, searchFilters])
-
-    const loadQueue = useCallback(async () => {
-        if (!empCode) {
-            setRows([])
-            setActionRows([])
+    const loadActionRequiredCount = useCallback(async () => {
+        if (!userEmail) {
+            setActionRequiredTotalCount(0)
             return
         }
 
-        setLoading(true)
         try {
-            const response = await queryClient.fetchQuery({
-                queryKey: [PREFIX_QUERY_KEY, 'approval', { approver_empcode: empCode }],
-                queryFn: () => RegisterRequestServices.gprCQueue({ approver_empcode: empCode }),
-                staleTime: 0,
+            const response = await RegisterRequestServices.gprCActionRequiredQueue({
+                pic_email: userEmail,
+                SearchFilters: buildSearchFilters(),
+                ColumnFilters: [],
+                Order: [{ id: 'SENT_AT', desc: true }, { id: 'ACTION_REQUIRED_ID', desc: true }],
+                Start: 0,
+                Limit: 1,
             })
-            const payload = response.data
-            if (!payload.Status) {
-                setMessage({ type: 'error', text: payload.Message || 'Failed to load GPR C queue' })
-                setRows([])
-                setActionRows([])
-                return
-            }
-
-            setRows(Array.isArray(payload.ResultOnDb) ? payload.ResultOnDb as GprCQueueRow[] : [])
-
-            if (userEmail) {
-                const actionResponse = await queryClient.fetchQuery({
-                    queryKey: [PREFIX_QUERY_KEY, 'action-required', { pic_email: userEmail }],
-                    queryFn: () => RegisterRequestServices.gprCActionRequiredQueue({ pic_email: userEmail }),
-                    staleTime: 0,
-                })
-                const actionPayload = actionResponse.data
-                setActionRows(actionPayload.Status && Array.isArray(actionPayload.ResultOnDb)
-                    ? actionPayload.ResultOnDb as GprCActionRequiredRow[]
-                    : []
-                )
-            } else {
-                setActionRows([])
-            }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to load GPR C queue'
-            setMessage({ type: 'error', text: message })
-            setRows([])
-            setActionRows([])
-        } finally {
-            setLoading(false)
+            const result = response.data
+            setActionRequiredTotalCount(result?.Status ? result.TotalCountOnDb || 0 : 0)
+        } catch {
+            setActionRequiredTotalCount(0)
         }
-    }, [empCode, queryClient, userEmail])
+    }, [buildSearchFilters, userEmail])
+
+    const refreshAllGrids = useCallback(() => {
+        refreshServerSide()
+        actionRequiredGridApiRef.current?.refreshServerSide?.({ purge: true })
+        void loadActionRequiredCount()
+    }, [loadActionRequiredCount, refreshServerSide])
 
     useEffect(() => {
         if (isEnableFetching) {
-            setIsEnableFetching(false)
-            loadQueue()
+            void loadActionRequiredCount()
         }
-    }, [isEnableFetching, loadQueue, setIsEnableFetching])
+    }, [isEnableFetching, loadActionRequiredCount])
+
+    const approvalDatasource = useMemo<IServerSideDatasource>(() => ({
+        getRows: async params => {
+            if (!empCode) {
+                params.success({ rowData: [], rowCount: 0 })
+                return
+            }
+
+            try {
+                const { startRow, endRow, sortModel, filterModel } = params.request
+                const limit = (endRow ?? 20) - (startRow ?? 0)
+                const response = await RegisterRequestServices.gprCQueue({
+                    approver_empcode: empCode,
+                    SearchFilters: buildSearchFilters(),
+                    ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
+                    Order: sortModel && sortModel.length > 0
+                        ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
+                        : [{ id: 'GPR_C_FLOW_ID', desc: true }],
+                    Start: startRow ?? 0,
+                    Limit: limit || 20,
+                })
+                const result = response.data
+
+                if (result?.Status) {
+                    params.success({
+                        rowData: result.ResultOnDb || [],
+                        rowCount: result.TotalCountOnDb || 0,
+                    })
+                    return
+                }
+
+                params.fail()
+            } catch {
+                params.fail()
+            }
+        },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [empCode])
+
+    const actionRequiredDatasource = useMemo<IServerSideDatasource>(() => ({
+        getRows: async params => {
+            if (!userEmail) {
+                setActionRequiredTotalCount(0)
+                params.success({ rowData: [], rowCount: 0 })
+                return
+            }
+
+            try {
+                const { startRow, endRow, sortModel, filterModel } = params.request
+                const limit = (endRow ?? 20) - (startRow ?? 0)
+                const response = await RegisterRequestServices.gprCActionRequiredQueue({
+                    pic_email: userEmail,
+                    SearchFilters: buildSearchFilters(),
+                    ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
+                    Order: sortModel && sortModel.length > 0
+                        ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
+                        : [{ id: 'SENT_AT', desc: true }, { id: 'ACTION_REQUIRED_ID', desc: true }],
+                    Start: startRow ?? 0,
+                    Limit: limit || 20,
+                })
+                const result = response.data
+
+                if (result?.Status) {
+                    setActionRequiredTotalCount(result.TotalCountOnDb || 0)
+                    params.success({
+                        rowData: result.ResultOnDb || [],
+                        rowCount: result.TotalCountOnDb || 0,
+                    })
+                    return
+                }
+
+                setActionRequiredTotalCount(0)
+                params.fail()
+            } catch {
+                setActionRequiredTotalCount(0)
+                params.fail()
+            }
+        },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [userEmail])
 
     const openDialog = (mode: DialogMode, row: GprCQueueRow) => {
         setDialogMode(mode)
@@ -301,10 +401,7 @@ const SearchResult = () => {
         setDetailRow(null)
     }
 
-    const dialogTitle = useMemo(() => {
-        if (dialogMode === 'REJECT') return 'Reject GPR C Step'
-        return 'Approve GPR C Step'
-    }, [dialogMode])
+    const dialogTitle = useMemo(() => dialogMode === 'REJECT' ? 'Reject GPR C Step' : 'Approve GPR C Step', [dialogMode])
 
     const handleSubmit = async () => {
         if (!selectedRow || !empCode) return
@@ -336,7 +433,7 @@ const SearchResult = () => {
             setMessage({ type: 'success', text: payload.Message || 'GPR C action completed' })
             ToastMessageSuccess({ message: payload.Message || 'GPR C action completed' })
             setSelectedRow(null)
-            await loadQueue()
+            refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'GPR C action failed'
             setMessage({ type: 'error', text: message })
@@ -374,7 +471,7 @@ const SearchResult = () => {
             setMessage({ type: 'success', text: payload.Message || 'Result recorded' })
             ToastMessageSuccess({ message: payload.Message || 'Result recorded' })
             setSelectedActionRow(null)
-            await loadQueue()
+            refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to record result'
             setMessage({ type: 'error', text: message })
@@ -384,7 +481,7 @@ const SearchResult = () => {
         }
     }
 
-    const approvalColumnDefs: ColDef<GprCQueueRow>[] = [
+    const approvalColumnDefs = useMemo<ColDef<GprCQueueRow>[]>(() => [
         {
             headerName: 'Action',
             width: 110,
@@ -423,6 +520,7 @@ const SearchResult = () => {
             headerName: 'Request No.',
             field: 'request_number',
             minWidth: 150,
+            filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.request_number || `REQ-${getRequestId(params.data || {})}`,
         },
         {
@@ -430,12 +528,14 @@ const SearchResult = () => {
             field: 'company_name',
             minWidth: 220,
             flex: 1,
+            filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.company_name || '-',
         },
         {
             headerName: 'Step',
             field: 'STEP_NAME',
             minWidth: 220,
+            filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
                 const stepValue = params.data?.STEP_NAME || params.data?.STEP_CODE || '-'
 
@@ -461,19 +561,21 @@ const SearchResult = () => {
         {
             headerName: 'Product / Frequency',
             minWidth: 220,
+            filter: false,
             valueGetter: params => [params.data?.supportProduct_Process, params.data?.purchase_frequency].filter(Boolean).join(' / ') || '-',
         },
         {
             headerName: 'Status',
             field: 'request_status',
             minWidth: 150,
+            filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => (
                 <Chip size='small' label={params.data?.request_status || 'In Progress'} color='warning' variant='tonal' />
             ),
         },
-    ]
+    ], [])
 
-    const actionRequiredColumnDefs: ColDef<GprCActionRequiredRow>[] = [
+    const actionRequiredColumnDefs = useMemo<ColDef<GprCActionRequiredRow>[]>(() => [
         {
             headerName: 'Action',
             minWidth: 290,
@@ -506,12 +608,15 @@ const SearchResult = () => {
             headerName: 'Request No.',
             field: 'request_number',
             minWidth: 150,
+            filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_ID || ''}`,
         },
-        { headerName: 'Vendor', field: 'company_name', minWidth: 220, flex: 1 },
+        { headerName: 'Vendor', field: 'company_name', minWidth: 220, flex: 1, filter: 'agTextColumnFilter' },
         {
             headerName: 'Stage',
+            field: 'STAGE_NAME',
             minWidth: 180,
+            filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.STAGE_NAME || params.data?.STAGE_CODE || '-',
         },
         {
@@ -519,17 +624,19 @@ const SearchResult = () => {
             field: 'REQUIRED_DETAIL',
             minWidth: 260,
             flex: 1,
+            filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.REQUIRED_DETAIL || '-',
         },
         {
             headerName: 'Status',
             field: 'RESULT_STATUS',
             minWidth: 140,
+            filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => (
                 <Chip size='small' label={params.data?.RESULT_STATUS || 'PENDING'} color='warning' variant='tonal' />
             ),
         },
-    ]
+    ], [])
 
     return (
         <Stack spacing={3}>
@@ -558,7 +665,7 @@ const SearchResult = () => {
                                         fontWeight: 700,
                                     }}
                                 >
-                                    {filteredActionRows.length}
+                                    {actionRequiredTotalCount}
                                 </Box>
                             }
                             onClick={() => setActionResultDialogOpen(true)}
@@ -567,15 +674,15 @@ const SearchResult = () => {
                         </Button>
                     </Box>
                     <DxAGgridTable
-                        rowData={filteredRows}
                         columnDefs={approvalColumnDefs}
+                        serverSideDatasource={approvalDatasource}
                         height={560}
-                        loading={loading}
-                        getRowId={params => String(params.data.GPR_C_STEP_ID || params.data.GPR_C_FLOW_ID || getRequestId(params.data))}
+                        getRowId={(params: GetRowIdParams<GprCQueueRow>) => String(params.data.GPR_C_STEP_ID || params.data.GPR_C_FLOW_ID || getRequestId(params.data))}
                         rowHeight={64}
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No GPR C approval task found.</span>'
-                        initialState={approvalInitialState}
-                        onStateUpdated={(event: StateUpdatedEvent) => setValue('searchResults.approvalGridState', event.state)}
+                        initialState={savedGridState}
+                        onStateUpdated={handleStateUpdated}
+                        onGridReady={handleGridReady}
                     />
                 </Box>
             </SearchResultCard>
@@ -620,7 +727,7 @@ const SearchResult = () => {
                 onClose={closeActionRequiredDialog}
                 onSuccess={async () => {
                     setActionRequiredRow(null)
-                    await loadQueue()
+                    refreshAllGrids()
                 }}
                 onError={message => setMessage({ type: 'error', text: message })}
             />
@@ -641,19 +748,19 @@ const SearchResult = () => {
                 <DialogTitle>
                     <Stack direction='row' spacing={2} alignItems='center'>
                         <Typography variant='h5' component='span'>Action Required Results</Typography>
-                        <Chip size='small' label={filteredActionRows.length} color='warning' variant='tonal' />
+                        <Chip size='small' label={actionRequiredTotalCount} color='warning' variant='tonal' />
                     </Stack>
                 </DialogTitle>
                 <DialogContent dividers>
                     <DxAGgridTable
-                        rowData={filteredActionRows}
                         columnDefs={actionRequiredColumnDefs}
+                        serverSideDatasource={actionRequiredDatasource}
                         height={420}
-                        loading={loading}
-                        getRowId={params => String(params.data.ACTION_REQUIRED_ID || params.data.REQUEST_ID || '')}
+                        getRowId={(params: GetRowIdParams<GprCActionRequiredRow>) => String(params.data.ACTION_REQUIRED_ID || params.data.REQUEST_ID || '')}
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No pending Action Required result.</span>'
                         initialState={actionRequiredInitialState}
-                        onStateUpdated={(event: StateUpdatedEvent) => setValue('searchResults.actionRequiredGridState', event.state)}
+                        onStateUpdated={handleActionRequiredStateUpdated}
+                        onGridReady={handleActionRequiredGridReady}
                     />
                 </DialogContent>
                 <DialogActions>

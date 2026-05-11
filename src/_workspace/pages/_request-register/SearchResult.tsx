@@ -1,9 +1,9 @@
 // React Imports
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 
 // MUI Imports
 import {
-    Grid, Card, CardContent, Box, Typography, Chip, Divider,
+    Grid, CardContent, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
     Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
     TextField, Alert
@@ -14,7 +14,7 @@ import undraw_clean_up_re_504g from '@assets/images/common/undraw_clean_up_re_50
 import undraw_notify_re_65on from '@assets/images/common/undraw_notify_re_65on.svg'
 
 // AG Grid Imports
-import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
+import type { ColDef, IServerSideDatasource } from 'ag-grid-community'
 import type { ICellRendererParams, IServerSideGetRowsParams } from 'ag-grid-community'
 import type { ValueFormatterParams, ValueGetterParams } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
@@ -48,6 +48,7 @@ import type { RequestRegisterFormData } from './validateSchema'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
 // Status — colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
@@ -72,7 +73,6 @@ import {
     getActionRequiredStageLabel,
     isVendorDisagreedStep,
     WORKFLOW_STEP_CODE,
-    resolveGroupCodeForStep,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
@@ -1272,6 +1272,12 @@ export default function SearchResult() {
 
     const [totalCount, setTotalCount] = useState(0)
     const gridApiRef = useRef<any>(null)
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     // Action dialog & Drawer state
     const [selectedData, setSelectedData] = useState<RegisterRequestRow | null>(null)
@@ -1324,19 +1330,8 @@ export default function SearchResult() {
     }), [empCode]) // getValues is a stable ref — no need to re-create datasource
 
     // Trigger refresh when Search / Clear button sets isEnableFetching = true
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
 
     // ── Column / Grid State Persistence ──────────────────────────────────────
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', e.state)
-    }, [setValue])
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -1417,7 +1412,7 @@ export default function SearchResult() {
     ], [statusOptions])
 
     const handleActionSuccess = () => {
-        gridApiRef.current?.refreshServerSide({ purge: true })
+        refreshServerSide()
         setDrawerOpen(false)
         setSelectedData(null)
     }
@@ -1440,14 +1435,14 @@ export default function SearchResult() {
             setActionDialogOpen(true)
         },
         onEmailSent: () => {
-            gridApiRef.current?.refreshServerSide({ purge: true })
+            refreshServerSide()
         },
         onCompleted: () => {
-            gridApiRef.current?.refreshServerSide({ purge: true })
+            refreshServerSide()
             setDrawerOpen(false)
             setSelectedData(null)
         }
-    }), [])
+    }), [refreshServerSide])
 
     return (
         <Grid container spacing={6}>
@@ -1467,7 +1462,10 @@ export default function SearchResult() {
                             height={600}
                             overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
                             getRowId={(p: { data: RegisterRequestRow }) => String(p.data.request_id)}
-                            onGridReady={(p: any) => { gridApiRef.current = p.api }}
+                            onGridReady={(p: any) => {
+                                handleGridReady(p)
+                                gridApiRef.current = p.api
+                            }}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}
                             masterDetail={true}

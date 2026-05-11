@@ -2,7 +2,6 @@ import React, { forwardRef, useState, useEffect } from 'react'
 import type { ReactElement, Ref } from 'react'
 import {
     Dialog,
-    DialogTitle,
     DialogContent,
     DialogActions,
     Box,
@@ -16,8 +15,7 @@ import {
     IconButton,
     List,
     ListItem,
-    RadioGroup,
-    Radio,
+    Checkbox,
     FormControlLabel
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
@@ -36,11 +34,35 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { RegisterConfirmSchema, defaultRegisterConfirmValues } from './validateSchema'
 import type { RegisterConfirmFormData } from './validateSchema'
 
+type VendorContactOption = {
+    vendor_contact_id?: number | string
+    contact_name?: string
+    email?: string
+    tel_phone?: string
+    position?: string
+}
+
+type RegisterVendorData = VendorContactOption & {
+    contacts?: VendorContactOption[] | string
+    company_name?: string
+    vendor_type_name?: string
+    vendor_region?: string
+    province?: string
+    website?: string
+    tel_center?: string
+    status_check?: string
+    address?: string
+    group_name?: string
+    maker_name?: string
+    product_name?: string
+    model_list?: string
+}
+
 interface RegisterConfirmModalProps {
     open: boolean
-    vendorData?: any
+    vendorData?: RegisterVendorData
     onClose: () => void
-    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactId: string; files: File[] }) => void
+    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactIds: string[]; files: File[] }) => void
 }
 
 // Styled Dropzone Component
@@ -97,8 +119,25 @@ const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
     </Box>
 )
 
+const parseContactOptions = (vendorData?: RegisterVendorData): VendorContactOption[] => {
+    const rawContacts = vendorData?.contacts
+
+    if (Array.isArray(rawContacts)) return rawContacts
+
+    if (typeof rawContacts === 'string' && rawContacts.trim()) {
+        try {
+            const parsed = JSON.parse(rawContacts)
+            return Array.isArray(parsed) ? parsed : []
+        } catch {
+            return []
+        }
+    }
+
+    return []
+}
+
 const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactElement<any, any> },
+    props: SlideProps & { children?: ReactElement },
     ref: Ref<unknown>
 ) {
     return <Slide direction='down' ref={ref} {...props} />
@@ -126,9 +165,27 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
 
     // Watch values for UI logic
     const files = watch('files')
-    const vendorContactId = watch('vendorContactId')
-    const supportType = watch('supportType')
-    const purchaseFreq = watch('purchaseFreq')
+    const contactOptions = React.useMemo(() => {
+        const parsedContacts = parseContactOptions(vendorData)
+        const contacts = parsedContacts.length > 0
+            ? parsedContacts
+            : [{
+                vendor_contact_id: vendorData?.vendor_contact_id,
+                contact_name: vendorData?.contact_name,
+                email: vendorData?.email,
+                tel_phone: vendorData?.tel_phone,
+                position: vendorData?.position
+            }]
+
+        const seen = new Set<string>()
+
+        return contacts.filter((contact: VendorContactOption) => {
+            const contactId = String(contact?.vendor_contact_id || '')
+            if (!contactId || seen.has(contactId)) return false
+            seen.add(contactId)
+            return true
+        })
+    }, [vendorData])
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -140,6 +197,12 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
             }, 300)
         }
     }, [open, reset])
+
+    useEffect(() => {
+        if (open && contactOptions.length > 0) {
+            setValue('vendorContactIds', contactOptions.map((contact) => String(contact.vendor_contact_id)), { shouldValidate: true })
+        }
+    }, [contactOptions, open, setValue])
 
 
     const { getRootProps, getInputProps } = useDropzone({
@@ -407,23 +470,37 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                     Select Target Contact <Typography component="span" color="error">*</Typography>
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                    The vendor agreement email will be sent to the selected contact.
+                                    The vendor agreement email will be sent to the selected contacts.
                                 </Typography>
                                 <Box sx={{
-                                    border: '1px solid', borderColor: errors.vendorContactId ? 'error.main' : 'divider',
+                                    border: '1px solid', borderColor: errors.vendorContactIds ? 'error.main' : 'divider',
                                     borderRadius: 1.5, p: 2, bgcolor: 'background.paper'
                                 }}>
                                     <Controller
-                                        name="vendorContactId"
+                                        name="vendorContactIds"
                                         control={control}
                                         render={({ field }) => (
-                                            <RadioGroup {...field}>
-                                                {vendorData?.contacts?.map((contact: any, index: number) => (
-                                                    contact.vendor_contact_id ? (
+                                            <Box>
+                                                {contactOptions.map((contact, index: number) => {
+                                                    const contactId = String(contact.vendor_contact_id)
+                                                    const checked = field.value?.includes(contactId) || false
+
+                                                    return (
                                                         <FormControlLabel
-                                                            key={contact.vendor_contact_id}
-                                                            value={String(contact.vendor_contact_id)}
-                                                            control={<Radio />}
+                                                            key={contactId}
+                                                            control={
+                                                                <Checkbox
+                                                                    checked={checked}
+                                                                    onChange={(event) => {
+                                                                        const currentValue = field.value || []
+                                                                        field.onChange(
+                                                                            event.target.checked
+                                                                                ? [...currentValue, contactId]
+                                                                                : currentValue.filter((id: string) => id !== contactId)
+                                                                        )
+                                                                    }}
+                                                                />
+                                                            }
                                                             label={
                                                                 <Box>
                                                                     <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
@@ -432,17 +509,17 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                                                                     </Typography>
                                                                 </Box>
                                                             }
-                                                            sx={{ mb: 1, '&:last-child': { mb: 0 } }}
+                                                            sx={{ mb: 1, display: 'flex', alignItems: 'flex-start', '&:last-child': { mb: 0 } }}
                                                         />
-                                                    ) : null
-                                                ))}
-                                            </RadioGroup>
+                                                    )
+                                                })}
+                                            </Box>
                                         )}
                                     />
                                 </Box>
-                                {errors.vendorContactId && (
+                                {errors.vendorContactIds && (
                                     <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                                        {errors.vendorContactId.message}
+                                        {errors.vendorContactIds.message}
                                     </Typography>
                                 )}
                             </Box>

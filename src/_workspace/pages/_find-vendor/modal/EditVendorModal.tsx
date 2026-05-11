@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 
 // MUI Imports
 import {
@@ -20,7 +20,7 @@ import type { ReactElement, Ref } from 'react'
 import { forwardRef } from 'react'
 
 const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactElement<any, any> },
+    props: SlideProps & { children?: ReactElement },
     ref: Ref<unknown>
 ) {
     return <Slide direction='down' ref={ref} {...props} />
@@ -37,19 +37,19 @@ import ContactsSection from './components/ContactsSection'
 import ProductsSection from './components/ProductsSection'
 import VendorModalHeaderBar from './components/VendorModalHeaderBar'
 import VendorModalFooterActions from './components/VendorModalFooterActions'
-import VendorModalStateModals from './components/VendorModalStateModals'
+import ConfirmModal from '@/components/ConfirmModal'
 
 // Services & Utils Imports
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
 
-import type { EditVendorSchemaType } from './validateSchema'
+import type { DropdownItemI, VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { useEditVendorForm } from './useEditVendorForm'
 
 interface EditVendorModalProps {
     open: boolean
     onClose: () => void
     vendorId: number | null
-    rowData?: any
+    rowData?: Partial<VendorComprehensiveI>
     forceRefreshOnEdit?: boolean
     onSuccess?: () => void
 }
@@ -62,6 +62,8 @@ const EditVendorModal = ({
     forceRefreshOnEdit = false,
     onSuccess: onSaveSuccess,
 }: EditVendorModalProps) => {
+    const vendorTypesCacheRef = useRef<DropdownItemI[] | null>(null)
+
     const {
         formMethods,
         control,
@@ -82,17 +84,9 @@ const EditVendorModal = ({
         productGroupRefreshKey,
         confirmModalOpen,
         setConfirmModalOpen,
-        successModalOpen,
-        setSuccessModalOpen,
-        errorModalOpen,
-        setErrorModalOpen,
-        successData,
-        errorMessage,
-        errorDetails,
         toggleEditMode,
         handleSaveClick,
         handleConfirmSave,
-        handleErrorRetry,
         handleClose,
         handleProductGroupAdded,
     } = useEditVendorForm({
@@ -100,21 +94,21 @@ const EditVendorModal = ({
         vendorId,
         rowData,
         forceRefreshOnEdit,
+        initialMode: 'edit',
         onClose,
         onSaveSuccess,
     })
 
 
-    // Dropdown fetcher for vendor types (following SearchFilter.tsx pattern)
     const fetchVendorTypes = useCallback(async (inputValue: string) => {
         try {
-            const response = await FindVendorServices.getVendorTypes()
-            if (response.data.Status) {
-                return response.data.ResultOnDb.filter(item =>
-                    item.label.toLowerCase().includes(inputValue.toLowerCase())
-                )
+            if (!vendorTypesCacheRef.current) {
+                const response = await FindVendorServices.getVendorTypes()
+                vendorTypesCacheRef.current = response.data.Status ? response.data.ResultOnDb : []
             }
-            return []
+
+            const keyword = inputValue.toLowerCase()
+            return vendorTypesCacheRef.current.filter(item => item.label.toLowerCase().includes(keyword))
         } catch (error) {
             console.error('Error fetching vendor types:', error)
             return []
@@ -147,7 +141,7 @@ const EditVendorModal = ({
             >
                 <DialogTitle>
                     <Typography variant='h5' component='span'>
-                        {editingMode === 'edit' ? 'Edit Vendor' : 'Vendor Details'}
+                        Edit Vendor
                     </Typography>
                     <DialogCloseButton onClick={handleClose} disableRipple>
                         <i className='tabler-x' />
@@ -161,6 +155,8 @@ const EditVendorModal = ({
                     editingMode={editingMode}
                     loading={loading}
                     onToggleEditMode={toggleEditMode}
+                    hideModeButton
+                    hideVendorCode
                 />
                 <DialogContent dividers sx={{ p: 3, maxHeight: '75vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {loading ? (
@@ -210,19 +206,11 @@ const EditVendorModal = ({
                     onClose={handleClose}
                 />
 
-                <VendorModalStateModals
-                    confirmModalOpen={confirmModalOpen}
-                    setConfirmModalOpen={setConfirmModalOpen}
-                    onConfirmSave={handleConfirmSave}
-                    saving={saving}
-                    successModalOpen={successModalOpen}
-                    setSuccessModalOpen={setSuccessModalOpen}
-                    successData={successData}
-                    errorModalOpen={errorModalOpen}
-                    setErrorModalOpen={setErrorModalOpen}
-                    onRetry={handleErrorRetry}
-                    errorMessage={errorMessage}
-                    errorDetails={errorDetails}
+                <ConfirmModal
+                    show={confirmModalOpen}
+                    onConfirmClick={handleConfirmSave}
+                    onCloseClick={() => setConfirmModalOpen(false)}
+                    isLoading={saving}
                 />
             </Dialog>
             <AddProductGroupModal

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { Button, Chip } from '@mui/material'
-import type { ColDef, GridReadyEvent, ICellRendererParams, IServerSideDatasource, StateUpdatedEvent, ValueFormatterParams } from 'ag-grid-community'
+import type { ColDef, GetRowIdParams, ICellRendererParams, IServerSideDatasource, ValueFormatterParams } from 'ag-grid-community'
 import { useFormContext } from 'react-hook-form'
 
 import DxAGgridTable from '@/_template/DxAGgridTable'
@@ -10,6 +10,7 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import type { TaskManagerFormData } from './validateSchema'
 
 type SelectOptionWithAccent = {
@@ -31,12 +32,9 @@ type TaskQueueRow = Record<string, unknown> & {
     current_group_code?: string
     current_group_name?: string
     current_owner_empcode?: string
-    assignment_scope?: string
     current_owner_active?: boolean | number
     reassign_enabled?: boolean | number
     assignment_health?: string
-    gpr_c_flow_id?: number
-    gpr_c_step_id?: number
 }
 
 import { useState } from 'react'
@@ -44,13 +42,18 @@ import { useState } from 'react'
 const TaskSearchResult = () => {
     const user = getUserData()
     const { getValues, setValue } = useFormContext<TaskManagerFormData>()
-    const gridApiRef = useRef<any>(null)
     const [dialogRow, setDialogRow] = useState<TaskQueueRow | null>(null)
     const { data: statusOptionsRaw = [] } = useRequestStatusOptions()
     const statusOptions = statusOptionsRaw as SelectOptionWithAccent[]
 
     // DxContext: set true by Search/Clear button
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     // ── Server-Side Datasource ────────────────────────────────────────────────
     const datasource = useMemo<IServerSideDatasource>(() => ({
@@ -95,22 +98,8 @@ const TaskSearchResult = () => {
     }), []) // getValues is a stable ref — no need to re-create datasource
 
     // Trigger refresh when Search button is clicked
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
-
     // ── Column State Persistence ──────────────────────────────────────────────
     // Read saved state once on mount — AG Grid restores it via initialState prop
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Persist to RHF whenever AG Grid state changes (sort, pin, reorder, hide)
-    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', e.state, { shouldDirty: false })
-    }, [setValue])
-
     // ── Column Definitions ────────────────────────────────────────────────────
     const colDefs = useMemo<ColDef<TaskQueueRow>[]>(() => [
         {
@@ -162,17 +151,14 @@ const TaskSearchResult = () => {
             },
         },
         { field: 'current_step_name', headerName: 'Current Step', flex: 1.2, minWidth: 220 },
-        { field: 'current_group_name', headerName: 'Workflow Group', flex: 1.1, minWidth: 190 },
-        { field: 'current_owner_empcode', headerName: 'Current Owner', width: 160 },
+        { field: 'current_group_name', headerName: 'PO PIC Group', flex: 1.1, minWidth: 190 },
+        { field: 'current_owner_empcode', headerName: 'PO PIC (assign_to)', width: 170 },
         {
             field: 'assignment_health',
-            headerName: 'Owner Status',
+            headerName: 'PO PIC Status',
             width: 150,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => {
                 const healthy = Number(params.data?.current_owner_active)
-                if (params.data?.assignment_health === 'Not Managed') {
-                    return <Chip label='Not Managed' size='small' variant='tonal' />
-                }
                 return (
                     <Chip
                         label={healthy ? 'Active' : 'Needs Reassign'}
@@ -182,14 +168,6 @@ const TaskSearchResult = () => {
                     />
                 )
             },
-        },
-        {
-            field: 'assignment_scope',
-            headerName: 'Scope',
-            width: 150,
-            valueFormatter: (params: ValueFormatterParams<TaskQueueRow>) => (
-                params.value === 'REQUEST_PIC' ? 'PIC' : params.value === 'GPR_C_STEP' ? 'GPR C Step' : 'Current Step'
-            ),
         },
         {
             field: 'CREATE_DATE',
@@ -207,30 +185,24 @@ const TaskSearchResult = () => {
                 height={650}
                 boxSx={{ p: 2 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No task queue found</span>'
-                getRowId={(params: any) => {
-                    const reqId = params.data.request_id || 0
-                    const flowId = params.data.gpr_c_flow_id || 0
-                    const stepId = params.data.gpr_c_step_id || 0
-                    const scope = params.data.assignment_scope || ''
-                    return `${reqId}_${flowId}_${stepId}_${scope}`
+                getRowId={(params: GetRowIdParams<TaskQueueRow>) => {
+                    return String(params.data.request_id || 0)
                 }}
                 initialState={savedGridState}
                 onStateUpdated={handleStateUpdated}
-                onGridReady={(params: GridReadyEvent) => { gridApiRef.current = params.api }}
+                onGridReady={handleGridReady}
             />
 
             <ReassignDialog
                 open={!!dialogRow}
                 requestId={dialogRow?.request_id || null}
-                scope={dialogRow?.assignment_scope || 'CURRENT_STEP'}
-                gprCStepId={dialogRow?.gpr_c_step_id || null}
                 groupCode={dialogRow?.current_group_code || ''}
                 currentEmpCode={dialogRow?.current_owner_empcode || ''}
                 updateBy={user?.EMPLOYEE_CODE || 'SYSTEM'}
                 onClose={() => setDialogRow(null)}
                 onSuccess={() => {
                     setDialogRow(null)
-                    gridApiRef.current?.refreshServerSide({ purge: true })
+                    refreshServerSide()
                 }}
             />
         </SearchResultCard>

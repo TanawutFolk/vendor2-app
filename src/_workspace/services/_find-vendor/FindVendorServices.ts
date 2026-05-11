@@ -57,6 +57,31 @@ export default class FindVendorServices {
         })
     }
 
+    static updateComprehensive(data: {
+        vendor_id: number
+        vendor: Partial<VendorComprehensiveI>
+        contacts: VendorContactI[]
+        products: VendorProductI[]
+        deleted_contact_ids: number[]
+        deleted_product_ids: number[]
+        vendor_changed?: boolean
+        UPDATE_BY: string
+    }): Promise<AxiosResponse<FindVendorApiResponseI<any>>> {
+        return axiosRequest<FindVendorApiResponseI<any>>({
+            url: `${FindVendorAPI.API_ROOT_URL}/update-comprehensive`,
+            data,
+            method: 'POST'
+        })
+    }
+
+    static deleteVendor(vendor_id: number, UPDATE_BY: string): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
+        return axiosRequest<FindVendorApiResponseI<boolean>>({
+            url: `${FindVendorAPI.API_ROOT_URL}/deleteVendor`,
+            data: { vendor_id, UPDATE_BY },
+            method: 'POST'
+        })
+    }
+
     // Get vendor types for dropdown
     static getVendorTypes(): Promise<AxiosResponse<FindVendorApiResponseI<any[]>>> {
         return axiosRequest<FindVendorApiResponseI<any[]>>({

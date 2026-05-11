@@ -1,6 +1,7 @@
 // React Imports
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
 import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDialog'
 
@@ -75,6 +76,8 @@ interface SearchResultSectionProps {
     detailCellRenderer: any
     detailRowHeight: number
     context: Record<string, any>
+    initialState: any
+    onStateUpdated: (event: any) => void
 }
 
 const SearchResultSection = ({
@@ -88,6 +91,8 @@ const SearchResultSection = ({
     detailCellRenderer,
     detailRowHeight,
     context,
+    initialState,
+    onStateUpdated,
 }: SearchResultSectionProps) => {
     return (
         <SearchResultCard
@@ -113,6 +118,8 @@ const SearchResultSection = ({
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
                     getRowId={(params: any) => String(params.data.request_id)}
                     onGridReady={onGridReady}
+                    initialState={initialState}
+                    onStateUpdated={onStateUpdated}
                     onSelectionChanged={onSelectionChanged}
                     masterDetail={true}
                     detailCellRenderer={detailCellRenderer}
@@ -980,16 +987,14 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const gridApiRef = useRef<any>(null)
     const [selectedRows, setSelectedRows] = useState<any[]>([])
-    const { getValues } = useFormContext<RequestRegisterFormData>()
+    const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
-    
-    // Trigger refresh when Search / Clear button sets isEnableFetching = true
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     const [selectedData, setSelectedData] = useState<any | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
@@ -1138,12 +1143,12 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     ], [statusOptions, empCode, queueStepCode, enableMultiSelect])
 
     const handleActionSuccess = useCallback(() => {
-        gridApiRef.current?.refreshServerSide({ purge: true })
+        refreshServerSide()
         setDrawerOpen(false)
         setSelectedData(null)
         setSelectedRows([])
         setPendingActions([])
-    }, [])
+    }, [refreshServerSide])
 
     const bulkApproveTargets = useMemo(
         () => selectedRows
@@ -1195,12 +1200,17 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         },
         columnDefs: colDefs,
         datasource,
-        onGridReady: (params: any) => { gridApiRef.current = params.api },
+        onGridReady: (params: any) => {
+            handleGridReady(params)
+            gridApiRef.current = params.api
+        },
         onSelectionChanged: (params: any) => setSelectedRows(params.api.getSelectedRows()),
         detailCellRenderer: DetailRenderer,
         detailRowHeight: 800,
         context: gridContext,
-    }), [enableMultiSelect, bulkApproveTargets, colDefs, datasource, gridContext])
+        initialState: savedGridState,
+        onStateUpdated: handleStateUpdated,
+    }), [enableMultiSelect, bulkApproveTargets, colDefs, datasource, gridContext, handleGridReady, handleStateUpdated, savedGridState])
 
     return (
         <Grid container spacing={6}>

@@ -1,22 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Backdrop, Box, Button, CardContent, Chip, CircularProgress, Fade, LinearProgress, Typography } from '@mui/material'
 import { keyframes } from '@mui/material/styles'
 import type {
     ColDef,
     GetRowIdParams,
-    GridApi,
-    GridReadyEvent,
     ICellRendererParams,
     IServerSideDatasource,
     SortModelItem,
-    StateUpdatedEvent,
     ValueFormatterParams,
 } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { useQueryClient } from '@tanstack/react-query'
 import { getBlacklistQueryOptions } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
@@ -103,8 +101,13 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
     const queryClient = useQueryClient()
 
-    const gridApiRef = useRef<GridApi<BlacklistRow> | null>(null)
     const [openUploadModal, setOpenUploadModal] = useState(false)
+    const { savedGridState, handleGridReady, handleStateUpdated } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
@@ -145,19 +148,6 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
         },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [])
-
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
-
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleStateUpdated = useCallback((event: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', event.state, { shouldDirty: false })
-    }, [setValue])
 
     const colDefs = useMemo<ColDef<BlacklistRow>[]>(() => [
         { field: 'blacklist_id', headerName: 'Blacklist ID', width: 130, pinned: 'left', filter: 'agNumberColumnFilter' },
@@ -236,7 +226,7 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                     height={650}
                     initialState={savedGridState}
                     onStateUpdated={handleStateUpdated}
-                    onGridReady={(params: GridReadyEvent) => { gridApiRef.current = params.api }}
+                    onGridReady={handleGridReady}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No blacklist vendors found</span>'
                     getRowId={(params: GetRowIdParams<BlacklistRow>) => String(params.data.blacklist_id)}
                 />

@@ -15,6 +15,8 @@ type VendorModalHeaderBarProps = {
     editingMode: 'view' | 'edit'
     loading: boolean
     onToggleEditMode: () => void
+    hideModeButton?: boolean
+    hideVendorCode?: boolean
 }
 
 const VendorModalHeaderBar = ({
@@ -25,6 +27,8 @@ const VendorModalHeaderBar = ({
     editingMode,
     loading,
     onToggleEditMode,
+    hideModeButton = false,
+    hideVendorCode = false,
 }: VendorModalHeaderBarProps) => {
     return (
         <Box
@@ -47,7 +51,7 @@ const VendorModalHeaderBar = ({
                     <Typography variant='h6' fontWeight={800}>
                         {originalData?.company_name || 'Vendor Details'}
                     </Typography>
-                    {vendorFftCode && (
+                    {!hideVendorCode && vendorFftCode && (
                         <Chip
                             label={`Code: ${vendorFftCode}`}
                             size='small'
@@ -103,16 +107,18 @@ const VendorModalHeaderBar = ({
                 </Box>
             </Box>
 
-            <Button
-                variant={editingMode === 'edit' ? 'contained' : 'tonal'}
-                color={editingMode === 'edit' ? 'success' : 'primary'}
-                onClick={onToggleEditMode}
-                disabled={loading}
-                startIcon={editingMode === 'edit' ? <i className='tabler-check' /> : <i className='tabler-edit' />}
-                sx={{ fontWeight: 700 }}
-            >
-                {editingMode === 'edit' ? 'Editing Mode' : 'Edit Mode'}
-            </Button>
+            {!hideModeButton && (
+                <Button
+                    variant={editingMode === 'edit' ? 'contained' : 'tonal'}
+                    color={editingMode === 'edit' ? 'success' : 'primary'}
+                    onClick={onToggleEditMode}
+                    disabled={loading}
+                    startIcon={editingMode === 'edit' ? <i className='tabler-check' /> : <i className='tabler-edit' />}
+                    sx={{ fontWeight: 700 }}
+                >
+                    {editingMode === 'edit' ? 'Editing Mode' : 'Edit Mode'}
+                </Button>
+            )}
         </Box>
     )
 }

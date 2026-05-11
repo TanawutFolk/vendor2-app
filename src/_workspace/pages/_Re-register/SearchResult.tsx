@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button, Chip, CircularProgress, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material'
-import type { ChipProps } from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import type {
     ColDef,
@@ -11,7 +10,6 @@ import type {
     GridReadyEvent,
     ICellRendererParams,
     IServerSideDatasource,
-    StateUpdatedEvent,
     ValueFormatterParams
 } from 'ag-grid-community'
 import { saveAs } from 'file-saver'
@@ -20,11 +18,21 @@ import { useFormContext } from 'react-hook-form'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
+import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
+import ActionCellRenderer from '../_find-vendor/components/ActionCellRenderer'
+import ConfirmModal from '@components/ConfirmModal'
+import { StatusCheckCellRenderer } from '../_find-vendor/components/fftStatus'
+import EditVendorModal from '../_find-vendor/modal/EditVendorModal'
+import VendorDetailsModal from '../_find-vendor/modal/VendorDetailsModal'
+import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { ReRegisterFormData } from './validateSchema'
 
-type VendorRow = {
+type VendorRow = Partial<VendorComprehensiveI> & {
     vendor_id?: number
     vendor_product_id?: number
     vendor_contact_id?: number
@@ -36,27 +44,28 @@ type SortColumnState = {
     sort?: 'asc' | 'desc' | null
 }
 
-const StatusCheckCellRenderer = (params: ICellRendererParams<VendorRow>) => {
-    const value = String(params.value || 'Not Registered')
-
-    const color: ChipProps['color'] = value === 'Registered'
-        ? 'success'
-        : value === 'In Progress'
-            ? 'warning'
-            : value === 'Cannot Register'
-                ? 'error'
-                : 'default'
-
-    return <Chip size='small' color={color} label={value} sx={{ height: 22 }} />
-}
-
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<ReRegisterFormData>()
     const gridApiRef = useRef<GridApi<VendorRow> | null>(null)
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [isExporting, setIsExporting] = useState(false)
+    const [creatingVendorId, setCreatingVendorId] = useState<number | null>(null)
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+    const [editModalOpen, setEditModalOpen] = useState(false)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [reRegisterConfirmOpen, setReRegisterConfirmOpen] = useState(false)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+    const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+    const [selectedRowData, setSelectedRowData] = useState<VendorRow | null>(null)
+    const [selectedReRegisterVendor, setSelectedReRegisterVendor] = useState<VendorRow | null>(null)
     const openExportMenu = Boolean(anchorEl)
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
@@ -101,19 +110,6 @@ const SearchResult = () => {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [])
-
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
-
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', e.state, { shouldDirty: false })
-    }, [setValue])
 
     const buildSearchFilters = () => {
         const f = getValues('searchFilters')
@@ -166,7 +162,173 @@ const SearchResult = () => {
         }
     }
 
+    const handleCreateReRegister = useCallback(async (row?: VendorRow) => {
+        const vendorId = Number(row?.vendor_id || 0)
+        const user = getUserData()
+        const empCode = String(user?.EMPLOYEE_CODE || '').trim()
+
+        if (!vendorId) {
+            ToastMessageError({ title: 'Re-register', message: 'Vendor ID is missing' })
+            return
+        }
+
+        if (!empCode) {
+            ToastMessageError({ title: 'Re-register', message: 'Current user employee code is missing' })
+            return
+        }
+
+        setCreatingVendorId(vendorId)
+        try {
+            const payload = new FormData()
+            payload.append('vendor_id', String(vendorId))
+            payload.append('vendor_contact_id', row?.vendor_contact_id ? String(row.vendor_contact_id) : '')
+            payload.append('Request_By_EmployeeCode', empCode)
+            payload.append('CREATE_BY', empCode)
+            payload.append('request_type', 'RE_REGISTER')
+            payload.append('request_number_prefix', 'R')
+            payload.append('PIC_Email', user?.EMAIL || '')
+
+            const response = await RegisterRequestServices.create(payload)
+            if (response.data?.Status) {
+                ToastMessageSuccess({
+                    title: 'Re-register',
+                    message: response.data?.Message || 'Re-register request created successfully'
+                })
+                setReRegisterConfirmOpen(false)
+                setSelectedReRegisterVendor(null)
+                refreshServerSide()
+            } else {
+                ToastMessageError({
+                    title: 'Re-register',
+                    message: response.data?.Message || 'Failed to create re-register request'
+                })
+            }
+        } catch (error: unknown) {
+            ToastMessageError({
+                title: 'Re-register',
+                message: error instanceof Error ? error.message : 'Failed to create re-register request'
+            })
+        } finally {
+            setCreatingVendorId(null)
+        }
+    }, [refreshServerSide])
+
+    const handleOpenReRegisterConfirm = useCallback((_vendorId: number, data: VendorRow) => {
+        if (!data?.vendor_id) {
+            ToastMessageError({ title: 'Re-register', message: 'Vendor data is not ready' })
+            return
+        }
+
+        setSelectedReRegisterVendor(data)
+        setReRegisterConfirmOpen(true)
+    }, [])
+
+    const handleCloseReRegisterConfirm = useCallback(() => {
+        if (creatingVendorId) return
+        setReRegisterConfirmOpen(false)
+        setSelectedReRegisterVendor(null)
+    }, [creatingVendorId])
+
+    const handleConfirmReRegister = useCallback(() => {
+        void handleCreateReRegister(selectedReRegisterVendor || undefined)
+    }, [handleCreateReRegister, selectedReRegisterVendor])
+
+    const handleReRegisterAction = useCallback((_vendorId: number, data: VendorRow) => {
+        handleOpenReRegisterConfirm(_vendorId, data)
+    }, [handleOpenReRegisterConfirm])
+
+    const handleViewDetailsClick = useCallback((vendorId: number, data: VendorRow) => {
+        setSelectedVendorId(vendorId)
+        setSelectedRowData(data)
+        setDetailsModalOpen(true)
+    }, [])
+
+    const handleCloseSelection = useCallback(() => {
+        setDetailsModalOpen(false)
+        setEditModalOpen(false)
+        setDeleteModalOpen(false)
+        setSelectedVendorId(null)
+        setSelectedRowData(null)
+    }, [])
+
+    const handleEditSuccess = useCallback(() => {
+        refreshServerSide()
+    }, [refreshServerSide])
+
+    const handleVendorEditClick = useCallback((vendorId: number, data: VendorRow) => {
+        if (!vendorId || !data) {
+            ToastMessageError({ message: 'Cannot open Edit. Vendor data is not ready.' })
+            return
+        }
+
+        setSelectedVendorId(vendorId)
+        setSelectedRowData(data)
+        setEditModalOpen(true)
+    }, [])
+
+    const handleVendorDeleteClick = useCallback((vendorId: number, data: VendorRow) => {
+        if (!vendorId || !data) {
+            ToastMessageError({ message: 'Cannot open Delete. Vendor data is not ready.' })
+            return
+        }
+
+        setSelectedVendorId(vendorId)
+        setSelectedRowData(data)
+        setDeleteModalOpen(true)
+    }, [])
+
+    const handleConfirmDeleteVendor = useCallback(async () => {
+        if (!selectedVendorId) return
+
+        setDeleteLoading(true)
+        try {
+            const response = await FindVendorServices.deleteVendor(selectedVendorId, getUserData()?.EMPLOYEE_CODE || 'SYSTEM')
+            if (response.data?.Status) {
+                ToastMessageSuccess({
+                    title: 'Delete Vendor',
+                    message: response.data?.Message || 'Vendor deleted successfully'
+                })
+                handleCloseSelection()
+                refreshServerSide()
+            } else {
+                ToastMessageError({
+                    title: 'Delete Vendor',
+                    message: response.data?.Message || 'Failed to delete vendor'
+                })
+            }
+        } catch (error: unknown) {
+            ToastMessageError({
+                title: 'Delete Vendor',
+                message: error instanceof Error ? error.message : 'Failed to delete vendor'
+            })
+        } finally {
+            setDeleteLoading(false)
+        }
+    }, [handleCloseSelection, refreshServerSide, selectedVendorId])
+
     const columnDefs = useMemo<ColDef[]>(() => [
+        {
+            headerName: 'Actions',
+            field: 'actions',
+            width: 126,
+            pinned: 'left',
+            cellRenderer: ActionCellRenderer,
+            cellRendererParams: {
+                onEditClick: handleViewDetailsClick,
+                onRegisterClick: handleReRegisterAction,
+                onVendorEditClick: handleVendorEditClick,
+                onVendorDeleteClick: handleVendorDeleteClick,
+                registerColor: 'primary',
+                registerTitle: 'Send Re-register Request',
+                canRegister: (data: VendorRow) => String(data.status_check || '') === 'Registered',
+                registerDisabled: (data: VendorRow) => creatingVendorId === Number(data.vendor_id || 0)
+            },
+            sortable: false,
+            filter: false,
+            floatingFilter: false,
+            suppressMovable: true,
+            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
+        },
         { field: 'company_name', headerName: 'Company Name', width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
         {
             field: 'status_check',
@@ -209,7 +371,7 @@ const SearchResult = () => {
         { field: 'contact_name', headerName: 'Contact Name', width: 180, filter: 'agTextColumnFilter' },
         { field: 'tel_phone', headerName: 'Tel. Contact', width: 125, filter: 'agTextColumnFilter' },
         { field: 'email', headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter' }
-    ], [])
+    ], [creatingVendorId, handleReRegisterAction, handleViewDetailsClick, handleVendorDeleteClick, handleVendorEditClick])
 
     return (
         <SearchResultCard action={
@@ -241,9 +403,18 @@ const SearchResult = () => {
                 serverSideDatasource={datasource}
                 height={600}
                 boxSx={{ p: 2 }}
+                context={{
+                    onEditClick: handleViewDetailsClick,
+                    onRegisterClick: handleReRegisterAction,
+                    onVendorEditClick: handleVendorEditClick,
+                    onVendorDeleteClick: handleVendorDeleteClick
+                }}
                 initialState={savedGridState}
                 onStateUpdated={handleStateUpdated}
-                onGridReady={(params: GridReadyEvent) => { gridApiRef.current = params.api }}
+                onGridReady={(params: GridReadyEvent) => {
+                    handleGridReady(params)
+                    gridApiRef.current = params.api
+                }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: GetRowIdParams<VendorRow>) => {
                     const vendorId = params.data.vendor_id || 0
@@ -251,6 +422,35 @@ const SearchResult = () => {
                     const contactId = params.data.vendor_contact_id || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
+            />
+
+            <VendorDetailsModal
+                open={detailsModalOpen}
+                onClose={handleCloseSelection}
+                data={selectedRowData}
+            />
+
+            <EditVendorModal
+                open={editModalOpen}
+                onClose={handleCloseSelection}
+                vendorId={selectedVendorId}
+                rowData={selectedRowData || undefined}
+                onSuccess={handleEditSuccess}
+            />
+
+            <ConfirmModal
+                show={reRegisterConfirmOpen}
+                onCloseClick={handleCloseReRegisterConfirm}
+                onConfirmClick={handleConfirmReRegister}
+                isLoading={Boolean(creatingVendorId)}
+            />
+
+            <ConfirmModal
+                show={deleteModalOpen}
+                onCloseClick={handleCloseSelection}
+                onConfirmClick={handleConfirmDeleteVendor}
+                isLoading={deleteLoading}
+                isDelete
             />
         </SearchResultCard>
     )

@@ -12,7 +12,7 @@ const ACCEPTED_FILE_TYPES = [
 export const RegisterConfirmSchema = z.object({
     supportType: z.string().min(1, 'Support product/process is required'),
     purchaseFreq: z.string().min(1, 'Purchase frequency is required'),
-    vendorContactId: z.string().min(1, 'Please select a target contact'),
+    vendorContactIds: z.array(z.string()).min(1, 'Please select at least one target contact'),
     files: z.array(z.any())
         .min(1, 'Please upload at least one file')
         .refine(
@@ -30,6 +30,6 @@ export type RegisterConfirmFormData = z.infer<typeof RegisterConfirmSchema>
 export const defaultRegisterConfirmValues: RegisterConfirmFormData = {
     supportType: '',
     purchaseFreq: '',
-    vendorContactId: '',
+    vendorContactIds: [],
     files: []
 }

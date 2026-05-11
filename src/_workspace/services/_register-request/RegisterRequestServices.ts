@@ -12,6 +12,18 @@ export interface RegisterRequestResponseI<T = any> {
     Message: string
 }
 
+type GridSearchFilter = { id: string; value: unknown }
+type GridColumnFilter = { id: string; columnFns?: string; value: unknown }
+type GridOrder = { id: string; desc?: boolean }
+
+type GprCGridRequest = {
+    SearchFilters?: GridSearchFilter[]
+    ColumnFilters?: GridColumnFilter[]
+    Order?: GridOrder[]
+    Start?: number
+    Limit?: number
+}
+
 export default class RegisterRequestServices {
     // Create a new vendor registration request (with file uploads)
     static create(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ request_id: number }>>> {
@@ -233,7 +245,7 @@ export default class RegisterRequestServices {
 
     static gprCQueue(data: {
         approver_empcode: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+    } & GprCGridRequest): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
         return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/queue`,
             data,
@@ -306,7 +318,7 @@ export default class RegisterRequestServices {
 
     static gprCActionRequiredQueue(data: {
         pic_email: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+    } & GprCGridRequest): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
         return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/action-required-queue`,
             data,

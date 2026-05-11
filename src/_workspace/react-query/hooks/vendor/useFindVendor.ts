@@ -8,7 +8,9 @@ import type {
     FindVendorApiResponseI,
     VendorResultI,
     VendorComprehensiveI,
-    UpdateVendorParamsI
+    UpdateVendorParamsI,
+    VendorContactI,
+    VendorProductI
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
@@ -40,8 +42,8 @@ export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
     return useQuery<
         {
             vendor: VendorResultI,
-            contacts: VendorResultI[],
-            products: VendorResultI[],
+            contacts: VendorContactI[],
+            products: VendorProductI[],
             comprehensive: VendorComprehensiveI
         } | null,
         Error

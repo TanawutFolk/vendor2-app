@@ -11,14 +11,15 @@ import {
     useUpdateVendor,
 } from '@_workspace/react-query/hooks/vendor/useFindVendor'
 
-import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { UpdateVendorParamsI, VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { editVendorSchema, type EditVendorSchemaType } from './validateSchema'
 
 type UseEditVendorFormArgs = {
     open: boolean
     vendorId: number | null
-    rowData?: any
+    rowData?: Partial<VendorComprehensiveI>
     forceRefreshOnEdit?: boolean
+    initialMode?: 'view' | 'edit'
     onClose: () => void
     onSaveSuccess?: () => void
 }
@@ -31,40 +32,46 @@ const emptyDefaultValues: EditVendorSchemaType = {
     products: [],
 }
 
-const toComprehensiveFromRowData = (rowData: any): VendorComprehensiveI => ({
-    vendor_id: rowData.vendor_id,
+const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): VendorComprehensiveI => ({
+    vendor_id: rowData.vendor_id ?? 0,
     fft_vendor_code: rowData.fft_vendor_code,
     fft_status: rowData.fft_status,
     status_check: rowData.status_check,
     reject_reason: rowData.reject_reason,
-    company_name: rowData.company_name,
+    company_name: rowData.company_name ?? '',
     vendor_type_id: rowData.vendor_type_id,
-    vendor_type_name: rowData.vendor_type_name,
-    province: rowData.province,
-    postal_code: rowData.postal_code,
-    website: rowData.website,
-    address: rowData.address,
-    tel_center: rowData.tel_center,
+    vendor_type_name: rowData.vendor_type_name ?? '',
+    province: rowData.province ?? '',
+    postal_code: rowData.postal_code ?? '',
+    website: rowData.website ?? '',
+    address: rowData.address ?? '',
+    tel_center: rowData.tel_center ?? '',
     emailmain: rowData.emailmain,
     vendor_region: rowData.vendor_region,
-    contacts: rowData.contacts || [],
-    products: rowData.products || [],
-    CREATE_BY: rowData.CREATE_BY,
-    UPDATE_BY: rowData.UPDATE_BY,
-    CREATE_DATE: rowData.CREATE_DATE,
-    UPDATE_DATE: rowData.UPDATE_DATE,
-    INUSE: rowData.INUSE,
+    contacts: rowData.contacts ?? [],
+    products: rowData.products ?? [],
+    CREATE_BY: rowData.CREATE_BY ?? '',
+    UPDATE_BY: rowData.UPDATE_BY ?? '',
+    CREATE_DATE: rowData.CREATE_DATE ?? '',
+    UPDATE_DATE: rowData.UPDATE_DATE ?? '',
+    INUSE: rowData.INUSE ?? 1,
 })
+
+const cloneVendorData = (data: VendorComprehensiveI): VendorComprehensiveI => {
+    if (typeof structuredClone === 'function') return structuredClone(data)
+    return JSON.parse(JSON.stringify(data))
+}
 
 export const useEditVendorForm = ({
     open,
     vendorId,
     rowData,
     forceRefreshOnEdit = false,
+    initialMode = 'view',
     onClose,
     onSaveSuccess,
 }: UseEditVendorFormArgs) => {
-    const [editingMode, setEditingMode] = useState<'view' | 'edit'>('view')
+    const [editingMode, setEditingMode] = useState<'view' | 'edit'>(initialMode)
     const [isInitializing, setIsInitializing] = useState(false)
     const [originalData, setOriginalData] = useState<VendorComprehensiveI | null>(null)
     const [showAddProductGroupModal, setShowAddProductGroupModal] = useState(false)
@@ -73,11 +80,6 @@ export const useEditVendorForm = ({
     const [deletedProductIds, setDeletedProductIds] = useState<number[]>([])
 
     const [confirmModalOpen, setConfirmModalOpen] = useState(false)
-    const [successModalOpen, setSuccessModalOpen] = useState(false)
-    const [errorModalOpen, setErrorModalOpen] = useState(false)
-    const [successData, setSuccessData] = useState<any>(null)
-    const [errorMessage, setErrorMessage] = useState('')
-    const [errorDetails, setErrorDetails] = useState<any>(null)
     const [vendorFftCode, setVendorFftCode] = useState<string | null | undefined>(null)
     const [vendorStatusCheck, setVendorStatusCheck] = useState<string | undefined>(undefined)
 
@@ -94,7 +96,7 @@ export const useEditVendorForm = ({
     }, [rowData])
 
     const shouldFetchVendorOnEdit = !!vendorId && (forceRefreshOnEdit || !isRowDataComprehensive)
-    const isFetchEnabled = editingMode === 'edit' && shouldFetchVendorOnEdit
+    const isFetchEnabled = open && editingMode === 'edit' && shouldFetchVendorOnEdit
     const { data: vendorQueryData, isLoading: isLoadingVendor, isFetching: isFetchingVendor } = useGetVendor(vendorId, isFetchEnabled)
     const queryClient = useQueryClient()
 
@@ -124,27 +126,39 @@ export const useEditVendorForm = ({
     })
 
     const updateVendor = useUpdateVendor(
-        (data: any, variables: any) => {
-            if (data?.Status === false) {
-                setErrorMessage(data?.Message || 'Failed to save changes')
-                setErrorDetails(data)
-                setErrorModalOpen(true)
-                return
+        (_data: unknown, variables: UpdateVendorParamsI) => {
+            const hasCollectionStructureChange =
+                variables.data.contacts?.some((contact: { vendor_contact_id?: number }) => !contact.vendor_contact_id) ||
+                variables.data.products?.some((product: { vendor_product_id?: number }) => !product.vendor_product_id) ||
+                variables.deletedContactIds.length > 0 ||
+                variables.deletedProductIds.length > 0
+
+            if (hasCollectionStructureChange) {
+                queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY, 'DETAIL', variables.vendorId], exact: true })
+            } else {
+                const savedComprehensive: VendorComprehensiveI = {
+                    ...variables.originalData,
+                    ...variables.data,
+                    vendor_id: variables.vendorId,
+                    contacts: variables.data.contacts ?? [],
+                    products: variables.data.products ?? [],
+                }
+
+                setOriginalData(cloneVendorData(savedComprehensive))
+                reset(savedComprehensive)
+                queryClient.setQueryData([PREFIX_QUERY_KEY, 'DETAIL', variables.vendorId], (current: unknown) => {
+                    if (!current || typeof current !== 'object') return current
+                    return { ...current, comprehensive: savedComprehensive }
+                })
             }
 
-            queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY, 'DETAIL', variables.vendorId] })
-            queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+            setDeletedContactIds([])
+            setDeletedProductIds([])
 
-            setSuccessData(data)
-            setSuccessModalOpen(true)
             onSaveSuccess?.()
-            setEditingMode('view')
+            setEditingMode(initialMode)
         },
-        (err: any) => {
-            setErrorMessage(err?.message || 'Failed to save changes')
-            setErrorDetails(err)
-            setErrorModalOpen(true)
-        }
+        (_err: Error) => {}
     )
 
     const loading = editingMode === 'edit' && (
@@ -162,17 +176,20 @@ export const useEditVendorForm = ({
         setVendorStatusCheck(undefined)
         setDeletedContactIds([])
         setDeletedProductIds([])
-        setEditingMode('view')
+        setEditingMode(initialMode)
         setIsInitializing(false)
 
-        if (rowData) {
+        if (rowData && !shouldFetchVendorOnEdit) {
             const comprehensive = toComprehensiveFromRowData(rowData)
-            setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
+            setOriginalData(cloneVendorData(comprehensive))
             reset(comprehensive)
             setVendorFftCode(comprehensive.fft_vendor_code)
             setVendorStatusCheck(comprehensive.status_check)
+        } else if (rowData) {
+            setVendorFftCode(rowData.fft_vendor_code)
+            setVendorStatusCheck(rowData.status_check)
         }
-    }, [vendorId, rowData, reset])
+    }, [vendorId, rowData, reset, initialMode, shouldFetchVendorOnEdit])
 
     useEffect(() => {
         if (vendorQueryData && open && editingMode === 'edit' && shouldFetchVendorOnEdit) {
@@ -187,7 +204,7 @@ export const useEditVendorForm = ({
                 return
             }
 
-            setOriginalData(JSON.parse(JSON.stringify(comprehensive)))
+            setOriginalData(cloneVendorData(comprehensive))
             reset(comprehensive)
 
             setVendorFftCode(comprehensive.fft_vendor_code)
@@ -257,14 +274,9 @@ export const useEditVendorForm = ({
         await handleSubmit(onSubmit)()
     }
 
-    const handleErrorRetry = () => {
-        setErrorModalOpen(false)
-        handleSubmit(onSubmit)()
-    }
-
     const handleClose = () => {
         reset(emptyDefaultValues)
-        setEditingMode('view')
+        setEditingMode(initialMode)
         setIsInitializing(false)
         setDeletedContactIds([])
         setDeletedProductIds([])
@@ -321,18 +333,10 @@ export const useEditVendorForm = ({
 
         confirmModalOpen,
         setConfirmModalOpen,
-        successModalOpen,
-        setSuccessModalOpen,
-        errorModalOpen,
-        setErrorModalOpen,
-        successData,
-        errorMessage,
-        errorDetails,
 
         toggleEditMode,
         handleSaveClick,
         handleConfirmSave,
-        handleErrorRetry,
         handleClose,
         handleProductGroupAdded,
     }

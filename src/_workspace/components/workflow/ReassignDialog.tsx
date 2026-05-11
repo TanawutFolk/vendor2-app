@@ -18,8 +18,6 @@ import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
 interface ReassignDialogProps {
     open: boolean
     requestId: number | null
-    scope: 'REQUEST_PIC' | 'CURRENT_STEP' | 'GPR_C_STEP'
-    gprCStepId?: number | null
     groupCode?: string
     currentEmpCode?: string
     updateBy?: string
@@ -30,8 +28,6 @@ interface ReassignDialogProps {
 export default function ReassignDialog({
     open,
     requestId,
-    scope,
-    gprCStepId,
     groupCode,
     currentEmpCode,
     updateBy,
@@ -55,7 +51,7 @@ export default function ReassignDialog({
         }
 
         if (!groupCode) {
-            setError('This step does not have a workflow group code yet.')
+            setError('This request does not have a PO PIC group code yet.')
             return
         }
 
@@ -95,8 +91,7 @@ export default function ReassignDialog({
         try {
             const res = await ApprovalQueueServices.reassign({
                 request_id: requestId,
-                scope,
-                gpr_c_step_id: gprCStepId || undefined,
+                scope: 'REQUEST_PIC',
                 group_code: groupCode || undefined,
                 to_empcode: toEmpcode,
                 reason: reason.trim(),
@@ -132,7 +127,7 @@ export default function ReassignDialog({
         >
             <DialogTitle>
                 <Typography variant='h5'>
-                    {scope === 'REQUEST_PIC' ? 'Reassign PIC' : scope === 'GPR_C_STEP' ? 'Reassign GPR C Step' : 'Reassign Current Step'}
+                    Reassign PO PIC
                 </Typography>
                 <DialogCloseButton onClick={onClose} disableRipple>
                     <i className='tabler-x' />
@@ -141,14 +136,14 @@ export default function ReassignDialog({
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <TextField
                     fullWidth
-                    label='Workflow Group'
+                    label='PO PIC Group'
                     value={groupLabel}
                     InputProps={{ readOnly: true }}
                 />
 
                 <TextField
                     fullWidth
-                    label='Current Owner'
+                    label='Current PO PIC'
                     value={currentEmpCode || '-'}
                     InputProps={{ readOnly: true }}
                 />
@@ -173,7 +168,7 @@ export default function ReassignDialog({
                     multiline
                     rows={3}
                     label='Reason'
-                    placeholder='Explain why this work is being reassigned'
+                    placeholder='Explain why this request PO PIC is being reassigned'
                     value={reason}
                     onChange={e => setReason(e.target.value)}
                 />

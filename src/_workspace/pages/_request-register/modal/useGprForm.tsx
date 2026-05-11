@@ -377,6 +377,12 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             formData.append('file', file)
             formData.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
 
+            // Pass criteria info for Selection File folder naming (01.Receiving)
+            const criteria = getValues(`criteria.${index}`)
+            formData.append('criteria_no', criteria?.no || '')
+            formData.append('criteria_detail', criteria?.detail || '')
+            formData.append('request_number', rowData?.request_number || '')
+
             const response = await RegisterRequestServices.addDocument(formData)
 
             if (response.data.Status) {
@@ -391,7 +397,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         } finally {
             setCriteriaUploading(prev => ({ ...prev, [index]: false }))
         }
-    }, [rowData?.request_id, user?.EMPLOYEE_CODE, setValue])
+    }, [rowData?.request_id, rowData?.request_number, user?.EMPLOYEE_CODE, setValue, getValues])
 
     const removeCriteriaUpload = useCallback((index: number) => {
         setValue(`criteria.${index}.uploaded_file` as any, '', { shouldDirty: true })

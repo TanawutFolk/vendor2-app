@@ -1,5 +1,5 @@
 // React Imports
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useState } from 'react'
 
 // MUI Imports
 import {
@@ -9,7 +9,7 @@ import {
 } from '@mui/material'
 
 // AG Grid Imports
-import type { ColDef, IServerSideDatasource, StateUpdatedEvent } from 'ag-grid-community'
+import type { ColDef, IServerSideDatasource } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
 import type { ReactElement, Ref } from 'react'
@@ -37,6 +37,7 @@ import type { RequestHistoryFormData } from './validateSchema'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import StatusTimeline from './StatusTimeline'
@@ -435,7 +436,12 @@ export default function SearchResult() {
     const queryClient = useQueryClient()
 
     const [totalCount, setTotalCount] = useState(0)
-    const gridApiRef = useRef<any>(null)
+    const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+        getValues,
+        setValue,
+        isEnableFetching,
+        setIsEnableFetching
+    })
 
     // ── Dialog State ─────────────────────────────────────────────────────────
     const [drawerOpen, setDrawerOpen] = useState(false)
@@ -488,21 +494,7 @@ export default function SearchResult() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), []) // getValues is a stable ref — no need to re-create datasource
 
-    // Trigger refresh when Search / Clear button sets isEnableFetching = true
-    useEffect(() => {
-        if (isEnableFetching && gridApiRef.current) {
-            setIsEnableFetching(false)
-            gridApiRef.current.refreshServerSide({ purge: true })
-        }
-    }, [isEnableFetching, setIsEnableFetching])
-
     // ── Column / Grid State Persistence ──────────────────────────────────────
-    const savedGridState = useMemo(() => getValues('searchResults.agGridState'), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleStateUpdated = useCallback((e: StateUpdatedEvent) => {
-        setValue('searchResults.agGridState', e.state)
-    }, [setValue])
-
     const colDefs = useMemo<ColDef[]>(() => [
         {
             headerName: 'Actions',
@@ -701,7 +693,7 @@ export default function SearchResult() {
                             detailCellRenderer={DetailRenderer}
                             detailRowAutoHeight={true}
                             getRowId={(p: any) => String(p.data.request_id ?? p.data.vendor_id ?? p.rowIndex)}
-                            onGridReady={(p: any) => { gridApiRef.current = p.api }}
+                            onGridReady={handleGridReady}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}
                         />
@@ -744,7 +736,7 @@ export default function SearchResult() {
                 onClose={() => setGprCOpen(false)}
                 onSaved={() => {
                     setGprCOpen(false)
-                    gridApiRef.current?.refreshServerSide({ purge: true })
+                    refreshServerSide()
                 }}
             />
         </Grid>

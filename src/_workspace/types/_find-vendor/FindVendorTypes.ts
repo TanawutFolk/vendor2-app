@@ -42,6 +42,9 @@ export interface VendorResultI {
     product_create_date?: string
     product_update_by?: string
     product_update_date?: string
+
+    contacts?: VendorContactI[]
+    products?: VendorProductI[]
 }
 
 // Vendor update request interface

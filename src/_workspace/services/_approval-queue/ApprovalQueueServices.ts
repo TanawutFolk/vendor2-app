@@ -47,8 +47,7 @@ export default class ApprovalQueueServices {
 
     static reassign(data: {
         request_id: number
-        scope: 'REQUEST_PIC' | 'CURRENT_STEP' | 'GPR_C_STEP'
-        gpr_c_step_id?: number
+        scope: 'REQUEST_PIC'
         group_code?: string
         to_empcode: string
         reason?: string
