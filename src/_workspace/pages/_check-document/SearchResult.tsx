@@ -116,7 +116,7 @@ const SearchResultSection = ({
                     serverSideDatasource={datasource}
                     height={600}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
-                    getRowId={(params: any) => String(params.data.request_id)}
+                    getRowId={(params: any) => String(params.data.request_id ?? params.data.REQUEST_ID ?? params.rowIndex)}
                     onGridReady={onGridReady}
                     initialState={initialState}
                     onStateUpdated={onStateUpdated}
@@ -1039,7 +1039,41 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                     Limit: (endRow ?? 50) - (startRow ?? 0)
                 })
                 if (res.data?.Status) {
-                    params.success({ rowData: res.data.ResultOnDb, rowCount: res.data.TotalCountOnDb })
+                    const rowData = (res.data.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_number: row.request_number ?? row.REQUEST_NUMBER,
+                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        request_status: row.request_status ?? row.REQUEST_STATUS,
+                        supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
+                        purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
+                        requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
+                        approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
+                        approve_by: row.approve_by ?? row.APPROVE_BY,
+                        approve_date: row.approve_date ?? row.APPROVE_DATE,
+                        vendor_code: row.vendor_code ?? row.VENDOR_CODE,
+                        assign_to: row.assign_to ?? row.ASSIGN_TO,
+                        PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
+                        gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
+                        gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
+                        gpr_c_pc_pic_name: row.gpr_c_pc_pic_name ?? row.GPR_C_PC_PIC_NAME,
+                        gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
+                        gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
+                        action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
+                        fft_status: row.fft_status ?? row.FFT_STATUS,
+                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        province: row.province ?? row.PROVINCE,
+                        postal_code: row.postal_code ?? row.POSTAL_CODE,
+                        address: row.address ?? row.ADDRESS,
+                        tel_center: row.tel_center ?? row.TEL_CENTER,
+                        website: row.website ?? row.WEBSITE,
+                        emailmain: row.emailmain ?? row.EMAILMAIN,
+                    }))
+                    params.success({ rowData, rowCount: res.data.TotalCountOnDb })
                 } else {
                     params.fail()
                 }

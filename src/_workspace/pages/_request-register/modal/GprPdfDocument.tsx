@@ -213,9 +213,6 @@ type SignatureSlot = {
 export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
     const gpr43Decision = String(form.criteria.find(c => c.no === '4.3')?.remark || '').trim()
-    const needUploaded = form.criteria.filter(c => c.criteria === 'Need' && c.no !== '4.3' && c.uploaded_file).length
-        + (gpr43Decision === 'Accept' ? 1 : 0)
-    const needRequired = form.criteria.filter(c => c.criteria === 'Need' && c.no !== '4.3').length + 1
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '4.14' && c.uploaded_file).length
 
     const approvalSteps = (() => {
@@ -463,7 +460,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
                 <View style={{ marginBottom: 6 }}>
                     <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', marginBottom: 4 }}>Remark :</Text>
                     <Text style={s.rmkLine}>
-                        {`1. Criteria for evaluation criteria in item 4.1 to 4.5 and 4.7, Which are all selected   =   ${needUploaded} / ${needRequired}   items`}
+                        {`1. Item 4.3 decision   =   ${gpr43Decision || 'Not selected'}${gpr43Decision === 'Not Accept' ? ' (requires GPR B / Form B)' : ''}`}
                     </Text>
                     <Text style={s.rmkLine}>
                         {`2. Item 4.6 and 4.8 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected   =   ${optionalUploaded}   items`}

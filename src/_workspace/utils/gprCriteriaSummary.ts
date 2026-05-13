@@ -43,8 +43,9 @@ const DETAIL_BY_NO: Record<string, string> = {
   '4.14': 'Other',
 }
 
-const NEED_CRITERIA = new Set(['4.1', '4.2', '4.3', '4.4', '4.5'])
-const OPTIONAL_CRITERIA = new Set(['4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'])
+const DECISION_CRITERIA = new Set(['4.3'])
+const OPTIONAL_CRITERIA = new Set(['4.6', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'])
+const OPTIONAL_REQUIRED_COUNT = 3
 
 const normalizeText = (value: unknown) => String(value || '').trim()
 const normalizeRemark = (value: unknown) => normalizeText(value).toLowerCase()
@@ -69,11 +70,7 @@ const buildReason = (
     return 'Vendor acceptance for this requirement is still not confirmed.'
   }
 
-  if (row.criteriaType === 'Need') {
-    return 'Required supporting document is still missing from vendor response.'
-  }
-
-  return `Optional supporting document is still missing. Current optional count is ${optionalUploadedCount}/4.`
+  return `Optional supporting document is still missing. Current optional count is ${optionalUploadedCount}/${OPTIONAL_REQUIRED_COUNT}.`
 }
 
 export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummary => {
@@ -86,7 +83,7 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
     return {
       no,
       detail: normalizeText(row?.detail) || DETAIL_BY_NO[no] || '-',
-      criteriaType: NEED_CRITERIA.has(no) ? 'Need' : 'Optional' as 'Need' | 'Optional',
+      criteriaType: DECISION_CRITERIA.has(no) ? 'Need' : 'Optional' as 'Need' | 'Optional',
       remark,
       uploadedFile,
       explicitNotAccept: isExplicitNotAccept(normalizedRemark),
@@ -96,16 +93,12 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
 
   const optionalRows = normalizedRows.filter(row => OPTIONAL_CRITERIA.has(row.no))
   const optionalUploadedCount = optionalRows.filter(row => row.uploadedFile).length
-  const optionalShortfall = Math.max(0, 4 - optionalUploadedCount)
+  const optionalShortfall = Math.max(0, OPTIONAL_REQUIRED_COUNT - optionalUploadedCount)
 
   const unresolvedRequired = normalizedRows
-    .filter(row => NEED_CRITERIA.has(row.no))
+    .filter(row => DECISION_CRITERIA.has(row.no))
     .filter(row => {
-      if (row.no === '4.3') {
-        return !(row.uploadedFile || row.explicitAccept) || row.explicitNotAccept
-      }
-
-      return !row.uploadedFile || row.explicitNotAccept
+      return !row.explicitAccept || row.explicitNotAccept
     })
     .map(row => ({
       no: row.no,
@@ -136,9 +129,9 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
 
   let headline = ''
   if (unresolvedRequired.length > 0) {
-    headline = `Vendor still has ${unresolvedRequired.length} required condition(s) unresolved in the Selection Sheet.`
+    headline = 'Vendor still has item 4.3 decision unresolved in the Selection Sheet.'
   } else if (optionalShortfall > 0) {
-    headline = `Vendor still needs ${optionalShortfall} more optional supporting item(s) to meet the Selection Sheet rule (${optionalUploadedCount}/4).`
+    headline = `Vendor still needs ${optionalShortfall} more optional supporting item(s) to meet the Selection Sheet rule (${optionalUploadedCount}/${OPTIONAL_REQUIRED_COUNT}).`
   }
 
   return {

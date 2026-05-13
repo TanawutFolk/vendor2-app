@@ -28,8 +28,10 @@ import ActionCellRenderer from '../_find-vendor/components/ActionCellRenderer'
 import ConfirmModal from '@components/ConfirmModal'
 import { StatusCheckCellRenderer } from '../_find-vendor/components/fftStatus'
 import EditVendorModal from '../_find-vendor/modal/EditVendorModal'
+import RegisterConfirmModal from '../_find-vendor/register-request/RegisterConfirmModal'
 import VendorDetailsModal from '../_find-vendor/modal/VendorDetailsModal'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { RegisterConfirmFormData } from '../_find-vendor/register-request/validateSchema'
 import type { ReRegisterFormData } from './validateSchema'
 
 type VendorRow = Partial<VendorComprehensiveI> & {
@@ -53,7 +55,7 @@ const SearchResult = () => {
     const [detailsModalOpen, setDetailsModalOpen] = useState(false)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-    const [reRegisterConfirmOpen, setReRegisterConfirmOpen] = useState(false)
+    const [reRegisterModalOpen, setReRegisterModalOpen] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
     const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
     const [selectedRowData, setSelectedRowData] = useState<VendorRow | null>(null)
@@ -100,7 +102,33 @@ const SearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    params.success({ rowData: result.ResultOnDb, rowCount: result.TotalCountOnDb })
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
+                        fft_status: row.fft_status ?? row.FFT_STATUS,
+                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCT_ID,
+                        product_group_id: row.product_group_id ?? row.PRODUCT_GROUP_ID,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        province: row.province ?? row.PROVINCE,
+                        postal_code: row.postal_code ?? row.POSTAL_CODE,
+                        website: row.website ?? row.WEBSITE,
+                        address: row.address ?? row.ADDRESS,
+                        tel_center: row.tel_center ?? row.TEL_CENTER,
+                        emailmain: row.emailmain ?? row.EMAILMAIN,
+                        group_name: row.group_name ?? row.GROUP_NAME,
+                        maker_name: row.maker_name ?? row.MAKER_NAME,
+                        product_name: row.product_name ?? row.PRODUCT_NAME,
+                        model_list: row.model_list ?? row.MODEL_LIST,
+                        contact_name: row.contact_name ?? row.CONTACT_NAME,
+                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
+                        email: row.email ?? row.EMAIL,
+                        position: row.position ?? row.POSITION,
+                        match_method: row.match_method ?? row.MATCH_METHOD,
+                    }))
+                    params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
                 }
@@ -162,10 +190,11 @@ const SearchResult = () => {
         }
     }
 
-    const handleCreateReRegister = useCallback(async (row?: VendorRow) => {
+    const handleCreateReRegister = useCallback(async (row?: VendorRow, formData?: RegisterConfirmFormData) => {
         const vendorId = Number(row?.vendor_id || 0)
         const user = getUserData()
         const empCode = String(user?.EMPLOYEE_CODE || '').trim()
+        const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
 
         if (!vendorId) {
             ToastMessageError({ title: 'Re-register', message: 'Vendor ID is missing' })
@@ -180,13 +209,21 @@ const SearchResult = () => {
         setCreatingVendorId(vendorId)
         try {
             const payload = new FormData()
-            payload.append('vendor_id', String(vendorId))
-            payload.append('vendor_contact_id', row?.vendor_contact_id ? String(row.vendor_contact_id) : '')
-            payload.append('Request_By_EmployeeCode', empCode)
+            payload.append('VENDOR_ID', String(vendorId))
+            payload.append('VENDOR_CONTACT_ID', selectedContactIds[0] || (row?.vendor_contact_id ? String(row.vendor_contact_id) : ''))
+            selectedContactIds.forEach((contactId: string) => {
+                payload.append('VENDOR_CONTACT_IDS[]', contactId)
+            })
+            payload.append('SUPPORT_TYPE', formData?.supportType || '')
+            payload.append('PURCHASE_FREQUENCY', formData?.purchaseFreq || '')
+            payload.append('REQUEST_BY_EMPLOYEECODE', empCode)
             payload.append('CREATE_BY', empCode)
-            payload.append('request_type', 'RE_REGISTER')
-            payload.append('request_number_prefix', 'R')
-            payload.append('PIC_Email', user?.EMAIL || '')
+            payload.append('REQUEST_TYPE', 'RE_REGISTER')
+            payload.append('REQUEST_NUMBER_PREFIX', 'R')
+            payload.append('PIC_EMAIL', user?.EMAIL || '')
+            if (formData?.files && Array.isArray(formData.files)) {
+                formData.files.forEach((file: File) => payload.append('files', file))
+            }
 
             const response = await RegisterRequestServices.create(payload)
             if (response.data?.Status) {
@@ -194,7 +231,7 @@ const SearchResult = () => {
                     title: 'Re-register',
                     message: response.data?.Message || 'Re-register request created successfully'
                 })
-                setReRegisterConfirmOpen(false)
+                setReRegisterModalOpen(false)
                 setSelectedReRegisterVendor(null)
                 refreshServerSide()
             } else {
@@ -213,29 +250,29 @@ const SearchResult = () => {
         }
     }, [refreshServerSide])
 
-    const handleOpenReRegisterConfirm = useCallback((_vendorId: number, data: VendorRow) => {
+    const handleOpenReRegisterModal = useCallback((_vendorId: number, data: VendorRow) => {
         if (!data?.vendor_id) {
             ToastMessageError({ title: 'Re-register', message: 'Vendor data is not ready' })
             return
         }
 
         setSelectedReRegisterVendor(data)
-        setReRegisterConfirmOpen(true)
+        setReRegisterModalOpen(true)
     }, [])
 
-    const handleCloseReRegisterConfirm = useCallback(() => {
+    const handleCloseReRegisterModal = useCallback(() => {
         if (creatingVendorId) return
-        setReRegisterConfirmOpen(false)
+        setReRegisterModalOpen(false)
         setSelectedReRegisterVendor(null)
     }, [creatingVendorId])
 
-    const handleConfirmReRegister = useCallback(() => {
-        void handleCreateReRegister(selectedReRegisterVendor || undefined)
+    const handleConfirmReRegister = useCallback((formData?: RegisterConfirmFormData) => {
+        void handleCreateReRegister(selectedReRegisterVendor || undefined, formData)
     }, [handleCreateReRegister, selectedReRegisterVendor])
 
     const handleReRegisterAction = useCallback((_vendorId: number, data: VendorRow) => {
-        handleOpenReRegisterConfirm(_vendorId, data)
-    }, [handleOpenReRegisterConfirm])
+        handleOpenReRegisterModal(_vendorId, data)
+    }, [handleOpenReRegisterModal])
 
     const handleViewDetailsClick = useCallback((vendorId: number, data: VendorRow) => {
         setSelectedVendorId(vendorId)
@@ -417,9 +454,9 @@ const SearchResult = () => {
                 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: GetRowIdParams<VendorRow>) => {
-                    const vendorId = params.data.vendor_id || 0
-                    const productId = params.data.vendor_product_id || 0
-                    const contactId = params.data.vendor_contact_id || 0
+                    const vendorId = params.data.vendor_id || params.data.VENDOR_ID || 0
+                    const productId = params.data.vendor_product_id || params.data.VENDOR_PRODUCT_ID || 0
+                    const contactId = params.data.vendor_contact_id || params.data.VENDOR_CONTACT_ID || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
             />
@@ -438,11 +475,12 @@ const SearchResult = () => {
                 onSuccess={handleEditSuccess}
             />
 
-            <ConfirmModal
-                show={reRegisterConfirmOpen}
-                onCloseClick={handleCloseReRegisterConfirm}
-                onConfirmClick={handleConfirmReRegister}
-                isLoading={Boolean(creatingVendorId)}
+            <RegisterConfirmModal
+                open={reRegisterModalOpen}
+                vendorData={selectedReRegisterVendor || undefined}
+                skipAdditionalInfo
+                onClose={handleCloseReRegisterModal}
+                onConfirm={handleConfirmReRegister}
             />
 
             <ConfirmModal

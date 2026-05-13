@@ -86,7 +86,16 @@ const TaskSearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    params.success({ rowData: result.ResultOnDb, rowCount: result.TotalCountOnDb })
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_number: row.request_number ?? row.REQUEST_NUMBER,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                        request_status: row.request_status ?? row.REQUEST_STATUS,
+                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        CREATE_DATE: row.CREATE_DATE ?? row.create_date,
+                    }))
+                    params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
                 }
@@ -186,7 +195,7 @@ const TaskSearchResult = () => {
                 boxSx={{ p: 2 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No task queue found</span>'
                 getRowId={(params: GetRowIdParams<TaskQueueRow>) => {
-                    return String(params.data.request_id || 0)
+                    return String(params.data.request_id || params.data.REQUEST_ID || 0)
                 }}
                 initialState={savedGridState}
                 onStateUpdated={handleStateUpdated}

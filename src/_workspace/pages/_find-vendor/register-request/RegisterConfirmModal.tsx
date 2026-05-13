@@ -61,6 +61,7 @@ type RegisterVendorData = VendorContactOption & {
 interface RegisterConfirmModalProps {
     open: boolean
     vendorData?: RegisterVendorData
+    skipAdditionalInfo?: boolean
     onClose: () => void
     onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactIds: string[]; files: File[] }) => void
 }
@@ -143,7 +144,7 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: RegisterConfirmModalProps) => {
+const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, onClose, onConfirm }: RegisterConfirmModalProps) => {
     // Form setup state
     const [step, setStep] = useState<1 | 2>(1)
     const [confirmOpen, setConfirmOpen] = useState(false)
@@ -604,7 +605,7 @@ const RegisterConfirmModal = ({ open, vendorData, onClose, onConfirm }: Register
                         <>
                             <Button
                                 variant="contained"
-                                onClick={handleNext}
+                                onClick={skipAdditionalInfo ? handleSubmit : handleNext}
                                 color="primary"
                                 size='large'
                                 sx={{ minWidth: 120 }}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import type { Ref } from 'react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
 import {
     Alert,
     Button,
@@ -6,11 +7,16 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    Grid,
     MenuItem,
-    TextField,
+    Slide,
     Typography
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
+import ConfirmModal from '@components/ConfirmModal'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import CustomTextField from '@components/mui/TextField'
+import { ToastMessageError, ToastMessageSuccess } from '@components/ToastMessage'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
@@ -25,6 +31,32 @@ interface ReassignDialogProps {
     onSuccess: () => void
 }
 
+type AssigneeRow = {
+    empcode?: string
+    empName?: string
+}
+
+type ServiceError = {
+    response?: {
+        data?: {
+            Message?: string
+        }
+    }
+    message?: string
+}
+
+const Transition = forwardRef(function Transition(
+    props: SlideProps,
+    ref: Ref<unknown>
+) {
+    return <Slide direction='up' ref={ref} {...props} />
+})
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+    const normalizedError = error as ServiceError
+    return normalizedError?.response?.data?.Message || normalizedError?.message || fallback
+}
+
 export default function ReassignDialog({
     open,
     requestId,
@@ -37,13 +69,15 @@ export default function ReassignDialog({
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [assignees, setAssignees] = useState<any[]>([])
+    const [confirmModal, setConfirmModal] = useState(false)
+    const [assignees, setAssignees] = useState<AssigneeRow[]>([])
     const [toEmpcode, setToEmpcode] = useState('')
     const [reason, setReason] = useState('')
 
     useEffect(() => {
         if (!open) {
             setError(null)
+            setConfirmModal(false)
             setAssignees([])
             setToEmpcode('')
             setReason('')
@@ -62,15 +96,15 @@ export default function ReassignDialog({
         AssigneesServices.search({ group_code: groupCode, in_use: '1' })
             .then(res => {
                 if (!isMounted) return
-                const rows = (res.data?.ResultOnDb || []).filter((row: any) => row.empcode !== currentEmpCode)
+                const rows = (res.data?.ResultOnDb || []).filter((row: AssigneeRow) => row.empcode !== currentEmpCode)
                 setAssignees(rows)
                 if (rows.length === 0) {
                     setError('No active assignee found in this group.')
                 }
             })
-            .catch((err: any) => {
+            .catch((err: unknown) => {
                 if (!isMounted) return
-                setError(err?.response?.data?.Message || err?.message || 'Failed to load assignees')
+                setError(getErrorMessage(err, 'Failed to load assignees'))
             })
             .finally(() => {
                 if (isMounted) setLoading(false)
@@ -82,6 +116,12 @@ export default function ReassignDialog({
     }, [open, groupCode, currentEmpCode])
 
     const groupLabel = useMemo(() => ASSIGNEE_GROUP_LABEL_MAP[groupCode || ''] || groupCode || '-', [groupCode])
+    const canSubmit = Boolean(requestId && toEmpcode && reason.trim())
+
+    const handleOpenConfirm = () => {
+        if (!canSubmit) return
+        setConfirmModal(true)
+    }
 
     const handleSubmit = async () => {
         if (!requestId || !toEmpcode || !reason.trim()) return
@@ -99,14 +139,16 @@ export default function ReassignDialog({
             })
 
             if (!res.data.Status) {
-                setError(res.data.Message || 'Failed to reassign')
+                ToastMessageError({ message: res.data.Message || 'Failed to reassign' })
                 return
             }
 
+            ToastMessageSuccess({ message: res.data.Message || 'PO PIC reassigned successfully' })
+            setConfirmModal(false)
             onSuccess()
             onClose()
-        } catch (err: any) {
-            setError(err?.response?.data?.Message || err?.message || 'Failed to reassign')
+        } catch (err: unknown) {
+            ToastMessageError({ message: getErrorMessage(err, 'Failed to reassign') })
         } finally {
             setSaving(false)
         }
@@ -117,6 +159,7 @@ export default function ReassignDialog({
             open={open}
             maxWidth='xs'
             fullWidth
+            TransitionComponent={Transition}
             onClose={(_event, reason) => {
                 if (reason !== 'backdropClick') onClose()
             }}
@@ -124,6 +167,7 @@ export default function ReassignDialog({
                 '& .MuiDialog-paper': { overflow: 'visible' },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
             }}
+            PaperProps={{ sx: { top: 30, m: 0 } }}
         >
             <DialogTitle>
                 <Typography variant='h5'>
@@ -133,60 +177,89 @@ export default function ReassignDialog({
                     <i className='tabler-x' />
                 </DialogCloseButton>
             </DialogTitle>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <TextField
-                    fullWidth
-                    label='PO PIC Group'
-                    value={groupLabel}
-                    InputProps={{ readOnly: true }}
-                />
+            <DialogContent>
+                <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                        <CustomTextField
+                            fullWidth
+                            label='PO PIC Group'
+                            value={groupLabel}
+                            InputProps={{ readOnly: true }}
+                            disabled
+                        />
+                    </Grid>
 
-                <TextField
-                    fullWidth
-                    label='Current PO PIC'
-                    value={currentEmpCode || '-'}
-                    InputProps={{ readOnly: true }}
-                />
+                    <Grid item xs={12}>
+                        <CustomTextField
+                            fullWidth
+                            label='Current PO PIC'
+                            value={currentEmpCode || '-'}
+                            InputProps={{ readOnly: true }}
+                            disabled
+                        />
+                    </Grid>
 
-                <TextField
-                    select
-                    fullWidth
-                    label='Assign To'
-                    value={toEmpcode}
-                    onChange={e => setToEmpcode(e.target.value)}
-                    disabled={loading || assignees.length === 0}
-                >
-                    {assignees.map((item: any) => (
-                        <MenuItem key={item.empcode} value={item.empcode}>
-                            {item.empcode} - {item.empName}
-                        </MenuItem>
-                    ))}
-                </TextField>
+                    <Grid item xs={12}>
+                        <CustomTextField
+                            select
+                            fullWidth
+                            label='Assign To'
+                            value={toEmpcode}
+                            onChange={e => setToEmpcode(e.target.value)}
+                            disabled={loading || assignees.length === 0}
+                            SelectProps={{ displayEmpty: true }}
+                        >
+                            <MenuItem value='' disabled>
+                                Select assignee...
+                            </MenuItem>
+                            {assignees.map(item => (
+                                <MenuItem key={item.empcode} value={item.empcode}>
+                                    {item.empcode} - {item.empName}
+                                </MenuItem>
+                            ))}
+                        </CustomTextField>
+                    </Grid>
 
-                <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    label='Reason'
-                    placeholder='Explain why this request PO PIC is being reassigned'
-                    value={reason}
-                    onChange={e => setReason(e.target.value)}
-                />
+                    <Grid item xs={12}>
+                        <CustomTextField
+                            fullWidth
+                            multiline
+                            rows={3}
+                            label='Reason'
+                            placeholder='Explain why this request PO PIC is being reassigned'
+                            value={reason}
+                            onChange={e => setReason(e.target.value)}
+                        />
+                    </Grid>
 
-                {error && <Alert severity='error'>{error}</Alert>}
+                    {error && (
+                        <Grid item xs={12}>
+                            <Alert severity='error'>{error}</Alert>
+                        </Grid>
+                    )}
+                </Grid>
             </DialogContent>
-            <DialogActions sx={{ justifyContent: 'flex-start' }}>
+            <DialogActions>
                 <Button
                     variant='contained'
-                    onClick={handleSubmit}
-                    disabled={loading || saving || !toEmpcode || !reason.trim()}
+                    color='success'
+                    onClick={handleOpenConfirm}
+                    disabled={loading || saving || !canSubmit}
                 >
-                    {saving ? 'Saving...' : 'Confirm Reassign'}
+                    Confirm Reassign
                 </Button>
                 <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>
-                    Cancel
+                    Close
                 </Button>
             </DialogActions>
+
+            <ConfirmModal
+                show={confirmModal}
+                onConfirmClick={handleSubmit}
+                onCloseClick={() => setConfirmModal(false)}
+                isLoading={saving}
+                isDelete={false}
+            />
         </Dialog>
     )
 }

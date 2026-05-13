@@ -58,8 +58,18 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        Assignees_id: row.Assignees_id ?? row.ASSIGNEES_ID,
+                        empcode: row.empcode ?? row.EMPCODE,
+                        empName: row.empName ?? row.EMPNAME,
+                        empEmail: row.empEmail ?? row.EMPEMAIL,
+                        group_code: row.group_code ?? row.GROUP_CODE,
+                        group_name: row.group_name ?? row.GROUP_NAME,
+                        INUSE: row.INUSE,
+                    }))
                     params.success({
-                        rowData: result.ResultOnDb || [],
+                        rowData,
                         rowCount: result.TotalCountOnDb || 0,
                     })
                     return
@@ -136,7 +146,10 @@ const SearchResult = () => {
                     initialState={savedGridState}
                     onStateUpdated={handleStateUpdated}
                     onGridReady={handleGridReady}
-                    getRowId={(params: GetRowIdParams<AssigneeRow>) => String(params.data.Assignees_id || params.data.empcode || '')}
+                    getRowId={(params: GetRowIdParams<AssigneeRow>) => {
+                        const row = params.data as any
+                        return String(row.Assignees_id || row.ASSIGNEES_ID || row.empcode || row.EMPCODE || '')
+                    }}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assignees found.</span>'
                 />
                 <AddEditForm

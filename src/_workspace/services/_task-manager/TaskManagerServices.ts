@@ -12,9 +12,20 @@ export interface TaskManagerResponseI<T = any> {
 
 export default class TaskManagerServices {
     static searchAllTask(data?: Record<string, any>): Promise<AxiosResponse<TaskManagerResponseI<any[]>>> {
+        const payload = data ? {
+            SEARCHFILTERS: data.SearchFilters ?? data.SEARCHFILTERS,
+            COLUMNFILTERS: data.ColumnFilters ?? data.COLUMNFILTERS,
+            ORDER: data.Order ?? data.ORDER,
+            START: data.Start ?? data.START,
+            LIMIT: data.Limit ?? data.LIMIT,
+            OFFSET: data.Offset ?? data.OFFSET,
+            SQLWHERE: data.sqlWhere ?? data.SQLWHERE,
+            SQLWHERECOLUMNFILTER: data.sqlWhereColumnFilter ?? data.SQLWHERECOLUMNFILTER
+        } : {}
+
         return axiosRequest<TaskManagerResponseI<any[]>>({
             url: `${TaskManagerAPI.API_ROOT_URL}/SearchAllTask`,
-            data: data || {},
+            data: payload,
             method: 'POST'
         })
     }

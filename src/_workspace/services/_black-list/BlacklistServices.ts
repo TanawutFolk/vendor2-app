@@ -20,9 +20,17 @@ export interface BlacklistSearchRequestI {
 
 export default class BlacklistServices {
     static search(data: BlacklistSearchRequestI): Promise<AxiosResponse<BlacklistResponseI<Record<string, unknown>[]>>> {
+        const payload = {
+            SEARCHFILTERS: data.SearchFilters,
+            COLUMNFILTERS: data.ColumnFilters,
+            ORDER: data.Order,
+            START: data.Start,
+            LIMIT: data.Limit
+        }
+
         return axiosRequest<BlacklistResponseI<Record<string, unknown>[]>>({
             url: `${BlacklistAPI.API_ROOT_URL}/search`,
-            data,
+            data: payload,
             method: 'POST',
         })
     }

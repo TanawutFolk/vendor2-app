@@ -665,12 +665,8 @@ const CriteriaStats = React.memo(() => {
     const gprBDecision = String(criteria.find(item => item?.no === '4.3')?.remark || '').trim()
     const isGprBAccepted = gprBDecision === 'Accept'
     const isGprBRequired = gprBDecision === 'Not Accept'
-    const needItems = criteria.filter(item => item?.criteria === 'Need' && item?.no !== '4.3')
-    const needPassed = needItems.filter(item => item?.uploaded_file).length + (isGprBAccepted ? 1 : 0)
-    const needRequired = needItems.length + 1
     const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '4.14' && item?.uploaded_file).length
 
-    const isNeedPassed = needPassed === needRequired
     const isOptionalPassed = optionalUploaded >= 3
 
     return (
@@ -680,13 +676,26 @@ const CriteriaStats = React.memo(() => {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
                 <i
-                    className={isNeedPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
-                    style={{ color: isNeedPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
+                    className={isGprBRequired ? 'tabler-alert-circle' : (isGprBAccepted ? 'tabler-circle-check' : 'tabler-circle-x')}
+                    style={{
+                        color: isGprBRequired
+                            ? 'var(--mui-palette-warning-main)'
+                            : (isGprBAccepted ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)'),
+                        fontSize: 18
+                    }}
                 />
                 <Typography variant='caption'>
-                    {'1. Criteria for evaluation criteria in item 4.1 to 4.5 and 4.7, Which are all selected = '}
-                    <Box component='span' sx={{ fontWeight: 700, color: isNeedPassed ? 'success.main' : 'error.main' }}>{needPassed}</Box>
-                    {` / ${needRequired} items`}
+                    {'1. Item 4.3 decision = '}
+                    <Box
+                        component='span'
+                        sx={{
+                            fontWeight: 700,
+                            color: isGprBRequired ? 'warning.main' : (isGprBAccepted ? 'success.main' : 'error.main')
+                        }}
+                    >
+                        {gprBDecision || 'Not selected'}
+                    </Box>
+                    {isGprBRequired ? ' (requires GPR B / Form B)' : ''}
                 </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
@@ -698,30 +707,6 @@ const CriteriaStats = React.memo(() => {
                     {'2. Item 4.6 and 4.8 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
                     <Box component='span' sx={{ fontWeight: 700, color: isOptionalPassed ? 'success.main' : 'error.main' }}>{optionalUploaded}</Box>
                     {' items'}
-                </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
-                <i
-                    className={isGprBRequired ? 'tabler-alert-circle' : (isGprBAccepted ? 'tabler-circle-check' : 'tabler-circle-x')}
-                    style={{
-                        color: isGprBRequired
-                            ? 'var(--mui-palette-warning-main)'
-                            : (isGprBAccepted ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)'),
-                        fontSize: 18
-                    }}
-                />
-                <Typography variant='caption'>
-                    {'3. Item 4.3 decision = '}
-                    <Box
-                        component='span'
-                        sx={{
-                            fontWeight: 700,
-                            color: isGprBRequired ? 'warning.main' : (isGprBAccepted ? 'success.main' : 'error.main')
-                        }}
-                    >
-                        {gprBDecision || 'Not selected'}
-                    </Box>
-                    {isGprBRequired ? ' (requires GPR B / Form B)' : ''}
                 </Typography>
             </Box>
             <Typography variant='caption' component='div' sx={{ pl: 6, color: 'text.secondary', lineHeight: 1.8 }}>

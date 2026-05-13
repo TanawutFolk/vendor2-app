@@ -32,6 +32,22 @@ const emptyDefaultValues: EditVendorSchemaType = {
     products: [],
 }
 
+const normalizeContactAuditFields = (contact: any) => ({
+    ...contact,
+    CREATE_BY: contact?.CREATE_BY ?? contact?.contact_create_by ?? '',
+    UPDATE_BY: contact?.UPDATE_BY ?? contact?.contact_update_by ?? '',
+    CREATE_DATE: contact?.CREATE_DATE ?? contact?.contact_create_date ?? '',
+    UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.contact_update_date ?? '',
+})
+
+const normalizeProductAuditFields = (product: any) => ({
+    ...product,
+    CREATE_BY: product?.CREATE_BY ?? product?.product_create_by ?? '',
+    UPDATE_BY: product?.UPDATE_BY ?? product?.product_update_by ?? '',
+    CREATE_DATE: product?.CREATE_DATE ?? product?.product_create_date ?? '',
+    UPDATE_DATE: product?.UPDATE_DATE ?? product?.product_update_date ?? '',
+})
+
 const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): VendorComprehensiveI => ({
     vendor_id: rowData.vendor_id ?? 0,
     fft_vendor_code: rowData.fft_vendor_code,
@@ -48,8 +64,8 @@ const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): Ven
     tel_center: rowData.tel_center ?? '',
     emailmain: rowData.emailmain,
     vendor_region: rowData.vendor_region,
-    contacts: rowData.contacts ?? [],
-    products: rowData.products ?? [],
+    contacts: Array.isArray(rowData.contacts) ? rowData.contacts.map(normalizeContactAuditFields) : [],
+    products: Array.isArray(rowData.products) ? rowData.products.map(normalizeProductAuditFields) : [],
     CREATE_BY: rowData.CREATE_BY ?? '',
     UPDATE_BY: rowData.UPDATE_BY ?? '',
     CREATE_DATE: rowData.CREATE_DATE ?? '',

@@ -50,7 +50,7 @@ const InnerApp = () => {
         }
 
         formData.append('file', payload.file)
-        formData.append('dataItem', JSON.stringify(dataItem))
+        formData.append('DATAITEM', JSON.stringify(dataItem))
 
         setUploadProgress(0)
         uploadMutation.mutate({

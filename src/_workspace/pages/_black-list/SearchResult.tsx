@@ -134,8 +134,24 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 const result = response?.data
 
                 if (result?.Status) {
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        blacklist_id: row.blacklist_id ?? row.BLACKLIST_ID ?? row.ID,
+                        vendor_name: row.vendor_name ?? row.VENDOR_NAME ?? row.PRIMARY_NAME ?? row.NAME,
+                        group_code: row.group_code ?? row.GROUP_CODE,
+                        source_name: row.source_name ?? row.SOURCE_NAME ?? row.SOURCE,
+                        country: row.country ?? row.COUNTRY,
+                        entity_number: row.entity_number ?? row.ENTITY_NUMBER,
+                        entity_type: row.entity_type ?? row.ENTITY_TYPE ?? row.TYPE,
+                        programs: row.programs ?? row.PROGRAMS,
+                        wmd_type: row.wmd_type ?? row.WMD_TYPE,
+                        alias_count: row.alias_count ?? row.ALIAS_COUNT,
+                        in_use: row.in_use ?? row.INUSE,
+                        update_by: row.update_by ?? row.UPDATE_BY,
+                        updated_date: row.updated_date ?? row.UPDATE_DATE,
+                    }))
                     params.success({
-                        rowData: result.ResultOnDb || [],
+                        rowData,
                         rowCount: result.TotalCountOnDb || 0,
                     })
                     return
@@ -228,7 +244,10 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                     onStateUpdated={handleStateUpdated}
                     onGridReady={handleGridReady}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No blacklist vendors found</span>'
-                    getRowId={(params: GetRowIdParams<BlacklistRow>) => String(params.data.blacklist_id)}
+                    getRowId={(params: GetRowIdParams<BlacklistRow>) => {
+                        const row = params.data as any
+                        return String(row.blacklist_id || row.BLACKLIST_ID || row.ID || '')
+                    }}
                 />
             </CardContent>
 

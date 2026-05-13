@@ -37,9 +37,23 @@ export default class RegisterRequestServices {
 
     // Get all registration requests (optionally filtered)
     static getAll(data?: Record<string, any>): Promise<AxiosResponse<RegisterRequestResponseI<any[]>>> {
+        const payload = data ? {
+            SEARCHFILTERS: data.SearchFilters ?? data.SEARCHFILTERS,
+            COLUMNFILTERS: data.ColumnFilters ?? data.COLUMNFILTERS,
+            ORDER: data.Order ?? data.ORDER,
+            START: data.Start ?? data.START,
+            LIMIT: data.Limit ?? data.LIMIT,
+            OFFSET: data.Offset ?? data.OFFSET,
+            SQLWHERE: data.sqlWhere ?? data.SQLWHERE,
+            SQLWHERECOLUMNFILTER: data.sqlWhereColumnFilter ?? data.SQLWHERECOLUMNFILTER,
+            REQUEST_STATUS: data.request_status ?? data.REQUEST_STATUS,
+            ASSIGN_TO: data.assign_to ?? data.ASSIGN_TO,
+            REQUEST_BY_EMPLOYEECODE: data.Request_By_EmployeeCode ?? data.REQUEST_BY_EMPLOYEECODE
+        } : {}
+
         return axiosRequest<RegisterRequestResponseI<any[]>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/searchRequest`,
-            data: data || {},
+            data: payload,
             method: 'POST'
         })
     }
@@ -48,7 +62,7 @@ export default class RegisterRequestServices {
     static getById(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getById`,
-            data: { request_id },
+            data: { REQUEST_ID: request_id },
             method: 'POST'
         })
     }
@@ -62,9 +76,18 @@ export default class RegisterRequestServices {
         requester_remark?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            VENDOR_CONTACT_ID: data.vendor_contact_id,
+            SUPPORTPRODUCT_PROCESS: data.supportProduct_Process,
+            PURCHASE_FREQUENCY: data.purchase_frequency,
+            REQUESTER_REMARK: data.requester_remark,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/updateRequest`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -79,18 +102,37 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
         isFinalStep?: boolean
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            REQUEST_STATUS: data.request_status,
+            WORKFLOW_ACTION: data.workflow_action,
+            ACTION_TYPE: data.workflow_action,
+            APPROVE_BY: data.approve_by,
+            APPROVER_REMARK: data.approver_remark,
+            UPDATE_BY: data.UPDATE_BY,
+            ISFINALSTEP: data.isFinalStep
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/updateStatus`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
 
     // Send agreement email to vendor
     static sendAgreementEmail(data: any): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data?.request_id ?? data?.REQUEST_ID,
+            EMAILMAIN: data?.emailmain ?? data?.EMAILMAIN,
+            VENDOR_ID: data?.vendor_id ?? data?.VENDOR_ID,
+            UPDATE_BY: data?.UPDATE_BY,
+            CREATE_BY: data?.CREATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/sendAgreementEmail`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -107,7 +149,7 @@ export default class RegisterRequestServices {
     static getApprovalSteps(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalStep[]>>> {
         return axiosRequest<RegisterRequestResponseI<ApprovalStep[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalSteps`,
-            data: { request_id },
+            data: { REQUEST_ID: request_id },
             method: 'POST'
         })
     }
@@ -116,7 +158,7 @@ export default class RegisterRequestServices {
     static getApprovalLogs(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalLog[]>>> {
         return axiosRequest<RegisterRequestResponseI<ApprovalLog[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalLogs`,
-            data: { request_id },
+            data: { REQUEST_ID: request_id },
             method: 'POST'
         })
     }
@@ -134,9 +176,22 @@ export default class RegisterRequestServices {
         assignment_mode?: string
         CREATE_BY: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<{ step_id: number }>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            STEP_ORDER: data.step_order,
+            APPROVER_ID: data.approver_id,
+            STEP_STATUS: data.step_status,
+            DESCRIPTION: data.DESCRIPTION,
+            STEP_CODE: data.step_code,
+            ACTOR_TYPE: data.actor_type,
+            GROUP_CODE: data.group_code,
+            ASSIGNMENT_MODE: data.assignment_mode,
+            CREATE_BY: data.CREATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<{ step_id: number }>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/createApprovalStep`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -151,9 +206,19 @@ export default class RegisterRequestServices {
         remark?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            STEP_ID: data.step_id,
+            REQUEST_ID: data.request_id,
+            STEP_STATUS: data.step_status,
+            ACTION_BY: data.action_by,
+            ACTION_TYPE: data.action_type,
+            REMARK: data.remark,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/updateApprovalStep`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -168,9 +233,19 @@ export default class RegisterRequestServices {
         reason?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            SCOPE: data.scope,
+            GPR_C_STEP_ID: data.gpr_c_step_id,
+            GROUP_CODE: data.group_code,
+            TO_EMPCODE: data.to_empcode,
+            REASON: data.reason,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/reassign`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -181,9 +256,15 @@ export default class RegisterRequestServices {
         vendor_code: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            VENDOR_CODE: data.vendor_code,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/completeRegistration`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -194,9 +275,15 @@ export default class RegisterRequestServices {
         gpr_data: Record<string, any>
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            GPR_DATA: data.gpr_data,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprForm`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -214,9 +301,16 @@ export default class RegisterRequestServices {
         CREATE_BY?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            GPR_C_DATA: data.gpr_c_data,
+            CREATE_BY: data.CREATE_BY,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/saveGprCNotification`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -224,9 +318,13 @@ export default class RegisterRequestServices {
     static gprCGetFlow(data: {
         request_id: number
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            REQUEST_ID: data.request_id
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/get-flow`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -236,9 +334,15 @@ export default class RegisterRequestServices {
         gpr_c_data: Record<string, unknown>
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            GPR_C_DATA: data.gpr_c_data,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/submit-setup`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -246,9 +350,18 @@ export default class RegisterRequestServices {
     static gprCQueue(data: {
         approver_empcode: string
     } & GprCGridRequest): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+        const payload = {
+            APPROVER_EMPCODE: data.approver_empcode,
+            SEARCHFILTERS: data.SearchFilters,
+            COLUMNFILTERS: data.ColumnFilters,
+            ORDER: data.Order,
+            START: data.Start,
+            LIMIT: data.Limit
+        }
+
         return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/queue`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -267,9 +380,16 @@ export default class RegisterRequestServices {
         remark?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            ACTION_BY: data.action_by,
+            REMARK: data.remark,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/approve-step`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -280,9 +400,16 @@ export default class RegisterRequestServices {
         remark?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            ACTION_BY: data.action_by,
+            REMARK: data.remark,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/reject-step`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -295,9 +422,18 @@ export default class RegisterRequestServices {
         required_detail: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            REQUEST_ID: data.request_id,
+            ACTION_BY: data.action_by,
+            PIC_NAME: data.pic_name,
+            PIC_EMAIL: data.pic_email,
+            REQUIRED_DETAIL: data.required_detail,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/action-required`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -309,9 +445,17 @@ export default class RegisterRequestServices {
         result_by: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+        const payload = {
+            ACTION_REQUIRED_ID: data.action_required_id,
+            RESULT_STATUS: data.result_status,
+            RESULT_REMARK: data.result_remark,
+            RESULT_BY: data.result_by,
+            UPDATE_BY: data.UPDATE_BY
+        }
+
         return axiosRequest<RegisterRequestResponseI<unknown>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/record-action-result`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -319,9 +463,18 @@ export default class RegisterRequestServices {
     static gprCActionRequiredQueue(data: {
         pic_email: string
     } & GprCGridRequest): Promise<AxiosResponse<RegisterRequestResponseI<Record<string, unknown>[]>>> {
+        const payload = {
+            PIC_EMAIL: data.pic_email,
+            SEARCHFILTERS: data.SearchFilters,
+            COLUMNFILTERS: data.ColumnFilters,
+            ORDER: data.Order,
+            START: data.Start,
+            LIMIT: data.Limit
+        }
+
         return axiosRequest<RegisterRequestResponseI<Record<string, unknown>[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/action-required-queue`,
-            data,
+            data: payload,
             method: 'POST'
         })
     }
@@ -337,7 +490,7 @@ export default class RegisterRequestServices {
             email: string
         }>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/resolveEmployeeProfile`,
-            data: { empcode },
+            data: { EMPCODE: empcode },
             method: 'POST'
         })
     }
@@ -346,7 +499,7 @@ export default class RegisterRequestServices {
     static getGprForm(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getGprForm`,
-            data: { request_id },
+            data: { REQUEST_ID: request_id },
             method: 'POST'
         })
     }

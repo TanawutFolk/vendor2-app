@@ -373,15 +373,15 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
         try {
             const formData = new FormData()
-            formData.append('request_id', String(Number(rowData?.request_id) || 0))
+            formData.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
             formData.append('file', file)
             formData.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
 
             // Pass criteria info for Selection File folder naming (01.Receiving)
             const criteria = getValues(`criteria.${index}`)
-            formData.append('criteria_no', criteria?.no || '')
-            formData.append('criteria_detail', criteria?.detail || '')
-            formData.append('request_number', rowData?.request_number || '')
+            formData.append('CRITERIA_NO', criteria?.no || '')
+            formData.append('CRITERIA_DETAIL', criteria?.detail || '')
+            formData.append('REQUEST_NUMBER', rowData?.request_number || '')
 
             const response = await RegisterRequestServices.addDocument(formData)
 
@@ -479,7 +479,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             URL.revokeObjectURL(url)
 
             const documentForm = new FormData()
-            documentForm.append('request_id', String(Number(rowData?.request_id) || 0))
+            documentForm.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
             documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
             documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
             const documentResponse = await RegisterRequestServices.addDocument(documentForm)

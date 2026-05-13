@@ -102,7 +102,37 @@ const SearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    params.success({ rowData: result.ResultOnDb, rowCount: result.TotalCountOnDb })
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
+                        fft_status: row.fft_status ?? row.FFT_STATUS,
+                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCT_ID,
+                        product_group_id: row.product_group_id ?? row.PRODUCT_GROUP_ID,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                        vendor_type_id: row.vendor_type_id ?? row.VENDOR_TYPE_ID,
+                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        province: row.province ?? row.PROVINCE,
+                        postal_code: row.postal_code ?? row.POSTAL_CODE,
+                        website: row.website ?? row.WEBSITE,
+                        address: row.address ?? row.ADDRESS,
+                        tel_center: row.tel_center ?? row.TEL_CENTER,
+                        emailmain: row.emailmain ?? row.EMAILMAIN,
+                        group_name: row.group_name ?? row.GROUP_NAME,
+                        maker_name: row.maker_name ?? row.MAKER_NAME,
+                        product_name: row.product_name ?? row.PRODUCT_NAME,
+                        model_list: row.model_list ?? row.MODEL_LIST,
+                        contact_name: row.contact_name ?? row.CONTACT_NAME,
+                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
+                        email: row.email ?? row.EMAIL,
+                        position: row.position ?? row.POSITION,
+                        match_method: row.match_method ?? row.MATCH_METHOD,
+                        prones_code: row.prones_code ?? row.PRONES_CODE,
+                        prones_name_en: row.prones_name_en ?? row.PRONES_NAME,
+                        reject_reason: row.reject_reason ?? row.APPROVER_REMARK,
+                    }))
+                    params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
                 }
@@ -197,14 +227,14 @@ const SearchResult = () => {
             const payload = new FormData()
             const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
 
-            payload.append('vendor_id', String(selectedRegisterVendor.vendor_id))
-            payload.append('vendor_contact_id', selectedContactIds[0] || '')
+            payload.append('VENDOR_ID', String(selectedRegisterVendor.vendor_id))
+            payload.append('VENDOR_CONTACT_ID', selectedContactIds[0] || '')
             selectedContactIds.forEach((contactId: string) => {
-                payload.append('vendor_contact_ids[]', contactId)
+                payload.append('VENDOR_CONTACT_IDS[]', contactId)
             })
-            payload.append('support_type', formData?.supportType || '')
-            payload.append('purchase_frequency', formData?.purchaseFreq || '')
-            payload.append('Request_By_EmployeeCode', getUserData()?.EMPLOYEE_CODE || '')
+            payload.append('SUPPORT_TYPE', formData?.supportType || '')
+            payload.append('PURCHASE_FREQUENCY', formData?.purchaseFreq || '')
+            payload.append('REQUEST_BY_EMPLOYEECODE', getUserData()?.EMPLOYEE_CODE || '')
             payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))
@@ -329,9 +359,9 @@ const SearchResult = () => {
                 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: any) => {
-                    const vendorId   = params.data.vendor_id || 0
-                    const productId  = params.data.vendor_product_id || 0
-                    const contactId  = params.data.vendor_contact_id || 0
+                    const vendorId   = params.data.vendor_id || params.data.VENDOR_ID || 0
+                    const productId  = params.data.vendor_product_id || params.data.VENDOR_PRODUCT_ID || 0
+                    const contactId  = params.data.vendor_contact_id || params.data.VENDOR_CONTACT_ID || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
             />

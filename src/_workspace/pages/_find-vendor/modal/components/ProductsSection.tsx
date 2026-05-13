@@ -178,6 +178,50 @@ const ProductsSection = ({
                                     )}
                                 />
                             </Grid>
+
+                            {product.vendor_product_id && (
+                                <Grid item xs={12}>
+                                    <Divider sx={{ my: 1 }}>
+                                        <Typography variant='caption' color='text.secondary'>
+                                            Product Info
+                                        </Typography>
+                                    </Divider>
+                                    <Box sx={{ mt: 1, mb: 1, display: 'flex', gap: 4, color: 'text.secondary', flexWrap: 'wrap' }}>
+                                        <Box>
+                                            <Typography variant='caption' display='block'>
+                                                Created By
+                                            </Typography>
+                                            <Typography variant='body2' fontSize='0.75rem'>
+                                                {product.CREATE_BY || 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant='caption' display='block'>
+                                                Created Date
+                                            </Typography>
+                                            <Typography variant='body2' fontSize='0.75rem'>
+                                                {product.CREATE_DATE ? new Date(product.CREATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant='caption' display='block'>
+                                                Last Update By
+                                            </Typography>
+                                            <Typography variant='body2' fontSize='0.75rem'>
+                                                {product.UPDATE_BY || 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant='caption' display='block'>
+                                                Last Update Date
+                                            </Typography>
+                                            <Typography variant='body2' fontSize='0.75rem'>
+                                                {product.UPDATE_DATE ? new Date(product.UPDATE_DATE).toLocaleDateString('th-TH') : 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                            )}
                         </Grid>
                     </Box>
                 ))}

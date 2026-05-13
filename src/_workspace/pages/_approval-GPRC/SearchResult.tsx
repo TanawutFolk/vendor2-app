@@ -300,8 +300,22 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_number: row.request_number ?? row.REQUEST_NUMBER,
+                        request_status: row.request_status ?? row.REQUEST_STATUS,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                        contact_name: row.contact_name ?? row.CONTACT_NAME,
+                        vendor_email: row.vendor_email ?? row.VENDOR_EMAIL,
+                        supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
+                        purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
+                        address: row.address ?? row.ADDRESS,
+                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
+                    }))
                     params.success({
-                        rowData: result.ResultOnDb || [],
+                        rowData,
                         rowCount: result.TotalCountOnDb || 0,
                     })
                     return
@@ -339,9 +353,15 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
+                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                        ...row,
+                        request_number: row.request_number ?? row.REQUEST_NUMBER,
+                        request_status: row.request_status ?? row.REQUEST_STATUS,
+                        company_name: row.company_name ?? row.COMPANY_NAME,
+                    }))
                     setActionRequiredTotalCount(result.TotalCountOnDb || 0)
                     params.success({
-                        rowData: result.ResultOnDb || [],
+                        rowData,
                         rowCount: result.TotalCountOnDb || 0,
                     })
                     return

@@ -8,6 +8,34 @@ import type {
 } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 export class EditVendorUtils {
+    private static normalizeContact(contact: any): VendorContactI {
+        return {
+            vendor_contact_id: contact?.vendor_contact_id,
+            contact_name: contact?.contact_name || '',
+            position: contact?.position || '',
+            tel_phone: contact?.tel_phone || '',
+            email: contact?.email || '',
+            CREATE_BY: contact?.CREATE_BY ?? contact?.contact_create_by ?? '',
+            UPDATE_BY: contact?.UPDATE_BY ?? contact?.contact_update_by ?? '',
+            CREATE_DATE: contact?.CREATE_DATE ?? contact?.contact_create_date ?? '',
+            UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.contact_update_date ?? '',
+        }
+    }
+
+    private static normalizeProduct(product: any): VendorProductI {
+        return {
+            vendor_product_id: product?.vendor_product_id,
+            product_group_id: product?.product_group_id,
+            group_name: product?.group_name || '',
+            maker_name: product?.maker_name || '',
+            product_name: product?.product_name || '',
+            model_list: product?.model_list || '',
+            CREATE_BY: product?.CREATE_BY ?? product?.product_create_by ?? '',
+            UPDATE_BY: product?.UPDATE_BY ?? product?.product_update_by ?? '',
+            CREATE_DATE: product?.CREATE_DATE ?? product?.product_create_date ?? '',
+            UPDATE_DATE: product?.UPDATE_DATE ?? product?.product_update_date ?? '',
+        }
+    }
 
     // Get comprehensive vendor data by searching all records of a company
     static async getComprehensiveByVendorId(vendor_id: number): Promise<{
@@ -22,8 +50,12 @@ export class EditVendorUtils {
         }
 
         const vendorData = vendorResponse.data.ResultOnDb
-        const contactsList = Array.isArray(vendorData.contacts) ? vendorData.contacts : []
-        const productsList = Array.isArray(vendorData.products) ? vendorData.products : []
+        const contactsList = Array.isArray(vendorData.contacts)
+            ? vendorData.contacts.map(contact => this.normalizeContact(contact))
+            : []
+        const productsList = Array.isArray(vendorData.products)
+            ? vendorData.products.map(product => this.normalizeProduct(product))
+            : []
 
         const comprehensive: VendorComprehensiveI = {
             vendor_id: vendorData.vendor_id,
@@ -40,21 +72,8 @@ export class EditVendorUtils {
             tel_center: vendorData.tel_center,
             emailmain: vendorData.emailmain,
             vendor_region: vendorData.vendor_region,
-            contacts: contactsList.length > 0 ? contactsList : [{
-                vendor_contact_id: vendorData.vendor_contact_id,
-                contact_name: vendorData.contact_name || '',
-                position: vendorData.position || '',
-                tel_phone: vendorData.tel_phone || '',
-                email: vendorData.email || ''
-            }],
-            products: productsList.length > 0 ? productsList : [{
-                vendor_product_id: vendorData.vendor_product_id,
-                product_group_id: vendorData.product_group_id,
-                group_name: vendorData.group_name || '',
-                maker_name: vendorData.maker_name || '',
-                product_name: vendorData.product_name || '',
-                model_list: vendorData.model_list || ''
-            }],
+            contacts: contactsList.length > 0 ? contactsList : [this.normalizeContact(vendorData)],
+            products: productsList.length > 0 ? productsList : [this.normalizeProduct(vendorData)],
             CREATE_BY: vendorData.CREATE_BY,
             UPDATE_BY: vendorData.UPDATE_BY,
             CREATE_DATE: vendorData.CREATE_DATE,

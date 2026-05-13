@@ -5,7 +5,7 @@ import IconButton from '@mui/material/IconButton';
 import type { IconButtonProps } from '@mui/material/IconButton';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
-import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
+import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { ToastMessageError } from '@/components/ToastMessage';
 
@@ -106,26 +106,37 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
       }}
     >
       {canShowRegister ? (
-        <IconButton
-          onClick={onRegister}
-          size="small"
-          color={params.registerColor ?? 'warning'}
-          title={params.registerTitle ?? 'Send Register Request'}
-          disabled={isRegisterDisabled}
-        >
-          <ForwardToInboxIcon />
-        </IconButton>
+        <Tooltip title={params.registerTitle ?? 'Send Register Request'}>
+          <span style={{ display: 'flex', width: 32, height: 32 }}>
+            <IconButton
+              onClick={onRegister}
+              size="small"
+              color={params.registerColor ?? 'warning'}
+              disabled={isRegisterDisabled}
+            >
+              <ForwardToInboxIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       ) : (
         <Box component="span" sx={{ width: 32, height: 32 }} />
       )}
-      <IconButton onClick={onEdit} size="small" color="primary" title="View Details">
-        <VisibilityIcon />
-      </IconButton>
+      <Tooltip title="View Details">
+        <span style={{ display: 'flex', width: 32, height: 32 }}>
+          <IconButton onClick={onEdit} size="small" color="primary">
+            <VisibilityIcon />
+          </IconButton>
+        </span>
+      </Tooltip>
       {showMoreActions && (
         canOpenMenu ? (
-          <IconButton size="small" title="More actions" onClick={onMenuOpen}>
-            <i className="tabler-dots-vertical" />
-          </IconButton>
+          <Tooltip title="More actions">
+            <span style={{ display: 'flex', width: 32, height: 32 }}>
+              <IconButton size="small" onClick={onMenuOpen}>
+                <i className="tabler-dots-vertical" />
+              </IconButton>
+            </span>
+          </Tooltip>
         ) : (
           <Box component="span" sx={{ width: 32, height: 32 }} />
         )
