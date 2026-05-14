@@ -273,11 +273,13 @@ export default class RegisterRequestServices {
     static saveGprForm(data: {
         request_id: number
         gpr_data: Record<string, any>
+        CREATE_BY?: string
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
             REQUEST_ID: data.request_id,
             GPR_DATA: data.gpr_data,
+            CREATE_BY: data.CREATE_BY,
             UPDATE_BY: data.UPDATE_BY
         }
 

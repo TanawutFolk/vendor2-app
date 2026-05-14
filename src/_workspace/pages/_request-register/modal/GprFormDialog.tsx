@@ -636,7 +636,7 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
                                                             onClick={() => onUploadClick(index)}
                                                             sx={{ fontSize: '0.7rem', py: 0.25 }}
                                                         >
-                                                            {criteriaUploading[index] ? 'Uploading...' : 'Upload PDF'}
+                                                            {criteriaUploading[index] ? 'Uploading...' : 'Select File'}
                                                         </Button>
                                                         {criteriaError[index] && (
                                                             <Typography variant='caption' color='error' sx={{ fontSize: '0.62rem' }}>
@@ -665,6 +665,8 @@ const CriteriaStats = React.memo(() => {
     const gprBDecision = String(criteria.find(item => item?.no === '4.3')?.remark || '').trim()
     const isGprBAccepted = gprBDecision === 'Accept'
     const isGprBRequired = gprBDecision === 'Not Accept'
+    const needUploaded = criteria.filter(item => ['4.1', '4.2', '4.4', '4.5', '4.11'].includes(String(item?.no || '')) && item?.uploaded_file).length
+    const isNeedPassed = needUploaded >= 5
     const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '4.14' && item?.uploaded_file).length
 
     const isOptionalPassed = optionalUploaded >= 3
@@ -700,11 +702,22 @@ const CriteriaStats = React.memo(() => {
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
                 <i
+                    className={isNeedPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
+                    style={{ color: isNeedPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
+                />
+                <Typography variant='caption'>
+                    {'2. Need criteria 4.1, 4.2, 4.4, 4.5 and 4.11 must submit all documents = '}
+                    <Box component='span' sx={{ fontWeight: 700, color: isNeedPassed ? 'success.main' : 'error.main' }}>{needUploaded}</Box>
+                    {' / 5 items'}
+                </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
+                <i
                     className={isOptionalPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
                     style={{ color: isOptionalPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
                 />
                 <Typography variant='caption'>
-                    {'2. Item 4.6 and 4.8 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
+                    {'3. Optional criteria 4.6, 4.7, 4.8, 4.9, 4.10, 4.12 and 4.13 must choose at least three items = '}
                     <Box component='span' sx={{ fontWeight: 700, color: isOptionalPassed ? 'success.main' : 'error.main' }}>{optionalUploaded}</Box>
                     {' items'}
                 </Typography>

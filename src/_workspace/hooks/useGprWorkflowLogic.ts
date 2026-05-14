@@ -16,6 +16,7 @@ interface UseGprWorkflowLogicParams {
     everRequestedVendor: boolean
     gprFormFilled: boolean
     gprEvalPassed: boolean
+    isGprBRequired: boolean
     allowApproveBypass: boolean
     statusOptions?: StatusOptionLike[]
 }
@@ -45,6 +46,7 @@ const useGprWorkflowLogic = ({
     everRequestedVendor,
     gprFormFilled,
     gprEvalPassed,
+    isGprBRequired,
     allowApproveBypass,
     statusOptions = [],
 }: UseGprWorkflowLogicParams) => {
@@ -76,7 +78,7 @@ const useGprWorkflowLogic = ({
         const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
 
         const showSendToCheckerBtn = isPicPostVendorStep
-        const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow
+        const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
         const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
         const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
 
@@ -88,7 +90,7 @@ const useGprWorkflowLogic = ({
         const disableSendToCheckerBtn = !gprFormFilled
             || (!gprEvalPassed && shouldEnforceGprACriteria)
             || (isPostSendGprBFlow && !isCurrentIssueGprBStep && !hasGprCApproved)
-        const disableSendToVendorBtn = !gprFormFilled
+        const disableSendToVendorBtn = !gprFormFilled || !isGprBRequired
         const disableSendToRequesterBtn = !gprFormFilled
         const disableRejectBtn = false
 
@@ -131,6 +133,7 @@ const useGprWorkflowLogic = ({
         everRequestedVendor,
         gprEvalPassed,
         gprFormFilled,
+        isGprBRequired,
         hasSentGprCInSession,
         isActionable,
         isAssignedPicUser,

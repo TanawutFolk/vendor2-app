@@ -37,6 +37,7 @@ import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 // Services
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -97,7 +98,9 @@ const safeParseJSON = <T,>(input: unknown, fallback: T): T => {
 
 const buildFileUrls = (documents: any): { name: string; url: string }[] => {
     const docs = safeParseJSON<any[]>(documents, [])
-    return docs.filter(Boolean).map((d: any) => ({
+    return docs
+        .filter((d: any) => Boolean(d) && !String(d.file_name || '').startsWith('[GPR] '))
+        .map((d: any) => ({
         name: d.file_name || d.file_path || 'Unnamed File',
         url: `${API_BASE}/uploads/documents/${d.file_path}`
     }))
@@ -269,6 +272,12 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 isFinalStep: mode === 'approve' ? isFinalStep : false,
             })
             if (res.data.Status) {
+                const responseMessage = res.data.Message || 'Status updated successfully'
+                if (/failed|error/i.test(responseMessage)) {
+                    ToastMessageError({ message: responseMessage })
+                } else {
+                    ToastMessageSuccess({ message: responseMessage })
+                }
                 reset({ remark: '' })
                 onSuccess()
                 onClose()
@@ -510,17 +519,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const hasPersistedGprData = Boolean(data.gpr_data) || gprCriteriaFromData.length > 0
     const gprFormFilled = gprSavedInSession || hasPersistedGprData || gprCriteria.length > 0
     // Item 4.3 decides whether GPR B / Form B is needed.
+    const gpr43Status = String(data.gpr_43_acceptance_status ?? data.GPR_43_ACCEPTANCE_STATUS ?? '').trim().replace(/[_-]+/g, ' ').toUpperCase()
     const gpr43Decision = String(gprCriteria.find((c: any) => String(c?.no || '') === '4.3')?.remark || '').trim()
-    const isGpr43Accepted = gpr43Decision === 'Accept'
-    const gprPassDecision = gprFormFilled && isGpr43Accepted
+    const isGpr43Accepted = gpr43Status ? gpr43Status === 'ACCEPT' : gpr43Decision === 'Accept'
+    const isGprBRequired = gpr43Status ? gpr43Status === 'NOT ACCEPT' : gpr43Decision === 'Not Accept'
+    const gprPassNeed = gprFormFilled && isGpr43Accepted && ['4.1', '4.2', '4.4', '4.5', '4.11']
+        .every((no) => gprCriteria.some((c: any) => String(c?.no || '') === no && !!c?.uploaded_file))
     // Optional criteria require at least 3 documents.
     const gprPassOptional = gprFormFilled && gprCriteria
         .filter((c: any) => {
             const no = String(c?.no || '')
-            return ['4.6', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'].includes(no)
+            return ['4.6', '4.7', '4.8', '4.9', '4.10', '4.12', '4.13'].includes(no)
         })
         .filter((c: any) => !!c?.uploaded_file).length >= 3
-    const gprEvalPassed = gprPassDecision && gprPassOptional
+    const gprEvalPassed = gprPassNeed && gprPassOptional
     const gprWorkflow = useGprWorkflowLogic({
         currentStep,
         approvalSteps,
@@ -531,6 +543,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         everRequestedVendor,
         gprFormFilled,
         gprEvalPassed,
+        isGprBRequired,
         allowApproveBypass,
         statusOptions,
     })
@@ -985,7 +998,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 }}>
                                     
                                     <Typography variant='body2' color='warning.dark' fontWeight={600} >
-                                        Vendor has not agreed yet from GPR (A) criteria result. Approve is disabled until criteria pass.
+                                        Selection Sheet criteria are not passed yet. Approve is disabled until item 4.3 is accepted, all Need documents are attached, and at least 3 Optional documents are attached.
                                     </Typography>
                                 </Box>
                             )}
@@ -1334,6 +1347,7 @@ export default function SearchResult() {
                         gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
                         gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
                         action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
+                        gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
                         company_name: row.company_name ?? row.COMPANY_NAME,
                         fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
                         fft_status: row.fft_status ?? row.FFT_STATUS,

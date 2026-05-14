@@ -235,6 +235,7 @@ const SearchResult = () => {
             payload.append('SUPPORT_TYPE', formData?.supportType || '')
             payload.append('PURCHASE_FREQUENCY', formData?.purchaseFreq || '')
             payload.append('REQUEST_BY_EMPLOYEECODE', getUserData()?.EMPLOYEE_CODE || '')
+            payload.append('REQUEST_BY_EMAIL', getUserData()?.EMAIL || '')
             payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
             if (formData?.files && Array.isArray(formData.files)) {
                 formData.files.forEach((file: File) => payload.append('files', file))

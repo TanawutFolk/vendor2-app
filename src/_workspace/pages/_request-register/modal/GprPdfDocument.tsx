@@ -213,6 +213,7 @@ type SignatureSlot = {
 export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
 
     const gpr43Decision = String(form.criteria.find(c => c.no === '4.3')?.remark || '').trim()
+    const needUploaded = form.criteria.filter(c => ['4.1', '4.2', '4.4', '4.5', '4.11'].includes(c.no) && c.uploaded_file).length
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '4.14' && c.uploaded_file).length
 
     const approvalSteps = (() => {
@@ -463,7 +464,10 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
                         {`1. Item 4.3 decision   =   ${gpr43Decision || 'Not selected'}${gpr43Decision === 'Not Accept' ? ' (requires GPR B / Form B)' : ''}`}
                     </Text>
                     <Text style={s.rmkLine}>
-                        {`2. Item 4.6 and 4.8 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected   =   ${optionalUploaded}   items`}
+                        {`2. Need criteria 4.1, 4.2, 4.4, 4.5 and 4.11 must submit all documents   =   ${needUploaded} / 5   items`}
+                    </Text>
+                    <Text style={s.rmkLine}>
+                        {`3. Optional criteria 4.6, 4.7, 4.8, 4.9, 4.10, 4.12 and 4.13 must choose at least three items   =   ${optionalUploaded}   items`}
                     </Text>
                     <Text style={s.rmkBold}>
                         {'- Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 4.6 is recommended.'}

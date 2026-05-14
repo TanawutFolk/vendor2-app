@@ -44,7 +44,8 @@ const DETAIL_BY_NO: Record<string, string> = {
 }
 
 const DECISION_CRITERIA = new Set(['4.3'])
-const OPTIONAL_CRITERIA = new Set(['4.6', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'])
+const NEED_UPLOAD_CRITERIA = new Set(['4.1', '4.2', '4.4', '4.5', '4.11'])
+const OPTIONAL_CRITERIA = new Set(['4.6', '4.7', '4.8', '4.9', '4.10', '4.12', '4.13'])
 const OPTIONAL_REQUIRED_COUNT = 3
 
 const normalizeText = (value: unknown) => String(value || '').trim()
@@ -70,6 +71,10 @@ const buildReason = (
     return 'Vendor acceptance for this requirement is still not confirmed.'
   }
 
+  if (NEED_UPLOAD_CRITERIA.has(row.no)) {
+    return 'Need supporting document is still missing.'
+  }
+
   return `Optional supporting document is still missing. Current optional count is ${optionalUploadedCount}/${OPTIONAL_REQUIRED_COUNT}.`
 }
 
@@ -83,7 +88,7 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
     return {
       no,
       detail: normalizeText(row?.detail) || DETAIL_BY_NO[no] || '-',
-      criteriaType: DECISION_CRITERIA.has(no) ? 'Need' : 'Optional' as 'Need' | 'Optional',
+      criteriaType: (DECISION_CRITERIA.has(no) || NEED_UPLOAD_CRITERIA.has(no) ? 'Need' : 'Optional') as 'Need' | 'Optional',
       remark,
       uploadedFile,
       explicitNotAccept: isExplicitNotAccept(normalizedRemark),
@@ -96,8 +101,9 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
   const optionalShortfall = Math.max(0, OPTIONAL_REQUIRED_COUNT - optionalUploadedCount)
 
   const unresolvedRequired = normalizedRows
-    .filter(row => DECISION_CRITERIA.has(row.no))
+    .filter(row => DECISION_CRITERIA.has(row.no) || NEED_UPLOAD_CRITERIA.has(row.no))
     .filter(row => {
+      if (NEED_UPLOAD_CRITERIA.has(row.no)) return !row.uploadedFile || row.explicitNotAccept
       return !row.explicitAccept || row.explicitNotAccept
     })
     .map(row => ({

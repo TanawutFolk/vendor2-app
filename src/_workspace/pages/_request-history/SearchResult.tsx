@@ -505,6 +505,7 @@ export default function SearchResult() {
                         gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
                         gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
                         action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
+                        gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
                         company_name: row.company_name ?? row.COMPANY_NAME,
                         fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
                         fft_status: row.fft_status ?? row.FFT_STATUS,

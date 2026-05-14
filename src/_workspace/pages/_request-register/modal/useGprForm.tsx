@@ -72,6 +72,7 @@ export interface GprFormData {
     gpr_c_pc_pic_email: string
     gpr_c_circular_list: string[]
     action_required_setup: ActionRequiredSetup
+    gpr_43_acceptance_status: 'ACCEPT' | 'NOT_ACCEPT' | ''
     vendor_code_selector: string
     completion_date: string
 }
@@ -110,15 +111,31 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
     { no: '4.4', detail: 'Manufacture location survey', criteria: 'Need' },
     { no: '4.5', detail: 'Company Environmental and Energy Policy', criteria: 'Need' },
     { no: '4.6', detail: 'Quality Management Certification', criteria: 'Optional' },
-    { no: '4.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Need' },
+    { no: '4.7', detail: 'Environmental Certification such as RoHS, REACH, etc.', criteria: 'Optional' },
     { no: '4.8', detail: 'Environmental Management Certification', criteria: 'Optional' },
     { no: '4.9', detail: 'History reliability', criteria: 'Optional' },
     { no: '4.10', detail: 'Reliable performance', criteria: 'Optional' },
-    { no: '4.11', detail: 'Advised by Customer, Parent Company or Manager up', criteria: 'Optional' },
+    { no: '4.11', detail: 'Advised by Customer, Parent Company or Manager up', criteria: 'Need' },
     { no: '4.12', detail: 'Low Price', criteria: 'Optional' },
     { no: '4.13', detail: 'Document to request for Automatic Account Transfer', criteria: 'Optional' },
     { no: '4.14', detail: 'Other', criteria: 'Optional' },
 ]
+
+const PENDING_UPLOAD_PREFIX = '__pending__/'
+
+const normalizeGpr43AcceptanceStatus = (value: unknown): 'ACCEPT' | 'NOT_ACCEPT' | '' => {
+    const normalized = String(value || '').trim().replace(/[_-]+/g, ' ').toUpperCase()
+    if (['ACCEPT', 'ACCEPTED', 'AGREE', 'AGREED'].includes(normalized)) return 'ACCEPT'
+    if (['NOT ACCEPT', 'NOT ACCEPTED', 'DISAGREE', 'DISAGREED', 'REJECT', 'REJECTED'].includes(normalized)) return 'NOT_ACCEPT'
+    return ''
+}
+
+const gpr43StatusToRemark = (status: unknown) => {
+    const normalized = normalizeGpr43AcceptanceStatus(status)
+    if (normalized === 'ACCEPT') return 'Accept'
+    if (normalized === 'NOT_ACCEPT') return 'Not Accept'
+    return ''
+}
 
 const createActionRequiredStage = (): ActionRequiredStageConfig => ({
     pic_name: '',
@@ -198,6 +215,7 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
                 return buildDefaultActionRequiredSetup()
             }
         })(),
+        gpr_43_acceptance_status: normalizeGpr43AcceptanceStatus(source.gpr_43_acceptance_status ?? source.GPR_43_ACCEPTANCE_STATUS),
         vendor_code_selector: source.vendor_code_selector,
         completion_date: source.completion_date,
         sales_profit: source.sales_profit,
@@ -225,6 +243,13 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
     const firstContact = contacts[0] || {}
     const mainProduct = products.map((item: any) => item.product_name || item.maker_name).filter(Boolean).join(', ')
 
+    const savedGpr43Status = saved?.gpr_43_acceptance_status || normalizeGpr43AcceptanceStatus(rowData?.gpr_43_acceptance_status ?? rowData?.GPR_43_ACCEPTANCE_STATUS)
+    const criteria = buildDefaultCriteria(saved?.criteria)
+    const gpr43Criterion = criteria.find(item => item.no === '4.3')
+    if (gpr43Criterion && !gpr43Criterion.remark) {
+        gpr43Criterion.remark = gpr43StatusToRemark(savedGpr43Status)
+    }
+
     return {
         company_name: saved?.company_name ?? (rowData?.company_name || ''),
         pic_name: saved?.pic_name ?? (firstContact.contact_name || ''),
@@ -242,7 +267,7 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
         sales_profit: saved?.sales_profit || DEFAULT_SALES_PROFIT,
         vendor_original_country: saved?.vendor_original_country || '',
         currency: saved?.currency ?? 'THB',
-        criteria: buildDefaultCriteria(saved?.criteria),
+        criteria,
         suggestion: saved?.suggestion || '',
         result: saved?.result || '',
         path: saved?.path || '',
@@ -252,6 +277,7 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
         gpr_c_pc_pic_email: saved?.gpr_c_pc_pic_email || '',
         gpr_c_circular_list: Array.from({ length: 6 }, (_, index) => saved?.gpr_c_circular_list?.[index] || ''),
         action_required_setup: buildDefaultActionRequiredSetup(saved?.action_required_setup),
+        gpr_43_acceptance_status: savedGpr43Status,
         vendor_code_selector: saved?.vendor_code_selector || (rowData?.vendor_code || ''),
         completion_date: saved?.completion_date || '',
     }
@@ -272,6 +298,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
     const [sanctionsCheck, setSanctionsCheck] = useState<SanctionsCheckState | null>(null)
     const [criteriaUploading, setCriteriaUploading] = useState<Record<number, boolean>>({})
     const [criteriaError, setCriteriaError] = useState<Record<number, string>>({})
+    const [pendingCriteriaFiles, setPendingCriteriaFiles] = useState<Record<number, File>>({})
     const fileInputRef = useRef<HTMLInputElement>(null)
     const uploadTargetRef = useRef<number>(-1)
 
@@ -325,6 +352,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         let active = true
         setCriteriaError({})
         setSanctionsCheck(null)
+        setPendingCriteriaFiles({})
 
         const loadForm = async () => {
             try {
@@ -368,41 +396,80 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         if (index < 0) return
 
         event.target.value = ''
-        setCriteriaUploading(prev => ({ ...prev, [index]: true }))
         setCriteriaError(prev => ({ ...prev, [index]: '' }))
-
-        try {
-            const formData = new FormData()
-            formData.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
-            formData.append('file', file)
-            formData.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
-
-            // Pass criteria info for Selection File folder naming (01.Receiving)
-            const criteria = getValues(`criteria.${index}`)
-            formData.append('CRITERIA_NO', criteria?.no || '')
-            formData.append('CRITERIA_DETAIL', criteria?.detail || '')
-            formData.append('REQUEST_NUMBER', rowData?.request_number || '')
-
-            const response = await RegisterRequestServices.addDocument(formData)
-
-            if (response.data.Status) {
-                const { file_path, file_name } = response.data.ResultOnDb
-                setValue(`criteria.${index}.uploaded_file` as any, file_path, { shouldDirty: true })
-                setValue(`criteria.${index}.uploaded_name` as any, file_name || file.name, { shouldDirty: true })
-            } else {
-                setCriteriaError(prev => ({ ...prev, [index]: response.data.Message }))
-            }
-        } catch (error: any) {
-            setCriteriaError(prev => ({ ...prev, [index]: error?.response?.data?.Message || 'Upload failed' }))
-        } finally {
-            setCriteriaUploading(prev => ({ ...prev, [index]: false }))
-        }
-    }, [rowData?.request_id, rowData?.request_number, user?.EMPLOYEE_CODE, setValue, getValues])
+        setPendingCriteriaFiles(prev => ({ ...prev, [index]: file }))
+        setValue(`criteria.${index}.uploaded_file` as any, `${PENDING_UPLOAD_PREFIX}${file.name}`, { shouldDirty: true })
+        setValue(`criteria.${index}.uploaded_name` as any, file.name, { shouldDirty: true })
+    }, [setValue])
 
     const removeCriteriaUpload = useCallback((index: number) => {
+        setPendingCriteriaFiles(prev => {
+            const next = { ...prev }
+            delete next[index]
+            return next
+        })
         setValue(`criteria.${index}.uploaded_file` as any, '', { shouldDirty: true })
         setValue(`criteria.${index}.uploaded_name` as any, '', { shouldDirty: true })
+        setCriteriaError(prev => ({ ...prev, [index]: '' }))
     }, [setValue])
+
+    const uploadPendingCriteriaFiles = useCallback(async (formData: GprFormData) => {
+        const pendingEntries = Object.entries(pendingCriteriaFiles)
+
+        if (!pendingEntries.length) {
+            return formData
+        }
+
+        const nextForm: GprFormData = {
+            ...formData,
+            criteria: formData.criteria.map(item => ({ ...item })),
+        }
+
+        for (const [indexKey, file] of pendingEntries) {
+            const index = Number(indexKey)
+            const criteria = nextForm.criteria[index]
+
+            if (!criteria || !file) continue
+
+            setCriteriaUploading(prev => ({ ...prev, [index]: true }))
+            setCriteriaError(prev => ({ ...prev, [index]: '' }))
+
+            try {
+                const uploadForm = new FormData()
+                uploadForm.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
+                uploadForm.append('file', file)
+                uploadForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
+                uploadForm.append('DOCUMENT_SCOPE', 'GPR_CRITERIA')
+                uploadForm.append('CRITERIA_NO', criteria.no || '')
+                uploadForm.append('CRITERIA_DETAIL', criteria.detail || '')
+                uploadForm.append('REQUEST_NUMBER', rowData?.request_number || '')
+
+                const response = await RegisterRequestServices.addDocument(uploadForm)
+
+                if (!response.data.Status) {
+                    throw new Error(response.data.Message || 'Upload failed')
+                }
+
+                const { file_path, file_name } = response.data.ResultOnDb
+                nextForm.criteria[index] = {
+                    ...criteria,
+                    uploaded_file: file_path,
+                    uploaded_name: file_name || file.name,
+                }
+                setValue(`criteria.${index}.uploaded_file` as any, file_path, { shouldDirty: true })
+                setValue(`criteria.${index}.uploaded_name` as any, file_name || file.name, { shouldDirty: true })
+            } catch (error: any) {
+                const message = error?.response?.data?.Message || error?.message || 'Upload failed'
+                setCriteriaError(prev => ({ ...prev, [index]: message }))
+                throw new Error(`Criteria ${criteria.no || index + 1}: ${message}`)
+            } finally {
+                setCriteriaUploading(prev => ({ ...prev, [index]: false }))
+            }
+        }
+
+        setPendingCriteriaFiles({})
+        return nextForm
+    }, [pendingCriteriaFiles, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
 
     const handleSave = useCallback(async () => {
         if (!rowData?.request_id) return
@@ -410,9 +477,12 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         setSaving(true)
 
         try {
+            const preparedForm = await uploadPendingCriteriaFiles(getValues())
+            preparedForm.gpr_43_acceptance_status = normalizeGpr43AcceptanceStatus(preparedForm.criteria.find(item => item.no === '4.3')?.remark)
             const response = await RegisterRequestServices.saveGprForm({
                 request_id: rowData.request_id,
-                gpr_data: getValues(),
+                gpr_data: preparedForm,
+                CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
 
@@ -432,12 +502,12 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         } catch (error: any) {
             ToastMessageError({ 
                 title: 'Save GPR Form',
-                message: error?.response?.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' 
+                message: error?.response?.data?.Message || error?.message || 'Failed to save Supplier / Outsourcing Selection Sheet' 
             })
         } finally {
             setSaving(false)
         }
-    }, [rowData?.request_id, getValues, user?.EMPLOYEE_CODE, onSaved])
+    }, [rowData?.request_id, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
 
     const handleExportPdf = useCallback(async () => {
         if (!rowData?.request_id) return
@@ -445,10 +515,12 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         setGeneratingPdf(true)
 
         try {
-            const currentForm = getValues()
+            const currentForm = await uploadPendingCriteriaFiles(getValues())
+            currentForm.gpr_43_acceptance_status = normalizeGpr43AcceptanceStatus(currentForm.criteria.find(item => item.no === '4.3')?.remark)
             const saveResponse = await RegisterRequestServices.saveGprForm({
                 request_id: rowData.request_id,
                 gpr_data: currentForm,
+                CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
 
@@ -482,6 +554,8 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             documentForm.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
             documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
             documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
+            documentForm.append('DOCUMENT_SCOPE', 'GPR_PDF')
+            documentForm.append('REQUEST_NUMBER', rowData?.request_number || '')
             const documentResponse = await RegisterRequestServices.addDocument(documentForm)
 
             if (!documentResponse.data.Status) {
@@ -492,11 +566,11 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             ToastMessageSuccess({ message: 'PDF generated, saved, and attached to request.' })
             onSaved?.()
         } catch (error: any) {
-            ToastMessageError({ message: error?.message || 'Failed to generate PDF' })
+            ToastMessageError({ message: error?.response?.data?.Message || error?.message || 'Failed to generate PDF' })
         } finally {
             setGeneratingPdf(false)
         }
-    }, [rowData, getValues, user?.EMPLOYEE_CODE, onSaved])
+    }, [rowData, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
 
     const isBusy = saving || generatingPdf || sanctionsChecking
 
