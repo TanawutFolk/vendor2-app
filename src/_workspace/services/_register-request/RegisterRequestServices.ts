@@ -532,6 +532,23 @@ export default class RegisterRequestServices {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
     }
+
+    static downloadSelectionDocument(data: {
+        file_path: string
+        file_name?: string
+        request_number?: string
+    }): Promise<AxiosResponse<Blob>> {
+        return axiosRequest({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/downloadSelectionDocument`,
+            data: {
+                FILE_PATH: data.file_path,
+                FILE_NAME: data.file_name,
+                REQUEST_NUMBER: data.request_number
+            },
+            method: 'POST',
+            responseType: 'blob'
+        })
+    }
 }
 
 export interface StatusOption {

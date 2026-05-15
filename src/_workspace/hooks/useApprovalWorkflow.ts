@@ -33,6 +33,7 @@ interface StatusOptionLike {
 
 interface UseApprovalWorkflowOptions {
     isRequesterGprCSetupPhase?: boolean
+    directToDocCheckerOnApprove?: boolean
 }
 
 const normalize = (value: unknown) => normalizeWorkflowText(String(value || ''))
@@ -66,7 +67,10 @@ export const useApprovalWorkflow = (
     options: UseApprovalWorkflowOptions = {}
 ): UseApprovalWorkflowResult => {
     return useMemo(() => {
-        const { isRequesterGprCSetupPhase = false } = options
+        const {
+            isRequesterGprCSetupPhase = false,
+            directToDocCheckerOnApprove = false,
+        } = options
         const agreementReachedStatus = resolveStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
         const issueGprBStatus = resolveStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
         const issueGprCStatus = resolveStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
@@ -83,9 +87,9 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: 'Approve',
+                        label: directToDocCheckerOnApprove ? 'Approve and Send to Doc Checker' : 'Approve',
                         color: 'success',
-                        nextStatus: agreementReachedStatus,
+                        nextStatus: directToDocCheckerOnApprove ? (documentCheckStatus || agreementReachedStatus) : agreementReachedStatus,
                         isFinalStep: false,
                     },
                     {
@@ -127,9 +131,13 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: isRequesterGprCSetupPhase ? 'Submit to Requester Head Approval' : 'Approve GPR C',
+                        label: isRequesterGprCSetupPhase
+                            ? 'Submit to Requester Head Approval'
+                            : (directToDocCheckerOnApprove ? 'Approve and Send to Doc Checker' : 'Approve GPR C'),
                         color: 'success',
-                        nextStatus: agreementReachedStatus,
+                        nextStatus: isRequesterGprCSetupPhase
+                            ? agreementReachedStatus
+                            : (directToDocCheckerOnApprove ? (documentCheckStatus || agreementReachedStatus) : agreementReachedStatus),
                         isFinalStep: false,
                     },
                     {

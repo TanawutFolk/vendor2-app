@@ -23,7 +23,6 @@ import type { ReactElement, Ref } from 'react'
 import { forwardRef } from 'react'
 import { Slide } from '@mui/material'
 import type { SlideProps } from '@mui/material'
-import { alpha } from '@mui/material/styles'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -43,8 +42,7 @@ import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessag
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // React Hook Form
-import { useFormContext } from 'react-hook-form'
-import { useForm } from 'react-hook-form'
+import { useForm, useFormContext } from 'react-hook-form'
 import type { RequestRegisterFormData } from './validateSchema'
 
 // Context
@@ -95,6 +93,71 @@ const safeParseJSON = <T,>(input: unknown, fallback: T): T => {
         catch { return fallback }
     }
     return input as T
+}
+
+const toTitleCase = (value: string) =>
+    value
+        .toLowerCase()
+        .split(' ')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+
+const formatActionTypeLabel = (value: unknown) => {
+    const action = String(value || '').trim().toLowerCase()
+
+    switch (action) {
+        case 'approved':
+            return 'Approved'
+        case 'rejected':
+            return 'Rejected'
+        case 'vendor_requested':
+            return 'Sent to Vendor'
+        case 'submitted_to_requester_head':
+            return 'Submitted to Requester Head'
+        case 'vendor_disagreed':
+            return 'Vendor Disagreed'
+        case 'action_required':
+            return 'Action Required'
+        case 'edited':
+            return 'Edited'
+        case 'reassigned_pic':
+            return 'Reassigned PIC'
+        default:
+            return toTitleCase(action.replace(/[_-]+/g, ' ')) || 'Updated'
+    }
+}
+
+const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warning' | 'info' | 'secondary' => {
+    const action = String(value || '').trim().toLowerCase()
+
+    if (action === 'approved') return 'success'
+    if (action === 'rejected' || action === 'vendor_disagreed') return 'error'
+    if (action === 'action_required') return 'warning'
+    if (action === 'vendor_requested' || action === 'submitted_to_requester_head' || action === 'reassigned_pic') return 'info'
+    return 'secondary'
+}
+
+const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
+    const parsedRemark = parseActionRequiredRemark(log?.remark)
+    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.action_type
+    const detailParts = [
+        parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
+        parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
+        parsedRemark.note ? `note: ${parsedRemark.note}` : '',
+    ].filter(Boolean)
+    const actorName = String(log?.action_by_name || '').trim()
+    const actorCode = String(log?.action_by || '').trim()
+    const matchedStep = approvalSteps.find((step: any) => String(step.step_id) === String(log?.step_id))
+
+    return {
+        parsedRemark,
+        actionTypeLabel: formatActionTypeLabel(actionType),
+        actionColor: getActionTypeColor(actionType),
+        detailText: detailParts.length > 0 ? detailParts.join(' | ') : (parsedRemark.rawRemark || ''),
+        actorLabel: actorName ? `${actorName}${actorCode ? ` (${actorCode})` : ''}` : (actorCode || '-'),
+        stepDescription: String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim(),
+    }
 }
 
 const buildFileUrls = (documents: any): { name: string; url: string }[] => {
@@ -304,8 +367,6 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
     }
 
     const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
-    const actionLabel = mode === 'approve' ? approveActionLabel : rejectActionLabel
-
     return (
         <Dialog
             maxWidth='xs'
@@ -449,7 +510,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         }
     }
 
-    const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
+    const statusCfg = statusOptions.find(s => s.value === data.request_status)
+    const accent = statusCfg?.accent || '#8A8D99'
+    const statusTone = getReadableStatusTone(data.request_status, statusCfg?.accent)
 
     // Parse approval steps to determine if current user can act
     const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
@@ -606,9 +669,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
     const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions, {
         isRequesterGprCSetupPhase,
+        directToDocCheckerOnApprove: everRequestedVendor,
     })
     const agreeAction = negotiationActions.find(action => action.key === 'agree')
     const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
+    const shouldShowNegotiationApprove = !(isPendingAgreementStep(currentStep) && isGprBRequired)
+    const shouldShowNegotiationDisagree = !(isPendingAgreementStep(currentStep) && !isGprBRequired)
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
 
     const contacts: any[] = safeParseJSON<any[]>(data.contacts, []).filter(Boolean)
@@ -645,8 +711,16 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             </Typography>
                         </Box>
                     </Box>
-                    <Chip label={data.request_status} size='medium'
-                        sx={{ fontWeight: 700, bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }}
+                    <Chip
+                        label={data.request_status}
+                        size='medium'
+                        sx={getChipSx(statusTone, {
+                            height: 32,
+                            fontSize: '0.78rem',
+                            '& .MuiChip-label': {
+                                px: 1.5
+                            }
+                        })}
                     />
                 </Box>
             </Box>
@@ -657,13 +731,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <i className='tabler-clipboard-list' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
-                        <Divider sx={{ flex: 1, minWidth: 40 }} />
+                        <Divider sx={{ flex: 1, minWidth: 650 }} />
                     </Box>
                     {isCurrentPicStep && (
-                        <Button size='small' variant='tonal' color='warning'
+                        <Button
+                            size='small'
+                            variant='contained'
+                            disableElevation
+                            color='primary'
                             startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
                             onClick={handleOpenEditDialog}
-                        >Edit Request</Button>
+                            sx={{ minHeight: 28, fontSize: '0.72rem', px: 1.25, py: 0.35 }}
+                        >
+                            Edit Request
+                        </Button>
                     )}
                 </Box>
                 {infoRow('Support Product / Process', data.supportProduct_Process)}
@@ -680,10 +761,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         </Box>
                         <Button
                             size='small'
-                            variant='tonal'
+                            variant='contained'
+                            disableElevation
+                            color='primary'
                             startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
                             onClick={() => setFileDialogOpen(true)}
                             disabled={files.length === 0}
+                            sx={{ minHeight: 28, fontSize: '0.72rem', px: 1.25, py: 0.35 }}
                         >
                             View Files
                         </Button>
@@ -712,13 +796,20 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <i className='tabler-building-store' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Vendor Info</Typography>
-                        <Divider sx={{ flex: 1, minWidth: 40 }} />
+                        <Divider sx={{ flex: 1, minWidth: 650 }} />
                     </Box>
                     {isCurrentPicStep && (
-                        <Button size='small' variant='tonal' color='info'
+                        <Button
+                            size='small'
+                            variant='contained'
+                            disableElevation
+                            color='primary'
                             startIcon={<i className='tabler-pencil' style={{ fontSize: 14 }} />}
                             onClick={() => setEditVendorOpen(true)}
-                        >Edit Vendor</Button>
+                            sx={{ minHeight: 28, fontSize: '0.72rem', px: 1.25, py: 0.35 }}
+                        >
+                            Edit Vendor
+                        </Button>
                     )}
                 </Box>
                 {infoRow('Vendor Type', data.vendor_type_name)}
@@ -792,22 +883,21 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 ))}
                             </Box>
                             {steps.sort((a: any, b: any) => a.step_order - b.step_order).map((s: any, i: number) => {
-                                const stepLog = logs.find((l: any) => l.step_id === s.step_id)
                                 const getStepStatusCfg = (status: string) => {
                                     switch (status) {
                                         case 'approved':
                                         case 'completed':
-                                            return { label: 'Completed', colorKey: 'success', icon: 'tabler-circle-check-filled' }
+                                            return { label: 'Completed', icon: 'tabler-circle-check-filled', tone: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' } }
                                         case 'in_progress':
                                         case 'current':
-                                            return { label: 'In Progress', colorKey: 'warning', icon: 'tabler-clock-play' }
+                                            return { label: 'In Progress', icon: 'tabler-clock-play', tone: { bg: '#FFF0D9', color: '#D96D00', border: '#FFB35C' } }
                                         case 'rejected':
-                                            return { label: 'Rejected', colorKey: 'error', icon: 'tabler-circle-x-filled' }
+                                            return { label: 'Rejected', icon: 'tabler-circle-x-filled', tone: { bg: '#FFE0E2', color: '#B42335', border: '#FF8B98' } }
                                         case 'skipped':
-                                            return { label: 'Skipped', colorKey: 'info', icon: 'tabler-circle-minus' }
+                                            return { label: 'Skipped', icon: 'tabler-circle-minus', tone: { bg: '#D8F2FF', color: '#0277A8', border: '#6ACCF2' } }
                                         case 'pending':
                                         default:
-                                            return { label: 'Waiting', colorKey: 'pending', icon: 'tabler-clock' }
+                                            return { label: 'Waiting', icon: 'tabler-clock', tone: { bg: '#EDEDED', color: '#667085', border: '#CFCFCF' } }
                                     }
                                 }
                                 const stCfg = getStepStatusCfg(s.step_status)
@@ -820,34 +910,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                             icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                             label={stCfg.label}
                                             size='small'
-                                            sx={(theme) => {
-                                                const colorMap: Record<string, string> = {
-                                                    success: theme.palette.success.main,
-                                                    warning: theme.palette.warning.main,
-                                                    error: theme.palette.error.main,
-                                                    info: theme.palette.info.main,
-                                                    pending: theme.palette.text.secondary,
-                                                }
-                                                const chipColor = colorMap[stCfg.colorKey] || theme.palette.text.secondary
-                                                const bgColor = stCfg.colorKey === 'pending'
-                                                    ? theme.palette.action.hover
-                                                    : alpha(chipColor, theme.palette.mode === 'dark' ? 0.24 : 0.12)
-                                                const borderColor = stCfg.colorKey === 'pending'
-                                                    ? theme.palette.divider
-                                                    : alpha(chipColor, theme.palette.mode === 'dark' ? 0.55 : 0.35)
-
-                                                return {
-                                                    bgcolor: bgColor,
-                                                    color: chipColor,
-                                                    border: '1px solid',
-                                                    borderColor,
-                                                    fontWeight: 600,
-                                                    fontSize: '0.68rem',
-                                                    height: 22,
-                                                    width: 'fit-content',
-                                                    '& .MuiChip-icon': { color: chipColor }
-                                                }
-                                            }}
+                                            sx={getChipSx(stCfg.tone, {
+                                                fontWeight: 600,
+                                                fontSize: '0.68rem',
+                                                height: 22,
+                                                width: 'fit-content',
+                                                '& .MuiChip-icon': { color: stCfg.tone.color }
+                                            })}
                                         />
                                         {isIssueGprCStep(s) && ['approved', 'completed'].includes(String(s?.step_status || '').toLowerCase()) && (
                                             <Chip
@@ -865,15 +934,26 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 )
                             })}
                         </Box>
-                        {logs.length > 0 && (
+                        {false && logs.length > 0 && (
                             <Box sx={{ mt: 1.5 }}>
                                 <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
                                 {logs.map((l: any, i: number) => (
-                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                                        <i className='tabler-arrow-right' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
+                                    <Box
+                                        key={i}
+                                        sx={{
+                                            mb: 1,
+                                            p: 1.5,
+                                            borderRadius: 1.5,
+                                            bgcolor: 'background.paper',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                        }}
+                                    >
                                         {(() => {
                                             const parsedRemark = parseActionRequiredRemark(l.remark)
-                                            const actionTypeLabel = parsedRemark.isActionRequired ? 'action_required' : l.action_type
+                                            const actionType = parsedRemark.isActionRequired ? 'action_required' : l.action_type
+                                            const actionTypeLabel = formatActionTypeLabel(actionType)
+                                            const actionColor = getActionTypeColor(actionType)
                                             const detailParts = [
                                                 parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
                                                 parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
@@ -882,30 +962,131 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                             const detailText = detailParts.length > 0
                                                 ? detailParts.join(' | ')
                                                 : (parsedRemark.rawRemark || '')
+                                            const actorName = String(l.action_by_name || '').trim()
+                                            const actorCode = String(l.action_by || '').trim()
+                                            const actorLabel = actorName
+                                                ? `${actorName}${actorCode ? ` (${actorCode})` : ''}`
+                                                : (actorCode || '-')
+                                            const matchedStep = approvalSteps.find((step: any) => String(step.step_id) === String(l.step_id))
+                                            const stepDescription = String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim()
 
                                             return (
-                                                <>
-                                                    {parsedRemark.isActionRequired && (
-                                                        <Chip
-                                                            size='small'
-                                                            label='Action Required'
-                                                            color='warning'
-                                                            variant='tonal'
-                                                            sx={{ height: 20, fontSize: '0.65rem' }}
-                                                            onClick={() => {
-                                                                setSelectedActionRequired(parsedRemark)
-                                                                setActionRequiredDialogOpen(true)
-                                                            }}
-                                                        />
-                                                    )}
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                            <Chip
+                                                                size='small'
+                                                                label={actionTypeLabel}
+                                                                color={actionColor}
+                                                                variant='tonal'
+                                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                                            />
+                                                            {parsedRemark.isActionRequired && (
+                                                                <Chip
+                                                                    size='small'
+                                                                    label='View Detail'
+                                                                    color='warning'
+                                                                    variant='outlined'
+                                                                    sx={{ height: 22, fontSize: '0.68rem' }}
+                                                                    onClick={() => {
+                                                                        setSelectedActionRequired(parsedRemark)
+                                                                        setActionRequiredDialogOpen(true)
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                        <Typography variant='caption' color='text.disabled'>
+                                                            {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography variant='body2' fontWeight={600}>
+                                                        {actorLabel}
+                                                    </Typography>
                                                     <Typography variant='caption' color='text.secondary'>
                                                         <strong>{l.action_by}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
                                                     </Typography>
-                                                </>
+                                                </Box>
                                             )
                                         })()}
                                     </Box>
                                 ))}
+                            </Box>
+                        )}
+                        {logs.length > 0 && (
+                            <Box sx={{ mt: 1.5 }}>
+                                <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
+                                {logs.map((l: any, i: number) => {
+                                    const {
+                                        parsedRemark,
+                                        actionTypeLabel,
+                                        actionColor,
+                                        detailText,
+                                        actorLabel,
+                                        stepDescription,
+                                    } = buildActionLogPresentation(l, approvalSteps)
+
+                                    return (
+                                        <Box
+                                            key={`action-log-${i}`}
+                                            sx={{
+                                                mb: 1,
+                                                p: 1.5,
+                                                borderRadius: 1.5,
+                                                bgcolor: 'background.paper',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                            }}
+                                        >
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                        <Chip
+                                                            size='small'
+                                                            label={actionTypeLabel}
+                                                            color={actionColor}
+                                                            variant='tonal'
+                                                            sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                                        />
+                                                        {parsedRemark.isActionRequired && (
+                                                            <Chip
+                                                                size='small'
+                                                                label='View Detail'
+                                                                color='warning'
+                                                                variant='outlined'
+                                                                sx={{ height: 22, fontSize: '0.68rem' }}
+                                                                onClick={() => {
+                                                                    setSelectedActionRequired(parsedRemark)
+                                                                    setActionRequiredDialogOpen(true)
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                    <Typography variant='caption' color='text.disabled'>
+                                                        {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography variant='body2' fontWeight={600}>
+                                                    {actorLabel}
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
+                                                    {stepDescription && (
+                                                        <Typography variant='caption' color='text.secondary'>
+                                                            <strong>Step:</strong> {stepDescription}
+                                                        </Typography>
+                                                    )}
+                                                    <Typography variant='caption' color='text.secondary'>
+                                                        <strong>Action:</strong> {actionTypeLabel}
+                                                    </Typography>
+                                                    {detailText && (
+                                                        <Typography variant='caption' color='text.secondary'>
+                                                            <strong>Detail:</strong> {detailText}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                    )
+                                })}
                             </Box>
                         )}
                     </Box>
@@ -1064,7 +1245,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 <Button variant='contained' color='success' fullWidth
                                     startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
                                     disabled={gprWorkflow.disableSendToCheckerBtn || isWaitingForExternalGprCApproval}
-                                    onClick={() => onApprove(gprWorkflow.agreementReachedStatusValue || computedNextStatus, false, gprWorkflow.approveLabel)}
+                                    onClick={() => onApprove(gprWorkflow.documentCheckStatusValue || computedNextStatus, false, gprWorkflow.approveLabel)}
                                 >{gprWorkflow.approveLabel}</Button>
                             )}
                             {showActionRequiredBtn && (
@@ -1103,7 +1284,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                             )}
                         </>
                     )}
-                    {!gprWorkflow.isPicPostVendorStep && isNegotiationStep && agreeAction && disagreeAction && (
+                    {!gprWorkflow.isPicPostVendorStep && isNegotiationStep && (agreeAction || disagreeAction) && (
                         <>
                             {showActionRequiredBtn && (
                                 <Button variant='contained' color='info' fullWidth
@@ -1112,17 +1293,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                     onClick={() => onApprove(computedNextStatus, false, actionRequiredLabel)}
                                 >{actionRequiredLabel}</Button>
                             )}
-                            {renderDisagreeFirst && (
+                            {shouldShowNegotiationDisagree && renderDisagreeFirst && disagreeAction && (
                                 <Button variant='contained' color={disagreeAction.color} fullWidth
                                     startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
                                     onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
                                 >{disagreeAction.label}</Button>
                             )}
-                            <Button variant='contained' color={agreeAction.color} fullWidth
-                                startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                                onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}
-                            >{agreeAction.label}</Button>
-                            {!renderDisagreeFirst && (
+                            {shouldShowNegotiationApprove && agreeAction && (
+                                <Button variant='contained' color={agreeAction.color} fullWidth
+                                    startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                    onClick={() => onApprove(agreeAction.nextStatus, agreeAction.isFinalStep, agreeAction.label)}
+                                >{agreeAction.label}</Button>
+                            )}
+                            {shouldShowNegotiationDisagree && !renderDisagreeFirst && disagreeAction && (
                                 <Button variant='contained' color={disagreeAction.color} fullWidth
                                     startIcon={<i className={disagreeAction.color === 'warning' ? 'tabler-send' : 'tabler-alert-triangle'} style={{ fontSize: 18 }} />}
                                     onClick={() => onApprove(disagreeAction.nextStatus, disagreeAction.isFinalStep, disagreeAction.label)}
@@ -1338,7 +1521,6 @@ export default function SearchResult() {
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
     const { data: statusOptions = [] } = useRequestStatusOptions()
 
-    const [totalCount, setTotalCount] = useState(0)
     const gridApiRef = useRef<any>(null)
     const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
         getValues,
@@ -1420,7 +1602,6 @@ export default function SearchResult() {
                         website: row.website ?? row.WEBSITE,
                         emailmain: row.emailmain ?? row.EMAILMAIN,
                     }))
-                    setTotalCount(res.data.TotalCountOnDb)
                     params.success({ rowData, rowCount: res.data.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -1556,9 +1737,6 @@ export default function SearchResult() {
             <Grid item xs={12}>
                 <SearchResultCard>
                     <CardContent sx={{ p: '24px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                        </Box>
-
                         <DxAGgridTable
                             columnDefs={colDefs}
                             serverSideDatasource={datasource}

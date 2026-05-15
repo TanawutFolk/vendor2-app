@@ -179,6 +179,7 @@ export const useEditVendorForm = ({
 
     const loading = editingMode === 'edit' && (
         isInitializing ||
+        (!originalData && open && !!vendorId) ||
         (shouldFetchVendorOnEdit && (isLoadingVendor || (!vendorQueryData && isFetchingVendor)))
     )
     const saving = updateVendor.isPending

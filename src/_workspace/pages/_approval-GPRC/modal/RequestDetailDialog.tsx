@@ -26,6 +26,7 @@ import type { SlideProps } from '@mui/material'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import { buildActionLogPresentation } from '@_workspace/utils/requestWorkflow'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
 
@@ -171,6 +172,8 @@ export default function RequestDetailDialog({
 
     const contacts = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.contacts), [detail?.contacts])
     const products = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.products), [detail?.products])
+    const approvalSteps = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.approval_steps), [detail?.approval_steps])
+    const logs = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.approval_logs), [detail?.approval_logs])
     const files = useMemo(() => {
         const fileMap = new Map<string, FileItem>()
         const documents = safeParseArray<Record<string, unknown>>(detail?.documents)
@@ -423,6 +426,81 @@ export default function RequestDetailDialog({
                                 </List>
                             )}
                         </Box>
+
+                        {logs.length > 0 && (
+                            <Box>
+                                <SectionHeader icon='tabler-history' title='Action Logs' />
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    {logs.map((log, index) => {
+                                        const {
+                                            parsedRemark,
+                                            actionTypeLabel,
+                                            actionColor,
+                                            detailText,
+                                            actorLabel,
+                                            stepDescription,
+                                        } = buildActionLogPresentation(log, approvalSteps)
+
+                                        return (
+                                            <Box
+                                                key={`approval-log-${index}`}
+                                                sx={{
+                                                    p: 1.5,
+                                                    borderRadius: 1.5,
+                                                    bgcolor: 'background.paper',
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
+                                                }}
+                                            >
+                                                <Stack spacing={0.75}>
+                                                    <Stack direction='row' spacing={1} alignItems='center' justifyContent='space-between' flexWrap='wrap'>
+                                                        <Stack direction='row' spacing={1} alignItems='center' flexWrap='wrap'>
+                                                            <Chip
+                                                                size='small'
+                                                                label={actionTypeLabel}
+                                                                color={actionColor}
+                                                                variant='tonal'
+                                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                                            />
+                                                            {parsedRemark.isActionRequired && (
+                                                                <Chip
+                                                                    size='small'
+                                                                    label='Action Required'
+                                                                    color='warning'
+                                                                    variant='outlined'
+                                                                    sx={{ height: 22, fontSize: '0.68rem' }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                        <Typography variant='caption' color='text.disabled'>
+                                                            {log.action_date ? new Date(String(log.action_date)).toLocaleString('th-TH') : '-'}
+                                                        </Typography>
+                                                    </Stack>
+                                                    <Typography variant='body2' fontWeight={700}>
+                                                        {actorLabel}
+                                                    </Typography>
+                                                    <Stack spacing={0.35}>
+                                                        {stepDescription && (
+                                                            <Typography variant='caption' color='text.secondary'>
+                                                                <strong>Step:</strong> {stepDescription}
+                                                            </Typography>
+                                                        )}
+                                                        <Typography variant='caption' color='text.secondary'>
+                                                            <strong>Action:</strong> {actionTypeLabel}
+                                                        </Typography>
+                                                        {detailText && (
+                                                            <Typography variant='caption' color='text.secondary'>
+                                                                <strong>Detail:</strong> {detailText}
+                                                            </Typography>
+                                                        )}
+                                                    </Stack>
+                                                </Stack>
+                                            </Box>
+                                        )
+                                    })}
+                                </Box>
+                            </Box>
+                        )}
                     </Stack>
                 )}
             </DialogContent>

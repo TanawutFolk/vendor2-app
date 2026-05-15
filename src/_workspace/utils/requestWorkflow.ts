@@ -269,3 +269,68 @@ export const parseActionRequiredRemark = (remark: any): ParsedActionRequiredRema
         }
     }
 }
+
+const toTitleCase = (value: string) =>
+    value
+        .toLowerCase()
+        .split(' ')
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+
+export const formatActionTypeLabel = (value: unknown) => {
+    const action = String(value || '').trim().toLowerCase()
+
+    switch (action) {
+        case 'approved':
+            return 'Approved'
+        case 'rejected':
+            return 'Rejected'
+        case 'vendor_requested':
+            return 'Sent to Vendor'
+        case 'submitted_to_requester_head':
+            return 'Submitted to Requester Head'
+        case 'vendor_disagreed':
+            return 'Vendor Disagreed'
+        case 'action_required':
+            return 'Action Required'
+        case 'edited':
+            return 'Edited'
+        case 'reassigned_pic':
+            return 'Reassigned PIC'
+        default:
+            return toTitleCase(action.replace(/[_-]+/g, ' ')) || 'Updated'
+    }
+}
+
+export const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warning' | 'info' | 'secondary' => {
+    const action = String(value || '').trim().toLowerCase()
+
+    if (action === 'approved') return 'success'
+    if (action === 'rejected' || action === 'vendor_disagreed') return 'error'
+    if (action === 'action_required') return 'warning'
+    if (action === 'vendor_requested' || action === 'submitted_to_requester_head' || action === 'reassigned_pic') return 'info'
+    return 'secondary'
+}
+
+export const buildActionLogPresentation = (log: any, approvalSteps: any[] = []) => {
+    const parsedRemark = parseActionRequiredRemark(log?.remark)
+    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.action_type
+    const detailParts = [
+        parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
+        parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
+        parsedRemark.note ? `note: ${parsedRemark.note}` : '',
+    ].filter(Boolean)
+    const actorName = String(log?.action_by_name || '').trim()
+    const actorCode = String(log?.action_by || '').trim()
+    const matchedStep = approvalSteps.find((step: any) => String(step?.step_id) === String(log?.step_id))
+
+    return {
+        parsedRemark,
+        actionTypeLabel: formatActionTypeLabel(actionType),
+        actionColor: getActionTypeColor(actionType),
+        detailText: detailParts.length > 0 ? detailParts.join(' | ') : (parsedRemark.rawRemark || ''),
+        actorLabel: actorName ? `${actorName}${actorCode ? ` (${actorCode})` : ''}` : (actorCode || '-'),
+        stepDescription: String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim(),
+    }
+}

@@ -31,6 +31,7 @@ import {
 } from '@mui/material'
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import SkeletonCustom from '@components/SkeletonCustom'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import ConfirmModal from '@components/ConfirmModal'
 import ReactApexChart from 'react-apexcharts'
@@ -278,31 +279,49 @@ const SanctionsSection = React.memo(({
     )
 })
 
+const parseFinancialNumber = (value: unknown) => {
+    const normalized = String(value ?? '').replace(/,/g, '').trim()
+    const parsed = Number(normalized)
+
+    return Number.isFinite(parsed) ? parsed : 0
+}
+
+const calculateMarginPercent = (revenueValue: unknown, profitValue: unknown) => {
+    const revenue = parseFinancialNumber(revenueValue)
+    const profit = parseFinancialNumber(profitValue)
+
+    return revenue > 0 ? profit / revenue * 100 : 0
+}
+
+const formatMarginPercent = (value: number) => {
+    if (!Number.isFinite(value) || value === 0) return '0.00%'
+    if (Math.abs(value) < 0.01) return '< 0.01%'
+    if (Math.abs(value) < 1) return `${value.toFixed(3)}%`
+    return `${value.toFixed(2)}%`
+}
+
 const FinancialSection = React.memo(() => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'sales_profit' })
     const salesProfit = useWatch({ control, name: 'sales_profit' }) || []
     const currency = useWatch({ control, name: 'currency' }) || 'THB'
 
-    const maxAmount = useMemo(() => {
-        const values = salesProfit.flatMap(item => [
-            parseFloat(item?.total_revenue) || 0,
-            parseFloat(item?.net_profit) || 0,
-        ])
-        const maxValue = Math.max(...values, 0)
-
-        return maxValue > 0 ? Math.ceil(maxValue * 1.1) : 10
-    }, [salesProfit])
-
     const chartSeries = useMemo(() => [
-        { name: 'Total Revenue', type: 'column', data: salesProfit.map(item => parseFloat(item?.total_revenue) || 0) },
-        { name: 'Net Profit', type: 'column', data: salesProfit.map(item => parseFloat(item?.net_profit) || 0) },
+        { name: 'Total Revenue', type: 'column', data: salesProfit.map(item => parseFinancialNumber(item?.total_revenue)) },
+        { name: 'Net Profit', type: 'column', data: salesProfit.map(item => parseFinancialNumber(item?.net_profit)) },
+        {
+            name: 'Net Profit Margin %',
+            type: 'line',
+            data: salesProfit.map(item => {
+                return parseFloat(calculateMarginPercent(item?.total_revenue, item?.net_profit).toFixed(2))
+            }),
+        },
     ], [salesProfit])
 
     const chartOptions = useMemo(() => ({
         chart: {
             id: 'financial-chart-pdf',
-            type: 'bar' as const,
+            type: 'line' as const,
             height: 270,
             toolbar: { show: false },
             zoom: { enabled: false },
@@ -313,28 +332,44 @@ const FinancialSection = React.memo(() => {
         plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
         dataLabels: { enabled: false },
         legend: { position: 'top' as const },
-        stroke: { width: 0 },
+        stroke: { width: [0, 0, 2], curve: 'smooth' as const },
+        markers: { size: [0, 0, 4] },
         xaxis: { categories: salesProfit.map(item => item?.year || '') },
-        yaxis: {
-            title: { text: `Amount (${currency})` },
-            labels: { formatter: (value: number) => value.toLocaleString() },
-            min: 0,
-            max: maxAmount,
-            forceNiceScale: true,
-        },
-        colors: ['#7367F0', '#28C76F'],
+        yaxis: [
+            {
+                title: { text: `Amount (${currency})` },
+                labels: { formatter: (value: number) => value.toLocaleString() },
+            },
+            {
+                show: false,
+            },
+            {
+                opposite: true,
+                title: { text: '% Margin' },
+                labels: { formatter: (value: number) => formatMarginPercent(value) },
+            },
+        ],
+        colors: ['#7367F0', '#28C76F', '#FF9F43'],
         tooltip: {
             y: [
                 { formatter: (value: number) => value.toLocaleString() },
                 { formatter: (value: number) => value.toLocaleString() },
+                { formatter: (value: number) => formatMarginPercent(value) },
             ],
         },
         grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } },
-    }), [salesProfit, currency, maxAmount])
+    }), [salesProfit, currency])
 
     const chartKey = useMemo(
-        () => salesProfit.map(item => item?.year || '').join(','),
-        [salesProfit]
+        () => [
+            currency,
+            ...salesProfit.flatMap(item => [
+                item?.year || '',
+                item?.total_revenue || '',
+                item?.net_profit || '',
+            ]),
+        ].join('|'),
+        [currency, salesProfit]
     )
 
     return (
@@ -357,9 +392,10 @@ const FinancialSection = React.memo(() => {
                             <TableBody>
                                 {fields.map((field, index) => {
                                     const row = salesProfit[index] || {}
-                                    const revenue = parseFloat(row.total_revenue) || 0
-                                    const profit = parseFloat(row.net_profit) || 0
-                                    const margin = revenue > 0 ? (profit / revenue * 100).toFixed(1) : '-'
+                                    const revenue = parseFinancialNumber(row.total_revenue)
+                                    const margin = revenue > 0
+                                        ? formatMarginPercent(calculateMarginPercent(row.total_revenue, row.net_profit))
+                                        : '-'
 
                                     return (
                                         <TableRow key={field.id} sx={{ '&:last-child td': { borderBottom: 0 } }}>
@@ -394,7 +430,7 @@ const FinancialSection = React.memo(() => {
                                             </TableCell>
                                             <TableCell align='center' sx={{ p: '4px 2px' }}>
                                                 <Typography variant='caption' fontWeight={700} color='success.main'>
-                                                    {margin !== '-' ? `${margin}%` : '-'}
+                                                    {margin}
                                                 </Typography>
                                             </TableCell>
                                         </TableRow>
@@ -435,7 +471,7 @@ const FinancialSection = React.memo(() => {
                     <Paper variant='outlined' sx={{ p: 0, borderRadius: 1.5, height: '100%', overflow: 'hidden' }}>
                         <ReactApexChart
                             key={chartKey}
-                            type='bar'
+                            type='line'
                             options={chartOptions}
                             series={chartSeries}
                             height={280}
@@ -519,9 +555,10 @@ interface CriteriaSectionProps {
     criteriaError: Record<number, string>
     onUploadClick: (idx: number) => void
     onRemoveUpload: (idx: number) => void
+    onDownloadUpload: (filePath?: string, fileName?: string) => void
 }
 
-const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUploadClick, onRemoveUpload }: CriteriaSectionProps) => {
+const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload }: CriteriaSectionProps) => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'criteria' })
     const criteria = useWatch({ control, name: 'criteria' }) || []
@@ -618,14 +655,21 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
 
                                                 {row.uploaded_file ? (
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <Chip
-                                                            icon={<i className='tabler-check' style={{ fontSize: 13 }} />}
-                                                            label={row.uploaded_name || 'Uploaded'}
-                                                            size='small'
-                                                            color='success'
-                                                            variant='tonal'
-                                                            sx={{ fontSize: '0.65rem', maxWidth: 155 }}
-                                                        />
+                                                        <Tooltip title='Open / Download'>
+                                                            <Box
+                                                                onClick={() => onDownloadUpload(row.uploaded_file, row.uploaded_name)}
+                                                                sx={{ display: 'inline-flex', cursor: 'pointer' }}
+                                                            >
+                                                                <Chip
+                                                                    icon={<i className='tabler-check' style={{ fontSize: 13 }} />}
+                                                                    label={row.uploaded_name || 'Uploaded'}
+                                                                    size='small'
+                                                                    color='success'
+                                                                    variant='tonal'
+                                                                    sx={{ fontSize: '0.65rem', maxWidth: 155, '&:hover': { bgcolor: 'action.hover' } }}
+                                                                />
+                                                            </Box>
+                                                        </Tooltip>
                                                         <Tooltip title='Remove'>
                                                             <IconButton size='small' onClick={() => onRemoveUpload(index)} sx={{ p: 0.3 }}>
                                                                 <i className='tabler-x' style={{ fontSize: 12 }} />
@@ -753,6 +797,7 @@ const SuggestionSection = React.memo(
     }) => {
         const { control, register } = useFormContext<GprFormData>()
         const disableSuggestionInputs = accountVendorCodeOnly || readOnly
+        const disableSelectorInputs = readOnly
 
         return (
             <>
@@ -871,7 +916,7 @@ const SuggestionSection = React.memo(
                                     fullWidth
                                     label='Completion Date'
                                     type='date'
-                                    disabled={disableSuggestionInputs}
+                                    disabled={disableSelectorInputs}
                                     InputLabelProps={{ shrink: true }}
                                     {...register('completion_date')}
                                 />
@@ -888,6 +933,7 @@ const SuggestionSection = React.memo(
 export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnly = false }: GprFormDialogProps) {
     const {
         methods,
+        initializing,
         saving,
         generatingPdf,
         sanctionsChecking,
@@ -899,6 +945,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         handleCriteriaUploadClick,
         handleFileChange,
         removeCriteriaUpload,
+        downloadCriteriaFile,
         handleSave,
         handleExportPdf,
         checkSanctions,
@@ -922,6 +969,21 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         return []
     }, [rowData?.approval_steps])
 
+    const approvalLogs = useMemo(() => {
+        const rawLogs = rowData?.approval_logs
+
+        if (Array.isArray(rawLogs)) return rawLogs
+        if (typeof rawLogs === 'string') {
+            try {
+                return JSON.parse(rawLogs)
+            } catch {
+                return []
+            }
+        }
+
+        return []
+    }, [rowData?.approval_logs])
+
     const isAccountVendorCodeOnlyMode = useMemo(() => {
         const currentStep = approvalSteps.find((s: any) => s?.step_status === 'in_progress')
         return isAccountStep(currentStep)
@@ -942,9 +1004,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
 
-        const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
+        const formatSignatureName = (fullName?: string) => {
             const source = (fullName || '').trim()
-            if (!source) return (fallbackCode || '').trim()
+            if (!source) return ''
 
             const parts = source.split(/\s+/).filter(Boolean)
             if (parts.length < 2) return source.toUpperCase()
@@ -1005,12 +1067,36 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             return matched[0]
         }
 
-        const mapSlot = (role: string, step: any): SignatureSlot => ({
-            role,
-            code: String(step?.approver_id || '').trim(),
-            signature: formatSignatureName(step?.approver_name, step?.approver_id),
-            date: formatDate(step?.UPDATE_DATE || step?.CREATE_DATE),
-        })
+        const findLatestLogForStep = (stepId: unknown) => {
+            const matched = approvalLogs.filter((log: any) => String(log?.step_id || '') === String(stepId || ''))
+
+            matched.sort((a: any, b: any) => {
+                const aTime = new Date(a?.action_date || 0).getTime()
+                const bTime = new Date(b?.action_date || 0).getTime()
+                return bTime - aTime
+            })
+
+            return matched[0]
+        }
+
+        const mapSlot = (role: string, step: any): SignatureSlot => {
+            const latestLog = findLatestLogForStep(step?.step_id)
+            const code = String(step?.approver_id || latestLog?.action_by || '').trim()
+            const fullName = String(
+                step?.approver_name
+                || step?.APPROVER_NAME
+                || latestLog?.action_by_name
+                || latestLog?.ACTION_BY_NAME
+                || ''
+            ).trim()
+
+            return {
+                role,
+                code,
+                signature: formatSignatureName(fullName),
+                date: formatDate(step?.UPDATE_DATE || latestLog?.action_date || step?.CREATE_DATE),
+            }
+        }
 
         return [
             mapSlot('Issuer', findLatestApprovedAgreementReachedStep()),
@@ -1018,7 +1104,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             mapSlot('General Manager', findLatestApprovedStep('PO_GM_APPROVAL')),
             mapSlot('Managing Director', findLatestApprovedStep('MD_APPROVAL')),
         ]
-    }, [approvalSteps])
+    }, [approvalLogs, approvalSteps])
 
     return (
         <FormProvider {...methods}>
@@ -1058,34 +1144,49 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                 </DialogTitle>
 
                 <DialogContent dividers sx={{ px: 4, py: 3, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-                    {isReadOnlyMode && (
-                        <Box sx={{ mb: 2, px: 2, py: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
-                            <Typography variant='body2' color='text.secondary'>
-                            This sheet is in read-only mode at the current workflow step.
-                            </Typography>
+                    {initializing ? (
+                        <Box sx={{ minHeight: 320 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
+                                <CircularProgress size={24} />
+                                <Typography variant='body2' sx={{ ml: 1.5 }}>
+                                    Loading selection sheet...
+                                </Typography>
+                            </Box>
+                            <SkeletonCustom />
                         </Box>
-                    )}
+                    ) : (
+                        <>
+                            {isReadOnlyMode && (
+                                <Box sx={{ mb: 2, px: 2, py: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
+                                    <Typography variant='body2' color='text.secondary'>
+                                    This sheet is in read-only mode at the current workflow step.
+                                    </Typography>
+                                </Box>
+                            )}
 
-                    <DisabledBlock disabled={isAccountVendorCodeOnlyMode || isReadOnlyMode}>
-                        <CompanyInfoSection />
-                        <SanctionsSection
-                            checking={sanctionsChecking}
-                            checkState={sanctionsCheck}
-                            onRecheck={checkSanctions}
-                        />
-                        <GeneralInfoSection />
-                        <CriteriaSection
-                            criteriaUploading={criteriaUploading}
-                            criteriaError={criteriaError}
-                            onUploadClick={handleCriteriaUploadClick}
-                            onRemoveUpload={removeCriteriaUpload}
-                        />
-                    </DisabledBlock>
-                    <SuggestionSection
-                        accountVendorCodeOnly={isAccountVendorCodeOnlyMode}
-                        readOnly={isReadOnlyMode}
-                        signatures={signatureSlots}
-                    />
+                            <DisabledBlock disabled={isAccountVendorCodeOnlyMode || isReadOnlyMode}>
+                                <CompanyInfoSection />
+                                <SanctionsSection
+                                    checking={sanctionsChecking}
+                                    checkState={sanctionsCheck}
+                                    onRecheck={checkSanctions}
+                                />
+                                <GeneralInfoSection />
+                                <CriteriaSection
+                                    criteriaUploading={criteriaUploading}
+                                    criteriaError={criteriaError}
+                                    onUploadClick={handleCriteriaUploadClick}
+                                    onRemoveUpload={removeCriteriaUpload}
+                                    onDownloadUpload={downloadCriteriaFile}
+                                />
+                            </DisabledBlock>
+                            <SuggestionSection
+                                accountVendorCodeOnly={isAccountVendorCodeOnlyMode}
+                                readOnly={isReadOnlyMode}
+                                signatures={signatureSlots}
+                            />
+                        </>
+                    )}
                 </DialogContent>
 
                 <DialogActions sx={{ justifyContent: 'flex-start', px: 4, py: 3, gap: 2, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>

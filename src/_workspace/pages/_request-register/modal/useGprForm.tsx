@@ -16,9 +16,7 @@ import { useSaveGprFormMutation, useAddDocumentMutation } from '@_workspace/reac
 export interface SalesProfitYear {
     year: string
     total_revenue: string
-    total_revenue_pct: string
     net_profit: string
-    net_profit_pct: string
 }
 
 export interface GprCriteria {
@@ -98,9 +96,7 @@ export const THIS_YEAR = new Date().getFullYear()
 export const DEFAULT_SALES_PROFIT: SalesProfitYear[] = Array.from({ length: 5 }, (_, i) => ({
     year: String(THIS_YEAR - 4 + i),
     total_revenue: '',
-    total_revenue_pct: '',
     net_profit: '',
-    net_profit_pct: '',
 }))
 
 export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] = [
@@ -185,9 +181,7 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
     const sales_profit = (salesProfitRaw as any[]).map(item => ({
         year: String(item?.year ?? item?.YEAR ?? ''),
         total_revenue: String(item?.total_revenue ?? item?.TOTAL_REVENUE ?? ''),
-        total_revenue_pct: String(item?.total_revenue_pct ?? item?.TOTAL_REVENUE_PCT ?? ''),
         net_profit: String(item?.net_profit ?? item?.NET_PROFIT ?? ''),
-        net_profit_pct: String(item?.net_profit_pct ?? item?.NET_PROFIT_PCT ?? ''),
     }))
 
     const criteriaRaw = Array.isArray(getSourceValue('criteria', 'CRITERIA'))
@@ -324,6 +318,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
     const methods = useForm<GprFormData>({ defaultValues: buildDefault(rowData) })
     const { reset, getValues, setValue } = methods
 
+    const [initializing, setInitializing] = useState(false)
     const [saving, setSaving] = useState(false)
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [sanctionsChecking, setSanctionsChecking] = useState(false)
@@ -382,6 +377,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         if (!open || !rowData?.request_id) return
 
         let active = true
+        setInitializing(true)
         setCriteriaError({})
         setSanctionsCheck(null)
         setPendingCriteriaFiles({})
@@ -405,6 +401,8 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
                 await checkSanctions(defaults.company_name)
             } catch {
                 if (active) reset(buildDefault(rowData))
+            } finally {
+                if (active) setInitializing(false)
             }
         }
 
@@ -444,6 +442,40 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         setValue(`criteria.${index}.uploaded_name` as any, '', { shouldDirty: true })
         setCriteriaError(prev => ({ ...prev, [index]: '' }))
     }, [setValue])
+
+    const downloadCriteriaFile = useCallback(async (filePath?: string, fileName?: string) => {
+        const normalizedFilePath = String(filePath || '').trim()
+        const normalizedFileName = String(fileName || '').trim()
+
+        if (!normalizedFilePath) {
+            ToastMessageError({ message: 'File path is missing.' })
+            return
+        }
+
+        if (normalizedFilePath.startsWith(PENDING_UPLOAD_PREFIX)) {
+            ToastMessageError({ message: 'Please save the selection sheet before downloading this file.' })
+            return
+        }
+
+        try {
+            const response = await RegisterRequestServices.downloadSelectionDocument({
+                file_path: normalizedFilePath,
+                file_name: normalizedFileName,
+                request_number: String(rowData?.request_number || '')
+            })
+
+            const blob = response.data
+            const downloadName = normalizedFileName || normalizedFilePath.split(/[/\\]/).pop() || 'selection-document'
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url
+            anchor.download = downloadName
+            anchor.click()
+            URL.revokeObjectURL(url)
+        } catch (error: any) {
+            ToastMessageError({ message: error?.response?.data?.Message || error?.message || 'Failed to download file' })
+        }
+    }, [rowData?.request_number])
 
     const uploadPendingCriteriaFiles = useCallback(async (formData: GprFormData) => {
         const pendingEntries = Object.entries(pendingCriteriaFiles)
@@ -616,6 +648,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
     return {
         methods,
+        initializing,
         saving,
         generatingPdf,
         sanctionsChecking,
@@ -627,6 +660,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         handleCriteriaUploadClick,
         handleFileChange,
         removeCriteriaUpload,
+        downloadCriteriaFile,
         handleSave,
         handleExportPdf,
         checkSanctions,

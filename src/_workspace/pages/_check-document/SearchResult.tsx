@@ -49,9 +49,9 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import {
     getApproveActionLabel,
+    buildActionLogPresentation,
     inferStepCode,
     getRejectActionLabel,
-    parseActionRequiredRemark,
     isAgreementReachedStep,
     isIssueGprBStep,
     isIssueGprCStep,
@@ -66,13 +66,9 @@ import {
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
 
 interface SearchResultSectionProps {
-    enableMultiSelect: boolean
-    bulkApproveCount: number
-    onBulkApprove: () => void
     columnDefs: ColDef[]
     datasource: IServerSideDatasource
     onGridReady: (params: any) => void
-    onSelectionChanged: (params: any) => void
     detailCellRenderer: any
     detailRowHeight: number
     context: Record<string, any>
@@ -81,13 +77,9 @@ interface SearchResultSectionProps {
 }
 
 const SearchResultSection = ({
-    enableMultiSelect,
-    bulkApproveCount,
-    onBulkApprove,
     columnDefs,
     datasource,
     onGridReady,
-    onSelectionChanged,
     detailCellRenderer,
     detailRowHeight,
     context,
@@ -96,19 +88,6 @@ const SearchResultSection = ({
 }: SearchResultSectionProps) => {
     return (
         <SearchResultCard
-            action={enableMultiSelect ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Button
-                        variant='contained'
-                        color='success'
-                        size='small'
-                        disabled={bulkApproveCount === 0}
-                        onClick={onBulkApprove}
-                    >
-                        {`Approve Selected (${bulkApproveCount})`}
-                    </Button>
-                </Box>
-            ) : null}
         >
             <CardContent sx={{ p: '24px !important' }}>
                 <DxAGgridTable
@@ -120,12 +99,11 @@ const SearchResultSection = ({
                     onGridReady={onGridReady}
                     initialState={initialState}
                     onStateUpdated={onStateUpdated}
-                    onSelectionChanged={onSelectionChanged}
                     masterDetail={true}
                     detailCellRenderer={detailCellRenderer}
                     detailRowHeight={detailRowHeight}
                     context={context}
-                    rowSelection={enableMultiSelect ? 'multiple' : 'single'}
+                    rowSelection='single'
                 />
             </CardContent>
         </SearchResultCard>
@@ -343,28 +321,6 @@ const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string,
     }
 }
 
-const getBulkApproveTarget = (row: any, empCode?: string, queueStepCode?: string, statusOptions: any[] = []) => {
-    const approvalState = getRowApprovalState(row, empCode, queueStepCode, statusOptions)
-
-    if (!approvalState.isActionable) return null
-
-    if (approvalState.isNegotiationStep) {
-        if (!approvalState.agreeAction) return null
-        return {
-            requestId: Number(row?.request_id),
-            nextStatus: approvalState.agreeAction.nextStatus,
-            isFinalStep: approvalState.agreeAction.isFinalStep,
-            approveActionLabel: approvalState.agreeAction.label,
-        }
-    }
-
-    return {
-        requestId: Number(row?.request_id),
-        nextStatus: approvalState.computedNextStatus,
-        isFinalStep: approvalState.isFinalStep,
-        approveActionLabel: approvalState.approveButtonLabel,
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // File Viewer Dialog
@@ -675,7 +631,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const products: any[] = (() => {
         try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
     })().filter(Boolean)
-
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
             <Typography variant='caption' color='text.disabled' fontWeight={700} sx={{ minWidth: 160 }}>{label}</Typography>
@@ -734,11 +689,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
                         <Divider sx={{ flex: 1 }} />
                     </Box>
-                    {showSelectionSheetReadOnly && (
-                        <Button size='small' variant='tonal' color='primary' sx={{ ml: 2 }} startIcon={<i className='tabler-file-report' style={{ fontSize: 16 }} />} onClick={() => setGprFormOpen(true)}>
-                            Open Supplier / Outsourcing Selection Sheet
-                        </Button>
-                    )}
                 </Box>
                 {infoRow('Support Product / Process', data.supportProduct_Process)}
                 {infoRow('Purchase Frequency', data.purchase_frequency)}
@@ -810,6 +760,43 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
+            {showSelectionSheetReadOnly && (
+                <Box
+                    sx={{
+                        mb: 3,
+                        p: 2,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <i className='tabler-clipboard-text' style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }} />
+                        <Box>
+                            <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
+                            <Typography variant='caption' color='text.secondary'>
+                                Selection Sheet (read-only)
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Button
+                            size='small'
+                            variant='contained'
+                            color='primary'
+                            startIcon={<i className='tabler-eye' style={{ fontSize: 14 }} />}
+                            onClick={() => setGprFormOpen(true)}
+                        >
+                            View Selection Sheet
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+
             {approvalSteps.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-list-check' title={`Approval Steps (${approvalSteps.length})`} />
@@ -843,44 +830,78 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                     {logs.length > 0 && (
                         <Box sx={{ mt: 1.5 }}>
                             <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
-                            {logs.map((l: any, i: number) => (
-                                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                                    <i className='tabler-arrow-right' style={{ fontSize: 12, color: 'var(--mui-palette-text-disabled)' }} />
-                                    {(() => {
-                                        const parsedRemark = parseActionRequiredRemark(l.remark)
-                                        const actionTypeLabel = parsedRemark.isActionRequired ? 'action_required' : l.action_type
-                                        const detailParts = [
-                                            parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
-                                            parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
-                                            parsedRemark.note ? `note: ${parsedRemark.note}` : '',
-                                        ].filter(Boolean)
-                                        const detailText = detailParts.length > 0
-                                            ? detailParts.join(' | ')
-                                            : (parsedRemark.rawRemark || '')
+                            {logs.map((l: any, i: number) => {
+                                const {
+                                    parsedRemark,
+                                    actionTypeLabel,
+                                    actionColor,
+                                    detailText,
+                                    actorLabel,
+                                    stepDescription,
+                                } = buildActionLogPresentation(l, approvalSteps)
 
-                                        return (
-                                            <>
-                                                {parsedRemark.isActionRequired && (
+                                return (
+                                    <Box
+                                        key={`action-log-${i}`}
+                                        sx={{
+                                            mb: 1,
+                                            p: 1.5,
+                                            borderRadius: 1.5,
+                                            bgcolor: 'background.paper',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                                                     <Chip
                                                         size='small'
-                                                        label='Action Required'
-                                                        color='warning'
+                                                        label={actionTypeLabel}
+                                                        color={actionColor}
                                                         variant='tonal'
-                                                        sx={{ height: 20, fontSize: '0.65rem' }}
-                                                        onClick={() => {
-                                                            setSelectedActionRequired(parsedRemark)
-                                                            setActionRequiredDialogOpen(true)
-                                                        }}
+                                                        sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
                                                     />
+                                                    {parsedRemark.isActionRequired && (
+                                                        <Chip
+                                                            size='small'
+                                                            label='View Detail'
+                                                            color='warning'
+                                                            variant='outlined'
+                                                            sx={{ height: 22, fontSize: '0.68rem' }}
+                                                            onClick={() => {
+                                                                setSelectedActionRequired(parsedRemark)
+                                                                setActionRequiredDialogOpen(true)
+                                                            }}
+                                                        />
+                                                    )}
+                                                </Box>
+                                                <Typography variant='caption' color='text.disabled'>
+                                                    {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant='body2' fontWeight={600}>
+                                                {actorLabel}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
+                                                {stepDescription && (
+                                                    <Typography variant='caption' color='text.secondary'>
+                                                        <strong>Step:</strong> {stepDescription}
+                                                    </Typography>
                                                 )}
                                                 <Typography variant='caption' color='text.secondary'>
-                                                    <strong>{l.action_by}</strong> - {actionTypeLabel} {detailText ? `(${detailText})` : ''} - {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                                    <strong>Action:</strong> {actionTypeLabel}
                                                 </Typography>
-                                            </>
-                                        )
-                                    })()}
-                                </Box>
-                            ))}
+                                                {detailText && (
+                                                    <Typography variant='caption' color='text.secondary'>
+                                                        <strong>Detail:</strong> {detailText}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                )
+                            })}
                         </Box>
                     )}
                 </Box>
@@ -980,13 +1001,11 @@ interface ApprovalPageContentProps {
     queueStepCode?: string
     accentColor?: string
     showSelectionSheetReadOnly?: boolean
-    enableMultiSelect?: boolean
 }
 
-export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false, enableMultiSelect = true }: ApprovalPageContentProps) {
+export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const gridApiRef = useRef<any>(null)
-    const [selectedRows, setSelectedRows] = useState<any[]>([])
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
     const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
@@ -1007,12 +1026,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
 
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
-
-    useEffect(() => {
-        if (!enableMultiSelect) {
-            setSelectedRows([])
-        }
-    }, [enableMultiSelect])
 
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
@@ -1086,19 +1099,6 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     }), [empCode, queueStepCode])
 
     const colDefs = useMemo<ColDef[]>(() => [
-        {
-            headerName: '',
-            field: 'select',
-            hide: !enableMultiSelect,
-            width: 56,
-            pinned: 'left',
-            sortable: false,
-            filter: false,
-            resizable: false,
-            checkboxSelection: (params: any) => enableMultiSelect && Boolean(getBulkApproveTarget(params.data, empCode, queueStepCode, statusOptions)),
-            headerCheckboxSelection: enableMultiSelect,
-            headerCheckboxSelectionFilteredOnly: enableMultiSelect,
-        },
         {
             headerName: '',
             field: 'view',
@@ -1175,22 +1175,14 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             width: 150,
             valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions, empCode, queueStepCode, enableMultiSelect])
+    ], [statusOptions, empCode, queueStepCode])
 
     const handleActionSuccess = useCallback(() => {
         refreshServerSide()
         setDrawerOpen(false)
         setSelectedData(null)
-        setSelectedRows([])
         setPendingActions([])
     }, [refreshServerSide])
-
-    const bulkApproveTargets = useMemo(
-        () => selectedRows
-            .map(row => getBulkApproveTarget(row, empCode, queueStepCode, statusOptions))
-            .filter(Boolean),
-        [selectedRows, empCode, queueStepCode, statusOptions]
-    )
 
     const gridContext = useMemo(() => ({
         empCode,
@@ -1225,27 +1217,18 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     }), [empCode, queueStepCode, showSelectionSheetReadOnly, handleActionSuccess])
 
     const searchResultDataItem = useMemo(() => ({
-        enableMultiSelect,
-        bulkApproveCount: bulkApproveTargets.length,
-        onBulkApprove: () => {
-            setPendingActions(bulkApproveTargets as ActionDialogProps['actions'])
-            setApproveActionLabel('Approve Selected')
-            setActionMode('approve')
-            setActionDialogOpen(true)
-        },
         columnDefs: colDefs,
         datasource,
         onGridReady: (params: any) => {
             handleGridReady(params)
             gridApiRef.current = params.api
         },
-        onSelectionChanged: (params: any) => setSelectedRows(params.api.getSelectedRows()),
         detailCellRenderer: DetailRenderer,
         detailRowHeight: 800,
         context: gridContext,
         initialState: savedGridState,
         onStateUpdated: handleStateUpdated,
-    }), [enableMultiSelect, bulkApproveTargets, colDefs, datasource, gridContext, handleGridReady, handleStateUpdated, savedGridState])
+    }), [colDefs, datasource, gridContext, handleGridReady, handleStateUpdated, savedGridState])
 
     return (
         <Grid container spacing={6}>

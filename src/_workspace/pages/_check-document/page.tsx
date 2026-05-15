@@ -62,10 +62,11 @@ const InnerApp = () => {
                         <SkeletonCustom />
                     ) : (
                         <ApprovalPageContent
-                    pageTitle='Check Document Queue'
-                    queueStepCode='DOC_CHECK'
-                    accentColor='#00BAD1' // Info color
-                />
+                            pageTitle='Check Document Queue'
+                            queueStepCode='DOC_CHECK'
+                            accentColor='#00BAD1'
+                            showSelectionSheetReadOnly
+                        />
                     )}
                 </Grid>
             </Grid>

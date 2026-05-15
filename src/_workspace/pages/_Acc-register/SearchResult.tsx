@@ -5,7 +5,7 @@ const SearchResult = () => (
         pageTitle='Account Register Vendor'
         queueStepCode='ACCOUNT_REGISTERED'
         accentColor='#28C76F'
-        enableMultiSelect={false}
+        showSelectionSheetReadOnly
     />
 )
 

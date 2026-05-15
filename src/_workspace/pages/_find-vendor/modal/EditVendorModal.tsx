@@ -32,6 +32,7 @@ import { FormProvider } from 'react-hook-form'
 // Components Imports
 import AddProductGroupModal from '../../_add-vendor/modal/AddProductGroupModal'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import SkeletonCustom from '@components/SkeletonCustom'
 import VendorProfileSection from './components/VendorProfileSection'
 import ContactsSection from './components/ContactsSection'
 import ProductsSection from './components/ProductsSection'
@@ -160,9 +161,12 @@ const EditVendorModal = ({
                 />
                 <DialogContent dividers sx={{ p: 3, maxHeight: '75vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {loading ? (
-                        <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
-                            <CircularProgress />
-                            <Typography variant="body1" sx={{ ml: 2 }}>Loading vendor details...</Typography>
+                        <Box sx={{ minHeight: 300 }}>
+                            <Box display="flex" justifyContent="center" alignItems="center" sx={{ mb: 2 }}>
+                                <CircularProgress size={24} />
+                                <Typography variant="body2" sx={{ ml: 1.5 }}>Loading vendor details...</Typography>
+                            </Box>
+                            <SkeletonCustom />
                         </Box>
                     ) : (
                         <>

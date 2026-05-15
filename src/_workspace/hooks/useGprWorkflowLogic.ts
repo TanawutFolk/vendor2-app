@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { isIssueGprBStep, isIssueGprCStep, isPicStep } from '@_workspace/utils/requestWorkflow'
+import { isAgreementReachedStep, isIssueGprBStep, isIssueGprCStep, isPendingAgreementStep, isPicStep } from '@_workspace/utils/requestWorkflow'
 
 interface StatusOptionLike {
     value?: string
@@ -60,9 +60,11 @@ const useGprWorkflowLogic = ({
             && isAssignedPicUser
             && (isPicStep(currentStep) || isPicOwnedNegotiationStep)
             && everRequestedVendor
+            && !isPendingAgreementStep(currentStep)
 
         const isCurrentIssueGprBStep = !!currentStep && isIssueGprBStep(currentStep)
         const isCurrentIssueGprCStep = !!currentStep && isIssueGprCStep(currentStep)
+        const isCurrentAgreementReachedStep = !!currentStep && isAgreementReachedStep(currentStep)
         const isApproveBypassEnabled = isCurrentIssueGprBStep || allowApproveBypass
         const isPostSendGprBFlow = isCurrentIssueGprBStep || isCurrentIssueGprCStep || allowApproveBypass || hasSentGprCInSession
 
@@ -70,6 +72,11 @@ const useGprWorkflowLogic = ({
         const issueGprBStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr b', 'Issue GPR B')
         const issueGprCStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr c', 'Issue GPR C')
         const vendorDisagreedStatusValue = resolveStatusValueByKeyword(statusOptions, 'vendor disagreed', 'Vendor Disagreed')
+        const documentCheckStatusValue =
+            resolveStatusValueByKeyword(statusOptions, 'po & scm check all document', '')
+            || resolveStatusValueByKeyword(statusOptions, 'po & scm checker', '')
+            || resolveStatusValueByKeyword(statusOptions, 'check all document', '')
+            || resolveStatusValueByKeyword(statusOptions, 'document checker', '')
 
         const gprCSteps = (approvalSteps || []).filter((step: any) => isIssueGprCStep(step))
         const hasGprCApproved = gprCSteps.some((step: any) => completedStatuses.has(String(step?.step_status || '').toLowerCase()))
@@ -77,7 +84,7 @@ const useGprWorkflowLogic = ({
         const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.step_status || '').toLowerCase()))
         const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
 
-        const showSendToCheckerBtn = isPicPostVendorStep
+        const showSendToCheckerBtn = isPicPostVendorStep && (isCurrentAgreementReachedStep || (isCurrentIssueGprCStep && hasGprCApproved))
         const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
         const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
         const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
@@ -98,6 +105,7 @@ const useGprWorkflowLogic = ({
             isPicPostVendorStep,
             isCurrentIssueGprBStep,
             isCurrentIssueGprCStep,
+            isCurrentAgreementReachedStep,
             isPostSendGprBFlow,
             isApproveBypassEnabled,
             showSendToCheckerBtn,
@@ -119,8 +127,9 @@ const useGprWorkflowLogic = ({
             issueGprBStatusValue,
             issueGprCStatusValue,
             vendorDisagreedStatusValue,
+            documentCheckStatusValue,
             approveLabel: isCurrentIssueGprCStep
-                ? 'Approve GPR C'
+                ? (hasGprCApproved ? 'Approve and Send to Doc Checker' : 'Approve GPR C')
                 : (isPostSendGprBFlow ? 'Approve and Send to Doc Checker' : 'Approve and Send to Doc Checker'),
             sendToVendorLabel: 'Send GPR B to Vendor',
             sendToRequesterLabel: 'Send GPR C to Requester Approval',
