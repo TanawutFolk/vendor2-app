@@ -93,7 +93,6 @@ export interface SanctionsCheckState {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const BUSINESS_CATEGORIES = ['Manufacturer', 'Trading', 'Service', 'Other']
 export const THIS_YEAR = new Date().getFullYear()
 
 export const DEFAULT_SALES_PROFIT: SalesProfitYear[] = Array.from({ length: 5 }, (_, i) => ({
@@ -172,33 +171,65 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
     const source = Array.isArray(raw) ? raw[0] : raw
     if (!source || typeof source !== 'object') return undefined
 
+    const getSourceValue = (...keys: string[]) => {
+        for (const key of keys) {
+            const value = source[key]
+            if (value !== undefined && value !== null) return value
+        }
+        return undefined
+    }
+
+    const salesProfitRaw = Array.isArray(getSourceValue('sales_profit', 'SALES_PROFIT'))
+        ? getSourceValue('sales_profit', 'SALES_PROFIT')
+        : []
+    const sales_profit = (salesProfitRaw as any[]).map(item => ({
+        year: String(item?.year ?? item?.YEAR ?? ''),
+        total_revenue: String(item?.total_revenue ?? item?.TOTAL_REVENUE ?? ''),
+        total_revenue_pct: String(item?.total_revenue_pct ?? item?.TOTAL_REVENUE_PCT ?? ''),
+        net_profit: String(item?.net_profit ?? item?.NET_PROFIT ?? ''),
+        net_profit_pct: String(item?.net_profit_pct ?? item?.NET_PROFIT_PCT ?? ''),
+    }))
+
+    const criteriaRaw = Array.isArray(getSourceValue('criteria', 'CRITERIA'))
+        ? getSourceValue('criteria', 'CRITERIA')
+        : []
+    const criteria = (criteriaRaw as any[]).map(item => ({
+        no: String(item?.no ?? item?.NO ?? ''),
+        detail: String(item?.detail ?? item?.DETAIL ?? ''),
+        criteria: (item?.criteria ?? item?.CRITERIA ?? item?.criteria_value ?? item?.CRITERIA_VALUE ?? '') as 'Need' | 'Optional',
+        remark: String(item?.remark ?? item?.REMARK ?? ''),
+        uploaded_file: String(item?.uploaded_file ?? item?.UPLOADED_FILE ?? item?.uploaded_file_path ?? item?.UPLOADED_FILE_PATH ?? ''),
+        uploaded_name: String(item?.uploaded_name ?? item?.UPLOADED_NAME ?? item?.uploaded_file_name ?? item?.UPLOADED_FILE_NAME ?? ''),
+    }))
+
     return {
-        company_name: source.company_name,
-        pic_name: source.pic_name,
-        tel: source.tel,
-        email: source.email,
-        address: source.address,
-        business_category: source.business_category,
-        start_year: source.start_year,
-        authorized_capital: source.authorized_capital,
-        establish: source.establish ?? source.establish_years,
-        number_of_employees: source.number_of_employees,
-        manufactured_country: source.manufactured_country,
-        vendor_original_country: source.vendor_original_country,
-        sanctions: source.sanctions ?? source.sanctions_status,
-        currency: source.currency,
-        suggestion: source.suggestion,
-        result: source.result ?? source.result_status,
-        path: source.path ?? source.document_path,
-        gpr_c_approver_name: source.gpr_c_approver_name,
-        gpr_c_approver_email: source.gpr_c_approver_email,
-        gpr_c_pc_pic_name: source.gpr_c_pc_pic_name,
-        gpr_c_pc_pic_email: source.gpr_c_pc_pic_email,
+        company_name: getSourceValue('company_name', 'COMPANY_NAME') as string | undefined,
+        pic_name: getSourceValue('pic_name', 'PIC_NAME') as string | undefined,
+        tel: getSourceValue('tel', 'TEL') as string | undefined,
+        email: getSourceValue('email', 'EMAIL') as string | undefined,
+        address: getSourceValue('address', 'ADDRESS') as string | undefined,
+        business_category: getSourceValue('business_category', 'BUSINESS_CATEGORY') as string | undefined,
+        start_year: getSourceValue('start_year', 'START_YEAR') as string | undefined,
+        authorized_capital: getSourceValue('authorized_capital', 'AUTHORIZED_CAPITAL') as string | undefined,
+        establish: (getSourceValue('establish', 'ESTABLISH', 'establish_years', 'ESTABLISH_YEARS') as string | undefined),
+        number_of_employees: getSourceValue('number_of_employees', 'NUMBER_OF_EMPLOYEES') as string | undefined,
+        manufactured_country: getSourceValue('manufactured_country', 'MANUFACTURED_COUNTRY') as string | undefined,
+        vendor_original_country: getSourceValue('vendor_original_country', 'VENDOR_ORIGINAL_COUNTRY') as string | undefined,
+        sanctions: (getSourceValue('sanctions', 'SANCTIONS', 'sanctions_status', 'SANCTIONS_STATUS') as 'non-concerned' | 'concerned' | '' | undefined),
+        currency: getSourceValue('currency', 'CURRENCY') as string | undefined,
+        suggestion: getSourceValue('suggestion', 'SUGGESTION') as string | undefined,
+        result: (getSourceValue('result', 'RESULT', 'result_status', 'RESULT_STATUS') as 'approval' | 'disapproval' | '' | undefined),
+        path: getSourceValue('path', 'PATH', 'document_path', 'DOCUMENT_PATH') as string | undefined,
+        gpr_c_approver_name: getSourceValue('gpr_c_approver_name', 'GPR_C_APPROVER_NAME') as string | undefined,
+        gpr_c_approver_email: getSourceValue('gpr_c_approver_email', 'GPR_C_APPROVER_EMAIL') as string | undefined,
+        gpr_c_pc_pic_name: getSourceValue('gpr_c_pc_pic_name', 'GPR_C_PC_PIC_NAME') as string | undefined,
+        gpr_c_pc_pic_email: getSourceValue('gpr_c_pc_pic_email', 'GPR_C_PC_PIC_EMAIL') as string | undefined,
         gpr_c_circular_list: (() => {
             try {
-                const parsed = typeof source.gpr_c_circular_json === 'string'
-                    ? JSON.parse(source.gpr_c_circular_json)
-                    : source.gpr_c_circular_json
+                const circularJson = getSourceValue('gpr_c_circular_json', 'GPR_C_CIRCULAR_JSON')
+                const parsed = typeof circularJson === 'string'
+                    ? JSON.parse(circularJson)
+                    : circularJson
                 if (!Array.isArray(parsed)) return []
                 return parsed.map((item: any) => String(item?.email || item || '').trim()).filter(Boolean)
             } catch {
@@ -207,19 +238,20 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
         })(),
         action_required_setup: (() => {
             try {
-                const parsed = typeof source.action_required_json === 'string'
-                    ? JSON.parse(source.action_required_json)
-                    : source.action_required_json
+                const actionRequiredJson = getSourceValue('action_required_json', 'ACTION_REQUIRED_JSON')
+                const parsed = typeof actionRequiredJson === 'string'
+                    ? JSON.parse(actionRequiredJson)
+                    : actionRequiredJson
                 return buildDefaultActionRequiredSetup(parsed || {})
             } catch {
                 return buildDefaultActionRequiredSetup()
             }
         })(),
-        gpr_43_acceptance_status: normalizeGpr43AcceptanceStatus(source.gpr_43_acceptance_status ?? source.GPR_43_ACCEPTANCE_STATUS),
-        vendor_code_selector: source.vendor_code_selector,
-        completion_date: source.completion_date,
-        sales_profit: source.sales_profit,
-        criteria: source.criteria,
+        gpr_43_acceptance_status: normalizeGpr43AcceptanceStatus(getSourceValue('gpr_43_acceptance_status', 'GPR_43_ACCEPTANCE_STATUS')),
+        vendor_code_selector: getSourceValue('vendor_code_selector', 'VENDOR_CODE_SELECTOR') as string | undefined,
+        completion_date: getSourceValue('completion_date', 'COMPLETION_DATE') as string | undefined,
+        sales_profit,
+        criteria,
     }
 }
 

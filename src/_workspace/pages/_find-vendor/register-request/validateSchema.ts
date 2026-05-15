@@ -25,6 +25,13 @@ export const RegisterConfirmSchema = z.object({
         )
 })
 
+export const RegisterContactSelectionSchema = z.object({
+    supportType: z.string().optional().default(''),
+    purchaseFreq: z.string().optional().default(''),
+    vendorContactIds: z.array(z.string()).min(1, 'Please select at least one target contact'),
+    files: z.array(z.any()).optional().default([])
+})
+
 export type RegisterConfirmFormData = z.infer<typeof RegisterConfirmSchema>
 
 export const defaultRegisterConfirmValues: RegisterConfirmFormData = {

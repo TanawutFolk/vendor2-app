@@ -15,6 +15,8 @@ export interface RegisterRequestResponseI<T = any> {
 type GridSearchFilter = { id: string; value: unknown }
 type GridColumnFilter = { id: string; columnFns?: string; value: unknown }
 type GridOrder = { id: string; desc?: boolean }
+type DropdownOption = { value: string; label: string; BUSINESS_CATEGORY_ID?: number; DESCRIPTION?: string | null }
+type CurrencyDropdownOption = { value: string; label: string; CURRENCY_ID?: number }
 
 type GprCGridRequest = {
     SearchFilters?: GridSearchFilter[]
@@ -142,6 +144,20 @@ export default class RegisterRequestServices {
         return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/getStatusOptions`,
             method: 'GET'
+        })
+    }
+
+    static getBusinessCategories(): Promise<AxiosResponse<RegisterRequestResponseI<DropdownOption[]>>> {
+        return axiosRequest<RegisterRequestResponseI<DropdownOption[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/dropdown/business-categories`,
+            method: 'POST'
+        })
+    }
+
+    static getCurrencies(): Promise<AxiosResponse<RegisterRequestResponseI<CurrencyDropdownOption[]>>> {
+        return axiosRequest<RegisterRequestResponseI<CurrencyDropdownOption[]>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/dropdown/currencies`,
+            method: 'POST'
         })
     }
 

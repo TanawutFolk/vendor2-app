@@ -17,10 +17,7 @@ import {
     FormLabel,
     Grid,
     IconButton,
-    InputLabel,
-    MenuItem,
     Paper,
-    Select,
     Slide,
     Table,
     TableBody,
@@ -34,7 +31,7 @@ import {
 } from '@mui/material'
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import SelectCustom from '@components/react-select/SelectCustom'
+import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import ConfirmModal from '@components/ConfirmModal'
 import ReactApexChart from 'react-apexcharts'
 import {
@@ -44,7 +41,11 @@ import {
     useFormContext,
     useWatch,
 } from 'react-hook-form'
-import { useGprForm, BUSINESS_CATEGORIES } from './useGprForm'
+import { fetchBusinessCategories } from '@_workspace/react-select/async-promise-load-options/request-register/fetchBusinessCategories'
+import type { BusinessCategoryOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchBusinessCategories'
+import { fetchCurrencies } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
+import type { CurrencyOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
+import { useGprForm } from './useGprForm'
 import type { GprFormData, GprFormDialogProps, SanctionsCheckState } from './useGprForm'
 import {
     inferStepCode,
@@ -283,50 +284,53 @@ const FinancialSection = React.memo(() => {
     const salesProfit = useWatch({ control, name: 'sales_profit' }) || []
     const currency = useWatch({ control, name: 'currency' }) || 'THB'
 
+    const maxAmount = useMemo(() => {
+        const values = salesProfit.flatMap(item => [
+            parseFloat(item?.total_revenue) || 0,
+            parseFloat(item?.net_profit) || 0,
+        ])
+        const maxValue = Math.max(...values, 0)
+
+        return maxValue > 0 ? Math.ceil(maxValue * 1.1) : 10
+    }, [salesProfit])
+
     const chartSeries = useMemo(() => [
         { name: 'Total Revenue', type: 'column', data: salesProfit.map(item => parseFloat(item?.total_revenue) || 0) },
         { name: 'Net Profit', type: 'column', data: salesProfit.map(item => parseFloat(item?.net_profit) || 0) },
-        {
-            name: 'Net Profit Margin %',
-            type: 'line',
-            data: salesProfit.map(item => {
-                const revenue = parseFloat(item?.total_revenue) || 0
-                const profit = parseFloat(item?.net_profit) || 0
-                return revenue > 0 ? parseFloat((profit / revenue * 100).toFixed(2)) : 0
-            }),
-        },
     ], [salesProfit])
 
     const chartOptions = useMemo(() => ({
         chart: {
             id: 'financial-chart-pdf',
-            type: 'line' as const,
+            type: 'bar' as const,
             height: 270,
             toolbar: { show: false },
+            zoom: { enabled: false },
+            selection: { enabled: false },
             background: 'transparent',
             parentHeightOffset: 0,
         },
         plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
         dataLabels: { enabled: false },
         legend: { position: 'top' as const },
-        stroke: { width: [0, 0, 2], curve: 'smooth' as const },
-        markers: { size: [0, 0, 4] },
+        stroke: { width: 0 },
         xaxis: { categories: salesProfit.map(item => item?.year || '') },
-        yaxis: [
-            { title: { text: `Amount (${currency})` }, labels: { formatter: (value: number) => value.toLocaleString() } },
-            { show: false },
-            { opposite: true, title: { text: '% Margin' }, labels: { formatter: (value: number) => `${value.toFixed(2)}%` } },
-        ],
-        colors: ['#7367F0', '#28C76F', '#FF9F43'],
+        yaxis: {
+            title: { text: `Amount (${currency})` },
+            labels: { formatter: (value: number) => value.toLocaleString() },
+            min: 0,
+            max: maxAmount,
+            forceNiceScale: true,
+        },
+        colors: ['#7367F0', '#28C76F'],
         tooltip: {
             y: [
                 { formatter: (value: number) => value.toLocaleString() },
                 { formatter: (value: number) => value.toLocaleString() },
-                { formatter: (value: number) => `${value.toFixed(2)}%` },
             ],
         },
         grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } },
-    }), [salesProfit, currency])
+    }), [salesProfit, currency, maxAmount])
 
     const chartKey = useMemo(
         () => salesProfit.map(item => item?.year || '').join(','),
@@ -403,17 +407,21 @@ const FinancialSection = React.memo(() => {
                                             <Controller
                                                 name='currency'
                                                 control={control}
-                                                render={({ field }) => (
-                                                    <Select {...field} size='small' variant='standard' sx={{ fontSize: '0.75rem', minWidth: 80, mb: 0.5 }}>
-                                                        <MenuItem value='THB'>THB</MenuItem>
-                                                        <MenuItem value='USD'>USD</MenuItem>
-                                                        <MenuItem value='CNY'>CNY</MenuItem>
-                                                        <MenuItem value='EUR'>EUR</MenuItem>
-                                                        <MenuItem value='JPY'>GBP</MenuItem>
-                                                        <MenuItem value='CNY'>HKD</MenuItem>
-                                                        <MenuItem value='CNY'>JPY</MenuItem>
-                                                        <MenuItem value='CNY'>SGD</MenuItem>
-                                                    </Select>
+                                                render={({ field: { value, onChange, ...field } }) => (
+                                                    <Box sx={{ minWidth: 110, mb: 0.5 }}>
+                                                        <AsyncSelectCustom<CurrencyOption>
+                                                            {...field}
+                                                            label=' '
+                                                            placeholder='Select ...'
+                                                            defaultOptions
+                                                            cacheOptions
+                                                            isClearable={false}
+                                                            classNamePrefix='select'
+                                                            loadOptions={inputValue => fetchCurrencies(inputValue)}
+                                                            value={value ? { value, label: value } : null}
+                                                            onChange={(val) => onChange(val?.value || 'THB')}
+                                                        />
+                                                    </Box>
                                                 )}
                                             />
                                         </Box>
@@ -427,7 +435,7 @@ const FinancialSection = React.memo(() => {
                     <Paper variant='outlined' sx={{ p: 0, borderRadius: 1.5, height: '100%', overflow: 'hidden' }}>
                         <ReactApexChart
                             key={chartKey}
-                            type='line'
+                            type='bar'
                             options={chartOptions}
                             series={chartSeries}
                             height={280}
@@ -463,14 +471,17 @@ const GeneralInfoSection = React.memo(() => {
                             name='business_category'
                             control={control}
                             render={({ field: { value, onChange, ...field } }) => (
-                                <SelectCustom
+                                <AsyncSelectCustom<BusinessCategoryOption>
                                     {...field}
                                     label='Business Category'
                                     placeholder='Select ...'
+                                    defaultOptions
+                                    cacheOptions
                                     isClearable
-                                    options={BUSINESS_CATEGORIES.map(v => ({ value: v, label: v }))}
-                                    value={BUSINESS_CATEGORIES.map(v => ({ value: v, label: v })).find(o => o.value === value) || null}
-                                    onChange={(val: any) => onChange(val?.value || '')}
+                                    classNamePrefix='select'
+                                    loadOptions={inputValue => fetchBusinessCategories(inputValue)}
+                                    value={value ? { value, label: value } : null}
+                                    onChange={(val) => onChange(val?.value || '')}
                                 />
                             )}
                         />

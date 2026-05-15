@@ -31,7 +31,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 // Schema & Types
-import { RegisterConfirmSchema, defaultRegisterConfirmValues } from './validateSchema'
+import { RegisterConfirmSchema, RegisterContactSelectionSchema, defaultRegisterConfirmValues } from './validateSchema'
 import type { RegisterConfirmFormData } from './validateSchema'
 
 type VendorContactOption = {
@@ -62,6 +62,7 @@ interface RegisterConfirmModalProps {
     open: boolean
     vendorData?: RegisterVendorData
     skipAdditionalInfo?: boolean
+    contactSelectionOnly?: boolean
     onClose: () => void
     onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactIds: string[]; files: File[] }) => void
 }
@@ -144,11 +145,13 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, onClose, onConfirm }: RegisterConfirmModalProps) => {
+const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, contactSelectionOnly = false, onClose, onConfirm }: RegisterConfirmModalProps) => {
     // Form setup state
     const [step, setStep] = useState<1 | 2>(1)
     const [confirmOpen, setConfirmOpen] = useState(false)
     const [fileError, setFileError] = useState<string | null>(null) // State for immediate dropzone feedback
+    const isContactSelectionOnly = contactSelectionOnly && !skipAdditionalInfo
+    const formSchema = isContactSelectionOnly ? RegisterContactSelectionSchema : RegisterConfirmSchema
 
     // React Hook Form
     const {
@@ -159,7 +162,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, on
         reset,
         formState: { errors, isValid }
     } = useForm<RegisterConfirmFormData>({
-        resolver: zodResolver(RegisterConfirmSchema),
+        resolver: zodResolver(formSchema),
         defaultValues: defaultRegisterConfirmValues,
         mode: 'onChange'
     })
@@ -358,18 +361,20 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, on
                                 justifyContent: 'center'
                             }}
                         >
-                            <i className={step === 1 ? 'tabler-user-plus' : 'tabler-file-description'} style={{ fontSize: 40, color: '#fff' }} />
+                            <i className={step === 1 ? 'tabler-user-plus' : isContactSelectionOnly ? 'tabler-users' : 'tabler-file-description'} style={{ fontSize: 40, color: '#fff' }} />
                         </Box>
                     </Box>
 
                     <Box sx={{ textAlign: 'center', mb: 2 }}>
                         <Typography variant='h5' color='primary.main' gutterBottom>
-                            {step === 1 ? 'Confirm Registration Request' : 'Additional Information'}
+                            {step === 1 ? 'Confirm Registration Request' : isContactSelectionOnly ? 'Select Contact' : 'Additional Information'}
                         </Typography>
                         <Typography variant="body1" color="text.secondary">
                             {step === 1
                                 ? 'Are you sure you want to create a registration request for the following vendor?'
-                                : 'Please provide the following details to complete the registration request.'}
+                                : isContactSelectionOnly
+                                    ? 'Please select the contact to receive this re-registration request.'
+                                    : 'Please provide the following details to complete the registration request.'}
                         </Typography>
                     </Box>
 
@@ -525,70 +530,74 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, on
                                 )}
                             </Box>
 
-                            <Controller
-                                name="supportType"
-                                control={control}
-                                render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
-                                        required
-                                        label="For support product / process"
-                                        placeholder="e.g. Server infrastructure, Maintenance..."
-                                        error={!!errors.supportType}
-                                        helperText={errors.supportType?.message}
+                            {!isContactSelectionOnly && (
+                                <>
+                                    <Controller
+                                        name="supportType"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <CustomTextField
+                                                {...field}
+                                                fullWidth
+                                                required
+                                                label="For support product / process"
+                                                placeholder="e.g. Server infrastructure, Maintenance..."
+                                                error={!!errors.supportType}
+                                                helperText={errors.supportType?.message}
+                                            />
+                                        )}
                                     />
-                                )}
-                            />
 
-                            <Controller
-                                name="purchaseFreq"
-                                control={control}
-                                render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
-                                        required
-                                        label="Purchase Frequency / Year"
-                                        placeholder="e.g. Monthly, 2-3 times/year..."
-                                        error={!!errors.purchaseFreq}
-                                        helperText={errors.purchaseFreq?.message}
+                                    <Controller
+                                        name="purchaseFreq"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <CustomTextField
+                                                {...field}
+                                                fullWidth
+                                                required
+                                                label="Purchase Frequency / Year"
+                                                placeholder="e.g. Monthly, 2-3 times/year..."
+                                                error={!!errors.purchaseFreq}
+                                                helperText={errors.purchaseFreq?.message}
+                                            />
+                                        )}
                                     />
-                                )}
-                            />
 
-                            <Box>
-                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                    Quotation, Concerned documents <Typography component="span" color="error">*</Typography>
-                                </Typography>
-                                <Dropzone>
-                                    <div {...getRootProps({ className: 'dropzone' })}>
-                                        <input {...getInputProps()} />
-                                        <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 1.5, textAlign: 'center' }}>
-                                            <Box sx={{
-                                                width: 48, height: 48, borderRadius: 1.5,
-                                                bgcolor: 'secondary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}>
-                                                <i className='tabler-upload' style={{ fontSize: 24, color: 'var(--mui-palette-secondary-main)' }} />
-                                            </Box>
-                                            <Typography variant='h6' sx={{ mb: 0.5 }}>Drop files here or click to upload</Typography>
-                                            <Typography variant='body2' fontWeight={600} color='primary.main'>
-                                                Allowed: PDF, Excel, PNG, JPG (Max 10MB)
-                                            </Typography>
-                                            {fileError || errors.files ? (
-                                                <Typography variant='caption' color='error' sx={{ mt: 1, fontWeight: 700 }}>
-                                                    {fileError || errors.files?.message}
-                                                </Typography>
-                                            ) : null}
-                                        </Box>
-                                    </div>
-                                    {files.length > 0 && (
-                                        <List sx={{ mt: 2, p: 0 }}>
-                                            {fileList}
-                                        </List>
-                                    )}
-                                </Dropzone>
-                            </Box>
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                            Quotation, Concerned documents <Typography component="span" color="error">*</Typography>
+                                        </Typography>
+                                        <Dropzone>
+                                            <div {...getRootProps({ className: 'dropzone' })}>
+                                                <input {...getInputProps()} />
+                                                <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 1.5, textAlign: 'center' }}>
+                                                    <Box sx={{
+                                                        width: 48, height: 48, borderRadius: 1.5,
+                                                        bgcolor: 'secondary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                    }}>
+                                                        <i className='tabler-upload' style={{ fontSize: 24, color: 'var(--mui-palette-secondary-main)' }} />
+                                                    </Box>
+                                                    <Typography variant='h6' sx={{ mb: 0.5 }}>Drop files here or click to upload</Typography>
+                                                    <Typography variant='body2' fontWeight={600} color='primary.main'>
+                                                        Allowed: PDF, Excel, PNG, JPG (Max 10MB)
+                                                    </Typography>
+                                                    {fileError || errors.files ? (
+                                                        <Typography variant='caption' color='error' sx={{ mt: 1, fontWeight: 700 }}>
+                                                            {fileError || errors.files?.message}
+                                                        </Typography>
+                                                    ) : null}
+                                                </Box>
+                                            </div>
+                                            {files.length > 0 && (
+                                                <List sx={{ mt: 2, p: 0 }}>
+                                                    {fileList}
+                                                </List>
+                                            )}
+                                        </Dropzone>
+                                    </Box>
+                                </>
+                            )}
                         </Box>
                     )}
                 </DialogContent>
@@ -632,7 +641,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, on
                                 disabled={!isValid}
                                 sx={{ minWidth: 120 }}
                             >
-                                Submit Request
+                                {isContactSelectionOnly ? 'Create Request' : 'Submit Request'}
                             </Button>
                             <Button
                                 variant="tonal"

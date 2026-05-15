@@ -33,7 +33,6 @@ import { z } from 'zod'
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
-import { ToastMessageSuccess, ToastMessageError } from '@/components/ToastMessage'
 
 // React Query Imports
 import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
@@ -65,21 +64,8 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
 
     const onMutateSuccess = (data: any) => {
         if (data && data.Status == true) {
-            const message = {
-                message: data.Message || 'Add Product Group Success',
-                title: 'Add Product Group'
-            }
-
-            ToastMessageSuccess(message)
             handleClose()
             if (onSuccess) onSuccess()
-        } else {
-            const message = {
-                title: 'Add Product Group',
-                message: data?.Message || 'Error'
-            }
-
-            ToastMessageError(message)
         }
     }
 

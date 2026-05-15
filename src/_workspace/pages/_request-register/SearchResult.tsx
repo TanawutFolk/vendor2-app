@@ -6,7 +6,7 @@ import {
     Grid, CardContent, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
     Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
-    TextField, Alert
+    Alert
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 
@@ -81,6 +81,7 @@ import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import CustomTextField from '@components/mui/TextField'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -98,8 +99,21 @@ const safeParseJSON = <T,>(input: unknown, fallback: T): T => {
 
 const buildFileUrls = (documents: any): { name: string; url: string }[] => {
     const docs = safeParseJSON<any[]>(documents, [])
+
+    const isRequestAttachment = (doc: any) => {
+        const fileName = String(doc?.file_name || '').trim()
+        const filePath = String(doc?.file_path || '').trim()
+
+        if (!filePath) return false
+        if (fileName.startsWith('[GPR] ')) return false
+        if (/^[a-zA-Z]:\\/.test(filePath) || /^\\\\/.test(filePath)) return false
+        if (filePath.includes('00.Sending') || filePath.includes('01.Receiving')) return false
+
+        return true
+    }
+
     return docs
-        .filter((d: any) => Boolean(d) && !String(d.file_name || '').startsWith('[GPR] '))
+        .filter((d: any) => Boolean(d) && isRequestAttachment(d))
         .map((d: any) => ({
         name: d.file_name || d.file_path || 'Unnamed File',
         url: `${API_BASE}/uploads/documents/${d.file_path}`
@@ -657,6 +671,39 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 {infoRow('Assigned To (PIC)', data.assign_to)}
                 {infoRow('Submitted Date', data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : '-')}
                 {data.requester_remark && infoRow('Requester Remark', data.requester_remark)}
+                <Box sx={{ mt: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: files.length > 0 ? 1.25 : 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
+                            <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
+                            <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+                        </Box>
+                        <Button
+                            size='small'
+                            variant='tonal'
+                            startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
+                            onClick={() => setFileDialogOpen(true)}
+                            disabled={files.length === 0}
+                        >
+                            View Files
+                        </Button>
+                    </Box>
+                    {files.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {files.map((f, i) => (
+                                <Chip
+                                    key={i}
+                                    label={f.name}
+                                    size='small'
+                                    variant='outlined'
+                                    icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
+                                    onClick={() => window.open(f.url, '_blank')}
+                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </Box>
             </Box>
 
             {/* Vendor Info */}
@@ -875,32 +922,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
                 </Box>
             )} */}
-
-            {/* Attached Files */}
-            <Box sx={{ mb: 3 }}>
-                <SectionHeader icon='tabler-paperclip' title='Attached Files' />
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
-                    <Button size='small' variant='tonal'
-                        startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
-                        onClick={() => setFileDialogOpen(true)}
-                        disabled={files.length === 0}
-                    >
-                        View Files
-                    </Button>
-                </Box>
-                {files.length > 0 && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {files.map((f, i) => (
-                            <Chip key={i} label={f.name} size='small' variant='outlined'
-                                icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
-                                onClick={() => window.open(f.url, '_blank')}
-                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                            />
-                        ))}
-                    </Box>
-                )}
-            </Box>
 
             {/* Account Registration Step UI (only when Account step is in_progress) */}
             {isCurrentAccountStep && (
@@ -1222,21 +1243,61 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 <DialogContent dividers>
                     {editFeedback && <Alert severity={editFeedback.type} sx={{ mb: 2 }}>{editFeedback.msg}</Alert>}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                        <TextField
+                        <CustomTextField
                             fullWidth
                             label='Support Product / Process'
+                            placeholder='e.g. Server infrastructure, Maintenance...'
                             {...registerEdit('supportProduct_Process')}
                         />
-                        <TextField
+                        <CustomTextField
                             fullWidth
                             label='Purchase Frequency'
+                            placeholder='e.g. Monthly, 2-3 times/year...'
                             {...registerEdit('purchase_frequency')}
                         />
-                        <TextField
+                        <CustomTextField
                             fullWidth multiline rows={3}
                             label='Requester Remark'
+                            placeholder='Add remark for this request...'
                             {...registerEdit('requester_remark')}
                         />
+                        <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: files.length > 0 ? 1.25 : 0 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
+                                    <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
+                                    <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+                                </Box>
+                                <Button
+                                    size='small'
+                                    variant='tonal'
+                                    startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
+                                    onClick={() => setFileDialogOpen(true)}
+                                    disabled={files.length === 0}
+                                >
+                                    View Files
+                                </Button>
+                            </Box>
+                            {files.length > 0 ? (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    {files.map((f, i) => (
+                                        <Chip
+                                            key={i}
+                                            label={f.name}
+                                            size='small'
+                                            variant='outlined'
+                                            icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
+                                            onClick={() => window.open(f.url, '_blank')}
+                                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                        />
+                                    ))}
+                                </Box>
+                            ) : (
+                                <Typography variant='caption' color='text.secondary'>
+                                    No attached files
+                                </Typography>
+                            )}
+                        </Box>
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'flex-start' }}>

@@ -102,7 +102,7 @@ const SearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                    const rowData = (result.ResultOnDb || []).map((row: VendorRow) => ({
                         ...row,
                         vendor_id: row.vendor_id ?? row.VENDOR_ID,
                         fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
@@ -478,7 +478,7 @@ const SearchResult = () => {
             <RegisterConfirmModal
                 open={reRegisterModalOpen}
                 vendorData={selectedReRegisterVendor || undefined}
-                skipAdditionalInfo
+                contactSelectionOnly
                 onClose={handleCloseReRegisterModal}
                 onConfirm={handleConfirmReRegister}
             />
