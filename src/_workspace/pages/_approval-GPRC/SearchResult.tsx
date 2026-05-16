@@ -446,18 +446,18 @@ const SearchResult = () => {
             const payload = response.data
             if (!payload.Status) {
                 setMessage({ type: 'error', text: payload.Message || 'GPR C action failed' })
-                ToastMessageError({ message: payload.Message || 'GPR C action failed' })
+                ToastMessageError({ title: 'GPR C Approval', message: payload.Message || 'GPR C action failed' })
                 return
             }
 
             setMessage({ type: 'success', text: payload.Message || 'GPR C action completed' })
-            ToastMessageSuccess({ message: payload.Message || 'GPR C action completed' })
+            ToastMessageSuccess({ title: 'GPR C Approval', message: payload.Message || 'GPR C action completed' })
             setSelectedRow(null)
             refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'GPR C action failed'
             setMessage({ type: 'error', text: message })
-            ToastMessageError({ message })
+            ToastMessageError({ title: 'GPR C Approval', message })
         } finally {
             setSubmitting(false)
         }
@@ -484,18 +484,18 @@ const SearchResult = () => {
             const payload = response.data
             if (!payload.Status) {
                 setMessage({ type: 'error', text: payload.Message || 'Failed to record result' })
-                ToastMessageError({ message: payload.Message || 'Failed to record result' })
+                ToastMessageError({ title: 'Record Action Required Result', message: payload.Message || 'Failed to record result' })
                 return
             }
 
             setMessage({ type: 'success', text: payload.Message || 'Result recorded' })
-            ToastMessageSuccess({ message: payload.Message || 'Result recorded' })
+            ToastMessageSuccess({ title: 'Record Action Required Result', message: payload.Message || 'Result recorded' })
             setSelectedActionRow(null)
             refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to record result'
             setMessage({ type: 'error', text: message })
-            ToastMessageError({ message })
+            ToastMessageError({ title: 'Record Action Required Result', message })
         } finally {
             setSubmitting(false)
         }

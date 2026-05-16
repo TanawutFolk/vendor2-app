@@ -329,7 +329,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     const openConfirmSave = () => {
         if (!rowData?.request_id) return
         if (!isRequester) {
-            ToastMessageError({ message: 'Only requester can update this section.' })
+            ToastMessageError({ title: 'GPR C Notification', message: 'Only requester can update this section.' })
             return
         }
         setConfirmOpen(true)
@@ -343,7 +343,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     const handleSave = () => {
         if (!rowData?.request_id) return
         if (!isRequester) {
-            ToastMessageError({ message: 'Only requester can update this section.' })
+            ToastMessageError({ title: 'GPR C Notification', message: 'Only requester can update this section.' })
             return
         }
 

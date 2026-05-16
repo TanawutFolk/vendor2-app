@@ -448,12 +448,15 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         const normalizedFileName = String(fileName || '').trim()
 
         if (!normalizedFilePath) {
-            ToastMessageError({ message: 'File path is missing.' })
+            ToastMessageError({ title: 'Download File', message: 'File path is missing.' })
             return
         }
 
         if (normalizedFilePath.startsWith(PENDING_UPLOAD_PREFIX)) {
-            ToastMessageError({ message: 'Please save the selection sheet before downloading this file.' })
+            ToastMessageError({
+                title: 'Download File',
+                message: 'Please save the selection sheet before downloading this file.'
+            })
             return
         }
 
@@ -473,7 +476,10 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             anchor.click()
             URL.revokeObjectURL(url)
         } catch (error: any) {
-            ToastMessageError({ message: error?.response?.data?.Message || error?.message || 'Failed to download file' })
+            ToastMessageError({
+                title: 'Download File',
+                message: error?.response?.data?.Message || error?.message || 'Failed to download file'
+            })
         }
     }, [rowData?.request_number])
 
@@ -589,7 +595,10 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             })
 
             if (!saveResponse.data.Status) {
-                ToastMessageError({ message: saveResponse.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet' })
+                ToastMessageError({
+                    title: 'Generate PDF',
+                    message: saveResponse.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
+                })
                 return
             }
 
@@ -623,14 +632,20 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             const documentResponse = await RegisterRequestServices.addDocument(documentForm)
 
             if (!documentResponse.data.Status) {
-                ToastMessageError({ message: documentResponse.data.Message || 'Failed to attach generated PDF' })
+                ToastMessageError({
+                    title: 'Generate PDF',
+                    message: documentResponse.data.Message || 'Failed to attach generated PDF'
+                })
                 return
             }
 
-            ToastMessageSuccess({ message: 'PDF generated, saved, and attached to request.' })
+            ToastMessageSuccess({ title: 'Generate PDF', message: 'PDF generated, saved, and attached to request.' })
             onSaved?.()
         } catch (error: any) {
-            ToastMessageError({ message: error?.response?.data?.Message || error?.message || 'Failed to generate PDF' })
+            ToastMessageError({
+                title: 'Generate PDF',
+                message: error?.response?.data?.Message || error?.message || 'Failed to generate PDF'
+            })
         } finally {
             setGeneratingPdf(false)
         }

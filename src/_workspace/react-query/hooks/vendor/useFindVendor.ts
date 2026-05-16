@@ -62,14 +62,14 @@ export const useUpdateVendor = (onSuccess?: any, onError?: any) => {
         mutationFn: updateVendorBatch,
         onSuccess: (data: any, variables: any, context: any) => {
             if (data?.Status === false) {
-                ToastMessageError({ message: data?.Message || 'Failed to update vendor' })
+                ToastMessageError({ title: 'Update Vendor', message: data?.Message || 'Failed to update vendor' })
             } else {
-                ToastMessageSuccess({ message: data?.Message || 'Vendor updated successfully' })
+                ToastMessageSuccess({ title: 'Update Vendor', message: data?.Message || 'Vendor updated successfully' })
             }
             onSuccess?.(data, variables, context)
         },
         onError: (error: any) => {
-            ToastMessageError({ message: error?.message || 'Failed to update vendor' })
+            ToastMessageError({ title: 'Update Vendor', message: error?.message || 'Failed to update vendor' })
             onError?.(error)
         }
     })

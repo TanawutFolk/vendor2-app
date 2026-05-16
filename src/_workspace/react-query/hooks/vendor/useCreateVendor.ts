@@ -15,14 +15,14 @@ const useCreate = (onSuccess: any, onError: any) => {
         onSuccess: (response: any) => {
             const result = response.data || response
             if (result.Status) {
-                ToastMessageSuccess({ message: 'Vendor added successfully' })
+                ToastMessageSuccess({ title: 'Add Vendor', message: 'Vendor added successfully' })
             } else {
-                ToastMessageError({ message: result.Message || 'Failed to create vendor' })
+                ToastMessageError({ title: 'Add Vendor', message: result.Message || 'Failed to create vendor' })
             }
             onSuccess?.(response)
         },
         onError: (error: any) => {
-            ToastMessageError({ message: error?.message || 'Failed to create vendor' })
+            ToastMessageError({ title: 'Add Vendor', message: error?.message || 'Failed to create vendor' })
             onError?.(error)
         }
     })

@@ -145,7 +145,7 @@ export default function ActionRequiredDialog({
         if (!requestId) {
             const message = 'Missing request id'
             setError('root', { type: 'manual', message })
-            ToastMessageError({ message })
+            ToastMessageError({ title: 'Action Required', message })
             onError?.(message)
 
             return
@@ -154,7 +154,7 @@ export default function ActionRequiredDialog({
         if (!picName.trim() || !picEmail.trim()) {
             const message = 'Please enter a valid PIC EmpCode.'
             setError('pic_empcode', { type: 'manual', message })
-            ToastMessageError({ message })
+            ToastMessageError({ title: 'Action Required', message })
             onError?.(message)
 
             return
@@ -173,20 +173,20 @@ export default function ActionRequiredDialog({
             if (!response.data?.Status) {
                 const message = response.data?.Message || 'Failed to send Action Required'
                 setError('root', { type: 'manual', message })
-                ToastMessageError({ message })
+                ToastMessageError({ title: 'Action Required', message })
                 onError?.(message)
 
                 return
             }
 
             const message = response.data?.Message || 'Action Required sent successfully'
-            ToastMessageSuccess({ message })
+            ToastMessageSuccess({ title: 'Action Required', message })
             await onSuccess()
             onClose()
         } catch (error: unknown) {
             const message = getErrorMessage(error)
             setError('root', { type: 'manual', message })
-            ToastMessageError({ message })
+            ToastMessageError({ title: 'Action Required', message })
             onError?.(message)
         }
     }

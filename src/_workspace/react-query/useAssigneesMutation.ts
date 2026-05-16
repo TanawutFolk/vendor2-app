@@ -12,12 +12,15 @@ export const useSaveAssignee = () => {
         },
         onSuccess: (resData) => {
             if (resData.Status) {
-                ToastMessageSuccess({ message: resData.Message || 'Saved successfully' })
+                ToastMessageSuccess({ title: 'Save Assignee', message: resData.Message || 'Saved successfully' })
             }
             queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         },
         onError: (error: any) => {
-            ToastMessageError({ message: error?.response?.data?.Message || error.message || 'Failed to save assignee' })
+            ToastMessageError({
+                title: 'Save Assignee',
+                message: error?.response?.data?.Message || error.message || 'Failed to save assignee'
+            })
         }
     })
 }

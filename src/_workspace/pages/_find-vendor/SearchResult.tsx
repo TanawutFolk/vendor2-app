@@ -195,7 +195,10 @@ const SearchResult = () => {
             })
             saveAs(file.data, `Vendor_List_All_${buildTimestamp()}.xlsx`)
         } catch {
-            alert('Export failed. Please try again.')
+            ToastMessageError({
+                title: 'Export Vendor',
+                message: 'Export failed. Please try again.'
+            })
         } finally {
             setIsExporting(false)
         }

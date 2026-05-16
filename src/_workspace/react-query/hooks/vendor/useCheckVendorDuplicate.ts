@@ -18,9 +18,12 @@ const useCheckDuplicate = (
         mutationFn: checkDuplicate,
         onSuccess: (data: CheckDuplicateResponseI) => {
             if (data?.Status === false) {
-                ToastMessageError({ message: data?.Message || 'Verification failed' })
+                ToastMessageError({ title: 'Check Vendor Duplicate', message: data?.Message || 'Verification failed' })
             } else {
-                ToastMessageSuccess({ message: data?.Message || 'Vendor is available for adding' })
+                ToastMessageSuccess({
+                    title: 'Check Vendor Duplicate',
+                    message: data?.Message || 'Vendor is available for adding'
+                })
             }
             onSuccess?.(data)
         },
@@ -29,7 +32,7 @@ const useCheckDuplicate = (
                 ? error.message
                 : error.message
 
-            ToastMessageError({ message: errorMessage || 'Verification failed' })
+            ToastMessageError({ title: 'Check Vendor Duplicate', message: errorMessage || 'Verification failed' })
             onError?.(error instanceof Error ? error : new Error(errorMessage))
         }
     })

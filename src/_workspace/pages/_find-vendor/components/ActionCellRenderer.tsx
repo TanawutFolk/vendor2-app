@@ -68,6 +68,7 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
 
   const showActionUnavailableToast = (action: string, message?: string) => {
     ToastMessageError({
+      title: 'Vendor Action',
       message: message || `Cannot open ${action}. Please check your permission or try again.`
     });
   };

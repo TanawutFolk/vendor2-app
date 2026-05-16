@@ -294,7 +294,7 @@ const SearchResult = () => {
 
     const handleVendorEditClick = useCallback((vendorId: number, data: VendorRow) => {
         if (!vendorId || !data) {
-            ToastMessageError({ message: 'Cannot open Edit. Vendor data is not ready.' })
+            ToastMessageError({ title: 'Re-register', message: 'Cannot open Edit. Vendor data is not ready.' })
             return
         }
 
@@ -305,7 +305,7 @@ const SearchResult = () => {
 
     const handleVendorDeleteClick = useCallback((vendorId: number, data: VendorRow) => {
         if (!vendorId || !data) {
-            ToastMessageError({ message: 'Cannot open Delete. Vendor data is not ready.' })
+            ToastMessageError({ title: 'Re-register', message: 'Cannot open Delete. Vendor data is not ready.' })
             return
         }
 

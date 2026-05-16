@@ -19,14 +19,14 @@ const useCreate = (onSuccess: any, onError: any) => {
             // Invalidate product groups query to refresh the dropdown
             queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
             if (data?.Status === false) {
-                ToastMessageError({ message: data?.Message || 'Failed to add product group' })
+                ToastMessageError({ title: 'Add Product Group', message: data?.Message || 'Failed to add product group' })
             } else {
-                ToastMessageSuccess({ message: data?.Message || 'Product Group added successfully' })
+                ToastMessageSuccess({ title: 'Add Product Group', message: data?.Message || 'Product Group added successfully' })
             }
             onSuccess?.(data)
         },
         onError: (error: any) => {
-            ToastMessageError({ message: error?.message || 'Failed to add product group' })
+            ToastMessageError({ title: 'Add Product Group', message: error?.message || 'Failed to add product group' })
             onError?.(error)
         }
     })

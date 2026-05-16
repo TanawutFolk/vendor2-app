@@ -351,9 +351,9 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
             if (res.data.Status) {
                 const responseMessage = res.data.Message || 'Status updated successfully'
                 if (/failed|error/i.test(responseMessage)) {
-                    ToastMessageError({ message: responseMessage })
+                    ToastMessageError({ title: 'Update Request Status', message: responseMessage })
                 } else {
-                    ToastMessageSuccess({ message: responseMessage })
+                    ToastMessageSuccess({ title: 'Update Request Status', message: responseMessage })
                 }
                 reset({ remark: '' })
                 onSuccess()
