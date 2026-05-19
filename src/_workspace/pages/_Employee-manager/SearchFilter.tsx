@@ -16,7 +16,7 @@ import SelectCustom from '@components/react-select/SelectCustom'
 import { useDxContext } from '@/_template/DxContextProvider'
 
 // Types & Schema
-import type { AssigneesFormData } from './validateSchema'
+import type { AssigneeGroupOption, AssigneesFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
@@ -28,9 +28,13 @@ const inUseOptions = [
 
 type GroupOptionSource = {
     label?: string
+    LABEL?: string
     group_name?: string
+    GROUP_NAME?: string
     value?: string
+    VALUE?: string
     group_code?: string
+    GROUP_CODE?: string
 }
 
 type SelectOption = {
@@ -38,10 +42,14 @@ type SelectOption = {
     value: string
 }
 
-const mapGroupOption = (item: GroupOptionSource): SelectOption => ({
-    label: String(item.label || item.group_name || item.value || item.group_code || '').trim(),
-    value: String(item.value || item.group_code || '').trim().toUpperCase()
-})
+const mapGroupOption = (item: GroupOptionSource): AssigneeGroupOption => {
+    const groupCode = String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || item.label || item.LABEL || '').trim().toUpperCase()
+
+    return {
+        label: groupCode,
+        value: groupCode
+    }
+}
 
 const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
@@ -90,15 +98,17 @@ const SearchFilter = () => {
                     <Controller
                         name='searchFilters.group_code'
                         control={control}
-                        render={({ field }) => (
+                        render={({ field: { ref: _ref, ...fieldProps } }) => (
                             <AsyncSelectCustom
-                                label='Group'
-                                placeholder='Select group ...'
+                                {...fieldProps}
+                                label='Group Code'
+                                placeholder='Select group code ...'
+                                isClearable
                                 cacheOptions
                                 defaultOptions
                                 loadOptions={loadGroupOptions}
-                                value={field.value ? { label: field.value, value: field.value } : null}
-                                onChange={(val: SelectOption | null) => field.onChange(val?.value || '')}
+                                getOptionLabel={option => option.label}
+                                getOptionValue={option => option.value}
                                 classNamePrefix='select'
                             />
                         )}

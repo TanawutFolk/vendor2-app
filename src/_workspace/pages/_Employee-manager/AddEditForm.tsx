@@ -31,9 +31,13 @@ type GroupOption = {
 
 type GroupOptionSource = {
     label?: string
+    LABEL?: string
     group_name?: string
+    GROUP_NAME?: string
     value?: string
+    VALUE?: string
     group_code?: string
+    GROUP_CODE?: string
 }
 
 interface Props {
@@ -49,8 +53,8 @@ const normalizeInUse = (value: unknown) => {
 }
 
 const mapGroupOption = (item: GroupOptionSource): GroupOption => ({
-    label: String(item.label || item.group_name || item.value || item.group_code || '').trim(),
-    value: String(item.value || item.group_code || '').trim().toUpperCase()
+    label: String(item.label || item.LABEL || item.group_name || item.GROUP_NAME || item.value || item.VALUE || item.group_code || item.GROUP_CODE || '').trim(),
+    value: String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || '').trim().toUpperCase()
 })
 
 const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {

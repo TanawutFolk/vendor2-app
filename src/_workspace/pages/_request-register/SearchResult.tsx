@@ -559,8 +559,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
     const everRequestedVendor = approvalLogs.some((l: any) => l.action_type === 'vendor_requested')
 
-    const canOpenGprDialog = !isCurrentAccountStep && (isActionable || isPoMgrOrAboveStep) && everRequestedVendor
-    const isGprReadOnly = !isCurrentAccountStep && isPoMgrOrAboveStep
+    const canOpenGprDialog = !isCurrentAccountStep && everRequestedVendor
+    const isGprReadOnly = !isCurrentAccountStep && (!isActionable || isPoMgrOrAboveStep)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
     )

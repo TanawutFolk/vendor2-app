@@ -6,10 +6,22 @@ import { useFormContext } from 'react-hook-form'
 import type { AssigneeRow, AssigneesFormData } from './validateSchema'
 import { useDxContext } from '@/_template/DxContextProvider'
 import AddEditForm from './AddEditForm'
-import { GroupChip } from '@_workspace/utils/groupChipHelper'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
+import { getChipSx } from '@_workspace/utils/statusChipStyles'
+
+const activeStatusTone = { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' }
+const inactiveStatusTone = { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' }
+
+type AssigneeApiRow = AssigneeRow & {
+    ASSIGNEES_ID?: number
+    EMPCODE?: string
+    EMPNAME?: string
+    EMPEMAIL?: string
+    GROUP_CODE?: string
+    GROUP_NAME?: string
+}
 
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<AssigneesFormData>()
@@ -44,7 +56,7 @@ const SearchResult = () => {
                 const payload = {
                     SearchFilters: [
                         { id: 'keyword', value: currentFilters.keyword || '' },
-                        { id: 'group_code', value: currentFilters.group_code || '' },
+                        { id: 'group_code', value: currentFilters.group_code?.value || '' },
                         { id: 'in_use', value: currentFilters.in_use || '' },
                     ],
                     Order: sortModel && sortModel.length > 0
@@ -58,7 +70,7 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                    const rowData = (result.ResultOnDb || []).map((row: AssigneeApiRow) => ({
                         ...row,
                         Assignees_id: row.Assignees_id ?? row.ASSIGNEES_ID,
                         empcode: row.empcode ?? row.EMPCODE,
@@ -107,13 +119,6 @@ const SearchResult = () => {
         { field: 'empEmail', headerName: 'Email', flex: 2, filter: 'agTextColumnFilter' },
         { field: 'group_code', headerName: 'Group Code', flex: 1.2, filter: 'agTextColumnFilter' },
         {
-            field: 'group_name',
-            headerName: 'Group',
-            flex: 1.5,
-            filter: 'agTextColumnFilter',
-            cellRenderer: (params: ICellRendererParams<AssigneeRow>) => <GroupChip value={params.data?.group_code || params.value} label={String(params.value || '')} />
-        },
-        {
             field: 'INUSE',
             headerName: 'Status',
             flex: 1,
@@ -124,8 +129,7 @@ const SearchResult = () => {
                     <Chip
                         label={isActive ? 'Active' : 'Inactive'}
                         size='small'
-                        color={isActive ? 'success' : 'secondary'}
-                        variant='tonal'
+                        sx={getChipSx(isActive ? activeStatusTone : inactiveStatusTone)}
                     />
                 )
             }
@@ -147,7 +151,7 @@ const SearchResult = () => {
                     onStateUpdated={handleStateUpdated}
                     onGridReady={handleGridReady}
                     getRowId={(params: GetRowIdParams<AssigneeRow>) => {
-                        const row = params.data as any
+                        const row = params.data as AssigneeApiRow
                         return String(row.Assignees_id || row.ASSIGNEES_ID || row.empcode || row.EMPCODE || '')
                     }}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assignees found.</span>'

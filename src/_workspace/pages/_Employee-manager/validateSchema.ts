@@ -1,8 +1,13 @@
 import { z } from 'zod'
 
+export const AssigneeGroupOptionSchema = z.object({
+    label: z.string(),
+    value: z.string()
+})
+
 export const AssigneesSearchSchema = z.object({
     keyword: z.string().optional(),
-    group_code: z.string().optional(),
+    group_code: AssigneeGroupOptionSchema.nullable().optional(),
     in_use: z.string().optional()
 })
 
@@ -28,6 +33,7 @@ export const AssigneesFormSchema = z.object({
 export type AssigneesSearchFiltersFormData = z.infer<typeof AssigneesSearchSchema>
 export type AssigneesFormData = z.infer<typeof AssigneesSchema>
 export type AssigneeFormData = z.infer<typeof AssigneesFormSchema>
+export type AssigneeGroupOption = z.infer<typeof AssigneeGroupOptionSchema>
 
 export type AssigneeRow = {
     empcode?: string
@@ -41,7 +47,7 @@ export type AssigneeRow = {
 
 export const defaultSearchFilters: AssigneesSearchFiltersFormData = {
     keyword: '',
-    group_code: '',
+    group_code: null,
     in_use: ''
 }
 
