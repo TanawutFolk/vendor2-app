@@ -52,7 +52,8 @@ const TaskSearchResult = () => {
         getValues,
         setValue,
         isEnableFetching,
-        setIsEnableFetching
+        setIsEnableFetching,
+        lockedLeftColIds: ['action', 'request_number']
     })
 
     // ── Server-Side Datasource ────────────────────────────────────────────────
@@ -116,6 +117,8 @@ const TaskSearchResult = () => {
             field: 'action',
             width: 150,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => (
                 <Button
                     size='small'
@@ -127,6 +130,15 @@ const TaskSearchResult = () => {
                     Reassign
                 </Button>
             ),
+        },
+        {
+            field: 'request_number',
+            headerName: 'Request Number',
+            width: 170,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
+            valueGetter: params => params.data?.request_number || params.data?.request_id || '-',
         },
         {
             field: 'workflow_type',

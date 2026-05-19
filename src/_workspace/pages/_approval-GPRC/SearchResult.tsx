@@ -36,7 +36,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import type { ApprovalGprCFormData } from './validateSchema'
 import ActionRequiredDialog from './modal/ActionRequiredDialog'
 import RequestDetailDialog from './modal/RequestDetailDialog'
-import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
+import useDxServerSideGrid, { enforceLockedLeftColumns } from '@_workspace/hooks/useDxServerSideGrid'
 
 export type GprCQueueRow = {
     REQUEST_ID?: number
@@ -211,10 +211,11 @@ const SearchResult = () => {
         isEnableFetching,
         setIsEnableFetching,
         statePath: 'searchResults.approvalGridState',
+        lockedLeftColIds: ['action', 'request_number'],
     })
 
     const actionRequiredInitialState = useMemo(
-        () => getValues('searchResults.actionRequiredGridState'),
+        () => enforceLockedLeftColumns(getValues('searchResults.actionRequiredGridState'), ['action', 'request_number']),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         []
     )
@@ -224,7 +225,7 @@ const SearchResult = () => {
     }, [])
 
     const handleActionRequiredStateUpdated = useCallback((event: StateUpdatedEvent) => {
-        setValue('searchResults.actionRequiredGridState', event.state, { shouldDirty: false })
+        setValue('searchResults.actionRequiredGridState', enforceLockedLeftColumns(event.state, ['action', 'request_number']), { shouldDirty: false })
     }, [setValue])
 
     const dialogOpen = Boolean(selectedRow)
@@ -504,8 +505,11 @@ const SearchResult = () => {
     const approvalColumnDefs = useMemo<ColDef<GprCQueueRow>[]>(() => [
         {
             headerName: 'Action',
+            field: 'action',
             width: 110,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             sortable: false,
             filter: false,
             cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
@@ -540,6 +544,9 @@ const SearchResult = () => {
             headerName: 'Request No.',
             field: 'request_number',
             minWidth: 150,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.request_number || `REQ-${getRequestId(params.data || {})}`,
         },
@@ -598,8 +605,11 @@ const SearchResult = () => {
     const actionRequiredColumnDefs = useMemo<ColDef<GprCActionRequiredRow>[]>(() => [
         {
             headerName: 'Action',
+            field: 'action',
             minWidth: 290,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             sortable: false,
             filter: false,
             cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => params.data ? (
@@ -628,6 +638,9 @@ const SearchResult = () => {
             headerName: 'Request No.',
             field: 'request_number',
             minWidth: 150,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             filter: 'agTextColumnFilter',
             valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_ID || ''}`,
         },

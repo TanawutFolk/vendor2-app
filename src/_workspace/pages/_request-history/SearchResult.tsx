@@ -440,7 +440,8 @@ export default function SearchResult() {
         getValues,
         setValue,
         isEnableFetching,
-        setIsEnableFetching
+        setIsEnableFetching,
+        lockedLeftColIds: ['view', 'request_number']
     })
 
     // ── Dialog State ─────────────────────────────────────────────────────────
@@ -536,6 +537,8 @@ export default function SearchResult() {
             field: 'view',
             width: 110,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             cellRenderer: (params: any) => {
                 return (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -554,6 +557,15 @@ export default function SearchResult() {
                     </Box>
                 )
             }
+        },
+        {
+            field: 'request_number',
+            headerName: 'Request Number',
+            width: 170,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
+            valueGetter: params => params.data?.request_number || params.data?.request_id || '-'
         },
         {
             headerName: 'Require Action',

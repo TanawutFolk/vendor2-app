@@ -1526,7 +1526,8 @@ export default function SearchResult() {
         getValues,
         setValue,
         isEnableFetching,
-        setIsEnableFetching
+        setIsEnableFetching,
+        lockedLeftColIds: ['view', 'request_number']
     })
 
     // Action dialog & Drawer state
@@ -1623,6 +1624,8 @@ export default function SearchResult() {
             field: 'view',
             width: 50,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             cellRenderer: (params: ICellRendererParams<RegisterRequestRow>) => (
                 <IconButton
                     size='small'
@@ -1635,6 +1638,15 @@ export default function SearchResult() {
                     <i className='tabler-eye' style={{ fontSize: 18 }} />
                 </IconButton>
             )
+        },
+        {
+            field: 'request_number',
+            headerName: 'Request Number',
+            width: 170,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
+            valueGetter: (p: ValueGetterParams<RegisterRequestRow>) => p.data?.request_number || p.data?.request_id || '-'
         },
         {
             field: 'request_status',

@@ -1012,7 +1012,8 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         getValues,
         setValue,
         isEnableFetching,
-        setIsEnableFetching
+        setIsEnableFetching,
+        lockedLeftColIds: ['view', 'request_number']
     })
 
     const [selectedData, setSelectedData] = useState<any | null>(null)
@@ -1104,11 +1105,22 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             field: 'view',
             width: 50,
             pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
             cellRenderer: (params: any) => (
                 <IconButton size='small' color='primary' onClick={() => { setSelectedData(params.data); setDrawerOpen(true) }}>
                     <i className='tabler-eye' style={{ fontSize: 18 }} />
                 </IconButton>
             )
+        },
+        {
+            field: 'request_number',
+            headerName: 'Request Number',
+            width: 170,
+            pinned: 'left',
+            lockPinned: true,
+            suppressMovable: true,
+            valueGetter: params => params.data?.request_number || params.data?.request_id || '-'
         },
         {
             field: 'request_status',

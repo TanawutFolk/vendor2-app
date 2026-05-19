@@ -9,7 +9,7 @@ import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import CustomTextField from '@components/mui/TextField'
-import SelectCustom from '@components/react-select/SelectCustom'
+import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -107,9 +107,17 @@ const SearchFilter = () => {
                                 name='searchFilters.overall_status'
                                 control={control}
                                 render={({ field }) => (
-                                    <SelectCustom
+                                    <AsyncSelectCustom
                                         {...field}
-                                        options={statusOptions}
+                                        cacheOptions
+                                        defaultOptions={statusOptions}
+                                        loadOptions={(inputValue) => {
+                                            const keyword = String(inputValue || '').trim().toLowerCase()
+                                            if (!keyword) return Promise.resolve(statusOptions)
+                                            return Promise.resolve(
+                                                statusOptions.filter((option: any) => String(option?.label || '').toLowerCase().includes(keyword))
+                                            )
+                                        }}
                                         isClearable
                                         label='Status'
                                         placeholder='Select ...'

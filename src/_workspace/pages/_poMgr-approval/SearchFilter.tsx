@@ -17,7 +17,7 @@ import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOpt
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
-import SelectCustom from '@components/react-select/SelectCustom'
+import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
 
 // Utils Imports
@@ -138,9 +138,15 @@ const SearchFilter = () => {
                   name='searchFilters.overall_status'
                   control={control}
                   render={({ field: { ref, ...fieldProps } }) => (
-                    <SelectCustom
+                    <AsyncSelectCustom
                       {...fieldProps}
-                      options={statusOptions}
+                      cacheOptions
+                      defaultOptions={statusOptions}
+                      loadOptions={(inputValue) => {
+                        const keyword = String(inputValue || '').trim().toLowerCase()
+                        if (!keyword) return Promise.resolve(statusOptions)
+                        return Promise.resolve(statusOptions.filter((option: any) => String(option?.label || '').toLowerCase().includes(keyword)))
+                      }}
                       isClearable
                       label='Status'
                       placeholder='Select ...'
