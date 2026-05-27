@@ -3,16 +3,14 @@ import { useState } from 'react'
 import { Controller, useFormContext, useFormState, useFieldArray } from 'react-hook-form'
 
 // MUI Imports
-import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Card, CardContent, Divider, Box, ToggleButton, ToggleButtonGroup, Alert, Table, TableBody, TableCell, TableHead, TableRow, Backdrop, Fade, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
+import { Grid, Button, CircularProgress, Chip, IconButton, Typography, Divider, Box, Alert, Table, TableBody, TableCell, TableHead, TableRow, Backdrop, Fade, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
-import SelectCustom from '@components/react-select/SelectCustom'
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import AddProductGroupModal from './modal/AddProductGroupModal'
 import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Fetch functions & React Query
 import { useCheckDuplicate } from '@_workspace/react-query/hooks/vendor/useCheckVendorDuplicate'
@@ -34,6 +32,8 @@ export interface SectionDisabledProps {
     isDisabled: boolean
 }
 
+type ResultModalType = 'duplicate' | 'blacklist' | 'duplicate-blacklist' | null
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Section 1: Check Vendor Duplicate
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,14 +43,27 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
     const [blacklistMatches, setBlacklistMatches] = useState<BlacklistMatchI[]>([])
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [resultModalOpen, setResultModalOpen] = useState(false)
-    const [resultModalType, setResultModalType] = useState<'duplicate' | 'blacklist' | null>(null)
+    const [resultModalType, setResultModalType] = useState<ResultModalType>(null)
 
     const { control, trigger, getValues } = useFormContext<AddVendorFormData>()
     const { errors } = useFormState({ control })
 
     const { mutate: checkDuplicate, isPending: isLoading } = useCheckDuplicate(
         (data: CheckDuplicateResponseI) => {
-            if (data.isDuplicate && data.existingVendorId) {
+            const matches = data.blacklistMatches || []
+
+            if (data.isDuplicate && data.isBlacklisted) {
+                const errorMsg = data.existingVendorId
+                    ? `Vendor already exists in the system (ID: ${data.existingVendorId}) and matches ${matches.length} record(s) in the Blacklist`
+                    : `Vendor already exists in the system and matches ${matches.length} record(s) in the Blacklist`
+
+                setVerifyError(errorMsg)
+                setExistingVendorId(data.existingVendorId || null)
+                setBlacklistMatches(matches)
+                setResultModalType('duplicate-blacklist')
+                setResultModalOpen(true)
+                onVerifyChange(false, errorMsg)
+            } else if (data.isDuplicate && data.existingVendorId) {
                 const errorMsg = `Vendor already exists in the system (ID: ${data.existingVendorId})`
                 setVerifyError(errorMsg)
                 setExistingVendorId(data.existingVendorId)
@@ -62,7 +75,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 const blacklistMessage = data.Message || 'Vendor matched the blacklist and cannot be registered'
                 setVerifyError(blacklistMessage)
                 setExistingVendorId(null)
-                setBlacklistMatches(data.blacklistMatches || [])
+                setBlacklistMatches(matches)
                 setResultModalType('blacklist')
                 setResultModalOpen(true)
                 onVerifyChange(false, blacklistMessage)
@@ -101,6 +114,50 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 postal_code: values.postal_code
             })
         }
+    }
+
+    const hasBlacklistResult = resultModalType === 'blacklist' || resultModalType === 'duplicate-blacklist'
+    const hasDuplicateResult = resultModalType === 'duplicate' || resultModalType === 'duplicate-blacklist'
+
+    const renderBlacklistMatchesTable = () => (
+        <Box sx={{ overflowX: 'auto' }}>
+            <Table size='small' sx={{ minWidth: 720 }}>
+                <TableHead>
+                    <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {blacklistMatches.map((match, idx) => (
+                        <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                            <TableCell>
+                                <Chip
+                                    label={match.group_code}
+                                    size='small'
+                                    color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                />
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
+                            <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                            <TableCell>{match.source_name || '-'}</TableCell>
+                            <TableCell>{match.entity_number || '-'}</TableCell>
+                            <TableCell>{match.programs || '-'}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Box>
+    )
+
+    const getResultModalTitle = () => {
+        if (resultModalType === 'duplicate-blacklist') return 'Duplicate Vendor and Blacklist Match Found'
+        if (resultModalType === 'blacklist') return 'Blacklist Match Found'
+        return 'Duplicate Vendor Found'
     }
 
     return (
@@ -248,7 +305,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                     }}
                 />
                 <Dialog
-                    maxWidth={resultModalType === 'blacklist' ? 'lg' : 'sm'}
+                    maxWidth={hasBlacklistResult ? 'lg' : 'sm'}
                     fullWidth={true}
                     open={resultModalOpen}
                     onClose={() => setResultModalOpen(false)}
@@ -259,14 +316,30 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 >
                     <DialogTitle>
                         <Typography variant='h5' component='span'>
-                            {resultModalType === 'blacklist' ? 'Blacklist Match Found' : 'Duplicate Vendor Found'}
+                            {getResultModalTitle()}
                         </Typography>
                         <DialogCloseButton onClick={() => setResultModalOpen(false)} disableRipple>
                             <i className='tabler-x' />
                         </DialogCloseButton>
                     </DialogTitle>
                     <DialogContent>
-                        {resultModalType === 'blacklist' ? (
+                        {resultModalType === 'duplicate-blacklist' ? (
+                            <Box sx={{ pt: 2 }}>
+                                <Typography variant='body1' sx={{ mb: 1.5 }}>
+                                    {verifyError || 'This vendor already exists and also matched blacklist data.'}
+                                </Typography>
+                                <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+                                    Existing Vendor ID: {existingVendorId || '-'}
+                                </Typography>
+                                <Typography variant='subtitle2' fontWeight={700} sx={{ mb: 1.5 }}>
+                                    Blacklist Matches
+                                </Typography>
+                                <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+                                    Company name matches {blacklistMatches.length} record(s) in the blacklist. Please contact your compliance team before proceeding.
+                                </Typography>
+                                {renderBlacklistMatchesTable()}
+                            </Box>
+                        ) : resultModalType === 'blacklist' ? (
                             <Box sx={{ pt: 2 }}>
                                 <Typography variant='body1' sx={{ mb: 1.5 }}>
                                     {verifyError || 'This vendor matched blacklist data and registration is blocked.'}
@@ -274,38 +347,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
                                     Company name matches {blacklistMatches.length} record(s) in the blacklist. Please contact your compliance team before proceeding.
                                 </Typography>
-                                <Box sx={{ overflowX: 'auto' }}>
-                                    <Table size='small' sx={{ minWidth: 720 }}>
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell sx={{ fontWeight: 700 }}>List</TableCell>
-                                                <TableCell sx={{ fontWeight: 700 }}>Matched Name</TableCell>
-                                                <TableCell sx={{ fontWeight: 700 }}>Match Type</TableCell>
-                                                <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
-                                                <TableCell sx={{ fontWeight: 700 }}>Entity No.</TableCell>
-                                                <TableCell sx={{ fontWeight: 700 }}>Programs</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {blacklistMatches.map((match, idx) => (
-                                                <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={match.group_code}
-                                                            size='small'
-                                                            color={match.group_code === 'US' ? 'primary' : 'warning'}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
-                                                    <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
-                                                    <TableCell>{match.source_name || '-'}</TableCell>
-                                                    <TableCell>{match.entity_number || '-'}</TableCell>
-                                                    <TableCell>{match.programs || '-'}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </Box>
+                                {renderBlacklistMatchesTable()}
                             </Box>
                         ) : (
                             <Box sx={{ pt: 2 }}>
@@ -319,7 +361,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                         )}
                     </DialogContent>
                     <DialogActions sx={{ justifyContent: 'flex-start' }}>
-                        {resultModalType === 'duplicate' && existingVendorId && (
+                        {hasDuplicateResult && existingVendorId && (
                             <Button
                                 variant='contained'
                                 color='success'

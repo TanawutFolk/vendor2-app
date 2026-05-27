@@ -19,6 +19,11 @@ const useCheckDuplicate = (
         onSuccess: (data: CheckDuplicateResponseI) => {
             if (data?.Status === false) {
                 ToastMessageError({ title: 'Check Vendor Duplicate', message: data?.Message || 'Verification failed' })
+            } else if (data?.isDuplicate || data?.isBlacklisted) {
+                ToastMessageError({
+                    title: 'Check Vendor Duplicate',
+                    message: data?.Message || 'Vendor verification failed'
+                })
             } else {
                 ToastMessageSuccess({
                     title: 'Check Vendor Duplicate',
