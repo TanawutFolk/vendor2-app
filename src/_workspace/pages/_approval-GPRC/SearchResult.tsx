@@ -43,6 +43,7 @@ export type GprCQueueRow = {
     request_id?: number
     request_number?: string
     request_status?: string
+    request_state?: string
     GPR_C_FLOW_ID?: number
     GPR_C_STEP_ID?: number
     STEP_CODE?: string
@@ -70,6 +71,7 @@ export type GprCActionRequiredRow = {
     RESULT_STATUS?: string
     request_number?: string
     request_status?: string
+    request_state?: string
     company_name?: string
 }
 
@@ -200,7 +202,7 @@ const SearchResult = () => {
     const [actionResultDialogOpen, setActionResultDialogOpen] = useState(false)
     const [dialogMode, setDialogMode] = useState<DialogMode>('APPROVE')
     const [remark, setRemark] = useState('')
-    const [resultStatus, setResultStatus] = useState('COMPLETED')
+    const [resultStatus, setResultStatus] = useState('completed')
     const [, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const [actionRequiredTotalCount, setActionRequiredTotalCount] = useState(0)
 
@@ -382,7 +384,7 @@ const SearchResult = () => {
         setDialogMode(mode)
         setSelectedRow(row)
         setRemark('')
-        setResultStatus('COMPLETED')
+        setResultStatus('completed')
         setMessage(null)
     }
 
@@ -404,7 +406,7 @@ const SearchResult = () => {
     const openRecordDialog = (row: GprCActionRequiredRow) => {
         setSelectedActionRow(row)
         setRemark('')
-        setResultStatus('COMPLETED')
+        setResultStatus('completed')
         setMessage(null)
     }
 
@@ -666,7 +668,7 @@ const SearchResult = () => {
             minWidth: 140,
             filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => (
-                <Chip size='small' label={params.data?.RESULT_STATUS || 'PENDING'} color='warning' variant='tonal' />
+                <Chip size='small' label={String(params.data?.RESULT_STATUS || 'pending').toUpperCase()} color='warning' variant='tonal' />
             ),
         },
     ], [])
@@ -815,8 +817,8 @@ const SearchResult = () => {
                             onChange={event => setResultStatus(event.target.value)}
                             fullWidth
                         >
-                            <option value='COMPLETED'>Completed</option>
-                            <option value='INCOMPLETE'>Incomplete</option>
+                            <option value='completed'>Completed</option>
+                            <option value='incomplete'>Incomplete</option>
                         </TextField>
                         <TextField
                             label='Result Remark'

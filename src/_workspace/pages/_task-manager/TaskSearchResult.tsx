@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Button, Chip } from '@mui/material'
-import type { ColDef, GetRowIdParams, ICellRendererParams, IServerSideDatasource, ValueFormatterParams } from 'ag-grid-community'
+import type { ColDef, GetRowIdParams, ICellRendererParams, IServerSideDatasource, SortModelItem, ValueFormatterParams } from 'ag-grid-community'
 import { useFormContext } from 'react-hook-form'
 
 import DxAGgridTable from '@/_template/DxAGgridTable'
@@ -24,6 +24,7 @@ type TaskQueueRow = Record<string, unknown> & {
     request_number?: string
     company_name?: string
     request_status?: string
+    request_state?: string
     vendor_region?: string
     CREATE_DATE?: string
     workflow_type?: string
@@ -68,11 +69,11 @@ const TaskSearchResult = () => {
                 // Build Order from AG Grid sort model
                 const sortModel = params.request.sortModel
                 const orderParams = sortModel && sortModel.length > 0
-                    ? sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
+                    ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
                     : [{ id: 'request_id', desc: true }]
 
                 // Build Order string for SQL
-                const orderStr = orderParams.map((o: any) => `t.${o.id} ${o.desc ? 'DESC' : 'ASC'}`).join(', ')
+                const orderStr = orderParams.map(item => `t.${item.id} ${item.desc ? 'DESC' : 'ASC'}`).join(', ')
 
                 const res = await TaskManagerServices.searchAllTask({
                     SearchFilters: [
@@ -87,12 +88,13 @@ const TaskSearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
+                    const rowData = (result.ResultOnDb || []).map((row: Record<string, unknown>) => ({
                         ...row,
                         request_id: row.request_id ?? row.REQUEST_ID,
                         request_number: row.request_number ?? row.REQUEST_NUMBER,
                         company_name: row.company_name ?? row.COMPANY_NAME,
                         request_status: row.request_status ?? row.REQUEST_STATUS,
+                        request_state: row.request_state ?? row.REQUEST_STATE,
                         vendor_region: row.vendor_region ?? row.VENDOR_REGION,
                         CREATE_DATE: row.CREATE_DATE ?? row.create_date,
                     }))
@@ -116,6 +118,7 @@ const TaskSearchResult = () => {
             headerName: 'Action',
             field: 'action',
             width: 150,
+            sortable: false,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,

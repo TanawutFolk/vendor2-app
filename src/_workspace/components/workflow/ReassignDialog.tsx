@@ -18,6 +18,7 @@ import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import { ToastMessageError, ToastMessageSuccess } from '@components/ToastMessage'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
+import type { AssigneeRowI } from '@_workspace/services/_task-manager/AssigneesServices'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
 
@@ -29,11 +30,6 @@ interface ReassignDialogProps {
     updateBy?: string
     onClose: () => void
     onSuccess: () => void
-}
-
-type AssigneeRow = {
-    empcode?: string
-    empName?: string
 }
 
 type ServiceError = {
@@ -70,7 +66,7 @@ export default function ReassignDialog({
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [confirmModal, setConfirmModal] = useState(false)
-    const [assignees, setAssignees] = useState<AssigneeRow[]>([])
+    const [assignees, setAssignees] = useState<AssigneeRowI[]>([])
     const [toEmpcode, setToEmpcode] = useState('')
     const [reason, setReason] = useState('')
 
@@ -93,12 +89,18 @@ export default function ReassignDialog({
         setLoading(true)
         setError(null)
 
-        AssigneesServices.search({ group_code: groupCode, in_use: '1' })
-            .then(res => {
+        AssigneesServices.searchAll({ group_code: groupCode, in_use: '1' })
+            .then(rows => {
                 if (!isMounted) return
-                const rows = (res.data?.ResultOnDb || []).filter((row: AssigneeRow) => row.empcode !== currentEmpCode)
-                setAssignees(rows)
-                if (rows.length === 0) {
+                const availableRows = Array.from(
+                    new Map(
+                        rows
+                            .filter(row => row.empcode && row.empcode !== currentEmpCode)
+                            .map(row => [row.empcode, row])
+                    ).values()
+                )
+                setAssignees(availableRows)
+                if (availableRows.length === 0) {
                     setError('No active assignee found in this group.')
                 }
             })

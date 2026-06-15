@@ -11,6 +11,7 @@ import { useSaveAssignee } from '@_workspace/react-query/useAssigneesMutation'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import { AssigneesFormSchema, defaultAssigneeFormValues, type AssigneeFormData, type AssigneeRow } from './validateSchema'
+import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement },
@@ -59,6 +60,7 @@ const mapGroupOption = (item: GroupOptionSource): GroupOption => ({
 
 const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
     const { mutate: saveAssignee, isPending } = useSaveAssignee()
+    const user = getUserData()
     const [defaultGroupOptions, setDefaultGroupOptions] = useState<GroupOption[]>([])
 
     const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<AssigneeFormData>({
@@ -112,6 +114,8 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
     const onSubmit = (data: AssigneeFormData) => {
         saveAssignee({
             ...data,
+            CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+            UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             INUSE: normalizeInUse(data.INUSE)
         }, {
             onSuccess: () => {

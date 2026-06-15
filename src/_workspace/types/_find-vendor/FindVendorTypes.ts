@@ -1,5 +1,7 @@
+import type { AuditFields } from '../AuditFields'
+
 // Vendor result type matching API response
-export interface VendorResultI {
+export interface VendorResultI extends AuditFields {
     vendor_id: number
     fft_vendor_code?: string | null
     fft_status?: string | null
@@ -25,12 +27,6 @@ export interface VendorResultI {
     tel_phone: string
     email: string
     position: string
-    CREATE_BY: string
-    UPDATE_BY: string
-    CREATE_DATE: string
-    UPDATE_DATE: string
-    INUSE: number
-
     // Contact Audit
     contact_create_by?: string
     contact_update_by?: string
@@ -118,34 +114,26 @@ export interface DropdownResponseI {
 }
 
 // Contact information interface
-export interface VendorContactI {
+export interface VendorContactI extends Partial<AuditFields> {
     vendor_contact_id?: number
     contact_name: string
     position: string
     tel_phone: string
     email: string
-    CREATE_BY?: string
-    UPDATE_BY?: string
-    CREATE_DATE?: string
-    UPDATE_DATE?: string
 }
 
 // Product information interface  
-export interface VendorProductI {
+export interface VendorProductI extends Partial<AuditFields> {
     vendor_product_id?: number
     product_group_id?: number
     group_name: string
     maker_name: string
     product_name: string
     model_list: string
-    CREATE_BY?: string
-    UPDATE_BY?: string
-    CREATE_DATE?: string
-    UPDATE_DATE?: string
 }
 
 // Comprehensive vendor data interface
-export interface VendorComprehensiveI {
+export interface VendorComprehensiveI extends AuditFields {
     vendor_id: number
     fft_vendor_code?: string | null
     fft_status?: string | null
@@ -163,11 +151,6 @@ export interface VendorComprehensiveI {
     emailmain?: string | null
     contacts: VendorContactI[]
     products: VendorProductI[]
-    CREATE_BY: string
-    UPDATE_BY: string
-    CREATE_DATE: string
-    UPDATE_DATE: string
-    INUSE: number
 }
 
 export interface UpdateVendorParamsI {

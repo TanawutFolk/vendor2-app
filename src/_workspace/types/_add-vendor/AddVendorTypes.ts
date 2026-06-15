@@ -45,8 +45,6 @@ export interface VendorI {
     note?: string
     fft_vendor_code?: string
     fft_status?: 'Active' | 'Inactive'
-    last_sync_date?: string
-    DESCRIPTION?: string
     CREATE_BY: string
     UPDATE_BY?: string
     CREATE_DATE?: string

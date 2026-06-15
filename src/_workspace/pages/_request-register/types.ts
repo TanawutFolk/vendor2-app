@@ -1,3 +1,5 @@
+import type { AuditFields } from '@_workspace/types/AuditFields'
+
 export type RequestStatus = 'new' | 'in_progress' | 'pending_docs' | 'approved' | 'rejected'
 
 export interface VendorContact {
@@ -14,18 +16,20 @@ export interface VendorProduct {
     note?: string
 }
 
-export interface ApprovalStepItem {
+export interface ApprovalStepItem extends AuditFields {
     step_id: number
+    workflow_step_id?: number
+    status_id?: number
     step_order: number
     approver_id: string
     step_status: string
     DESCRIPTION: string
-    CREATE_DATE: string
-    UPDATE_BY: string
-    UPDATE_DATE: string
+    step_code?: string
+    master_status_value?: string
+    master_status_label?: string
 }
 
-export interface ApprovalLogItem {
+export interface ApprovalLogItem extends AuditFields {
     log_id: number
     step_id: number
     action_by: string
@@ -34,10 +38,13 @@ export interface ApprovalLogItem {
     action_date: string
 }
 
-export interface RegistrationRequest {
+export interface RegistrationRequest extends Partial<AuditFields> {
     request_id: number
     vendor_id: number
     status: RequestStatus
+    request_state?: 'in_progress' | 'completed' | 'rejected' | 'cancelled'
+    current_status_id?: number | null
+    current_step_id?: number | null
     submitted_by: string
     submitted_date: string
     support_type?: string           // For support product / process

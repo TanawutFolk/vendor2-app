@@ -69,7 +69,7 @@ export default class ApprovalQueueServices {
     static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
         return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/getStatusOptions`,
-            method: 'GET'
+            method: 'POST'
         })
     }
 

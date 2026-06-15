@@ -1,6 +1,7 @@
 import RegisterRequestAPI from '@_workspace/api/_register-request/RegisterRequest'
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
+import type { AuditFields } from '@_workspace/types/AuditFields'
 
 const APPROVAL_QUEUE_ROOT_URL = 'approval-queue'
 
@@ -143,7 +144,7 @@ export default class RegisterRequestServices {
     static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
         return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/getStatusOptions`,
-            method: 'GET'
+            method: 'POST'
         })
     }
 
@@ -185,10 +186,8 @@ export default class RegisterRequestServices {
         step_order: number
         approver_id: string
         step_status: string
-        DESCRIPTION: string
-        step_code?: string
-        actor_type?: string
-        group_code?: string
+        DESCRIPTION?: string
+        step_code: string
         assignment_mode?: string
         CREATE_BY: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<{ step_id: number }>>> {
@@ -199,8 +198,6 @@ export default class RegisterRequestServices {
             STEP_STATUS: data.step_status,
             DESCRIPTION: data.DESCRIPTION,
             STEP_CODE: data.step_code,
-            ACTOR_TYPE: data.actor_type,
-            GROUP_CODE: data.group_code,
             ASSIGNMENT_MODE: data.assignment_mode,
             CREATE_BY: data.CREATE_BY
         }
@@ -552,6 +549,8 @@ export default class RegisterRequestServices {
 }
 
 export interface StatusOption {
+    workflowStepId?: number
+    statusId: number
     value: string
     label: string
     stepCode?: string
@@ -566,9 +565,11 @@ export interface StatusOption {
     sortOrder: number
 }
 
-export interface ApprovalStep {
+export interface ApprovalStep extends AuditFields {
     step_id: number
     request_id: number
+    workflow_step_id: number
+    status_id: number
     step_order: number
     approver_id: string
     step_status: string
@@ -577,13 +578,12 @@ export interface ApprovalStep {
     actor_type?: string
     group_code?: string
     assignment_mode?: string
-    CREATE_DATE: string
-    UPDATE_BY: string
-    UPDATE_DATE: string
+    master_status_value?: string
+    master_status_label?: string
     approver_name?: string
 }
 
-export interface ApprovalLog {
+export interface ApprovalLog extends AuditFields {
     log_id: number
     request_id: number
     step_id: number
