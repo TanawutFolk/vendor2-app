@@ -569,8 +569,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     if (!data) return null
 
     const files = buildFileUrls(data?.documents)
-    const accent = statusOptions.find(s => s.value === data.request_status)?.accent || '#8A8D99'
-
     const approvalSteps: any[] = (() => {
         try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
     })().filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
@@ -658,17 +656,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
 
     return (
         <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
-            <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
+            <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
                         <Typography variant='h6' fontWeight={800}>{data.company_name}</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5 }}>
-                            <i className='tabler-user' style={{ fontSize: 13, color: 'var(--mui-palette-text-secondary)' }} />
-                            <Typography variant='body2' color='text.secondary'>
-                                {data.FULL_NAME || data.EMPLOYEE_CODE}
-                                {data.EMPLOYEE_DEPT ? ` · ${data.EMPLOYEE_DEPT}` : ''}
-                            </Typography>
-                        </Box>
                         {myActionedStep && (
                             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.step_status === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.step_status === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
                                 <i className={myActionedStep.step_status === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828' }} />
@@ -678,7 +669,21 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                             </Box>
                         )}
                     </Box>
-                    <Chip label={data.request_status} size='medium' sx={{ fontWeight: 700, bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40` }} />
+                    <Box
+                        sx={{
+                            px: 1.5,
+                            py: 0.75,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            bgcolor: 'transparent',
+                            maxWidth: 320,
+                        }}
+                    >
+                        <Typography variant='body2' color='text.secondary' fontWeight={600}>
+                            {data.request_status || '-'}
+                        </Typography>
+                    </Box>
                 </Box>
             </Box>
 
@@ -699,6 +704,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
 
             <Box sx={{ mb: 3 }}>
                 <SectionHeader icon='tabler-building-store' title='Vendor Info' />
+                {infoRow('Company Name', data.company_name)}
                 {infoRow('Vendor Type', data.vendor_type_name)}
                 {infoRow('Region', data.vendor_region)}
                 {infoRow('FFT Vendor Code', data.fft_vendor_code)}
@@ -1004,7 +1010,6 @@ interface ApprovalPageContentProps {
 }
 
 export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
-    const { data: statusOptions = [] } = useRequestStatusOptions()
     const gridApiRef = useRef<any>(null)
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -1130,11 +1135,23 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             cellRenderer: 'agGroupCellRenderer',
             cellRendererParams: {
                 innerRenderer: (params: any) => {
-                    const statusCfg = statusOptions.find(s => s.value === params.value)
-                    const bgColor = statusCfg?.accent ? `${statusCfg.accent}20` : '#8A8D9920'
-                    const txtColor = statusCfg?.accent || '#8A8D99'
                     return (
-                        <Chip label={params.value || '-'} size='small' sx={{ bgcolor: bgColor, color: txtColor, border: '1px solid', borderColor: `${txtColor}40`, fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
+                        <Box
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                minHeight: 24,
+                                px: 1,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                bgcolor: 'transparent',
+                            }}
+                        >
+                            <Typography variant='body2' color='text.secondary' fontWeight={500}>
+                                {params.value || '-'}
+                            </Typography>
+                        </Box>
                     )
                 }
             }
@@ -1187,7 +1204,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             width: 150,
             valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions, empCode, queueStepCode])
+    ], [empCode, queueStepCode])
 
     const handleActionSuccess = useCallback(() => {
         refreshServerSide()

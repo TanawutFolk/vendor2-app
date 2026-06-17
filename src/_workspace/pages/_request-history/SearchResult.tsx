@@ -49,7 +49,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
 import { isIssueGprCStep } from '@_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
-import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,21 +258,26 @@ const DetailRenderer = ({ data }: { data: any }) => {
                 <CardContent sx={{ p: '24px !important' }}>
 
                     {/* Header Banner */}
-                    <Box sx={{ p: 3, mb: 3, borderRadius: 1, bgcolor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.1)', border: '1px solid', borderColor: 'rgb(var(--mui-palette-primary-mainChannel) / 0.25)' }}>
+                    <Box sx={{ p: 3, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
                             <Box>
                                 <Typography variant='h5' fontWeight={800} sx={{ mb: 0.25 }}>{data.company_name}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <i className='tabler-user' style={{ fontSize: 13, color: 'var(--mui-palette-text-secondary)' }} />
-                                    <Typography variant='body2' color='text.secondary'>
-                                        {data.FULL_NAME || data.EMPLOYEE_CODE} · {data.EMPLOYEE_DEPT || ''}
-                                    </Typography>
-                                </Box>
                             </Box>
-                            <Chip
-                                label={data.request_status} size='medium' color='primary' variant='tonal'
-                                sx={{ fontWeight: 700, fontSize: '0.75rem' }}
-                            />
+                            <Box
+                                sx={{
+                                    px: 1.5,
+                                    py: 0.75,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    bgcolor: 'transparent',
+                                    maxWidth: 320,
+                                }}
+                            >
+                                <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ lineHeight: 1.2 }}>
+                                    {data.request_status || '-'}
+                                </Typography>
+                            </Box>
                         </Box>
                     </Box>
 
@@ -310,6 +314,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         <SectionHeader icon='tabler-building-store' title='Vendor Info' />
                         <Grid container spacing={2}>
                             {[
+                                { label: 'Company Name', value: data.company_name },
                                 { label: 'Vendor Type', value: data.vendor_type_name },
                                 { label: 'Region', value: data.vendor_region },
                                 { label: 'FFT Vendor Code', value: data.fft_vendor_code },
@@ -381,7 +386,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                     {/* Registration Steps Timeline */}
                     <Box sx={{ mb: 4 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                            <i className='tabler-timeline' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                
                             <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Registration Steps</Typography>
                             <Divider sx={{ flex: 1 }} />
                         </Box>
@@ -432,7 +437,6 @@ const DetailRenderer = ({ data }: { data: any }) => {
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestHistoryFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
-    const { data: statusOptions = [] } = useRequestStatusOptions()
     const queryClient = useQueryClient()
 
     const [totalCount, setTotalCount] = useState(0)
@@ -645,12 +649,24 @@ export default function SearchResult() {
             cellRenderer: 'agGroupCellRenderer',
             cellRendererParams: {
                 innerRenderer: (params: any) => {
-                    const statusCfg = statusOptions.find(s => s.value === params.value)
-                    const tone = getReadableStatusTone(params.value, statusCfg?.accent)
                     return (
-                        <Chip label={params.value || '-'} size='small'
-                            sx={getChipSx(tone)}
-                        />
+                        <Box
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                maxWidth: '100%',
+                                px: 1.25,
+                                py: 0.35,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                bgcolor: 'transparent',
+                            }}
+                        >
+                            <Typography variant='caption' fontWeight={700} color='text.secondary' noWrap>
+                                {params.value || '-'}
+                            </Typography>
+                        </Box>
                     )
                 }
             }
@@ -723,7 +739,7 @@ export default function SearchResult() {
             minWidth: 140,
             valueFormatter: p => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions, currentUserCode])
+    ], [currentUserCode])
 
     return (
         <Grid container spacing={6}>

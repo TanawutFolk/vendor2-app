@@ -211,13 +211,21 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
             .sort((a, b) => a.step_order - b.step_order)
             .map(s => {
                 const log = approvalLogs?.find(l => l.step_id === s.step_id)
+                const status = toRegisterStatus(s.step_status)
+                const updatedBy = log?.action_by || (status !== 'pending' ? s.UPDATE_BY : undefined)
+                const updatedDate = log?.action_date
+                    ? new Date(log.action_date).toLocaleString('th-TH')
+                    : status !== 'pending' && s.UPDATE_DATE
+                        ? new Date(s.UPDATE_DATE).toLocaleString('th-TH')
+                        : undefined
+
                 return {
                     step: s.step_order,
                     title: s.DESCRIPTION || `Step ${s.step_order}`,
-                    description: s.approver_id ? `Approver: ${s.approver_id}` : '',
-                    status: toRegisterStatus(s.step_status),
-                    updatedBy: log?.action_by || s.UPDATE_BY || undefined,
-                    updatedDate: log?.action_date ? new Date(log.action_date).toLocaleString('th-TH') : s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleString('th-TH') : undefined,
+                    description: '',
+                    status,
+                    updatedBy,
+                    updatedDate,
                     remark: log?.remark || undefined
                 } as RegisterStep
             })
@@ -294,13 +302,15 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                     />
                                 </Box>
 
-                                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: step.remark ? 1 : 0, lineHeight: 1.6 }}>
-                                    {step.description}
+                                {(step.description || step.updatedBy || step.updatedDate) && (
+                                    <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: step.remark ? 1 : 0, lineHeight: 1.6 }}>
+                                        {step.description}
                                     {step.description && (step.updatedBy || step.updatedDate) ? ' • ' : ''}
-                                    {step.updatedBy && `Updated by ${step.updatedBy}`}
-                                    {step.updatedBy && step.updatedDate ? ' on ' : ''}
-                                    {step.updatedDate}
-                                </Typography>
+                                        {step.updatedBy && `Action By ${step.updatedBy}`}
+                                        {step.updatedBy && step.updatedDate ? ' on ' : ''}
+                                        {step.updatedDate}
+                                    </Typography>
+                                )}
 
 
                             </Box>

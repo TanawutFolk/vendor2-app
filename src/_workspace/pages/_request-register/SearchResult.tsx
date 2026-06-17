@@ -78,7 +78,7 @@ import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
-import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import { getChipSx } from '@_workspace/utils/statusChipStyles'
 import CustomTextField from '@components/mui/TextField'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -510,10 +510,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         }
     }
 
-    const statusCfg = statusOptions.find(s => s.value === data.request_status)
-    const accent = statusCfg?.accent || '#8A8D99'
-    const statusTone = getReadableStatusTone(data.request_status, statusCfg?.accent)
-
     // Parse approval steps to determine if current user can act
     const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
         .filter(Boolean)
@@ -699,29 +695,26 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
 
             {/* Header Banner */}
-            <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: `${accent}10`, border: '1px solid', borderColor: `${accent}25` }}>
+            <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
                         <Typography variant='h6' fontWeight={800}>{data.company_name}</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5 }}>
-                            <i className='tabler-user' style={{ fontSize: 13, color: 'var(--mui-palette-text-secondary)' }} />
-                            <Typography variant='body2' color='text.secondary'>
-                                {data.FULL_NAME || data.EMPLOYEE_CODE}
-                                {data.EMPLOYEE_DEPT ? ` · ${data.EMPLOYEE_DEPT}` : ''}
-                            </Typography>
-                        </Box>
                     </Box>
-                    <Chip
-                        label={data.request_status}
-                        size='medium'
-                        sx={getChipSx(statusTone, {
-                            height: 32,
-                            fontSize: '0.78rem',
-                            '& .MuiChip-label': {
-                                px: 1.5
-                            }
-                        })}
-                    />
+                    <Box
+                        sx={{
+                            px: 1.5,
+                            py: 0.75,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            bgcolor: 'transparent',
+                            maxWidth: 320,
+                        }}
+                    >
+                        <Typography variant='body2' color='text.secondary' fontWeight={600}>
+                            {data.request_status || '-'}
+                        </Typography>
+                    </Box>
                 </Box>
             </Box>
 
@@ -812,6 +805,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         </Button>
                     )}
                 </Box>
+                {infoRow('Company Name', data.company_name)}
                 {infoRow('Vendor Type', data.vendor_type_name)}
                 {infoRow('Region', data.vendor_region)}
                 {infoRow('FFT Vendor Code', data.fft_vendor_code)}
@@ -1519,7 +1513,6 @@ const DetailRenderer = (props: any) => {
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
-    const { data: statusOptions = [] } = useRequestStatusOptions()
 
     const gridApiRef = useRef<any>(null)
     const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
@@ -1656,12 +1649,23 @@ export default function SearchResult() {
             cellRenderer: 'agGroupCellRenderer',
             cellRendererParams: {
                 innerRenderer: (params: any) => {
-                    const statusCfg = statusOptions.find(s => s.value === params.value)
-                    const tone = getReadableStatusTone(params.value, statusCfg?.accent)
                     return (
-                        <Chip label={params.value || '-'} size='small'
-                            sx={getChipSx(tone)}
-                        />
+                        <Box
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                minHeight: 24,
+                                px: 1,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                bgcolor: 'transparent',
+                            }}
+                        >
+                            <Typography variant='body2' color='text.secondary' fontWeight={500}>
+                                {params.value || '-'}
+                            </Typography>
+                        </Box>
                     )
                 }
             }
@@ -1705,7 +1709,7 @@ export default function SearchResult() {
             width: 150,
             valueFormatter: (p: ValueFormatterParams<RegisterRequestRow>) => p.value ? new Date(String(p.value)).toLocaleDateString('th-TH') : '-'
         }
-    ], [statusOptions])
+    ], [])
 
     const handleActionSuccess = () => {
         refreshServerSide()

@@ -1,23 +1,16 @@
 import { useMemo } from 'react'
-import { Button, Chip } from '@mui/material'
+import { Box, Button, Chip, Typography } from '@mui/material'
 import type { ColDef, GetRowIdParams, ICellRendererParams, IServerSideDatasource, SortModelItem, ValueFormatterParams } from 'ag-grid-community'
 import { useFormContext } from 'react-hook-form'
 
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import TaskManagerServices from '@_workspace/services/_task-manager/TaskManagerServices'
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import ReassignDialog from '@_workspace/components/workflow/ReassignDialog'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useDxContext } from '@/_template/DxContextProvider'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import type { TaskManagerFormData } from './validateSchema'
-
-type SelectOptionWithAccent = {
-    value: string
-    label: string
-    accent?: string
-}
 
 type TaskQueueRow = Record<string, unknown> & {
     request_id?: number
@@ -44,8 +37,6 @@ const TaskSearchResult = () => {
     const user = getUserData()
     const { getValues, setValue } = useFormContext<TaskManagerFormData>()
     const [dialogRow, setDialogRow] = useState<TaskQueueRow | null>(null)
-    const { data: statusOptionsRaw = [] } = useRequestStatusOptions()
-    const statusOptions = statusOptionsRaw as SelectOptionWithAccent[]
 
     // DxContext: set true by Search/Clear button
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -163,14 +154,24 @@ const TaskSearchResult = () => {
             headerName: 'Status',
             width: 180,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => {
-                const statusCfg = statusOptions.find((item: SelectOptionWithAccent) => item.value === params.value)
-                const accent = statusCfg?.accent || '#8A8D99'
                 return (
-                    <Chip
-                        label={params.value || '-'}
-                        size='small'
-                        sx={{ bgcolor: `${accent}20`, color: accent, border: '1px solid', borderColor: `${accent}40`, fontWeight: 700 }}
-                    />
+                    <Box
+                        sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            maxWidth: '100%',
+                            px: 1.25,
+                            py: 0.35,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            bgcolor: 'transparent',
+                        }}
+                    >
+                        <Typography variant='caption' fontWeight={700} color='text.secondary' noWrap>
+                            {params.value || '-'}
+                        </Typography>
+                    </Box>
                 )
             },
         },
@@ -199,7 +200,7 @@ const TaskSearchResult = () => {
             width: 150,
             valueFormatter: (params: ValueFormatterParams<TaskQueueRow>) => (params.value ? new Date(params.value).toLocaleDateString('th-TH') : '-'),
         },
-    ], [statusOptions])
+    ], [])
 
     return (
         <SearchResultCard>

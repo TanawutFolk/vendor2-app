@@ -599,7 +599,23 @@ const SearchResult = () => {
             minWidth: 150,
             filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => (
-                <Chip size='small' label={params.data?.request_status || 'In Progress'} color='warning' variant='tonal' />
+                <Box
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        maxWidth: '100%',
+                        px: 1.25,
+                        py: 0.35,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'transparent',
+                    }}
+                >
+                    <Typography variant='caption' fontWeight={700} color='text.secondary' noWrap>
+                        {params.data?.request_status || 'In Progress'}
+                    </Typography>
+                </Box>
             ),
         },
     ], [])
@@ -668,7 +684,23 @@ const SearchResult = () => {
             minWidth: 140,
             filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => (
-                <Chip size='small' label={String(params.data?.RESULT_STATUS || 'pending').toUpperCase()} color='warning' variant='tonal' />
+                <Box
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        maxWidth: '100%',
+                        px: 1.25,
+                        py: 0.35,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'transparent',
+                    }}
+                >
+                    <Typography variant='caption' fontWeight={700} color='text.secondary' noWrap>
+                        {String(params.data?.RESULT_STATUS || 'pending').toUpperCase()}
+                    </Typography>
+                </Box>
             ),
         },
     ], [])

@@ -279,7 +279,7 @@ export default function RequestDetailDialog({
                             <SectionHeader icon='tabler-building-store' title='Vendor Info' />
                             <Grid container spacing={2}>
                                 {[
-                                    { label: 'Vendor Name', value: getValue(detail, fallbackRow || null, 'company_name') },
+                                    { label: 'Company Name', value: getValue(detail, fallbackRow || null, 'company_name') },
                                     { label: 'Vendor Type', value: getValue(detail, fallbackRow || null, 'vendor_type_name') },
                                     { label: 'Region', value: getValue(detail, fallbackRow || null, 'vendor_region') },
                                     { label: 'FFT Vendor Code', value: getValue(detail, fallbackRow || null, 'fft_vendor_code') },
