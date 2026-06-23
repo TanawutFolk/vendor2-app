@@ -41,6 +41,7 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -62,8 +63,10 @@ import {
     isVendorDisagreedStep,
     resolveNextStatus,
     normalizeWorkflowText,
+    getNextPendingMainApprovalStep,
 } from '@_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 interface SearchResultSectionProps {
     columnDefs: ColDef[]
@@ -95,7 +98,7 @@ const SearchResultSection = ({
                     serverSideDatasource={datasource}
                     height={600}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No requests pending your approval</span>'
-                    getRowId={(params: any) => String(params.data.request_id ?? params.data.REQUEST_ID ?? params.rowIndex)}
+                    getRowId={(params: any) => String(params.data.request_id ?? params.data.REQUEST_REGISTER_VENDOR_ID ?? params.rowIndex)}
                     onGridReady={onGridReady}
                     initialState={initialState}
                     onStateUpdated={onStateUpdated}
@@ -138,14 +141,14 @@ const getMyQueueStepStatus = (row: any, empCode?: string, queueStepCode?: string
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
     const steps = parseApprovalSteps(row?.approval_steps)
     const myQueueSteps = steps.filter((step: any) => {
-        if (!step || step.approver_id !== empCode) return false
+        if (!step || step.APPROVER_EMPCODE !== empCode) return false
         if (!normalizedQueueStepCode) return true
         return inferStepCode(step) === normalizedQueueStepCode
     })
 
-    if (myQueueSteps.some((step: any) => step.step_status === 'in_progress')) return 'in_progress'
-    if (myQueueSteps.some((step: any) => step.step_status === 'approved')) return 'approved'
-    if (myQueueSteps.some((step: any) => step.step_status === 'rejected')) return 'rejected'
+    if (myQueueSteps.some((step: any) => step.STEP_STATUS === 'in_progress')) return 'in_progress'
+    if (myQueueSteps.some((step: any) => step.STEP_STATUS === 'approved')) return 'approved'
+    if (myQueueSteps.some((step: any) => step.STEP_STATUS === 'rejected')) return 'rejected'
 
     return 'pending'
 }
@@ -183,7 +186,6 @@ const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []
     isNegotiationStep: boolean
     actions: NegotiationAction[]
 } => {
-    const agreementReachedStatus = resolveWorkflowStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
     const issueGprBStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
     const issueGprCStatus = resolveWorkflowStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
     const vendorDisagreedStatus = resolveWorkflowStatusValue(statusOptions, 'Vendor Disagreed', 'Vendor Disagreed')
@@ -192,12 +194,13 @@ const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []
         || resolveWorkflowStatusValue(statusOptions, 'PO & SCM Checker', '')
         || resolveWorkflowStatusValue(statusOptions, 'Check All Document', '')
         || resolveWorkflowStatusValue(statusOptions, 'Document Checker', '')
+        || 'PO & SCM Check All Document'
 
     if (isPendingAgreementStep(currentStep)) {
         return {
             isNegotiationStep: true,
             actions: [
-                { key: 'agree', label: 'Approve', color: 'success', nextStatus: agreementReachedStatus, isFinalStep: false },
+                { key: 'agree', label: 'Approve and Send to Doc Checker', color: 'success', nextStatus: documentCheckStatus, isFinalStep: false },
                 { key: 'disagree', label: 'Send GPR B to Vendor', color: 'warning', nextStatus: issueGprBStatus, isFinalStep: false },
             ],
         }
@@ -217,7 +220,7 @@ const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []
         return {
             isNegotiationStep: true,
             actions: [
-                { key: 'agree', label: 'Approve GPR C', color: 'success', nextStatus: agreementReachedStatus, isFinalStep: false },
+                { key: 'agree', label: 'Approve GPR C', color: 'success', nextStatus: documentCheckStatus, isFinalStep: false },
                 { key: 'disagree', label: 'Vendor Disagreed (Close)', color: 'error', nextStatus: vendorDisagreedStatus, isFinalStep: true },
             ],
         }
@@ -227,7 +230,7 @@ const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []
         return {
             isNegotiationStep: true,
             actions: [
-                { key: 'agree', label: 'Approve and Send to Doc Checker', color: 'success', nextStatus: documentCheckStatus || agreementReachedStatus, isFinalStep: false },
+                { key: 'agree', label: 'Approve and Send to Doc Checker', color: 'success', nextStatus: documentCheckStatus, isFinalStep: false },
                 { key: 'disagree', label: 'Send GPR B to Vendor', color: 'warning', nextStatus: issueGprBStatus, isFinalStep: false },
             ],
         }
@@ -241,7 +244,7 @@ const getNegotiationWorkflowState = (currentStep: any, statusOptions: any[] = []
 
 const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string, statusOptions: any[] = []) => {
     const approvalSteps: any[] = parseApprovalSteps(row?.approval_steps)
-        .sort((a: any, b: any) => a.step_order - b.step_order)
+        .sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
 
     const logs: any[] = (() => {
         try {
@@ -252,9 +255,9 @@ const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string,
         }
     })()
 
-    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+    const currentStep = approvalSteps.find((s: any) => s.STEP_STATUS === 'in_progress')
     const myActionedStep = approvalSteps.find((s: any) =>
-        s.approver_id === empCode && (s.step_status === 'approved' || s.step_status === 'rejected')
+        s.APPROVER_EMPCODE === empCode && (s.STEP_STATUS === 'approved' || s.STEP_STATUS === 'rejected')
     )
 
     const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
@@ -266,13 +269,13 @@ const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string,
         isVendorDisagreedStep(currentStep)
     )
     const isCurrentStepMine = !!currentStep && (
-        currentStep.approver_id === empCode ||
+        currentStep.APPROVER_EMPCODE === empCode ||
         ((isCurrentPicStep || isPicOwnedNegotiationStep) && row.assign_to === empCode)
     )
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
     const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
     const hasVendorRequested = !!currentStep && logs.some((l: any) =>
-        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+        String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') && l.ACTION_TYPE === 'vendor_requested'
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
@@ -291,10 +294,10 @@ const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string,
         ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
         : 'Action Required'
     const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
-        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+        isAgreementReachedStep(s) && String(s?.STEP_STATUS || '').toLowerCase() === 'completed'
     )
     const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
-    const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const nextStep = getNextPendingMainApprovalStep(approvalSteps, currentStep)
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
     const workflowState = getNegotiationWorkflowState(currentStep, statusOptions)
@@ -437,6 +440,7 @@ const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLab
         try {
             const failedRequestIds: number[] = []
             let failedMessage = 'Failed to update status'
+            let successMessage = 'Status updated successfully'
 
             for (const action of actions) {
                 const effectiveNextStatus = String(action.nextStatus || '').trim()
@@ -467,19 +471,24 @@ const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLab
                 if (!res.data.Status) {
                     failedRequestIds.push(action.requestId)
                     failedMessage = res.data.Message || failedMessage
+                } else {
+                    successMessage = res.data.Message || successMessage
                 }
             }
 
             if (failedRequestIds.length > 0) {
                 setError(`${failedMessage} (Request: ${failedRequestIds.join(', ')})`)
+                ToastMessageError({ title: 'Update Request Status', message: failedMessage })
                 onSuccess()
                 return
             }
 
+            ToastMessageSuccess({ title: 'Update Request Status', message: successMessage })
             onSuccess()
             onClose()
         } catch (e: any) {
             setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
+            ToastMessageError({ title: 'Update Request Status', message: e?.response?.data?.Message || e?.message || 'Failed to update status' })
         } finally {
             setLoading(false)
         }
@@ -565,21 +574,22 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const [gprFormOpen, setGprFormOpen] = useState(false)
     const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
     const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
+    const [gprSavedInSession, setGprSavedInSession] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     if (!data) return null
 
     const files = buildFileUrls(data?.documents)
     const approvalSteps: any[] = (() => {
         try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
-    })().filter(Boolean).sort((a: any, b: any) => a.step_order - b.step_order)
+    })().filter(Boolean).sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
 
     const logs: any[] = (() => {
         try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
     })().filter(Boolean)
 
-    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+    const currentStep = approvalSteps.find((s: any) => s.STEP_STATUS === 'in_progress')
     const myActionedStep = approvalSteps.find((s: any) =>
-        s.approver_id === empCode && (s.step_status === 'approved' || s.step_status === 'rejected')
+        s.APPROVER_EMPCODE === empCode && (s.STEP_STATUS === 'approved' || s.STEP_STATUS === 'rejected')
     )
 
     const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
@@ -591,13 +601,13 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
         isVendorDisagreedStep(currentStep)
     )
     const isCurrentStepMine = !!currentStep && (
-        currentStep.approver_id === empCode ||
+        currentStep.APPROVER_EMPCODE === empCode ||
         ((isCurrentPicStep || isPicOwnedNegotiationStep) && data.assign_to === empCode)
     )
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
     const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
     const hasVendorRequested = !!currentStep && logs.some((l: any) =>
-        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+        String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') && l.ACTION_TYPE === 'vendor_requested'
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
@@ -612,10 +622,20 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
         ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
         : 'Action Required'
     const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
-        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+        isAgreementReachedStep(s) && String(s?.STEP_STATUS || '').toLowerCase() === 'completed'
     )
     const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
-    const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const isGprReadOnly = !isActionable
+    const hasPersistedGprData = (() => {
+        if (!data.gpr_data) return false
+        try {
+            const parsed = typeof data.gpr_data === 'string' ? JSON.parse(data.gpr_data) : data.gpr_data
+            return Boolean(parsed)
+        } catch {
+            return false
+        }
+    })()
+    const nextStep = getNextPendingMainApprovalStep(approvalSteps, currentStep)
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
     const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(currentStep, statusOptions)
@@ -646,11 +666,19 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
 
     const getStepStatusCfg = (status: string) => {
         switch (status) {
-            case 'approved': case 'completed': return { label: 'Completed', bgColor: '#eaf8ef', txtColor: '#2e7d32', borderColor: '#b7dfc4', icon: 'tabler-circle-check-filled' }
-            case 'in_progress': return { label: 'In Progress', bgColor: '#fff4e5', txtColor: '#f08a24', borderColor: '#f6c07e', icon: 'tabler-clock-filled' }
-            case 'rejected': return { label: 'Rejected', bgColor: '#fdecec', txtColor: '#d64545', borderColor: '#f4b4b4', icon: 'tabler-circle-x-filled' }
-            case 'skipped': return { label: 'Skipped', bgColor: '#eaf3ff', txtColor: '#3b82f6', borderColor: '#b9d7ff', icon: 'tabler-circle-minus' }
-            case 'pending': default: return { label: 'Waiting', bgColor: '#f2f3f5', txtColor: '#8b909a', borderColor: '#d8dce2', icon: 'tabler-clock' }
+            case 'approved':
+            case 'completed':
+                return { label: 'Completed', icon: 'tabler-circle-check-filled', tone: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' } }
+            case 'in_progress':
+            case 'current':
+                return { label: 'In Progress', icon: 'tabler-clock-play', tone: { bg: '#FFF0D9', color: '#D96D00', border: '#FFB35C' } }
+            case 'rejected':
+                return { label: 'Rejected', icon: 'tabler-circle-x-filled', tone: { bg: '#FFE0E2', color: '#B42335', border: '#FF8B98' } }
+            case 'skipped':
+                return { label: 'Skipped', icon: 'tabler-circle-minus', tone: { bg: '#D8F2FF', color: '#0277A8', border: '#6ACCF2' } }
+            case 'pending':
+            default:
+                return { label: 'Waiting', icon: 'tabler-clock', tone: { bg: '#EDEDED', color: '#667085', border: '#CFCFCF' } }
         }
     }
 
@@ -661,10 +689,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                     <Box>
                         <Typography variant='h6' fontWeight={800}>{data.company_name}</Typography>
                         {myActionedStep && (
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.step_status === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.step_status === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
-                                <i className={myActionedStep.step_status === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828' }} />
-                                <Typography variant='caption' sx={{ fontWeight: 700, color: myActionedStep.step_status === 'approved' ? '#2e7d32' : '#c62828', lineHeight: 1 }}>
-                                    Your action: {myActionedStep.step_status === 'approved' ? 'Approved' : 'Rejected'} · {myActionedStep.DESCRIPTION}
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.STEP_STATUS === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.STEP_STATUS === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
+                                <i className={myActionedStep.STEP_STATUS === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828' }} />
+                                <Typography variant='caption' sx={{ fontWeight: 700, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828', lineHeight: 1 }}>
+                                    Your action: {myActionedStep.STEP_STATUS === 'approved' ? 'Approved' : 'Rejected'} · {myActionedStep.DESCRIPTION}
                                 </Typography>
                             </Box>
                         )}
@@ -702,17 +730,33 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 {data.requester_remark && infoRow('Requester Remark', data.requester_remark)}
             </Box>
 
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 4 }}>
                 <SectionHeader icon='tabler-building-store' title='Vendor Info' />
-                {infoRow('Company Name', data.company_name)}
-                {infoRow('Vendor Type', data.vendor_type_name)}
-                {infoRow('Region', data.vendor_region)}
-                {infoRow('FFT Vendor Code', data.fft_vendor_code)}
-                {infoRow('FFT Status', formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }))}
-                {infoRow('Address', data.address)}
-                {infoRow('Province', data.province)}
-                {infoRow('Tel Center', data.tel_center)}
-                {infoRow('Email (Main)', data.emailmain)}
+                <Grid container spacing={2}>
+                    {[
+                        { label: 'Company Name', value: data.company_name },
+                        { label: 'Vendor Type', value: data.vendor_type_name },
+                        { label: 'Region', value: data.vendor_region },
+                        { label: 'FFT Vendor Code', value: data.fft_vendor_code },
+                        { label: 'FFT Status', value: formatFftStatus(data.fft_status) },
+                        { label: 'Province', value: data.province },
+                        { label: 'Postal Code', value: data.postal_code },
+                        { label: 'Tel Center', value: data.tel_center },
+                        { label: 'Website', value: data.website },
+                        { label: 'Email (Main)', value: data.emailmain },
+                    ].map(({ label, value }) => (
+                        <Grid item xs={12} sm={6} md={4} key={label}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
+                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{value || '-'}</Typography>
+                        </Grid>
+                    ))}
+                    {data.address && (
+                        <Grid item xs={12}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
+                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.address}</Typography>
+                        </Grid>
+                    )}
+                </Grid>
             </Box>
 
             {contacts.length > 0 && (
@@ -785,7 +829,11 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         <Box>
                             <Typography variant='subtitle2' fontWeight={700}>Supplier / Outsourcing Selection Sheet</Typography>
                             <Typography variant='caption' color='text.secondary'>
-                                Selection Sheet (read-only)
+                                {isGprReadOnly
+                                    ? 'Selection Sheet (read-only)'
+                                    : (hasPersistedGprData || gprSavedInSession
+                                        ? 'Selection Sheet filled - click to edit'
+                                        : 'Fill in Selection Sheet')}
                             </Typography>
                         </Box>
                     </Box>
@@ -794,10 +842,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                             size='small'
                             variant='contained'
                             color='primary'
-                            startIcon={<i className='tabler-eye' style={{ fontSize: 14 }} />}
+                            startIcon={<i className={isGprReadOnly ? 'tabler-eye' : ((hasPersistedGprData || gprSavedInSession) ? 'tabler-pencil' : 'tabler-plus')} style={{ fontSize: 14 }} />}
                             onClick={() => setGprFormOpen(true)}
                         >
-                            View Selection Sheet
+                            {isGprReadOnly ? 'View Selection Sheet' : ((hasPersistedGprData || gprSavedInSession) ? 'Edit Selection Sheet' : 'Fill Selection Sheet')}
                         </Button>
                     </Box>
                 </Box>
@@ -813,17 +861,23 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                             ))}
                         </Box>
                         {approvalSteps.map((s: any, i: number) => {
-                            const stCfg = getStepStatusCfg(s.step_status)
+                            const stCfg = getStepStatusCfg(s.STEP_STATUS)
                             return (
                                 <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                    <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
+                                    <Typography variant='body2' fontWeight={600}>{s.STEP_ORDER}</Typography>
                                     <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{s.APPROVER_EMPCODE || '-'}</Typography>
                                     <Chip
-                                        icon={<i className={stCfg.icon} style={{ fontSize: 13, color: stCfg.txtColor }} />}
+                                        icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                         label={stCfg.label}
                                         size='small'
-                                        sx={{ bgcolor: stCfg.bgColor, color: stCfg.txtColor, border: '1px solid', borderColor: stCfg.borderColor, fontWeight: 600, fontSize: '0.68rem', height: 22, width: 'fit-content', '& .MuiChip-icon': { color: stCfg.txtColor } }}
+                                        sx={getChipSx(stCfg.tone, {
+                                            fontWeight: 600,
+                                            fontSize: '0.68rem',
+                                            height: 22,
+                                            width: 'fit-content',
+                                            '& .MuiChip-icon': { color: stCfg.tone.color }
+                                        })}
                                     />
                                     <Typography variant='body2' color='text.secondary'>
                                         {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
@@ -833,83 +887,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         })}
                     </Box>
 
-                    {logs.length > 0 && (
-                        <Box sx={{ mt: 1.5 }}>
-                            <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
-                            {logs.map((l: any, i: number) => {
-                                const {
-                                    parsedRemark,
-                                    actionTypeLabel,
-                                    actionColor,
-                                    detailText,
-                                    actorLabel,
-                                    stepDescription,
-                                } = buildActionLogPresentation(l, approvalSteps)
-
-                                return (
-                                    <Box
-                                        key={`action-log-${i}`}
-                                        sx={{
-                                            mb: 1,
-                                            p: 1.5,
-                                            borderRadius: 1.5,
-                                            bgcolor: 'background.paper',
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                        }}
-                                    >
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                                    <Chip
-                                                        size='small'
-                                                        label={actionTypeLabel}
-                                                        color={actionColor}
-                                                        variant='tonal'
-                                                        sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
-                                                    />
-                                                    {parsedRemark.isActionRequired && (
-                                                        <Chip
-                                                            size='small'
-                                                            label='View Detail'
-                                                            color='warning'
-                                                            variant='outlined'
-                                                            sx={{ height: 22, fontSize: '0.68rem' }}
-                                                            onClick={() => {
-                                                                setSelectedActionRequired(parsedRemark)
-                                                                setActionRequiredDialogOpen(true)
-                                                            }}
-                                                        />
-                                                    )}
-                                                </Box>
-                                                <Typography variant='caption' color='text.disabled'>
-                                                    {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
-                                                </Typography>
-                                            </Box>
-                                            <Typography variant='body2' fontWeight={600}>
-                                                {actorLabel}
-                                            </Typography>
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
-                                                {stepDescription && (
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        <strong>Step:</strong> {stepDescription}
-                                                    </Typography>
-                                                )}
-                                                <Typography variant='caption' color='text.secondary'>
-                                                    <strong>Action:</strong> {actionTypeLabel}
-                                                </Typography>
-                                                {detailText && (
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        <strong>Detail:</strong> {detailText}
-                                                    </Typography>
-                                                )}
-                                            </Box>
-                                        </Box>
-                                    </Box>
-                                )
-                            })}
-                        </Box>
-                    )}
                 </Box>
             )}
 
@@ -922,7 +899,88 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {isActionable && (
+            {logs.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                    <SectionHeader icon='tabler-history' title='Action Logs' />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {logs.map((l: any, i: number) => {
+                            const {
+                                parsedRemark,
+                                actionTypeLabel,
+                                actionColor,
+                                detailText,
+                                actorLabel,
+                                stepDescription,
+                            } = buildActionLogPresentation(l, approvalSteps)
+                            return (
+                                <Box
+                                    key={`action-log-${i}`}
+                                    sx={{
+                                        p: 1.5,
+                                        borderRadius: 1.5,
+                                        bgcolor: 'background.paper',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                <Chip
+                                                    size='small'
+                                                    label={actionTypeLabel}
+                                                    sx={getChipSx(getReadableStatusTone(
+                                                        actionColor === 'success' ? 'completed' :
+                                                        actionColor === 'error' ? 'rejected' :
+                                                        actionColor === 'warning' ? 'in progress' :
+                                                        actionColor === 'info' ? 'skipped' : 'pending'
+                                                    ), { height: 22, fontSize: '0.68rem', fontWeight: 700 })}
+                                                />
+                                                {parsedRemark.isActionRequired && (
+                                                    <Chip
+                                                        size='small'
+                                                        label='View Detail'
+                                                        color='warning'
+                                                        variant='outlined'
+                                                        sx={{ height: 22, fontSize: '0.68rem' }}
+                                                        onClick={() => {
+                                                            setSelectedActionRequired(parsedRemark)
+                                                            setActionRequiredDialogOpen(true)
+                                                        }}
+                                                    />
+                                                )}
+                                            </Box>
+                                            <Typography variant='caption' color='text.disabled'>
+                                                {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : '-'}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant='body2' fontWeight={600}>
+                                            {actorLabel}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
+                                            {stepDescription && (
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    <strong>Step:</strong> {stepDescription}
+                                                </Typography>
+                                            )}
+                                            <Typography variant='caption' color='text.secondary'>
+                                                <strong>Action:</strong> {actionTypeLabel}
+                                            </Typography>
+                                            {detailText && (
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    <strong>Detail:</strong> {detailText}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            )
+                        })}
+                    </Box>
+                </Box>
+            )}
+
+{isActionable && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
@@ -955,9 +1013,11 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 <GprFormDialog
                     open={gprFormOpen}
                     rowData={data}
-                    readOnly={true}
+                    readOnly={isGprReadOnly}
                     onClose={() => setGprFormOpen(false)}
                     onSaved={() => {
+                        setGprSavedInSession(true)
+                        onRefresh()
                     }}
                 />
             )}
@@ -1060,9 +1120,9 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 if (res.data?.Status) {
                     const rowData = (res.data.ResultOnDb || []).map((row: any) => ({
                         ...row,
-                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
                         request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
                         request_status: row.request_status ?? row.REQUEST_STATUS,
                         supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
                         purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
@@ -1073,7 +1133,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                         vendor_code: row.vendor_code ?? row.VENDOR_CODE,
                         assign_to: row.assign_to ?? row.ASSIGN_TO,
                         PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
                         Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
                         gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
                         gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
@@ -1166,14 +1226,14 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 const myStepStatus = getMyQueueStepStatus(params.data, empCode, queueStepCode)
 
                 if (myStepStatus === 'approved') {
-                    return <Chip label='Approved' size='small' sx={{ bgcolor: '#2e7d3220', color: '#2e7d32', border: '1px solid #2e7d3240', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
+                    return <Chip label='Approved' size='small' sx={getChipSx(getReadableStatusTone('approved'))} />
                 }
 
                 if (myStepStatus === 'rejected') {
-                    return <Chip label='Rejected' size='small' sx={{ bgcolor: '#d6454520', color: '#d64545', border: '1px solid #d6454540', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
+                    return <Chip label='Rejected' size='small' sx={getChipSx(getReadableStatusTone('rejected'))} />
                 }
 
-                return <Chip label='Waiting' size='small' sx={{ bgcolor: '#fff4e5', color: '#f08a24', border: '1px solid #f6c07e', fontWeight: 700, fontSize: '0.72rem', height: 24 }} />
+                return <Chip label='Waiting' size='small' sx={getChipSx(getReadableStatusTone('waiting'))} />
             }
         },
         { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
@@ -1307,3 +1367,4 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         </Grid>
     )
 }
+

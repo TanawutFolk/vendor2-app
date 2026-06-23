@@ -68,7 +68,6 @@ const useGprWorkflowLogic = ({
         const isApproveBypassEnabled = isCurrentIssueGprBStep || allowApproveBypass
         const isPostSendGprBFlow = isCurrentIssueGprBStep || isCurrentIssueGprCStep || allowApproveBypass || hasSentGprCInSession
 
-        const agreementReachedStatusValue = resolveStatusValueByKeyword(statusOptions, 'agreement reached', 'Agreement Reached')
         const issueGprBStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr b', 'Issue GPR B')
         const issueGprCStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr c', 'Issue GPR C')
         const vendorDisagreedStatusValue = resolveStatusValueByKeyword(statusOptions, 'vendor disagreed', 'Vendor Disagreed')
@@ -79,9 +78,9 @@ const useGprWorkflowLogic = ({
             || resolveStatusValueByKeyword(statusOptions, 'document checker', '')
 
         const gprCSteps = (approvalSteps || []).filter((step: any) => isIssueGprCStep(step))
-        const hasGprCApproved = gprCSteps.some((step: any) => completedStatuses.has(String(step?.step_status || '').toLowerCase()))
-        const hasGprCRejected = gprCSteps.some((step: any) => rejectedStatuses.has(String(step?.step_status || '').toLowerCase()))
-        const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.step_status || '').toLowerCase()))
+        const hasGprCApproved = gprCSteps.some((step: any) => completedStatuses.has(String(step?.STEP_STATUS || '').toLowerCase()))
+        const hasGprCRejected = gprCSteps.some((step: any) => rejectedStatuses.has(String(step?.STEP_STATUS || '').toLowerCase()))
+        const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.STEP_STATUS || '').toLowerCase()))
         const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
 
         const showSendToCheckerBtn = isPicPostVendorStep && (isCurrentAgreementReachedStep || (isCurrentIssueGprCStep && hasGprCApproved))
@@ -123,7 +122,6 @@ const useGprWorkflowLogic = ({
             disableSendToVendorBtn,
             disableSendToRequesterBtn,
             disableRejectBtn,
-            agreementReachedStatusValue,
             issueGprBStatusValue,
             issueGprCStatusValue,
             vendorDisagreedStatusValue,

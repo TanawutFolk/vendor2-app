@@ -71,7 +71,6 @@ export const useApprovalWorkflow = (
             isRequesterGprCSetupPhase = false,
             directToDocCheckerOnApprove = false,
         } = options
-        const agreementReachedStatus = resolveStatusValue(statusOptions, 'Agreement Reached', 'Agreement Reached')
         const issueGprBStatus = resolveStatusValue(statusOptions, 'Issue GPR B', 'Issue GPR B')
         const issueGprCStatus = resolveStatusValue(statusOptions, 'Issue GPR C', 'Issue GPR C')
         const vendorDisagreedStatus = resolveStatusValue(statusOptions, 'Vendor Disagreed', 'Vendor Disagreed')
@@ -80,6 +79,7 @@ export const useApprovalWorkflow = (
             || resolveStatusValue(statusOptions, 'PO & SCM Checker', '')
             || resolveStatusValue(statusOptions, 'Check All Document', '')
             || resolveStatusValue(statusOptions, 'Document Checker', '')
+            || 'PO & SCM Check All Document'
 
         if (isPendingAgreementStep(currentStep)) {
             return {
@@ -87,9 +87,9 @@ export const useApprovalWorkflow = (
                 actions: [
                     {
                         key: 'agree',
-                        label: directToDocCheckerOnApprove ? 'Approve and Send to Doc Checker' : 'Approve',
+                        label: 'Approve and Send to Doc Checker',
                         color: 'success',
-                        nextStatus: directToDocCheckerOnApprove ? (documentCheckStatus || agreementReachedStatus) : agreementReachedStatus,
+                        nextStatus: documentCheckStatus,
                         isFinalStep: false,
                     },
                     {
@@ -136,8 +136,8 @@ export const useApprovalWorkflow = (
                             : (directToDocCheckerOnApprove ? 'Approve and Send to Doc Checker' : 'Approve GPR C'),
                         color: 'success',
                         nextStatus: isRequesterGprCSetupPhase
-                            ? agreementReachedStatus
-                            : (directToDocCheckerOnApprove ? (documentCheckStatus || agreementReachedStatus) : agreementReachedStatus),
+                            ? issueGprCStatus
+                            : documentCheckStatus,
                         isFinalStep: false,
                     },
                     {
@@ -159,7 +159,7 @@ export const useApprovalWorkflow = (
                         key: 'agree',
                         label: 'Approve and Send to Doc Checker',
                         color: 'success',
-                        nextStatus: documentCheckStatus || agreementReachedStatus,
+                        nextStatus: documentCheckStatus,
                         isFinalStep: false,
                     },
                     {

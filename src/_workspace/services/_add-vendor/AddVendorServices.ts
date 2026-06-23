@@ -46,7 +46,7 @@ export default class AddVendorServices {
             COMPANY_NAME: data.company_name,
             PROVINCE: data.province,
             POSTAL_CODE: data.postal_code,
-            VENDOR_TYPE_ID: data.vendor_type_id,
+            MASTER_VENDOR_TYPES_ID: data.vendor_type_id,
             VENDOR_REGION: data.vendor_region,
             WEBSITE: data.website,
             TEL_CENTER: data.tel_center,
@@ -55,17 +55,17 @@ export default class AddVendorServices {
             NOTE: data.note,
             CREATE_BY: data.CREATE_BY,
             CONTACTS: (data.contacts || []).map(contact => ({
-                VENDOR_CONTACT_ID: contact.vendor_contact_id,
-                VENDOR_ID: contact.vendor_id,
+                VENDOR_CONTACTS_ID: contact.vendor_contact_id,
+                VENDORS_ID: contact.vendor_id,
                 CONTACT_NAME: contact.contact_name,
                 TEL_PHONE: contact.tel_phone,
                 EMAIL: contact.email,
                 POSITION: contact.position
             })),
             PRODUCTS: (data.products || []).map(product => ({
-                VENDOR_PRODUCT_ID: product.vendor_product_id,
-                VENDOR_ID: product.vendor_id,
-                PRODUCT_GROUP_ID: product.product_group_id,
+                VENDOR_PRODUCTS_ID: product.vendor_product_id,
+                VENDORS_ID: product.vendor_id,
+                MASTER_PRODUCT_GROUPS_ID: product.product_group_id,
                 MAKER_NAME: product.maker_name,
                 PRODUCT_NAME: product.product_name,
                 MODEL_LIST: product.model_list

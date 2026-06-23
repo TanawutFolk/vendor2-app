@@ -1,4 +1,5 @@
 import { Box, Typography, Chip, Avatar } from '@mui/material'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 // Types
 import type { RegisterStep, RegisterStatus, ApprovalStepRecord, ApprovalLogRecord } from './types'
@@ -10,8 +11,6 @@ const statusConfig: Record<
     RegisterStatus,
     {
         label: string
-        color: 'success' | 'warning' | 'default' | 'error' | 'info'
-        bgColor: string
         iconBg: string
         connectorColor: string
         icon: string
@@ -20,8 +19,6 @@ const statusConfig: Record<
 > = {
     completed: {
         label: 'Completed',
-        color: 'success',
-        bgColor: '#eaf8ef',
         iconBg: '#28C76F',
         connectorColor: '#28C76F',
         icon: 'tabler-check',
@@ -29,8 +26,6 @@ const statusConfig: Record<
     },
     in_progress: {
         label: 'In Progress',
-        color: 'warning',
-        bgColor: '#fff4e5',
         iconBg: '#F08A24',
         connectorColor: '#F08A24',
         icon: 'tabler-loader-2',
@@ -38,8 +33,6 @@ const statusConfig: Record<
     },
     pending: {
         label: 'Waiting',
-        color: 'default',
-        bgColor: '#f2f3f5',
         iconBg: '#8B909A',
         connectorColor: 'rgba(139,144,154,0.35)',
         icon: 'tabler-point',
@@ -47,8 +40,6 @@ const statusConfig: Record<
     },
     rejected: {
         label: 'Rejected',
-        color: 'error',
-        bgColor: 'rgba(234,84,85,0.05)',
         iconBg: '#EA5455',
         connectorColor: '#EA5455',
         icon: 'tabler-x',
@@ -56,8 +47,6 @@ const statusConfig: Record<
     },
     skipped: {
         label: 'Skipped',
-        color: 'info',
-        bgColor: '#eaf3ff',
         iconBg: '#3B82F6',
         connectorColor: 'rgba(59,130,246,0.35)',
         icon: 'tabler-minus',
@@ -98,6 +87,8 @@ const isDisagreedBranchStep = (title?: string | null) => {
 
 const getStatusCfg = (status?: RegisterStatus) => statusConfig[status || 'pending'] || statusConfig.pending
 
+const shouldShowActionBy = (status: RegisterStatus) => ['completed', 'rejected', 'skipped'].includes(status)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Step Icon
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,6 +126,7 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
     const cfg = getStatusCfg(step.status)
     const isPending = step.status === 'pending'
     const isSkipped = step.status === 'skipped'
+    const tone = getReadableStatusTone(step.status)
 
     return (
         <Box sx={{ display: 'flex', gap: 2, position: 'relative' }}>
@@ -165,7 +157,7 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
                     borderRadius: 1,
                     bgcolor: 'transparent',
                     border: '1px solid',
-                    borderColor: isPending || isSkipped ? 'divider' : step.status === 'rejected' ? 'rgba(234,84,85,0.2)' : 'rgba(234,84,85,0.15)',
+                    borderColor: isPending || isSkipped ? 'divider' : tone.border,
                     transition: 'all 0.25s ease'
                 }}
             >
@@ -176,10 +168,13 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
                     <Chip
                         icon={<i className={cfg.chipIcon} style={{ fontSize: 11 }} />}
                         label={cfg.label}
-                        color={cfg.color}
                         size='small'
-                        variant='tonal'
-                        sx={{ fontWeight: 600, fontSize: '0.68rem', height: 20 }}
+                        sx={getChipSx(tone, {
+                            fontWeight: 600,
+                            fontSize: '0.68rem',
+                            height: 20,
+                            '& .MuiChip-icon': { color: tone.color }
+                        })}
                     />
                 </Box>
                 {step.description && (
@@ -208,25 +203,26 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
         ? (() => {
             const mappedSteps = approvalSteps
             .filter(Boolean)
-            .sort((a, b) => a.step_order - b.step_order)
+            .sort((a, b) => a.STEP_ORDER - b.STEP_ORDER)
             .map(s => {
-                const log = approvalLogs?.find(l => l.step_id === s.step_id)
-                const status = toRegisterStatus(s.step_status)
-                const updatedBy = log?.action_by || (status !== 'pending' ? s.UPDATE_BY : undefined)
-                const updatedDate = log?.action_date
-                    ? new Date(log.action_date).toLocaleString('th-TH')
-                    : status !== 'pending' && s.UPDATE_DATE
+                const log = approvalLogs?.find(l => l.REQUEST_APPROVAL_STEP_ID === s.REQUEST_APPROVAL_STEP_ID)
+                const status = toRegisterStatus(s.STEP_STATUS)
+                const canShowActionBy = shouldShowActionBy(status)
+                const updatedBy = canShowActionBy ? log?.ACTION_BY || s.UPDATE_BY : undefined
+                const updatedDate = canShowActionBy && log?.CREATE_DATE
+                    ? new Date(log.CREATE_DATE).toLocaleString('th-TH')
+                    : canShowActionBy && s.UPDATE_DATE
                         ? new Date(s.UPDATE_DATE).toLocaleString('th-TH')
                         : undefined
 
                 return {
-                    step: s.step_order,
-                    title: s.DESCRIPTION || `Step ${s.step_order}`,
+                    step: s.STEP_ORDER,
+                    title: s.DESCRIPTION || `Step ${s.STEP_ORDER}`,
                     description: '',
                     status,
                     updatedBy,
                     updatedDate,
-                    remark: log?.remark || undefined
+                    remark: log?.DESCRIPTION || undefined
                 } as RegisterStep
             })
             const branchChildren = mappedSteps.filter(s => isDisagreedBranchStep(s.title))
@@ -249,6 +245,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                 const isLast = index === effectiveSteps.length - 1
                 const isPending = step.status === 'pending'
                 const hasBranch = step.branchChildren && step.branchChildren.length > 0
+                const tone = getReadableStatusTone(step.status)
 
                 return (
                     <Box key={`${step.step}-${index}`} sx={{ display: 'flex', gap: 2, position: 'relative' }}>
@@ -264,7 +261,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                         my: 1,
                                         borderRadius: 1,
                                         background: step.status === 'completed'
-                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${getStatusCfg(effectiveSteps[index + 1].status).connectorColor})`
+                                            ? `linear-gradient(to bottom, ${cfg.connectorColor}, ${getStatusCfg(effectiveSteps[index + 1]?.status).connectorColor})`
                                             : `linear-gradient(to bottom, ${cfg.connectorColor}, rgba(138,141,153,0.15))`
                                     }}
                                 />
@@ -279,9 +276,9 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                     py: 1.5,
                                     px: 2,
                                     borderRadius: 1,
-                                    bgcolor: step.status === 'in_progress' ? cfg.bgColor : 'transparent',
+                                    bgcolor: step.status === 'in_progress' ? tone.bg : 'transparent',
                                     border: '1px solid',
-                                    borderColor: step.status === 'in_progress' ? (cfg as any).borderColor || 'rgba(255,159,67,0.25)' : 'divider',
+                                    borderColor: step.status === 'in_progress' ? tone.border : 'divider',
                                     transition: 'all 0.25s ease'
                                 }}
                             >
@@ -295,10 +292,12 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                                     <Chip
                                         icon={<i className={cfg.chipIcon} style={{ fontSize: 13 }} />}
                                         label={cfg.label}
-                                        color={cfg.color}
                                         size='small'
-                                        variant='tonal'
-                                        sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                                        sx={getChipSx(tone, {
+                                            fontWeight: 600,
+                                            fontSize: '0.72rem',
+                                            '& .MuiChip-icon': { color: tone.color }
+                                        })}
                                     />
                                 </Box>
 
@@ -366,3 +365,4 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
 }
 
 export default StatusTimeline
+

@@ -237,7 +237,7 @@ const ProductTypeAddModal = ({ openAddModal, setOpenModalAdd, setIsEnableFetchin
       // ITEM_CATEGORY_ID: getValues('itemCategory').ITEM_CATEGORY_ID,
       ITEM_PURPOSE_ID: 1, // Mass Production
       // ITEM_GROUP_ID: 1,
-      VENDOR_ID: 1,
+      VENDORS_ID: 1,
       MAKER_ID: 5,
 
       COLOR_ID_FOR_ITEM_THEME: '',

@@ -104,12 +104,12 @@ const SearchResult = () => {
                 if (result?.Status) {
                     const rowData = (result.ResultOnDb || []).map((row: VendorRow) => ({
                         ...row,
-                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
                         fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
                         fft_status: row.fft_status ?? row.FFT_STATUS,
-                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCT_ID,
-                        product_group_id: row.product_group_id ?? row.PRODUCT_GROUP_ID,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCTS_ID,
+                        product_group_id: row.product_group_id ?? row.MASTER_PRODUCT_GROUPS_ID,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
                         company_name: row.company_name ?? row.COMPANY_NAME,
                         vendor_region: row.vendor_region ?? row.VENDOR_REGION,
                         province: row.province ?? row.PROVINCE,
@@ -209,8 +209,8 @@ const SearchResult = () => {
         setCreatingVendorId(vendorId)
         try {
             const payload = new FormData()
-            payload.append('VENDOR_ID', String(vendorId))
-            payload.append('VENDOR_CONTACT_ID', selectedContactIds[0] || (row?.vendor_contact_id ? String(row.vendor_contact_id) : ''))
+            payload.append('VENDORS_ID', String(vendorId))
+            payload.append('VENDOR_CONTACTS_ID', selectedContactIds[0] || (row?.vendor_contact_id ? String(row.vendor_contact_id) : ''))
             selectedContactIds.forEach((contactId: string) => {
                 payload.append('VENDOR_CONTACT_IDS[]', contactId)
             })
@@ -454,9 +454,9 @@ const SearchResult = () => {
                 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: GetRowIdParams<VendorRow>) => {
-                    const vendorId = params.data.vendor_id || params.data.VENDOR_ID || 0
-                    const productId = params.data.vendor_product_id || params.data.VENDOR_PRODUCT_ID || 0
-                    const contactId = params.data.vendor_contact_id || params.data.VENDOR_CONTACT_ID || 0
+                    const vendorId = params.data.vendor_id || params.data.VENDORS_ID || 0
+                    const productId = params.data.vendor_product_id || params.data.VENDOR_PRODUCTS_ID || 0
+                    const contactId = params.data.vendor_contact_id || params.data.VENDOR_CONTACTS_ID || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
             />

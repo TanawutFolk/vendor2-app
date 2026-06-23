@@ -3,7 +3,7 @@ import RegisterRequestServices from '@_workspace/services/_register-request/Regi
 export interface CurrencyOption {
     value: string
     label: string
-    CURRENCY_ID?: number
+    INFO_CURRENCY_ID?: number
 }
 
 export const fetchCurrencies = (inputValue: string) =>

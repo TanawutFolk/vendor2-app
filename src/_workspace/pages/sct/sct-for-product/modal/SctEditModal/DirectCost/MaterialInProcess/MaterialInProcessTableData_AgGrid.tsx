@@ -171,6 +171,7 @@ const MaterialInProcessTableData_AgGrid = () => {
           cellSelection={true}
           // cellSelection={true}
           copyHeadersToClipboard={true}
+          overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No materials in process found</span>'
           // เปิด DOM Virtualization
           //suppressHorizontalScroll={true}
           // ตั้งค่า rowBuffer

@@ -32,6 +32,7 @@ const normalizeText = (value: any) => String(value || '').trim().toLowerCase()
 export const normalizeWorkflowText = (value: any) => normalizeText(String(value || '').replace(/[_-]+/g, ' '))
 
 export const inferStepCode = (step: any) => {
+    if (step?.STEP_CODE) return String(step.STEP_CODE).trim().toUpperCase()
     if (step?.step_code) return String(step.step_code).trim().toUpperCase()
     if (step?.stepCode) return String(step.stepCode).trim().toUpperCase()
 
@@ -153,6 +154,21 @@ export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRI
 
 export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('vendor disagre')
 
+export const isDisagreedBranchStep = (step: any) =>
+    isVendorDisagreedStep(step) || isIssueGprBStep(step) || isIssueGprCStep(step)
+
+export const getNextPendingMainApprovalStep = (approvalSteps: any[], currentStep: any) => {
+    if (!currentStep) return null
+
+    return (approvalSteps || [])
+        .filter((step: any) =>
+            String(step?.STEP_STATUS || step?.step_status || '').toLowerCase() === 'pending'
+            && Number(step?.STEP_ORDER || step?.step_order || 0) > Number(currentStep?.STEP_ORDER || currentStep?.step_order || 0)
+            && !isDisagreedBranchStep(step)
+        )
+        .sort((a: any, b: any) => Number(a?.STEP_ORDER || a?.step_order || 0) - Number(b?.STEP_ORDER || b?.step_order || 0))[0] || null
+}
+
 export const resolveActionRequiredStage = (step: any) => {
     const source = normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label)
     if (source.includes('engineer')) return 'engineer'
@@ -182,7 +198,7 @@ export const getApproveActionLabel = (currentStep: any, hasVendorRequested: bool
 
     if (isPicStep(currentStep)) {
         if (!hasVendorRequested) return 'Approve and Send Email To Vendor'
-        if (isPendingAgreementStep(currentStep)) return 'Vendor Agreed (Continue)'
+        if (isPendingAgreementStep(currentStep)) return 'Approve and Send to Doc Checker'
         if (isIssueGprBStep(currentStep)) return 'Send GPR C to Requester Approval'
         if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
         return 'Confirm'
@@ -314,16 +330,16 @@ export const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warni
 }
 
 export const buildActionLogPresentation = (log: any, approvalSteps: any[] = []) => {
-    const parsedRemark = parseActionRequiredRemark(log?.remark)
-    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.action_type
+    const parsedRemark = parseActionRequiredRemark(log?.DESCRIPTION)
+    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.ACTION_TYPE
     const detailParts = [
         parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
         parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
         parsedRemark.note ? `note: ${parsedRemark.note}` : '',
     ].filter(Boolean)
-    const actorName = String(log?.action_by_name || '').trim()
-    const actorCode = String(log?.action_by || '').trim()
-    const matchedStep = approvalSteps.find((step: any) => String(step?.step_id) === String(log?.step_id))
+    const actorName = String(log?.ACTION_BY_NAME || '').trim()
+    const actorCode = String(log?.ACTION_BY || '').trim()
+    const matchedStep = approvalSteps.find((step: any) => String(step?.REQUEST_APPROVAL_STEP_ID) === String(log?.REQUEST_APPROVAL_STEP_ID))
 
     return {
         parsedRemark,

@@ -125,6 +125,13 @@ const normalizeGpr43AcceptanceStatus = (value: unknown): 'ACCEPT' | 'NOT_ACCEPT'
     return ''
 }
 
+const normalizeSanctionsStatus = (value: unknown): 'non-concerned' | 'concerned' | '' => {
+    const normalized = String(value || '').trim().replace(/[_-]+/g, ' ').toLowerCase()
+    if (['non concerned', 'nonconcerned', 'not concerned', 'not concern', 'no concern'].includes(normalized)) return 'non-concerned'
+    if (['concerned', 'concern'].includes(normalized)) return 'concerned'
+    return ''
+}
+
 const gpr43StatusToRemark = (status: unknown) => {
     const normalized = normalizeGpr43AcceptanceStatus(status)
     if (normalized === 'ACCEPT') return 'Accept'
@@ -209,7 +216,7 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
         number_of_employees: getSourceValue('number_of_employees', 'NUMBER_OF_EMPLOYEES') as string | undefined,
         manufactured_country: getSourceValue('manufactured_country', 'MANUFACTURED_COUNTRY') as string | undefined,
         vendor_original_country: getSourceValue('vendor_original_country', 'VENDOR_ORIGINAL_COUNTRY') as string | undefined,
-        sanctions: (getSourceValue('sanctions', 'SANCTIONS', 'sanctions_status', 'SANCTIONS_STATUS') as 'non-concerned' | 'concerned' | '' | undefined),
+        sanctions: normalizeSanctionsStatus(getSourceValue('sanctions', 'SANCTIONS', 'sanctions_status', 'SANCTIONS_STATUS')),
         currency: getSourceValue('currency', 'CURRENCY') as string | undefined,
         suggestion: getSourceValue('suggestion', 'SUGGESTION') as string | undefined,
         result: (getSourceValue('result', 'RESULT', 'result_status', 'RESULT_STATUS') as 'approval' | 'disapproval' | '' | undefined),
@@ -311,9 +318,14 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-type UseGprFormArgs = Pick<GprFormDialogProps, 'open' | 'rowData' | 'onClose' | 'onSaved'>
+const buildSelectionSheetPdfFileName = (requestNumber: unknown, requestId: unknown) => {
+    const requestKey = String(requestNumber || requestId || 'REQUEST').trim().replace(/[\\/:*?"<>|]+/g, '-')
+    return `Supplier - Outsourcing Selection Sheet_${requestKey}.pdf`
+}
 
-export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) => {
+type UseGprFormArgs = Pick<GprFormDialogProps, 'open' | 'rowData' | 'onClose' | 'onSaved' | 'readOnly'>
+
+export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }: UseGprFormArgs) => {
     const user = getUserData()
     const methods = useForm<GprFormData>({ defaultValues: buildDefault(rowData) })
     const { reset, getValues, setValue } = methods
@@ -324,6 +336,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
     const [sanctionsChecking, setSanctionsChecking] = useState(false)
     const [sanctionsCheck, setSanctionsCheck] = useState<SanctionsCheckState | null>(null)
     const [criteriaUploading, setCriteriaUploading] = useState<Record<number, boolean>>({})
+    const [criteriaDeleting, setCriteriaDeleting] = useState<Record<number, boolean>>({})
     const [criteriaError, setCriteriaError] = useState<Record<number, string>>({})
     const [pendingCriteriaFiles, setPendingCriteriaFiles] = useState<Record<number, File>>({})
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -398,7 +411,17 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
                     reset(defaults)
                 }
 
-                await checkSanctions(defaults.company_name)
+                if (saved?.sanctions) {
+                    setSanctionsCheck({
+                        checkedAt: new Date().toISOString(),
+                        matches: saved.sanctions === 'concerned' ? [{ name: 'Blacklisted' } as any] : [],
+                        message: 'Loaded from saved selection sheet.',
+                    })
+                }
+
+                if (!readOnly && !saved?.sanctions) {
+                    await checkSanctions(defaults.company_name)
+                }
             } catch {
                 if (active) reset(buildDefault(rowData))
             } finally {
@@ -411,7 +434,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         return () => {
             active = false
         }
-    }, [checkSanctions, open, reset, rowData])
+    }, [checkSanctions, open, reset, rowData, readOnly])
 
     const handleCriteriaUploadClick = useCallback((index: number) => {
         uploadTargetRef.current = index
@@ -432,16 +455,68 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         setValue(`criteria.${index}.uploaded_name` as any, file.name, { shouldDirty: true })
     }, [setValue])
 
-    const removeCriteriaUpload = useCallback((index: number) => {
-        setPendingCriteriaFiles(prev => {
-            const next = { ...prev }
-            delete next[index]
-            return next
-        })
-        setValue(`criteria.${index}.uploaded_file` as any, '', { shouldDirty: true })
-        setValue(`criteria.${index}.uploaded_name` as any, '', { shouldDirty: true })
-        setCriteriaError(prev => ({ ...prev, [index]: '' }))
-    }, [setValue])
+    const removeCriteriaUpload = useCallback(async (index: number) => {
+        const currentRow = getValues(`criteria.${index}` as any) as GprCriteria | undefined
+        const normalizedFilePath = String(currentRow?.uploaded_file || '').trim()
+        const normalizedFileName = String(currentRow?.uploaded_name || '').trim()
+        const criteriaNo = String(currentRow?.no || '').trim()
+        const requestId = Number(rowData?.request_id) || 0
+
+        const clearLocalCriteriaUpload = () => {
+            setPendingCriteriaFiles(prev => {
+                const next = { ...prev }
+                delete next[index]
+                return next
+            })
+            setValue(`criteria.${index}.uploaded_file` as any, '', { shouldDirty: true })
+            setValue(`criteria.${index}.uploaded_name` as any, '', { shouldDirty: true })
+            setCriteriaError(prev => ({ ...prev, [index]: '' }))
+        }
+
+        if (!normalizedFilePath || normalizedFilePath.startsWith(PENDING_UPLOAD_PREFIX)) {
+            clearLocalCriteriaUpload()
+            return
+        }
+
+        if (!requestId || !criteriaNo) {
+            ToastMessageError({
+                title: 'Delete File',
+                message: 'Cannot delete this file because request or criteria data is missing.'
+            })
+            return
+        }
+
+        setCriteriaDeleting(prev => ({ ...prev, [index]: true }))
+
+        try {
+            const response = await RegisterRequestServices.deleteSelectionDocument({
+                request_id: requestId,
+                criteria_no: criteriaNo,
+                file_path: normalizedFilePath,
+                file_name: normalizedFileName,
+                request_number: String(rowData?.request_number || ''),
+                update_by: user?.EMPLOYEE_CODE || 'SYSTEM'
+            })
+
+            if (!response.data?.Status) {
+                throw new Error(response.data?.Message || 'Failed to delete file')
+            }
+
+            clearLocalCriteriaUpload()
+            ToastMessageSuccess({
+                title: 'Delete File',
+                message: response.data?.Message || 'File deleted successfully.'
+            })
+            onSaved?.()
+        } catch (error: any) {
+            ToastMessageError({
+                title: 'Delete File',
+                message: error?.response?.data?.Message || error?.message || 'Failed to delete file'
+            })
+        } finally {
+            setCriteriaDeleting(prev => ({ ...prev, [index]: false }))
+        }
+    }, [getValues, onSaved, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
 
     const downloadCriteriaFile = useCallback(async (filePath?: string, fileName?: string) => {
         const normalizedFilePath = String(filePath || '').trim()
@@ -506,7 +581,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
             try {
                 const uploadForm = new FormData()
-                uploadForm.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
+                uploadForm.append('REQUEST_REGISTER_VENDOR_ID', String(Number(rowData?.request_id) || 0))
                 uploadForm.append('file', file)
                 uploadForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
                 uploadForm.append('DOCUMENT_SCOPE', 'GPR_CRITERIA')
@@ -586,6 +661,24 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
 
         try {
             const currentForm = await uploadPendingCriteriaFiles(getValues())
+            if (!normalizeSanctionsStatus(currentForm.sanctions)) {
+                const companyName = String(currentForm.company_name || '').trim()
+                if (companyName) {
+                    const blacklistResponse = await AddVendorServices.checkBlacklist({ company_name: companyName })
+                    const blacklistResult = blacklistResponse.data
+                    const matches = blacklistResult.blacklistMatches || []
+
+                    currentForm.sanctions = blacklistResult.isBlacklisted && matches.length ? 'concerned' : 'non-concerned'
+                    setValue('sanctions', currentForm.sanctions, { shouldDirty: true })
+                    setSanctionsCheck({
+                        checkedAt: new Date().toISOString(),
+                        matches,
+                        message: currentForm.sanctions === 'concerned'
+                            ? blacklistResult.Message || `Vendor name matches ${matches.length} record(s) in the Blacklist`
+                            : 'No blacklist match found.',
+                    })
+                }
+            }
             currentForm.gpr_43_acceptance_status = normalizeGpr43AcceptanceStatus(currentForm.criteria.find(item => item.no === '4.3')?.remark)
             const saveResponse = await RegisterRequestServices.saveGprForm({
                 request_id: rowData.request_id,
@@ -614,8 +707,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
                 <GprPdfDocument form={currentForm} rowData={rowData} chartDataUri={chartDataUri} />
             ).toBlob()
 
-            const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-            const fileName = `GPR_FormA_${rowData.request_id}_${today}.pdf`
+            const fileName = buildSelectionSheetPdfFileName(rowData?.request_number, rowData?.request_id)
             const url = URL.createObjectURL(blob)
             const anchor = document.createElement('a')
             anchor.href = url
@@ -623,23 +715,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
             anchor.click()
             URL.revokeObjectURL(url)
 
-            const documentForm = new FormData()
-            documentForm.append('REQUEST_ID', String(Number(rowData?.request_id) || 0))
-            documentForm.append('file', new File([blob], fileName, { type: 'application/pdf' }))
-            documentForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
-            documentForm.append('DOCUMENT_SCOPE', 'GPR_PDF')
-            documentForm.append('REQUEST_NUMBER', rowData?.request_number || '')
-            const documentResponse = await RegisterRequestServices.addDocument(documentForm)
-
-            if (!documentResponse.data.Status) {
-                ToastMessageError({
-                    title: 'Generate PDF',
-                    message: documentResponse.data.Message || 'Failed to attach generated PDF'
-                })
-                return
-            }
-
-            ToastMessageSuccess({ title: 'Generate PDF', message: 'PDF generated, saved, and attached to request.' })
+            ToastMessageSuccess({ title: 'Generate PDF', message: 'PDF generated and downloaded.' })
             onSaved?.()
         } catch (error: any) {
             ToastMessageError({
@@ -651,7 +727,8 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         }
     }, [rowData, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
 
-    const isBusy = saving || generatingPdf || sanctionsChecking
+    const criteriaDeletingAny = Object.values(criteriaDeleting).some(Boolean)
+    const isBusy = saving || generatingPdf || sanctionsChecking || criteriaDeletingAny
 
     const handleDialogClose = useCallback((_event: unknown, reason?: string) => {
         if (reason !== 'backdropClick' && !isBusy) onClose()
@@ -669,6 +746,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved }: UseGprFormArgs) 
         sanctionsChecking,
         sanctionsCheck,
         criteriaUploading,
+        criteriaDeleting,
         criteriaError,
         fileInputRef,
         isBusy,

@@ -12,7 +12,7 @@ export interface AssigneesResponseI<T = unknown> {
 }
 
 export interface AssigneeRowI extends Record<string, unknown>, Partial<AuditFields> {
-    ASSIGNEES_ID?: number
+    ASSIGNEES_TO_ID?: number
     Assignees_id?: number
     EMPCODE?: string
     empcode?: string
@@ -48,7 +48,7 @@ interface AssigneeSearchParams {
 
 interface AssigneeSaveParams {
     Assignees_id?: number
-    ASSIGNEES_ID?: number
+    ASSIGNEES_TO_ID?: number
     empcode?: string
     EMPCODE?: string
     empName?: string
@@ -133,7 +133,7 @@ export default class AssigneesServices {
 
     static save(data: AssigneeSaveParams): Promise<AxiosResponse<AssigneesResponseI<Record<string, unknown>>>> {
         const payload = {
-            ASSIGNEES_ID: data.Assignees_id ?? data.ASSIGNEES_ID,
+            ASSIGNEES_TO_ID: data.Assignees_id ?? data.ASSIGNEES_TO_ID,
             EMPCODE: data.empcode ?? data.EMPCODE,
             EMPNAME: data.empName ?? data.EMPNAME,
             EMPEMAIL: data.empEmail ?? data.EMPEMAIL,

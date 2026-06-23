@@ -1,7 +1,7 @@
 import ApprovalQueueAPI from '@_workspace/api/_approval-queue/ApprovalQueueAPI'
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
-import { RegisterRequestResponseI, StatusOption } from '@_workspace/services/_register-request/RegisterRequestServices'
+import { RawStatusOption, RegisterRequestResponseI } from '@_workspace/services/_register-request/RegisterRequestServices'
 
 type ApprovalQueuePayload = Record<string, unknown>
 
@@ -16,9 +16,9 @@ export default class ApprovalQueueServices {
             OFFSET: data.Offset ?? data.OFFSET,
             SQLWHERE: data.sqlWhere ?? data.SQLWHERE,
             SQLWHERECOLUMNFILTER: data.sqlWhereColumnFilter ?? data.SQLWHERECOLUMNFILTER,
-            REQUEST_ID: data.request_id ?? data.REQUEST_ID,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id ?? data.REQUEST_REGISTER_VENDOR_ID,
             REQUEST_STATUS: data.request_status ?? data.REQUEST_STATUS,
-            APPROVER_ID: data.approver_id ?? data.APPROVER_ID,
+            APPROVER_EMPCODE: data.approver_id ?? data.APPROVER_EMPCODE,
             ASSIGN_TO: data.assign_to ?? data.ASSIGN_TO,
             QUEUE_STEP_CODE: data.queue_step_code ?? data.QUEUE_STEP_CODE,
             REQUEST_BY_EMPLOYEECODE: data.Request_By_EmployeeCode ?? data.REQUEST_BY_EMPLOYEECODE
@@ -34,7 +34,7 @@ export default class ApprovalQueueServices {
     static getById(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalQueuePayload | null>>> {
         return axiosRequest<RegisterRequestResponseI<ApprovalQueuePayload | null>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/getById`,
-            data: { REQUEST_ID: request_id },
+            data: { REQUEST_REGISTER_VENDOR_ID: request_id },
             method: 'POST'
         })
     }
@@ -49,7 +49,7 @@ export default class ApprovalQueueServices {
         isFinalStep?: boolean
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             REQUEST_STATUS: data.request_status,
             WORKFLOW_ACTION: data.workflow_action,
             ACTION_TYPE: data.workflow_action,
@@ -66,8 +66,8 @@ export default class ApprovalQueueServices {
         })
     }
 
-    static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
-        return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
+    static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<RawStatusOption[]>>> {
+        return axiosRequest<RegisterRequestResponseI<RawStatusOption[]>>({
             url: `${ApprovalQueueAPI.API_ROOT_URL}/getStatusOptions`,
             method: 'POST'
         })
@@ -82,7 +82,7 @@ export default class ApprovalQueueServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             SCOPE: data.scope,
             GROUP_CODE: data.group_code,
             TO_EMPCODE: data.to_empcode,

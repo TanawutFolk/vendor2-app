@@ -1,7 +1,6 @@
 import { forwardRef, useEffect, useMemo, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
 import {
-    Alert,
     Box,
     Button,
     Chip,
@@ -23,10 +22,12 @@ import {
     Typography,
 } from '@mui/material'
 import type { SlideProps } from '@mui/material'
+import { toast } from 'react-toastify'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import { buildActionLogPresentation } from '@_workspace/utils/requestWorkflow'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
 
@@ -125,19 +126,16 @@ export default function RequestDetailDialog({
 }: RequestDetailDialogProps) {
     const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!open || !requestId) {
             setDetail(null)
-            setError(null)
 
             return
         }
 
         let active = true
         setLoading(true)
-        setError(null)
 
         ApprovalQueueServices.getById(requestId)
             .then(response => {
@@ -145,7 +143,7 @@ export default function RequestDetailDialog({
 
                 const payload = response.data
                 if (!payload.Status) {
-                    setError(payload.Message || 'Failed to load request detail')
+                    toast.error(payload.Message || 'Failed to load request detail')
                     setDetail(null)
 
                     return
@@ -158,7 +156,7 @@ export default function RequestDetailDialog({
             })
             .catch((loadError: unknown) => {
                 if (!active) return
-                setError(loadError instanceof Error ? loadError.message : 'Failed to load request detail')
+                toast.error(loadError instanceof Error ? loadError.message : 'Failed to load request detail')
                 setDetail(null)
             })
             .finally(() => {
@@ -247,8 +245,6 @@ export default function RequestDetailDialog({
                     <Box sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
                         <CircularProgress />
                     </Box>
-                ) : error ? (
-                    <Alert severity='error'>{error}</Alert>
                 ) : (
                     <Stack spacing={5}>
                         <Box>
@@ -458,9 +454,12 @@ export default function RequestDetailDialog({
                                                             <Chip
                                                                 size='small'
                                                                 label={actionTypeLabel}
-                                                                color={actionColor}
-                                                                variant='tonal'
-                                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                                                sx={getChipSx(getReadableStatusTone(
+                                                                    actionColor === 'success' ? 'completed' :
+                                                                    actionColor === 'error' ? 'rejected' :
+                                                                    actionColor === 'warning' ? 'in progress' :
+                                                                    actionColor === 'info' ? 'skipped' : 'pending'
+                                                                ), { height: 22, fontSize: '0.68rem', fontWeight: 700 })}
                                                             />
                                                             {parsedRemark.isActionRequired && (
                                                                 <Chip
@@ -473,7 +472,7 @@ export default function RequestDetailDialog({
                                                             )}
                                                         </Stack>
                                                         <Typography variant='caption' color='text.disabled'>
-                                                            {log.action_date ? new Date(String(log.action_date)).toLocaleString('th-TH') : '-'}
+                                                            {log.CREATE_DATE ? new Date(String(log.CREATE_DATE)).toLocaleString('th-TH') : '-'}
                                                         </Typography>
                                                     </Stack>
                                                     <Typography variant='body2' fontWeight={700}>
@@ -512,3 +511,4 @@ export default function RequestDetailDialog({
         </Dialog>
     )
 }
+

@@ -10,7 +10,7 @@ import type {
 export class EditVendorUtils {
     private static normalizeContact(contact: any): VendorContactI {
         return {
-            vendor_contact_id: contact?.vendor_contact_id ?? contact?.VENDOR_CONTACT_ID,
+            vendor_contact_id: contact?.vendor_contact_id ?? contact?.VENDOR_CONTACTS_ID,
             contact_name: contact?.contact_name ?? contact?.CONTACT_NAME ?? '',
             position: contact?.position ?? contact?.POSITION ?? '',
             tel_phone: contact?.tel_phone ?? contact?.TEL_PHONE ?? '',
@@ -24,8 +24,8 @@ export class EditVendorUtils {
 
     private static normalizeProduct(product: any): VendorProductI {
         return {
-            vendor_product_id: product?.vendor_product_id ?? product?.VENDOR_PRODUCT_ID,
-            product_group_id: product?.product_group_id ?? product?.PRODUCT_GROUP_ID,
+            vendor_product_id: product?.vendor_product_id ?? product?.VENDOR_PRODUCTS_ID,
+            product_group_id: product?.product_group_id ?? product?.MASTER_PRODUCT_GROUPS_ID,
             group_name: product?.group_name ?? product?.GROUP_NAME ?? '',
             maker_name: product?.maker_name ?? product?.MAKER_NAME ?? '',
             product_name: product?.product_name ?? product?.PRODUCT_NAME ?? '',
@@ -58,12 +58,12 @@ export class EditVendorUtils {
             : []
 
         const comprehensive: VendorComprehensiveI = {
-            vendor_id: vendorData.vendor_id ?? vendorData.VENDOR_ID,
+            vendor_id: vendorData.vendor_id ?? vendorData.VENDORS_ID,
             fft_vendor_code: vendorData.fft_vendor_code ?? vendorData.FFT_VENDOR_CODE,
             fft_status: vendorData.fft_status ?? vendorData.FFT_STATUS,
             status_check: vendorData.status_check ?? vendorData.STATUS_CHECK,
             company_name: vendorData.company_name ?? vendorData.COMPANY_NAME,
-            vendor_type_id: vendorData.vendor_type_id ?? vendorData.VENDOR_TYPE_ID,
+            vendor_type_id: vendorData.vendor_type_id ?? vendorData.MASTER_VENDOR_TYPES_ID,
             vendor_type_name: vendorData.vendor_type_name ?? vendorData.VENDOR_TYPE_NAME,
             province: vendorData.province ?? vendorData.PROVINCE,
             postal_code: vendorData.postal_code ?? vendorData.POSTAL_CODE,

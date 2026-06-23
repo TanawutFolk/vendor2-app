@@ -17,7 +17,7 @@ type GridSearchFilter = { id: string; value: unknown }
 type GridColumnFilter = { id: string; columnFns?: string; value: unknown }
 type GridOrder = { id: string; desc?: boolean }
 type DropdownOption = { value: string; label: string; BUSINESS_CATEGORY_ID?: number; DESCRIPTION?: string | null }
-type CurrencyDropdownOption = { value: string; label: string; CURRENCY_ID?: number }
+type CurrencyDropdownOption = { value: string; label: string; INFO_CURRENCY_ID?: number }
 
 type GprCGridRequest = {
     SearchFilters?: GridSearchFilter[]
@@ -29,8 +29,8 @@ type GprCGridRequest = {
 
 export default class RegisterRequestServices {
     // Create a new vendor registration request (with file uploads)
-    static create(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ request_id: number }>>> {
-        return axiosRequest<RegisterRequestResponseI<{ request_id: number }>>({
+    static create(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ REQUEST_REGISTER_VENDOR_ID: number }>>> {
+        return axiosRequest<RegisterRequestResponseI<{ REQUEST_REGISTER_VENDOR_ID: number }>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/createRequestVendor`,
             data: formData,
             method: 'POST',
@@ -65,7 +65,7 @@ export default class RegisterRequestServices {
     static getById(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getById`,
-            data: { REQUEST_ID: request_id },
+            data: { REQUEST_REGISTER_VENDOR_ID: request_id },
             method: 'POST'
         })
     }
@@ -80,8 +80,8 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
-            VENDOR_CONTACT_ID: data.vendor_contact_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
+            VENDOR_CONTACTS_ID: data.vendor_contact_id,
             SUPPORTPRODUCT_PROCESS: data.supportProduct_Process,
             PURCHASE_FREQUENCY: data.purchase_frequency,
             REQUESTER_REMARK: data.requester_remark,
@@ -106,7 +106,7 @@ export default class RegisterRequestServices {
         isFinalStep?: boolean
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             REQUEST_STATUS: data.request_status,
             WORKFLOW_ACTION: data.workflow_action,
             ACTION_TYPE: data.workflow_action,
@@ -126,9 +126,9 @@ export default class RegisterRequestServices {
     // Send agreement email to vendor
     static sendAgreementEmail(data: any): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data?.request_id ?? data?.REQUEST_ID,
+            REQUEST_REGISTER_VENDOR_ID: data?.request_id ?? data?.REQUEST_REGISTER_VENDOR_ID,
             EMAILMAIN: data?.emailmain ?? data?.EMAILMAIN,
-            VENDOR_ID: data?.vendor_id ?? data?.VENDOR_ID,
+            VENDORS_ID: data?.vendor_id ?? data?.VENDORS_ID,
             UPDATE_BY: data?.UPDATE_BY,
             CREATE_BY: data?.CREATE_BY
         }
@@ -141,8 +141,8 @@ export default class RegisterRequestServices {
     }
 
     // Get all active status options from m_request_status
-    static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<StatusOption[]>>> {
-        return axiosRequest<RegisterRequestResponseI<StatusOption[]>>({
+    static getStatusOptions(): Promise<AxiosResponse<RegisterRequestResponseI<RawStatusOption[]>>> {
+        return axiosRequest<RegisterRequestResponseI<RawStatusOption[]>>({
             url: `${APPROVAL_QUEUE_ROOT_URL}/getStatusOptions`,
             method: 'POST'
         })
@@ -166,7 +166,7 @@ export default class RegisterRequestServices {
     static getApprovalSteps(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalStep[]>>> {
         return axiosRequest<RegisterRequestResponseI<ApprovalStep[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalSteps`,
-            data: { REQUEST_ID: request_id },
+            data: { REQUEST_REGISTER_VENDOR_ID: request_id },
             method: 'POST'
         })
     }
@@ -175,7 +175,7 @@ export default class RegisterRequestServices {
     static getApprovalLogs(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<ApprovalLog[]>>> {
         return axiosRequest<RegisterRequestResponseI<ApprovalLog[]>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getApprovalLogs`,
-            data: { REQUEST_ID: request_id },
+            data: { REQUEST_REGISTER_VENDOR_ID: request_id },
             method: 'POST'
         })
     }
@@ -190,11 +190,11 @@ export default class RegisterRequestServices {
         step_code: string
         assignment_mode?: string
         CREATE_BY: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<{ step_id: number }>>> {
+    }): Promise<AxiosResponse<RegisterRequestResponseI<{ REQUEST_APPROVAL_STEP_ID: number }>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             STEP_ORDER: data.step_order,
-            APPROVER_ID: data.approver_id,
+            APPROVER_EMPCODE: data.approver_id,
             STEP_STATUS: data.step_status,
             DESCRIPTION: data.DESCRIPTION,
             STEP_CODE: data.step_code,
@@ -202,7 +202,7 @@ export default class RegisterRequestServices {
             CREATE_BY: data.CREATE_BY
         }
 
-        return axiosRequest<RegisterRequestResponseI<{ step_id: number }>>({
+        return axiosRequest<RegisterRequestResponseI<{ REQUEST_APPROVAL_STEP_ID: number }>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/createApprovalStep`,
             data: payload,
             method: 'POST'
@@ -220,8 +220,8 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            STEP_ID: data.step_id,
-            REQUEST_ID: data.request_id,
+            REQUEST_APPROVAL_STEP_ID: data.step_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             STEP_STATUS: data.step_status,
             ACTION_BY: data.action_by,
             ACTION_TYPE: data.action_type,
@@ -247,9 +247,9 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             SCOPE: data.scope,
-            GPR_C_STEP_ID: data.gpr_c_step_id,
+            REQUEST_VENDOR_GPR_C_STEPS_ID: data.gpr_c_step_id,
             GROUP_CODE: data.group_code,
             TO_EMPCODE: data.to_empcode,
             REASON: data.reason,
@@ -270,7 +270,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             VENDOR_CODE: data.vendor_code,
             UPDATE_BY: data.UPDATE_BY
         }
@@ -290,7 +290,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             GPR_DATA: data.gpr_data,
             CREATE_BY: data.CREATE_BY,
             UPDATE_BY: data.UPDATE_BY
@@ -317,7 +317,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             GPR_C_DATA: data.gpr_c_data,
             CREATE_BY: data.CREATE_BY,
             UPDATE_BY: data.UPDATE_BY
@@ -334,7 +334,7 @@ export default class RegisterRequestServices {
         request_id: number
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id
+            REQUEST_REGISTER_VENDOR_ID: data.request_id
         }
 
         return axiosRequest<RegisterRequestResponseI<unknown>>({
@@ -350,7 +350,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             GPR_C_DATA: data.gpr_c_data,
             UPDATE_BY: data.UPDATE_BY
         }
@@ -396,7 +396,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             ACTION_BY: data.action_by,
             REMARK: data.remark,
             UPDATE_BY: data.UPDATE_BY
@@ -416,7 +416,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             ACTION_BY: data.action_by,
             REMARK: data.remark,
             UPDATE_BY: data.UPDATE_BY
@@ -438,7 +438,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            REQUEST_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.request_id,
             ACTION_BY: data.action_by,
             PIC_NAME: data.pic_name,
             PIC_EMAIL: data.pic_email,
@@ -461,7 +461,7 @@ export default class RegisterRequestServices {
         UPDATE_BY?: string
     }): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
         const payload = {
-            ACTION_REQUIRED_ID: data.action_required_id,
+            REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID: data.action_required_id,
             RESULT_STATUS: data.result_status,
             RESULT_REMARK: data.result_remark,
             RESULT_BY: data.result_by,
@@ -514,7 +514,7 @@ export default class RegisterRequestServices {
     static getGprForm(request_id: number): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/getGprForm`,
-            data: { REQUEST_ID: request_id },
+            data: { REQUEST_REGISTER_VENDOR_ID: request_id },
             method: 'POST'
         })
     }
@@ -546,6 +546,28 @@ export default class RegisterRequestServices {
             responseType: 'blob'
         })
     }
+
+    static deleteSelectionDocument(data: {
+        request_id: number
+        criteria_no: string
+        file_path?: string
+        file_name?: string
+        request_number?: string
+        update_by?: string
+    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+        return axiosRequest<RegisterRequestResponseI<any>>({
+            url: `${RegisterRequestAPI.API_ROOT_URL}/deleteSelectionDocument`,
+            data: {
+                REQUEST_REGISTER_VENDOR_ID: data.request_id,
+                CRITERIA_NO: data.criteria_no,
+                FILE_PATH: data.file_path,
+                FILE_NAME: data.file_name,
+                REQUEST_NUMBER: data.request_number,
+                UPDATE_BY: data.update_by
+            },
+            method: 'POST'
+        })
+    }
 }
 
 export interface StatusOption {
@@ -565,31 +587,33 @@ export interface StatusOption {
     sortOrder: number
 }
 
+export type RawStatusOption = Omit<StatusOption, 'chipColor' | 'accent' | 'icon'> & Partial<Pick<StatusOption, 'chipColor' | 'accent' | 'icon'>>
+
 export interface ApprovalStep extends AuditFields {
-    step_id: number
-    request_id: number
-    workflow_step_id: number
-    status_id: number
-    step_order: number
-    approver_id: string
-    step_status: string
+    REQUEST_APPROVAL_STEP_ID: number
+    REQUEST_REGISTER_VENDOR_ID: number
+    WORKFLOW_STEP_MASTER_ID: number
+    M_REQUEST_STATUS_ID: number
+    STEP_ORDER: number
+    APPROVER_EMPCODE: string
+    STEP_STATUS: string
     DESCRIPTION: string
-    step_code?: string
-    actor_type?: string
-    group_code?: string
-    assignment_mode?: string
+    STEP_CODE?: string
+    ACTOR_TYPE?: string
+    GROUP_CODE?: string
+    ASSIGNMENT_MODE?: string
     master_status_value?: string
     master_status_label?: string
     approver_name?: string
 }
 
 export interface ApprovalLog extends AuditFields {
-    log_id: number
-    request_id: number
-    step_id: number
-    action_by: string
-    action_type: string
-    remark: string
-    action_date: string
-    action_by_name?: string
+    REQUEST_APPROVAL_LOG_ID: number
+    REQUEST_REGISTER_VENDOR_ID: number
+    REQUEST_APPROVAL_STEP_ID: number
+    ACTION_BY: string
+    ACTION_TYPE: string
+    DESCRIPTION: string
+    CREATE_DATE: string
+    ACTION_BY_NAME?: string
 }

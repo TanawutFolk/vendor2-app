@@ -1,13 +1,14 @@
 'use client'
 
-import { forwardRef } from 'react'
+import React, { forwardRef } from 'react'
 import type { ReactElement, Ref } from 'react'
 
-import { Box, Chip, Dialog, DialogContent, DialogTitle, Divider, Slide, Typography } from '@mui/material'
+import { Box, Chip, Dialog, DialogContent, DialogTitle, Divider, Grid, Slide, Typography } from '@mui/material'
 import type { SlideProps } from '@mui/material'
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import { StatusCheckChip } from '../components/fftStatus'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import { StatusCheckChip, FftStatusChip } from '../components/fftStatus'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 const Transition = forwardRef(function Transition(
@@ -23,16 +24,7 @@ type VendorDetailsModalProps = {
     data?: Partial<VendorComprehensiveI> | null
 }
 
-const infoRow = (label: string, value: unknown) => (
-    <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5, gap: 2 }}>
-        <Typography variant='caption' color='text.disabled' fontWeight={700} sx={{ width: 160, flexShrink: 0 }}>
-            {label}
-        </Typography>
-        <Typography variant='body2' fontWeight={500} sx={{ wordBreak: 'break-word' }}>
-            {value || '-'}
-        </Typography>
-    </Box>
-)
+
 
 const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
@@ -43,8 +35,8 @@ const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
 )
 
 const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) => {
-    const contacts = Array.isArray(data?.contacts) ? data.contacts : []
-    const products = Array.isArray(data?.products) ? data.products : []
+    const contacts = (Array.isArray(data?.contacts) ? data.contacts : []).filter(Boolean)
+    const products = (Array.isArray(data?.products) ? data.products : []).filter(Boolean)
 
     return (
         <Dialog
@@ -87,9 +79,13 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                                 {data?.status_check && <StatusCheckChip value={data.status_check} />}
                                 <Chip
                                     label={Number(data?.INUSE ?? 1) === 1 ? 'Active' : 'Inactive'}
-                                    color={Number(data?.INUSE ?? 1) === 1 ? 'success' : 'default'}
                                     size='small'
-                                    sx={{ fontWeight: 700 }}
+                                    sx={getChipSx(
+                                        Number(data?.INUSE ?? 1) === 1
+                                            ? getReadableStatusTone('completed')
+                                            : getReadableStatusTone('pending'),
+                                        { fontWeight: 700 }
+                                    )}
                                 />
                             </Box>
                         </Box>
@@ -102,24 +98,47 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                         </Box>
                     )}
 
-                    <Box sx={{ mb: 3 }}>
+                    <Box sx={{ mb: 4 }}>
                         <SectionHeader icon='tabler-building-store' title='Vendor Info' />
-                        {infoRow('Vendor Type', data?.vendor_type_name)}
-                        {infoRow('Region', data?.vendor_region)}
-                        {infoRow('FFT Vendor Code', data?.fft_vendor_code)}
-                        {infoRow('Province', data?.province)}
-                        {infoRow('Postal Code', data?.postal_code)}
-                        {infoRow('Tel Center', data?.tel_center)}
-                        {infoRow('Website', data?.website)}
-                        {infoRow('Email (Main)', data?.emailmain)}
-                        {infoRow('Address', data?.address)}
+                        <Grid container spacing={2}>
+                            {[
+                                { label: 'Vendor Type', value: data?.vendor_type_name },
+                                { label: 'Region', value: data?.vendor_region },
+                                { label: 'FFT Vendor Code', value: data?.fft_vendor_code },
+                                { label: 'FFT Status', value: <FftStatusChip value={data?.fft_status} variant='tonal' /> },
+                                { label: 'Province', value: data?.province },
+                                { label: 'Postal Code', value: data?.postal_code },
+                                { label: 'Tel Center', value: data?.tel_center },
+                                { label: 'Website', value: data?.website },
+                                { label: 'Email (Main)', value: data?.emailmain },
+                            ].map(({ label, value }) => (
+                                <Grid item xs={12} sm={6} md={4} key={label}>
+                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
+                                    <Box sx={{ mt: 0.5 }}>
+                                        {React.isValidElement(value) ? (
+                                            value
+                                        ) : (
+                                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>
+                                                {value || '-'}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </Grid>
+                            ))}
+                            {data?.address && (
+                                <Grid item xs={12}>
+                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
+                                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.address}</Typography>
+                                </Grid>
+                            )}
+                        </Grid>
                     </Box>
 
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
                         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                             <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                {['Name', 'Tel', 'Position', 'Email'].map(h => <Typography key={h} variant='caption' fontWeight={700}>{h}</Typography>)}
+                                {['Name', 'Tel', 'Position', 'Email'].map(h => <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>)}
                             </Box>
                             {contacts.length === 0 ? (
                                 <Typography variant='body2' color='text.secondary' sx={{ px: 2, py: 1.5 }}>No contacts</Typography>
@@ -138,7 +157,7 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                         <SectionHeader icon='tabler-package' title={`Products / Services (${products.length})`} />
                         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                             <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                {['Group', 'Maker', 'Product Name', 'Model List'].map(h => <Typography key={h} variant='caption' fontWeight={700}>{h}</Typography>)}
+                                {['Group', 'Maker', 'Product Name', 'Model List'].map(h => <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>)}
                             </Box>
                             {products.length === 0 ? (
                                 <Typography variant='body2' color='text.secondary' sx={{ px: 2, py: 1.5 }}>No products</Typography>

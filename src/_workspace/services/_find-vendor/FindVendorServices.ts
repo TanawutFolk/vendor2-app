@@ -33,7 +33,7 @@ export default class FindVendorServices {
     static getById(vendor_id: number): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI>>({
             url: `${FindVendorAPI.API_ROOT_URL}/getById`,
-            data: { VENDOR_ID: vendor_id },
+            data: { VENDORS_ID: vendor_id },
             method: 'POST'
         })
     }
@@ -42,7 +42,7 @@ export default class FindVendorServices {
     static getVendorContacts(vendor_id: number): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI[]>>({
             url: `${FindVendorAPI.API_ROOT_URL}/getVendorContacts`,
-            data: { VENDOR_ID: vendor_id },
+            data: { VENDORS_ID: vendor_id },
             method: 'POST'
         })
     }
@@ -51,7 +51,7 @@ export default class FindVendorServices {
     static getVendorProducts(vendor_id: number): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI[]>>({
             url: `${FindVendorAPI.API_ROOT_URL}/getVendorProducts`,
-            data: { VENDOR_ID: vendor_id },
+            data: { VENDORS_ID: vendor_id },
             method: 'POST'
         })
     }
@@ -59,9 +59,9 @@ export default class FindVendorServices {
     // Update vendor
     static update(vendor_id: number, data: VendorUpdateRequestI): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI>>> {
         const payload = {
-            VENDOR_ID: vendor_id,
+            VENDORS_ID: vendor_id,
             COMPANY_NAME: data.company_name,
-            VENDOR_TYPE_ID: data.vendor_type_id,
+            MASTER_VENDOR_TYPES_ID: data.vendor_type_id,
             PROVINCE: data.province,
             POSTAL_CODE: data.postal_code,
             WEBSITE: data.website,
@@ -71,9 +71,9 @@ export default class FindVendorServices {
             MAKER_NAME: data.maker_name,
             PRODUCT_NAME: data.product_name,
             MODEL_LIST: data.model_list,
-            VENDOR_CONTACT_ID: data.vendor_contact_id,
-            VENDOR_PRODUCT_ID: data.vendor_product_id,
-            PRODUCT_GROUP_ID: data.product_group_id,
+            VENDOR_CONTACTS_ID: data.vendor_contact_id,
+            VENDOR_PRODUCTS_ID: data.vendor_product_id,
+            MASTER_PRODUCT_GROUPS_ID: data.product_group_id,
             CONTACT_NAME: data.contact_name,
             TEL_PHONE: data.tel_phone,
             EMAIL: data.email,
@@ -100,10 +100,10 @@ export default class FindVendorServices {
         UPDATE_BY: string
     }): Promise<AxiosResponse<FindVendorApiResponseI<any>>> {
         const payload = {
-            VENDOR_ID: data.vendor_id,
+            VENDORS_ID: data.vendor_id,
             VENDOR: {
                 COMPANY_NAME: data.vendor.company_name,
-                VENDOR_TYPE_ID: data.vendor.vendor_type_id,
+                MASTER_VENDOR_TYPES_ID: data.vendor.vendor_type_id,
                 VENDOR_REGION: data.vendor.vendor_region,
                 PROVINCE: data.vendor.province,
                 POSTAL_CODE: data.vendor.postal_code,
@@ -114,7 +114,7 @@ export default class FindVendorServices {
                 INUSE: data.vendor.INUSE
             },
             CONTACTS: (data.contacts || []).map(contact => ({
-                VENDOR_CONTACT_ID: contact.vendor_contact_id,
+                VENDOR_CONTACTS_ID: contact.vendor_contact_id,
                 CONTACT_NAME: contact.contact_name,
                 POSITION: contact.position,
                 TEL_PHONE: contact.tel_phone,
@@ -125,8 +125,8 @@ export default class FindVendorServices {
                 UPDATE_DATE: contact.UPDATE_DATE
             })),
             PRODUCTS: (data.products || []).map(product => ({
-                VENDOR_PRODUCT_ID: product.vendor_product_id,
-                PRODUCT_GROUP_ID: product.product_group_id,
+                VENDOR_PRODUCTS_ID: product.vendor_product_id,
+                MASTER_PRODUCT_GROUPS_ID: product.product_group_id,
                 GROUP_NAME: product.group_name,
                 MAKER_NAME: product.maker_name,
                 PRODUCT_NAME: product.product_name,
@@ -152,7 +152,7 @@ export default class FindVendorServices {
     static deleteVendor(vendor_id: number, UPDATE_BY: string): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
         return axiosRequest<FindVendorApiResponseI<boolean>>({
             url: `${FindVendorAPI.API_ROOT_URL}/deleteVendor`,
-            data: { VENDOR_ID: vendor_id, UPDATE_BY },
+            data: { VENDORS_ID: vendor_id, UPDATE_BY },
             method: 'POST'
         })
     }
@@ -207,7 +207,7 @@ export default class FindVendorServices {
     static deleteContact(vendor_contact_id: number): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
         return axiosRequest<FindVendorApiResponseI<boolean>>({
             url: `${FindVendorAPI.API_ROOT_URL}/deleteContact`,
-            data: { VENDOR_CONTACT_ID: vendor_contact_id },
+            data: { VENDOR_CONTACTS_ID: vendor_contact_id },
             method: 'POST'
         })
     }
@@ -216,7 +216,7 @@ export default class FindVendorServices {
     static deleteProduct(vendor_product_id: number): Promise<AxiosResponse<FindVendorApiResponseI<boolean>>> {
         return axiosRequest<FindVendorApiResponseI<boolean>>({
             url: `${FindVendorAPI.API_ROOT_URL}/deleteProduct`,
-            data: { VENDOR_PRODUCT_ID: vendor_product_id },
+            data: { VENDOR_PRODUCTS_ID: vendor_product_id },
             method: 'POST'
         })
     }

@@ -17,25 +17,25 @@ export interface RegisterStep {
 }
 
 export interface ApprovalStepRecord extends AuditFields {
-    step_id: number
-    workflow_step_id?: number
-    status_id?: number
-    step_order: number
-    approver_id: string
-    step_status: string
+    REQUEST_APPROVAL_STEP_ID: number
+    WORKFLOW_STEP_MASTER_ID?: number
+    M_REQUEST_STATUS_ID?: number
+    STEP_ORDER: number
+    APPROVER_EMPCODE: string
+    STEP_STATUS: string
     DESCRIPTION: string
-    step_code?: string
+    STEP_CODE?: string
     master_status_value?: string
     master_status_label?: string
 }
 
 export interface ApprovalLogRecord extends AuditFields {
-    log_id: number
-    step_id: number
-    action_by: string
-    action_type: string
-    remark: string
-    action_date: string
+    REQUEST_APPROVAL_LOG_ID: number
+    REQUEST_APPROVAL_STEP_ID: number
+    ACTION_BY: string
+    ACTION_TYPE: string
+    DESCRIPTION: string
+    CREATE_DATE: string
 }
 
 export interface VendorRegisterHistory extends Partial<AuditFields> {

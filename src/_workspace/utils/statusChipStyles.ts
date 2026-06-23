@@ -12,7 +12,11 @@ const STATUS_TONES: Record<string, ChipTone> = {
     'cannot register': { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' },
     'in progress': { bg: '#FFF0D9', color: '#D96D00', border: '#FFB35C' },
     rejected: { bg: '#FFE0E2', color: '#B42335', border: '#FF8B98' },
-    completed: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' }
+    completed: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' },
+    approved: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' },
+    waiting: { bg: '#FFF0D9', color: '#D96D00', border: '#FFB35C' },
+    skipped: { bg: '#D8F2FF', color: '#0277A8', border: '#6ACCF2' },
+    pending: { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' }
 }
 
 const REGION_TONES: Record<string, ChipTone> = {

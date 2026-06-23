@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { StatusOption } from '../services/_register-request/RegisterRequestServices'
 import ApprovalQueueServices from '../services/_approval-queue/ApprovalQueueServices'
+import { applyRequestStatusPresentation } from '../utils/requestStatusPresentation'
 
 export const PREFIX_QUERY_KEY = 'REQUEST_STATUS_OPTIONS'
 
@@ -13,7 +14,7 @@ const useRequestStatusOptions = () =>
         queryKey: [PREFIX_QUERY_KEY],
         queryFn: async () => {
             const res = await ApprovalQueueServices.getStatusOptions()
-            return res.data.ResultOnDb ?? []
+            return (res.data.ResultOnDb ?? []).map(applyRequestStatusPresentation)
         },
         staleTime: 10 * 60 * 1000, // 10 minutes
     })

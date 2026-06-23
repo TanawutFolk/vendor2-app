@@ -1,12 +1,11 @@
 // React Imports
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 
 // MUI Imports
 import {
     Grid, CardContent, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
     Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
-    Alert
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 
@@ -71,6 +70,7 @@ import {
     resolveActionRequiredStage,
     getActionRequiredStageLabel,
     isVendorDisagreedStep,
+    getNextPendingMainApprovalStep,
     WORKFLOW_STEP_CODE,
     resolveNextStatus,
 } from '@_workspace/utils/requestWorkflow'
@@ -78,7 +78,7 @@ import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import useApprovalWorkflow from '@_workspace/hooks/useApprovalWorkflow'
 import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
-import { getChipSx } from '@_workspace/utils/statusChipStyles'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 import CustomTextField from '@components/mui/TextField'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,16 +139,16 @@ const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warning' | '
 }
 
 const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
-    const parsedRemark = parseActionRequiredRemark(log?.remark)
-    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.action_type
+    const parsedRemark = parseActionRequiredRemark(log?.DESCRIPTION)
+    const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.ACTION_TYPE
     const detailParts = [
         parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',
         parsedRemark.dueDate ? `due: ${parsedRemark.dueDate}` : '',
         parsedRemark.note ? `note: ${parsedRemark.note}` : '',
     ].filter(Boolean)
-    const actorName = String(log?.action_by_name || '').trim()
-    const actorCode = String(log?.action_by || '').trim()
-    const matchedStep = approvalSteps.find((step: any) => String(step.step_id) === String(log?.step_id))
+    const actorName = String(log?.ACTION_BY_NAME || '').trim()
+    const actorCode = String(log?.ACTION_BY || '').trim()
+    const matchedStep = approvalSteps.find((step: any) => String(step.REQUEST_APPROVAL_STEP_ID) === String(log?.REQUEST_APPROVAL_STEP_ID))
 
     return {
         parsedRemark,
@@ -195,6 +195,42 @@ interface RegisterRequestRow {
     CREATE_DATE?: string
     [key: string]: unknown
 }
+
+const normalizeRegisterRequestRow = (row: any): RegisterRequestRow => ({
+    ...row,
+    request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
+    request_number: row.request_number ?? row.REQUEST_NUMBER,
+    vendor_id: row.vendor_id ?? row.VENDORS_ID,
+    request_status: row.request_status ?? row.REQUEST_STATUS,
+    supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
+    purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
+    requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
+    approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
+    approve_by: row.approve_by ?? row.APPROVE_BY,
+    approve_date: row.approve_date ?? row.APPROVE_DATE,
+    vendor_code: row.vendor_code ?? row.VENDOR_CODE,
+    assign_to: row.assign_to ?? row.ASSIGN_TO,
+    PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
+    vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
+    Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
+    gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
+    gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
+    gpr_c_pc_pic_name: row.gpr_c_pc_pic_name ?? row.GPR_C_PC_PIC_NAME,
+    gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
+    gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
+    action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
+    gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
+    company_name: row.company_name ?? row.COMPANY_NAME,
+    fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
+    fft_status: row.fft_status ?? row.FFT_STATUS,
+    vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+    province: row.province ?? row.PROVINCE,
+    postal_code: row.postal_code ?? row.POSTAL_CODE,
+    address: row.address ?? row.ADDRESS,
+    tel_center: row.tel_center ?? row.TEL_CENTER,
+    website: row.website ?? row.WEBSITE,
+    emailmain: row.emailmain ?? row.EMAILMAIN,
+})
 
 interface EditRequestForm {
     supportProduct_Process: string
@@ -302,7 +338,6 @@ interface ActionDialogProps {
 }
 
 const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
-    const [error, setError] = useState<string | null>(null)
     const user = getUserData()
     const {
         register,
@@ -316,13 +351,11 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
 
     useEffect(() => {
         if (!open) return
-        setError(null)
         reset({ remark: '' })
     }, [open, mode, requestId, reset])
 
     const onSubmit = async (formData: ActionDialogForm) => {
         if (!requestId) return
-        setError(null)
         try {
             const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
             const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
@@ -359,10 +392,10 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 onSuccess()
                 onClose()
             } else {
-                setError(res.data.Message || 'Failed to update status')
+                ToastMessageError({ title: 'Update Request Status', message: res.data.Message || 'Failed to update status' })
             }
         } catch (e: any) {
-            setError(e?.response?.data?.Message || e?.message || 'Failed to update status')
+            ToastMessageError({ title: 'Update Request Status', message: e?.response?.data?.Message || e?.message || 'Failed to update status' })
         }
     }
 
@@ -396,9 +429,6 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                         {mode === 'approve' ? `Confirm action ${approveActionLabel}` : `Confirm action ${rejectActionLabel}`}
                     </Typography>
                 </Box>
-
-                {error && <Alert severity='error' sx={{ mb: 2 }}>{error}</Alert>}
-
                 {mode === 'reject' && (
                     <TextField
                         fullWidth multiline rows={3}
@@ -442,7 +472,7 @@ interface DetailPanelProps {
     data: any
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: (rejectActionLabel: string) => void
-    onEmailSent: () => void
+    onEmailSent: (data?: RegisterRequestRow) => void
     onCompleted?: () => void
 }
 
@@ -454,12 +484,10 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     // Account step: complete registration
     const [vendorCodeInput, setVendorCodeInput] = useState('')
     const [completing, setCompleting] = useState(false)
-    const [completeFeedback, setCompleteFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
     // Edit Request dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false)
-    const [editFeedback, setEditFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
     // Edit Vendor modal (reuse EditVendorModal from find-vendor)
     const [editVendorOpen, setEditVendorOpen] = useState(false)
     const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
@@ -490,7 +518,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const handleCompleteRegistration = async () => {
         if (!vendorCodeInput.trim()) return
         setCompleting(true)
-        setCompleteFeedback(null)
         try {
             const res = await RegisterRequestServices.completeRegistration({
                 request_id: data.request_id,
@@ -498,13 +525,13 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
             if (res.data.Status) {
-                setCompleteFeedback({ type: 'success', msg: 'Registration completed! Final emails sent.' })
+                ToastMessageSuccess({ title: 'Complete Registration', message: 'Registration completed! Final emails sent.' })
                 onCompleted?.()
             } else {
-                setCompleteFeedback({ type: 'error', msg: res.data.Message })
+                ToastMessageError({ title: 'Complete Registration', message: res.data.Message || 'Failed to complete registration' })
             }
         } catch (err: any) {
-            setCompleteFeedback({ type: 'error', msg: err?.response?.data?.Message || 'Failed to complete registration' })
+            ToastMessageError({ title: 'Complete Registration', message: err?.response?.data?.Message || 'Failed to complete registration' })
         } finally {
             setCompleting(false)
         }
@@ -513,12 +540,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     // Parse approval steps to determine if current user can act
     const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
         .filter(Boolean)
-        .sort((a: any, b: any) => a.step_order - b.step_order)
+        .sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
 
-    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+    const currentStep = approvalSteps.find((s: any) => s.STEP_STATUS === 'in_progress')
     const currentStepCode = currentStep ? inferStepCode(currentStep) : ''
     const isAgreementReachedCompleted = approvalSteps.some((s: any) =>
-        isAgreementReachedStep(s) && String(s?.step_status || '').toLowerCase() === 'completed'
+        isAgreementReachedStep(s) && String(s?.STEP_STATUS || '').toLowerCase() === 'completed'
     )
     const isPicOwnedNegotiationStep = !!currentStep && (
         isPendingAgreementStep(currentStep) ||
@@ -528,7 +555,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         isVendorDisagreedStep(currentStep)
     )
     const isCurrentStepMine = !!currentStep && (
-        currentStep.approver_id === user?.EMPLOYEE_CODE ||
+        currentStep.APPROVER_EMPCODE === user?.EMPLOYEE_CODE ||
         ((isPicStep(currentStep) || isPicOwnedNegotiationStep) && user?.EMPLOYEE_CODE === data.assign_to)
     )
     const isRequestRegisterActionStep = !!currentStep && (
@@ -550,21 +577,22 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         isRequester
         && currentStep
         && isIssueGprCStep(currentStep)
-        && String(currentStep?.approver_id || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
+        && String(currentStep?.APPROVER_EMPCODE || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
     )
     const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
-    const everRequestedVendor = approvalLogs.some((l: any) => l.action_type === 'vendor_requested')
+    const logs = approvalLogs
+    const everRequestedVendor = approvalLogs.some((l: any) => l.ACTION_TYPE === 'vendor_requested')
 
     const canOpenGprDialog = !isCurrentAccountStep && everRequestedVendor
     const isGprReadOnly = !isCurrentAccountStep && (!isActionable || isPoMgrOrAboveStep)
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
-        String(l.step_id || '') === String(currentStep.step_id || '') && l.action_type === 'vendor_requested'
+        String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') && l.ACTION_TYPE === 'vendor_requested'
     )
     const isWaitingForExternalGprCApproval = Boolean(
         currentStep
         && isIssueGprCStep(currentStep)
-        && currentStep.approver_id
-        && currentStep.approver_id !== user?.EMPLOYEE_CODE
+        && currentStep.APPROVER_EMPCODE
+        && currentStep.APPROVER_EMPCODE !== user?.EMPLOYEE_CODE
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
@@ -633,12 +661,10 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             purchase_frequency: data.purchase_frequency || '',
             requester_remark: data.requester_remark || ''
         })
-        setEditFeedback(null)
         setEditDialogOpen(true)
     }
 
     const handleSaveEdit = async (formData: EditRequestForm) => {
-        setEditFeedback(null)
         try {
             const res = await RegisterRequestServices.updateRequest({
                 request_id: data.request_id,
@@ -648,19 +674,19 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             })
             if (res.data.Status) {
-                setEditFeedback({ type: 'success', msg: 'Saved successfully' })
+                ToastMessageSuccess({ title: 'Edit Request', message: 'Saved successfully' })
                 onEmailSent() // refresh grid
-                setTimeout(() => setEditDialogOpen(false), 800)
+                setEditDialogOpen(false)
             } else {
-                setEditFeedback({ type: 'error', msg: res.data.Message })
+                ToastMessageError({ title: 'Edit Request', message: res.data.Message || 'Failed to update request' })
             }
         } catch (err: any) {
-            setEditFeedback({ type: 'error', msg: err?.response?.data?.Message || err?.message || 'Failed to update request' })
+            ToastMessageError({ title: 'Edit Request', message: err?.response?.data?.Message || err?.message || 'Failed to update request' })
         }
     }
 
     // Compute next status value for approve action
-    const nextStep = currentStep ? approvalSteps.find((s: any) => s.step_order === currentStep.step_order + 1 && s.step_status === 'pending') : null
+    const nextStep = getNextPendingMainApprovalStep(approvalSteps, currentStep)
     const isFinalStep = !!currentStep && !nextStep
     const computedNextStatus = resolveNextStatus(statusOptions, currentStep, nextStep, hasVendorRequested)
     const { isNegotiationStep, actions: negotiationActions } = useApprovalWorkflow(currentStep, statusOptions, {
@@ -805,17 +831,31 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         </Button>
                     )}
                 </Box>
-                {infoRow('Company Name', data.company_name)}
-                {infoRow('Vendor Type', data.vendor_type_name)}
-                {infoRow('Region', data.vendor_region)}
-                {infoRow('FFT Vendor Code', data.fft_vendor_code)}
-                {infoRow('FFT Status', formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }))}
-                {infoRow('Address', data.address)}
-                {infoRow('Province', data.province)}
-                {infoRow('Postal Code', data.postal_code)}
-                {infoRow('Tel Center', data.tel_center)}
-                {infoRow('Website', data.website)}
-                {infoRow('Email (Main)', data.emailmain)}
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {[
+                        { label: 'Company Name', value: data.company_name },
+                        { label: 'Vendor Type', value: data.vendor_type_name },
+                        { label: 'Region', value: data.vendor_region },
+                        { label: 'FFT Vendor Code', value: data.fft_vendor_code },
+                        { label: 'FFT Status', value: formatFftStatus(data.fft_status) },
+                        { label: 'Province', value: data.province },
+                        { label: 'Postal Code', value: data.postal_code },
+                        { label: 'Tel Center', value: data.tel_center },
+                        { label: 'Website', value: data.website },
+                        { label: 'Email (Main)', value: data.emailmain },
+                    ].map(({ label, value }) => (
+                        <Grid item xs={12} sm={6} md={4} key={label}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
+                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{value || '-'}</Typography>
+                        </Grid>
+                    ))}
+                    {data.address && (
+                        <Grid item xs={12}>
+                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
+                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.address}</Typography>
+                        </Grid>
+                    )}
+                </Grid>
             </Box>
 
             {/* Contacts */}
@@ -876,7 +916,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                     <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
                                 ))}
                             </Box>
-                            {steps.sort((a: any, b: any) => a.step_order - b.step_order).map((s: any, i: number) => {
+                            {steps.sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER).map((s: any, i: number) => {
                                 const getStepStatusCfg = (status: string) => {
                                     switch (status) {
                                         case 'approved':
@@ -894,12 +934,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                             return { label: 'Waiting', icon: 'tabler-clock', tone: { bg: '#EDEDED', color: '#667085', border: '#CFCFCF' } }
                                     }
                                 }
-                                const stCfg = getStepStatusCfg(s.step_status)
+                                const stCfg = getStepStatusCfg(s.STEP_STATUS)
                                 return (
                                     <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                        <Typography variant='body2' fontWeight={600}>{s.step_order}</Typography>
+                                        <Typography variant='body2' fontWeight={600}>{s.STEP_ORDER}</Typography>
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{s.approver_id || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{s.APPROVER_EMPCODE || '-'}</Typography>
                                         <Chip
                                             icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                             label={stCfg.label}
@@ -912,7 +952,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                                 '& .MuiChip-icon': { color: stCfg.tone.color }
                                             })}
                                         />
-                                        {isIssueGprCStep(s) && ['approved', 'completed'].includes(String(s?.step_status || '').toLowerCase()) && (
+                                        {isIssueGprCStep(s) && ['approved', 'completed'].includes(String(s?.STEP_STATUS || '').toLowerCase()) && (
                                             <Chip
                                                 size='small'
                                                 color='success'
@@ -944,8 +984,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                         }}
                                     >
                                         {(() => {
-                                            const parsedRemark = parseActionRequiredRemark(l.remark)
-                                            const actionType = parsedRemark.isActionRequired ? 'action_required' : l.action_type
+                                            const parsedRemark = parseActionRequiredRemark(l.DESCRIPTION)
+                                            const actionType = parsedRemark.isActionRequired ? 'action_required' : l.ACTION_TYPE
                                             const actionTypeLabel = formatActionTypeLabel(actionType)
                                             const actionColor = getActionTypeColor(actionType)
                                             const detailParts = [
@@ -956,12 +996,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                             const detailText = detailParts.length > 0
                                                 ? detailParts.join(' | ')
                                                 : (parsedRemark.rawRemark || '')
-                                            const actorName = String(l.action_by_name || '').trim()
-                                            const actorCode = String(l.action_by || '').trim()
+                                            const actorName = String(l.ACTION_BY_NAME || '').trim()
+                                            const actorCode = String(l.ACTION_BY || '').trim()
                                             const actorLabel = actorName
                                                 ? `${actorName}${actorCode ? ` (${actorCode})` : ''}`
                                                 : (actorCode || '-')
-                                            const matchedStep = approvalSteps.find((step: any) => String(step.step_id) === String(l.step_id))
+                                            const matchedStep = approvalSteps.find((step: any) => String(step.REQUEST_APPROVAL_STEP_ID) === String(l.REQUEST_APPROVAL_STEP_ID))
                                             const stepDescription = String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim()
 
                                             return (
@@ -971,9 +1011,12 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                                             <Chip
                                                                 size='small'
                                                                 label={actionTypeLabel}
-                                                                color={actionColor}
-                                                                variant='tonal'
-                                                                sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
+                                                                sx={getChipSx(getReadableStatusTone(
+                                                                    actionColor === 'success' ? 'completed' :
+                                                                    actionColor === 'error' ? 'rejected' :
+                                                                    actionColor === 'warning' ? 'in progress' :
+                                                                    actionColor === 'info' ? 'skipped' : 'pending'
+                                                                ), { height: 22, fontSize: '0.68rem', fontWeight: 700 })}
                                                             />
                                                             {parsedRemark.isActionRequired && (
                                                                 <Chip
@@ -990,14 +1033,14 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                                             )}
                                                         </Box>
                                                         <Typography variant='caption' color='text.disabled'>
-                                                            {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
+                                                            {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : '-'}
                                                         </Typography>
                                                     </Box>
                                                     <Typography variant='body2' fontWeight={600}>
                                                         {actorLabel}
                                                     </Typography>
                                                     <Typography variant='caption' color='text.secondary'>
-                                                        <strong>{l.action_by}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : ''}
+                                                        <strong>{l.ACTION_BY}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : ''}
                                                     </Typography>
                                                 </Box>
                                             )
@@ -1006,83 +1049,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 ))}
                             </Box>
                         )}
-                        {logs.length > 0 && (
-                            <Box sx={{ mt: 1.5 }}>
-                                <Typography variant='caption' fontWeight={700} color='text.disabled' sx={{ mb: 1, display: 'block' }}>Action Logs</Typography>
-                                {logs.map((l: any, i: number) => {
-                                    const {
-                                        parsedRemark,
-                                        actionTypeLabel,
-                                        actionColor,
-                                        detailText,
-                                        actorLabel,
-                                        stepDescription,
-                                    } = buildActionLogPresentation(l, approvalSteps)
 
-                                    return (
-                                        <Box
-                                            key={`action-log-${i}`}
-                                            sx={{
-                                                mb: 1,
-                                                p: 1.5,
-                                                borderRadius: 1.5,
-                                                bgcolor: 'background.paper',
-                                                border: '1px solid',
-                                                borderColor: 'divider',
-                                            }}
-                                        >
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                                        <Chip
-                                                            size='small'
-                                                            label={actionTypeLabel}
-                                                            color={actionColor}
-                                                            variant='tonal'
-                                                            sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }}
-                                                        />
-                                                        {parsedRemark.isActionRequired && (
-                                                            <Chip
-                                                                size='small'
-                                                                label='View Detail'
-                                                                color='warning'
-                                                                variant='outlined'
-                                                                sx={{ height: 22, fontSize: '0.68rem' }}
-                                                                onClick={() => {
-                                                                    setSelectedActionRequired(parsedRemark)
-                                                                    setActionRequiredDialogOpen(true)
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </Box>
-                                                    <Typography variant='caption' color='text.disabled'>
-                                                        {l.action_date ? new Date(l.action_date).toLocaleString('th-TH') : '-'}
-                                                    </Typography>
-                                                </Box>
-                                                <Typography variant='body2' fontWeight={600}>
-                                                    {actorLabel}
-                                                </Typography>
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
-                                                    {stepDescription && (
-                                                        <Typography variant='caption' color='text.secondary'>
-                                                            <strong>Step:</strong> {stepDescription}
-                                                        </Typography>
-                                                    )}
-                                                    <Typography variant='caption' color='text.secondary'>
-                                                        <strong>Action:</strong> {actionTypeLabel}
-                                                    </Typography>
-                                                    {detailText && (
-                                                        <Typography variant='caption' color='text.secondary'>
-                                                            <strong>Detail:</strong> {detailText}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                    )
-                                })}
-                            </Box>
-                        )}
                     </Box>
                 )
             })()}
@@ -1122,9 +1089,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                         value={vendorCodeInput}
                         onChange={e => setVendorCodeInput(e.target.value)}
                     />
-                    {completeFeedback && (
-                        <Alert severity={completeFeedback.type} sx={{ py: 0 }}>{completeFeedback.msg}</Alert>
-                    )}
                     <Button
                         variant='contained' fullWidth
                         sx={{ bgcolor: '#6610f2', '&:hover': { bgcolor: '#5a0ec4' } }}
@@ -1169,7 +1133,89 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
             )}
 
             {/* Approve / Reject Buttons (for normal approval steps only, not Account step) */}
-            {isActionable && !isCurrentAccountStep && (
+
+            {logs.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                    <SectionHeader icon='tabler-history' title='Action Logs' />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {logs.map((l: any, i: number) => {
+                            const {
+                                parsedRemark,
+                                actionTypeLabel,
+                                actionColor,
+                                detailText,
+                                actorLabel,
+                                stepDescription,
+                            } = buildActionLogPresentation(l, approvalSteps)
+                            return (
+                                <Box
+                                    key={`action-log-${i}`}
+                                    sx={{
+                                        p: 1.5,
+                                        borderRadius: 1.5,
+                                        bgcolor: 'background.paper',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                <Chip
+                                                    size='small'
+                                                    label={actionTypeLabel}
+                                                    sx={getChipSx(getReadableStatusTone(
+                                                        actionColor === 'success' ? 'completed' :
+                                                        actionColor === 'error' ? 'rejected' :
+                                                        actionColor === 'warning' ? 'in progress' :
+                                                        actionColor === 'info' ? 'skipped' : 'pending'
+                                                    ), { height: 22, fontSize: '0.68rem', fontWeight: 700 })}
+                                                />
+                                                {parsedRemark.isActionRequired && (
+                                                    <Chip
+                                                        size='small'
+                                                        label='View Detail'
+                                                        color='warning'
+                                                        variant='outlined'
+                                                        sx={{ height: 22, fontSize: '0.68rem' }}
+                                                        onClick={() => {
+                                                            setSelectedActionRequired(parsedRemark)
+                                                            setActionRequiredDialogOpen(true)
+                                                        }}
+                                                    />
+                                                )}
+                                            </Box>
+                                            <Typography variant='caption' color='text.disabled'>
+                                                {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : '-'}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant='body2' fontWeight={600}>
+                                            {actorLabel}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.35 }}>
+                                            {stepDescription && (
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    <strong>Step:</strong> {stepDescription}
+                                                </Typography>
+                                            )}
+                                            <Typography variant='caption' color='text.secondary'>
+                                                <strong>Action:</strong> {actionTypeLabel}
+                                            </Typography>
+                                            {detailText && (
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    <strong>Detail:</strong> {detailText}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            )
+                        })}
+                    </Box>
+                </Box>
+            )}
+
+{isActionable && !isCurrentAccountStep && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {/* PIC post-vendor step: buttons determined by GPR evaluation */}
                     {gprWorkflow.isPicPostVendorStep && (
@@ -1230,7 +1276,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                             : (gprWorkflow.hasGprCRejected
                                                 ? 'Requester head rejected/disagreed GPR C. PIC should choose Reject to continue rejection loop.'
                                                 : (isWaitingForExternalGprCApproval
-                                                    ? `Waiting for requester head (${currentStep?.approver_id}) to approve GPR C.`
+                                                    ? `Waiting for requester head (${currentStep?.APPROVER_EMPCODE}) to approve GPR C.`
                                                     : 'Waiting for requester head approval decision.'))}
                                     </Typography>
                                 </Box>
@@ -1337,7 +1383,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                 onClose={() => setGprDialogOpen(false)}
                 onSaved={() => {
                     setGprSavedInSession(true)
-                    onEmailSent()
+                    onEmailSent(data)
                 }}
             />
             <Dialog
@@ -1418,7 +1464,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent dividers>
-                    {editFeedback && <Alert severity={editFeedback.type} sx={{ mb: 2 }}>{editFeedback.msg}</Alert>}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                         <CustomTextField
                             fullWidth
@@ -1501,7 +1546,7 @@ const DetailRenderer = (props: any) => {
             data={props.data}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
             onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
-            onEmailSent={() => props.context.onEmailSent()}
+            onEmailSent={(data?: RegisterRequestRow) => props.context.onEmailSent(data || props.data)}
             onCompleted={() => props.context.onCompleted()}
         />
     )
@@ -1561,41 +1606,7 @@ export default function SearchResult() {
                     Limit: (endRow ?? 50) - (startRow ?? 0)
                 })
                 if (res.data?.Status) {
-                    const rowData = (res.data.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        request_id: row.request_id ?? row.REQUEST_ID,
-                        request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
-                        request_status: row.request_status ?? row.REQUEST_STATUS,
-                        supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
-                        purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
-                        requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
-                        approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
-                        approve_by: row.approve_by ?? row.APPROVE_BY,
-                        approve_date: row.approve_date ?? row.APPROVE_DATE,
-                        vendor_code: row.vendor_code ?? row.VENDOR_CODE,
-                        assign_to: row.assign_to ?? row.ASSIGN_TO,
-                        PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
-                        Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
-                        gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
-                        gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
-                        gpr_c_pc_pic_name: row.gpr_c_pc_pic_name ?? row.GPR_C_PC_PIC_NAME,
-                        gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
-                        gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
-                        action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
-                        gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
-                        fft_status: row.fft_status ?? row.FFT_STATUS,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        province: row.province ?? row.PROVINCE,
-                        postal_code: row.postal_code ?? row.POSTAL_CODE,
-                        address: row.address ?? row.ADDRESS,
-                        tel_center: row.tel_center ?? row.TEL_CENTER,
-                        website: row.website ?? row.WEBSITE,
-                        emailmain: row.emailmain ?? row.EMAILMAIN,
-                    }))
+                    const rowData = (res.data.ResultOnDb || []).map(normalizeRegisterRequestRow)
                     params.success({ rowData, rowCount: res.data.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -1717,6 +1728,25 @@ export default function SearchResult() {
         setSelectedData(null)
     }
 
+    const refreshCurrentDetail = useCallback(async (sourceRow?: RegisterRequestRow | null) => {
+        const requestId = Number(sourceRow?.request_id || selectedData?.request_id || 0)
+
+        refreshServerSide()
+
+        if (!requestId) return
+
+        try {
+            const response = await ApprovalQueueServices.getById(requestId)
+            const payload = response.data
+
+            if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') return
+
+            setSelectedData(normalizeRegisterRequestRow(payload.ResultOnDb))
+        } catch (error) {
+            console.error('Refresh request detail after selection sheet save failed:', error)
+        }
+    }, [refreshServerSide, selectedData?.request_id])
+
     const gridContext = useMemo(() => ({
         onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
             setSelectedData(data)
@@ -1734,15 +1764,15 @@ export default function SearchResult() {
             setActionMode('reject')
             setActionDialogOpen(true)
         },
-        onEmailSent: () => {
-            refreshServerSide()
+        onEmailSent: (data?: RegisterRequestRow) => {
+            refreshCurrentDetail(data)
         },
         onCompleted: () => {
             refreshServerSide()
             setDrawerOpen(false)
             setSelectedData(null)
         }
-    }), [refreshServerSide])
+    }), [refreshCurrentDetail, refreshServerSide])
 
     return (
         <Grid container spacing={6}>
@@ -1758,7 +1788,7 @@ export default function SearchResult() {
                             serverSideDatasource={datasource}
                             height={600}
                             overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
-                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_ID ?? p.data.vendor_id ?? p.data.VENDOR_ID ?? p.rowIndex)}
+                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.vendor_id ?? p.data.VENDORS_ID ?? p.rowIndex)}
                             onGridReady={(p: any) => {
                                 handleGridReady(p)
                                 gridApiRef.current = p.api
@@ -1826,3 +1856,4 @@ export default function SearchResult() {
         </Grid>
     )
 }
+

@@ -39,13 +39,13 @@ import RequestDetailDialog from './modal/RequestDetailDialog'
 import useDxServerSideGrid, { enforceLockedLeftColumns } from '@_workspace/hooks/useDxServerSideGrid'
 
 export type GprCQueueRow = {
-    REQUEST_ID?: number
+    REQUEST_REGISTER_VENDOR_ID?: number
     request_id?: number
     request_number?: string
     request_status?: string
     request_state?: string
-    GPR_C_FLOW_ID?: number
-    GPR_C_STEP_ID?: number
+    REQUEST_VENDOR_GPR_C_FLOWS_ID?: number
+    REQUEST_VENDOR_GPR_C_STEPS_ID?: number
     STEP_CODE?: string
     STEP_NAME?: string
     STEP_ORDER?: number
@@ -63,8 +63,8 @@ export type GprCQueueRow = {
 }
 
 export type GprCActionRequiredRow = {
-    ACTION_REQUIRED_ID?: number
-    REQUEST_ID?: number
+    REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID?: number
+    REQUEST_REGISTER_VENDOR_ID?: number
     STAGE_NAME?: string
     STAGE_CODE?: string
     REQUIRED_DETAIL?: string
@@ -100,7 +100,7 @@ const actionRequiredStepCodes = new Set([
     'PM_MANAGER_APPROVER',
 ])
 
-const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_ID || row.request_id || 0)
+const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_REGISTER_VENDOR_ID || row.request_id || 0)
 
 const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridFilterModelValue>): AgGridColumnFilter[] => {
     return Object.entries(filterModel || {}).flatMap(([id, model]) => {
@@ -203,7 +203,6 @@ const SearchResult = () => {
     const [dialogMode, setDialogMode] = useState<DialogMode>('APPROVE')
     const [remark, setRemark] = useState('')
     const [resultStatus, setResultStatus] = useState('completed')
-    const [, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const [actionRequiredTotalCount, setActionRequiredTotalCount] = useState(0)
 
     const actionRequiredGridApiRef = useRef<GridApi | null>(null)
@@ -257,7 +256,7 @@ const SearchResult = () => {
                 pic_email: userEmail,
                 SearchFilters: buildSearchFilters(),
                 ColumnFilters: [],
-                Order: [{ id: 'SENT_AT', desc: true }, { id: 'ACTION_REQUIRED_ID', desc: true }],
+                Order: [{ id: 'SENT_AT', desc: true }, { id: 'REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID', desc: true }],
                 Start: 0,
                 Limit: 1,
             })
@@ -296,7 +295,7 @@ const SearchResult = () => {
                     ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
                     Order: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
-                        : [{ id: 'GPR_C_FLOW_ID', desc: true }],
+                        : [{ id: 'REQUEST_VENDOR_GPR_C_FLOWS_ID', desc: true }],
                     Start: startRow ?? 0,
                     Limit: limit || 20,
                 })
@@ -305,7 +304,7 @@ const SearchResult = () => {
                 if (result?.Status) {
                     const rowData = (result.ResultOnDb || []).map((row: any) => ({
                         ...row,
-                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
                         request_number: row.request_number ?? row.REQUEST_NUMBER,
                         request_status: row.request_status ?? row.REQUEST_STATUS,
                         company_name: row.company_name ?? row.COMPANY_NAME,
@@ -349,7 +348,7 @@ const SearchResult = () => {
                     ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
                     Order: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
-                        : [{ id: 'SENT_AT', desc: true }, { id: 'ACTION_REQUIRED_ID', desc: true }],
+                        : [{ id: 'SENT_AT', desc: true }, { id: 'REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID', desc: true }],
                     Start: startRow ?? 0,
                     Limit: limit || 20,
                 })
@@ -385,7 +384,6 @@ const SearchResult = () => {
         setSelectedRow(row)
         setRemark('')
         setResultStatus('completed')
-        setMessage(null)
     }
 
     const closeDialog = () => {
@@ -395,7 +393,6 @@ const SearchResult = () => {
 
     const openActionRequiredDialog = (row: GprCQueueRow) => {
         setActionRequiredRow(row)
-        setMessage(null)
     }
 
     const closeActionRequiredDialog = () => {
@@ -407,7 +404,6 @@ const SearchResult = () => {
         setSelectedActionRow(row)
         setRemark('')
         setResultStatus('completed')
-        setMessage(null)
     }
 
     const closeRecordDialog = () => {
@@ -417,7 +413,6 @@ const SearchResult = () => {
 
     const openDetailDialog = (row: Record<string, unknown>) => {
         setDetailRow(row)
-        setMessage(null)
     }
 
     const closeDetailDialog = () => {
@@ -431,7 +426,7 @@ const SearchResult = () => {
 
         const requestId = getRequestId(selectedRow)
         if (!requestId) {
-            setMessage({ type: 'error', text: 'Missing request id' })
+            ToastMessageError({ title: 'GPR C Approval', message: 'Missing request id' })
             return
         }
 
@@ -448,18 +443,15 @@ const SearchResult = () => {
 
             const payload = response.data
             if (!payload.Status) {
-                setMessage({ type: 'error', text: payload.Message || 'GPR C action failed' })
                 ToastMessageError({ title: 'GPR C Approval', message: payload.Message || 'GPR C action failed' })
                 return
             }
 
-            setMessage({ type: 'success', text: payload.Message || 'GPR C action completed' })
             ToastMessageSuccess({ title: 'GPR C Approval', message: payload.Message || 'GPR C action completed' })
             setSelectedRow(null)
             refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'GPR C action failed'
-            setMessage({ type: 'error', text: message })
             ToastMessageError({ title: 'GPR C Approval', message })
         } finally {
             setSubmitting(false)
@@ -469,9 +461,9 @@ const SearchResult = () => {
     const handleRecordResult = async () => {
         if (!selectedActionRow || !empCode) return
 
-        const actionRequiredId = Number(selectedActionRow.ACTION_REQUIRED_ID || 0)
+        const actionRequiredId = Number(selectedActionRow.REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID || 0)
         if (!actionRequiredId) {
-            setMessage({ type: 'error', text: 'Missing action required id' })
+            ToastMessageError({ title: 'Record Action Required Result', message: 'Missing action required id' })
             return
         }
 
@@ -486,18 +478,15 @@ const SearchResult = () => {
             })
             const payload = response.data
             if (!payload.Status) {
-                setMessage({ type: 'error', text: payload.Message || 'Failed to record result' })
                 ToastMessageError({ title: 'Record Action Required Result', message: payload.Message || 'Failed to record result' })
                 return
             }
 
-            setMessage({ type: 'success', text: payload.Message || 'Result recorded' })
             ToastMessageSuccess({ title: 'Record Action Required Result', message: payload.Message || 'Result recorded' })
             setSelectedActionRow(null)
             refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to record result'
-            setMessage({ type: 'error', text: message })
             ToastMessageError({ title: 'Record Action Required Result', message })
         } finally {
             setSubmitting(false)
@@ -660,7 +649,7 @@ const SearchResult = () => {
             lockPinned: true,
             suppressMovable: true,
             filter: 'agTextColumnFilter',
-            valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_ID || ''}`,
+            valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_REGISTER_VENDOR_ID || ''}`,
         },
         { headerName: 'Vendor', field: 'company_name', minWidth: 220, flex: 1, filter: 'agTextColumnFilter' },
         {
@@ -744,7 +733,7 @@ const SearchResult = () => {
                         columnDefs={approvalColumnDefs}
                         serverSideDatasource={approvalDatasource}
                         height={560}
-                        getRowId={(params: GetRowIdParams<GprCQueueRow>) => String(params.data.GPR_C_STEP_ID || params.data.GPR_C_FLOW_ID || getRequestId(params.data))}
+                        getRowId={(params: GetRowIdParams<GprCQueueRow>) => String(params.data.REQUEST_VENDOR_GPR_C_STEPS_ID || params.data.REQUEST_VENDOR_GPR_C_FLOWS_ID || getRequestId(params.data))}
                         rowHeight={64}
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No GPR C approval task found.</span>'
                         initialState={savedGridState}
@@ -796,12 +785,12 @@ const SearchResult = () => {
                     setActionRequiredRow(null)
                     refreshAllGrids()
                 }}
-                onError={message => setMessage({ type: 'error', text: message })}
+                onError={message => ToastMessageError({ title: 'Action Required', message })}
             />
 
             <RequestDetailDialog
                 open={detailDialogOpen}
-                requestId={detailRow ? Number(detailRow.REQUEST_ID || detailRow.request_id || 0) : null}
+                requestId={detailRow ? Number(detailRow.REQUEST_REGISTER_VENDOR_ID || detailRow.request_id || 0) : null}
                 fallbackRow={detailRow}
                 onClose={closeDetailDialog}
             />
@@ -823,7 +812,7 @@ const SearchResult = () => {
                         columnDefs={actionRequiredColumnDefs}
                         serverSideDatasource={actionRequiredDatasource}
                         height={420}
-                        getRowId={(params: GetRowIdParams<GprCActionRequiredRow>) => String(params.data.ACTION_REQUIRED_ID || params.data.REQUEST_ID || '')}
+                        getRowId={(params: GetRowIdParams<GprCActionRequiredRow>) => String(params.data.REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID || params.data.REQUEST_REGISTER_VENDOR_ID || '')}
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No pending Action Required result.</span>'
                         initialState={actionRequiredInitialState}
                         onStateUpdated={handleActionRequiredStateUpdated}

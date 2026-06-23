@@ -180,14 +180,14 @@ const SanctionsSection = React.memo(({
                         <Controller
                             name='sanctions'
                             control={control}
-                            render={() => (
+                            render={({ field }) => (
                                 <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
                                                 size='small'
                                                 color='success'
-                                                checked={autoSanctions === 'non-concerned'}
+                                                checked={field.value === 'non-concerned'}
                                                 disabled
                                             />
                                         }
@@ -198,7 +198,7 @@ const SanctionsSection = React.memo(({
                                             <Checkbox
                                                 size='small'
                                                 color='error'
-                                                checked={autoSanctions === 'concerned'}
+                                                checked={field.value === 'concerned'}
                                                 disabled
                                             />
                                         }
@@ -290,14 +290,99 @@ const calculateMarginPercent = (revenueValue: unknown, profitValue: unknown) => 
     const revenue = parseFinancialNumber(revenueValue)
     const profit = parseFinancialNumber(profitValue)
 
-    return revenue > 0 ? profit / revenue * 100 : 0
+    return revenue > 0 ? profit / revenue * 100 : null
 }
 
-const formatMarginPercent = (value: number) => {
-    if (!Number.isFinite(value) || value === 0) return '0.00%'
+const formatMarginPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '-'
+    if (value === 0) return '0.00%'
     if (Math.abs(value) < 0.01) return '< 0.01%'
     if (Math.abs(value) < 1) return `${value.toFixed(3)}%`
     return `${value.toFixed(2)}%`
+}
+
+const getSeriesName = (element: Element) => String(element.getAttribute('seriesName') || '').replace(/%20/g, ' ')
+
+const isSeriesGroup = (element: Element, seriesName: string, realIndex: string, rel: string) => {
+    const currentSeriesName = getSeriesName(element)
+    return currentSeriesName === seriesName
+        || element.getAttribute('data:realIndex') === realIndex
+        || element.getAttribute('rel') === rel
+}
+
+const resetTransform = (element: Element) => {
+    const svgElement = element as SVGGraphicsElement
+    const baseTransform = element.getAttribute('data-base-transform')
+    if (baseTransform !== null) {
+        svgElement.setAttribute('transform', baseTransform)
+    }
+}
+
+const applyTranslateX = (element: Element, offsetX: number) => {
+    const svgElement = element as SVGGraphicsElement
+    let baseTransform = element.getAttribute('data-base-transform')
+
+    if (baseTransform === null) {
+        baseTransform = element.getAttribute('transform') || ''
+        element.setAttribute('data-base-transform', baseTransform)
+    }
+
+    svgElement.setAttribute('transform', `${baseTransform} translate(${offsetX}, 0)`.trim())
+}
+
+const getVisibleBounds = (element: Element) => {
+    const rect = element.getBoundingClientRect()
+    return rect.width > 0 && rect.height > 0 ? rect : null
+}
+
+const findFirstVisibleMarker = (groups: Element[]) => {
+    const markerSelectors = [
+        '.apexcharts-series-markers .apexcharts-marker',
+        '.apexcharts-series-markers circle',
+        '.apexcharts-marker',
+    ]
+
+    for (const selector of markerSelectors) {
+        const marker = groups
+            .flatMap(group => Array.from(group.querySelectorAll(selector)))
+            .find(element => getVisibleBounds(element))
+
+        if (marker) return marker
+    }
+
+    return undefined
+}
+
+const alignMarginLineToNetProfitBars = (chartContext?: any) => {
+    const root = chartContext?.el as HTMLElement | undefined
+    if (!root) return
+
+    window.requestAnimationFrame(() => {
+        const seriesGroups = Array.from(root.querySelectorAll('.apexcharts-series'))
+        const netProfitGroup = seriesGroups.find(group => isSeriesGroup(group, 'Net Profit', '1', '2'))
+        const marginGroups = seriesGroups.filter(group => isSeriesGroup(group, 'Net Profit Margin %', '2', '3'))
+        const marginLabelGroups = Array.from(root.querySelectorAll('.apexcharts-datalabels'))
+            .filter(group => isSeriesGroup(group, 'Net Profit Margin %', '2', '3'))
+        const targetGroups = [...marginGroups, ...marginLabelGroups]
+
+        targetGroups.forEach(resetTransform)
+
+        const netProfitBars = Array.from(netProfitGroup?.querySelectorAll('path, rect') || [])
+            .filter(element => getVisibleBounds(element))
+        const marginMarker = findFirstVisibleMarker(marginGroups)
+
+        const firstNetProfitBar = netProfitBars[0]
+        if (!firstNetProfitBar || !marginMarker) return
+
+        const barRect = getVisibleBounds(firstNetProfitBar)
+        const markerRect = getVisibleBounds(marginMarker)
+        if (!barRect || !markerRect) return
+
+        const offsetX = (barRect.left + barRect.width / 2) - (markerRect.left + markerRect.width / 2)
+
+        if (!Number.isFinite(offsetX) || Math.abs(offsetX) < 0.5) return
+        targetGroups.forEach(group => applyTranslateX(group, offsetX))
+    })
 }
 
 const FinancialSection = React.memo(() => {
@@ -306,6 +391,26 @@ const FinancialSection = React.memo(() => {
     const salesProfit = useWatch({ control, name: 'sales_profit' }) || []
     const currency = useWatch({ control, name: 'currency' }) || 'THB'
 
+    const marginPercents = useMemo(
+        () => salesProfit.map(item => calculateMarginPercent(item?.total_revenue, item?.net_profit)),
+        [salesProfit]
+    )
+
+    const chartAmountMax = useMemo(() => {
+        const maxAmount = Math.max(
+            ...salesProfit.flatMap(item => [
+                parseFinancialNumber(item?.total_revenue),
+                parseFinancialNumber(item?.net_profit),
+            ]),
+            0
+        )
+
+        if (maxAmount <= 0) return undefined
+
+        const magnitude = Math.pow(10, Math.max(0, Math.floor(Math.log10(maxAmount)) - 1))
+        return Math.ceil(maxAmount / magnitude) * magnitude
+    }, [salesProfit])
+
     const chartSeries = useMemo(() => [
         { name: 'Total Revenue', type: 'column', data: salesProfit.map(item => parseFinancialNumber(item?.total_revenue)) },
         { name: 'Net Profit', type: 'column', data: salesProfit.map(item => parseFinancialNumber(item?.net_profit)) },
@@ -313,7 +418,8 @@ const FinancialSection = React.memo(() => {
             name: 'Net Profit Margin %',
             type: 'line',
             data: salesProfit.map(item => {
-                return parseFloat(calculateMarginPercent(item?.total_revenue, item?.net_profit).toFixed(2))
+                const revenue = parseFinancialNumber(item?.total_revenue)
+                return revenue > 0 ? parseFinancialNumber(item?.net_profit) : null
             }),
         },
     ], [salesProfit])
@@ -321,32 +427,72 @@ const FinancialSection = React.memo(() => {
     const chartOptions = useMemo(() => ({
         chart: {
             id: 'financial-chart-pdf',
-            type: 'line' as const,
+            type: 'bar' as const,
             height: 270,
             toolbar: { show: false },
             zoom: { enabled: false },
             selection: { enabled: false },
             background: 'transparent',
             parentHeightOffset: 0,
+            events: {
+                mounted: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext),
+                updated: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext),
+                animationEnd: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext),
+            },
         },
         plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
-        dataLabels: { enabled: false },
+        dataLabels: {
+            enabled: true,
+            enabledOnSeries: [2],
+            offsetY: -8,
+            background: {
+                enabled: true,
+                borderRadius: 3,
+                borderWidth: 0,
+                opacity: 0.9,
+                padding: 3,
+            },
+            style: {
+                fontSize: '10px',
+                fontWeight: 700,
+                colors: ['#FF9F43'],
+            },
+            formatter: (_value: number | null, opts?: any) => {
+                const margin = marginPercents[Number(opts?.dataPointIndex) || 0]
+                return formatMarginPercent(margin)
+            },
+        },
         legend: { position: 'top' as const },
         stroke: { width: [0, 0, 2], curve: 'smooth' as const },
         markers: { size: [0, 0, 4] },
         xaxis: { categories: salesProfit.map(item => item?.year || '') },
         yaxis: [
             {
+                seriesName: 'Total Revenue',
+                min: 0,
+                max: chartAmountMax,
                 title: { text: `Amount (${currency})` },
                 labels: { formatter: (value: number) => value.toLocaleString() },
             },
             {
+                seriesName: 'Net Profit',
+                min: 0,
+                max: chartAmountMax,
                 show: false,
             },
             {
                 opposite: true,
+                seriesName: 'Net Profit Margin %',
+                min: 0,
+                max: chartAmountMax,
+                tickAmount: 5,
                 title: { text: '% Margin' },
-                labels: { formatter: (value: number) => formatMarginPercent(value) },
+                labels: {
+                    formatter: (value: number) => {
+                        if (!chartAmountMax) return '-'
+                        return formatMarginPercent(value / chartAmountMax * 100)
+                    },
+                },
             },
         ],
         colors: ['#7367F0', '#28C76F', '#FF9F43'],
@@ -354,11 +500,16 @@ const FinancialSection = React.memo(() => {
             y: [
                 { formatter: (value: number) => value.toLocaleString() },
                 { formatter: (value: number) => value.toLocaleString() },
-                { formatter: (value: number) => formatMarginPercent(value) },
+                {
+                    formatter: (_value: number | null, opts?: any) => {
+                        const margin = marginPercents[Number(opts?.dataPointIndex) || 0]
+                        return formatMarginPercent(margin)
+                    },
+                },
             ],
         },
         grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } },
-    }), [salesProfit, currency])
+    }), [salesProfit, currency, marginPercents, chartAmountMax])
 
     const chartKey = useMemo(
         () => [
@@ -393,9 +544,9 @@ const FinancialSection = React.memo(() => {
                                 {fields.map((field, index) => {
                                     const row = salesProfit[index] || {}
                                     const revenue = parseFinancialNumber(row.total_revenue)
-                                    const margin = revenue > 0
-                                        ? formatMarginPercent(calculateMarginPercent(row.total_revenue, row.net_profit))
-                                        : '-'
+                                    const profit = parseFinancialNumber(row.net_profit)
+                                    const isProfitExceedsRevenue = revenue > 0 && profit > revenue
+                                    const margin = formatMarginPercent(calculateMarginPercent(row.total_revenue, row.net_profit))
 
                                     return (
                                         <TableRow key={field.id} sx={{ '&:last-child td': { borderBottom: 0 } }}>
@@ -424,12 +575,19 @@ const FinancialSection = React.memo(() => {
                                                     variant='standard'
                                                     placeholder='0'
                                                     type='number'
+                                                    error={isProfitExceedsRevenue}
+                                                    helperText={isProfitExceedsRevenue ? 'เกิน Revenue' : undefined}
+                                                    FormHelperTextProps={{ sx: { fontSize: '0.6rem', mx: 0, mt: 0.25 } }}
                                                     {...register(`sales_profit.${index}.net_profit`)}
                                                     sx={{ width: '100%' }}
                                                 />
                                             </TableCell>
                                             <TableCell align='center' sx={{ p: '4px 2px' }}>
-                                                <Typography variant='caption' fontWeight={700} color='success.main'>
+                                                <Typography
+                                                    variant='caption'
+                                                    fontWeight={700}
+                                                    color={isProfitExceedsRevenue ? 'error.main' : 'success.main'}
+                                                >
                                                     {margin}
                                                 </Typography>
                                             </TableCell>
@@ -552,13 +710,14 @@ const GeneralInfoSection = React.memo(() => {
 
 interface CriteriaSectionProps {
     criteriaUploading: Record<number, boolean>
+    criteriaDeleting: Record<number, boolean>
     criteriaError: Record<number, string>
     onUploadClick: (idx: number) => void
     onRemoveUpload: (idx: number) => void
     onDownloadUpload: (filePath?: string, fileName?: string) => void
 }
 
-const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload }: CriteriaSectionProps) => {
+const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload }: CriteriaSectionProps) => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'criteria' })
     const criteria = useWatch({ control, name: 'criteria' }) || []
@@ -671,8 +830,16 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
                                                             </Box>
                                                         </Tooltip>
                                                         <Tooltip title='Remove'>
-                                                            <IconButton size='small' onClick={() => onRemoveUpload(index)} sx={{ p: 0.3 }}>
-                                                                <i className='tabler-x' style={{ fontSize: 12 }} />
+                                                            <IconButton
+                                                                size='small'
+                                                                onClick={() => onRemoveUpload(index)}
+                                                                disabled={Boolean(criteriaDeleting[index])}
+                                                                sx={{ p: 0.3 }}
+                                                            >
+                                                                {criteriaDeleting[index]
+                                                                    ? <CircularProgress size={12} />
+                                                                    : <i className='tabler-x' style={{ fontSize: 12 }} />
+                                                                }
                                                             </IconButton>
                                                         </Tooltip>
                                                     </Box>
@@ -717,9 +884,6 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaError, onUpload
 const CriteriaStats = React.memo(() => {
     const { control } = useFormContext<GprFormData>()
     const criteria = useWatch({ control, name: 'criteria' }) || []
-    const gprBDecision = String(criteria.find(item => item?.no === '4.3')?.remark || '').trim()
-    const isGprBAccepted = gprBDecision === 'Accept'
-    const isGprBRequired = gprBDecision === 'Not Accept'
     const needUploaded = criteria.filter(item => ['4.1', '4.2', '4.4', '4.5', '4.11'].includes(String(item?.no || '')) && item?.uploaded_file).length
     const isNeedPassed = needUploaded >= 5
     const optionalUploaded = criteria.filter(item => item?.criteria === 'Optional' && item?.no !== '4.14' && item?.uploaded_file).length
@@ -731,39 +895,15 @@ const CriteriaStats = React.memo(() => {
             <Typography variant='caption' fontWeight={700} sx={{ display: 'block', mb: 1 }}>
                 Remark :
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                <i
-                    className={isGprBRequired ? 'tabler-alert-circle' : (isGprBAccepted ? 'tabler-circle-check' : 'tabler-circle-x')}
-                    style={{
-                        color: isGprBRequired
-                            ? 'var(--mui-palette-warning-main)'
-                            : (isGprBAccepted ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)'),
-                        fontSize: 18
-                    }}
-                />
-                <Typography variant='caption'>
-                    {'1. Item 4.3 decision = '}
-                    <Box
-                        component='span'
-                        sx={{
-                            fontWeight: 700,
-                            color: isGprBRequired ? 'warning.main' : (isGprBAccepted ? 'success.main' : 'error.main')
-                        }}
-                    >
-                        {gprBDecision || 'Not selected'}
-                    </Box>
-                    {isGprBRequired ? ' (requires GPR B / Form B)' : ''}
-                </Typography>
-            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
                 <i
                     className={isNeedPassed ? 'tabler-circle-check' : 'tabler-circle-x'}
                     style={{ color: isNeedPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
                 />
                 <Typography variant='caption'>
-                    {'2. Need criteria 4.1, 4.2, 4.4, 4.5 and 4.11 must submit all documents = '}
+                    {'1. Criteria for evaluation criteria item 4.1, 4.2, 4.4, 4.5 and 4.11, Which are all selected = '}
                     <Box component='span' sx={{ fontWeight: 700, color: isNeedPassed ? 'success.main' : 'error.main' }}>{needUploaded}</Box>
-                    {' / 5 items'}
+                    {' items'}
                 </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.75 }}>
@@ -772,13 +912,13 @@ const CriteriaStats = React.memo(() => {
                     style={{ color: isOptionalPassed ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)', fontSize: 18 }}
                 />
                 <Typography variant='caption'>
-                    {'3. Optional criteria 4.6, 4.7, 4.8, 4.9, 4.10, 4.12 and 4.13 must choose at least three items = '}
+                    {'2. Item 4.6 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected = '}
                     <Box component='span' sx={{ fontWeight: 700, color: isOptionalPassed ? 'success.main' : 'error.main' }}>{optionalUploaded}</Box>
                     {' items'}
                 </Typography>
             </Box>
             <Typography variant='caption' component='div' sx={{ pl: 6, color: 'text.secondary', lineHeight: 1.8 }}>
-                <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods are raw materials, item no. 4.6 is recommended.<br />
+                <strong>-</strong> Manufacturer shall be authorized capital is at least 1MTHB, Establish is at least 3 years and if the goods raw materials item no. 4.6 is recommended.<br />
                 <strong>-</strong> Other business category shall be authorized capital is at least 0.5 MTHB, Establish is at least 1 year.
             </Typography>
         </Paper>
@@ -939,6 +1079,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         sanctionsChecking,
         sanctionsCheck,
         criteriaUploading,
+        criteriaDeleting,
         criteriaError,
         fileInputRef,
         isBusy,
@@ -951,8 +1092,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         checkSanctions,
         handleDialogClose,
         handleCloseClick,
-    } = useGprForm({ open, rowData, onClose, onSaved })
+    } = useGprForm({ open, rowData, onClose, onSaved, readOnly })
     const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
+    const [deleteCriteriaIndex, setDeleteCriteriaIndex] = useState<number | null>(null)
 
     const approvalSteps = useMemo(() => {
         const rawSteps = rowData?.approval_steps
@@ -985,7 +1127,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
     }, [rowData?.approval_logs])
 
     const isAccountVendorCodeOnlyMode = useMemo(() => {
-        const currentStep = approvalSteps.find((s: any) => s?.step_status === 'in_progress')
+        const currentStep = approvalSteps.find((s: any) => s?.STEP_STATUS === 'in_progress')
         return isAccountStep(currentStep)
     }, [approvalSteps])
 
@@ -999,6 +1141,13 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         setConfirmAction(null)
+    }
+
+    const handleConfirmDeleteCriteriaFile = async () => {
+        if (deleteCriteriaIndex === null) return
+
+        await removeCriteriaUpload(deleteCriteriaIndex)
+        setDeleteCriteriaIndex(null)
     }
 
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
@@ -1029,14 +1178,14 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
 
         const findLatestApprovedStep = (targetCode: string) => {
             const matched = approvalSteps.filter((step: any) => {
-                const status = String(step?.step_status || '').toLowerCase()
+                const status = String(step?.STEP_STATUS || '').toLowerCase()
                 if (!approvedStatuses.has(status)) return false
 
                 return inferStepCode(step) === targetCode
             })
 
             matched.sort((a: any, b: any) => {
-                const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+                const orderDiff = Number(b?.STEP_ORDER || 0) - Number(a?.STEP_ORDER || 0)
                 if (orderDiff !== 0) return orderDiff
 
                 const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
@@ -1049,14 +1198,14 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
 
         const findLatestApprovedAgreementReachedStep = () => {
             const matched = approvalSteps.filter((step: any) => {
-                const status = String(step?.step_status || '').toLowerCase()
+                const status = String(step?.STEP_STATUS || '').toLowerCase()
                 if (!approvedStatuses.has(status)) return false
 
                 return isAgreementReachedStep(step)
             })
 
             matched.sort((a: any, b: any) => {
-                const orderDiff = Number(b?.step_order || 0) - Number(a?.step_order || 0)
+                const orderDiff = Number(b?.STEP_ORDER || 0) - Number(a?.STEP_ORDER || 0)
                 if (orderDiff !== 0) return orderDiff
 
                 const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
@@ -1068,11 +1217,11 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         const findLatestLogForStep = (stepId: unknown) => {
-            const matched = approvalLogs.filter((log: any) => String(log?.step_id || '') === String(stepId || ''))
+            const matched = approvalLogs.filter((log: any) => String(log?.REQUEST_APPROVAL_STEP_ID || '') === String(stepId || ''))
 
             matched.sort((a: any, b: any) => {
-                const aTime = new Date(a?.action_date || 0).getTime()
-                const bTime = new Date(b?.action_date || 0).getTime()
+                const aTime = new Date(a?.CREATE_DATE || 0).getTime()
+                const bTime = new Date(b?.CREATE_DATE || 0).getTime()
                 return bTime - aTime
             })
 
@@ -1080,12 +1229,12 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         const mapSlot = (role: string, step: any): SignatureSlot => {
-            const latestLog = findLatestLogForStep(step?.step_id)
-            const code = String(step?.approver_id || latestLog?.action_by || '').trim()
+            const latestLog = findLatestLogForStep(step?.REQUEST_APPROVAL_STEP_ID)
+            const code = String(step?.APPROVER_EMPCODE || latestLog?.ACTION_BY || '').trim()
             const fullName = String(
                 step?.approver_name
                 || step?.APPROVER_NAME
-                || latestLog?.action_by_name
+                || latestLog?.ACTION_BY_NAME
                 || latestLog?.ACTION_BY_NAME
                 || ''
             ).trim()
@@ -1094,7 +1243,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                 role,
                 code,
                 signature: formatSignatureName(fullName),
-                date: formatDate(step?.UPDATE_DATE || latestLog?.action_date || step?.CREATE_DATE),
+                date: formatDate(step?.UPDATE_DATE || latestLog?.CREATE_DATE || step?.CREATE_DATE),
             }
         }
 
@@ -1174,9 +1323,10 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                                 <GeneralInfoSection />
                                 <CriteriaSection
                                     criteriaUploading={criteriaUploading}
+                                    criteriaDeleting={criteriaDeleting}
                                     criteriaError={criteriaError}
                                     onUploadClick={handleCriteriaUploadClick}
-                                    onRemoveUpload={removeCriteriaUpload}
+                                    onRemoveUpload={setDeleteCriteriaIndex}
                                     onDownloadUpload={downloadCriteriaFile}
                                 />
                             </DisabledBlock>
@@ -1220,6 +1370,14 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                 isDelete={false}
                 isLoading={isBusy}
             />
+            <ConfirmModal
+                show={deleteCriteriaIndex !== null}
+                onConfirmClick={handleConfirmDeleteCriteriaFile}
+                onCloseClick={() => setDeleteCriteriaIndex(null)}
+                isDelete
+                isLoading={isBusy}
+            />
         </FormProvider>
     )
 }
+

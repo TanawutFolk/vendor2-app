@@ -15,7 +15,7 @@ const activeStatusTone = { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' }
 const inactiveStatusTone = { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' }
 
 type AssigneeApiRow = AssigneeRow & {
-    ASSIGNEES_ID?: number
+    ASSIGNEES_TO_ID?: number
     EMPCODE?: string
     EMPNAME?: string
     EMPEMAIL?: string
@@ -72,7 +72,7 @@ const SearchResult = () => {
                 if (result?.Status) {
                     const rowData = (result.ResultOnDb || []).map((row: AssigneeApiRow) => ({
                         ...row,
-                        Assignees_id: row.Assignees_id ?? row.ASSIGNEES_ID,
+                        Assignees_id: row.Assignees_id ?? row.ASSIGNEES_TO_ID,
                         empcode: row.empcode ?? row.EMPCODE,
                         empName: row.empName ?? row.EMPNAME,
                         empEmail: row.empEmail ?? row.EMPEMAIL,
@@ -152,7 +152,7 @@ const SearchResult = () => {
                     onGridReady={handleGridReady}
                     getRowId={(params: GetRowIdParams<AssigneeRow>) => {
                         const row = params.data as AssigneeApiRow
-                        return String(row.Assignees_id || row.ASSIGNEES_ID || row.empcode || row.EMPCODE || '')
+                        return String(row.Assignees_id || row.ASSIGNEES_TO_ID || row.empcode || row.EMPCODE || '')
                     }}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assignees found.</span>'
                 />

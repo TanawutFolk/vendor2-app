@@ -318,7 +318,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 { label: 'Vendor Type', value: data.vendor_type_name },
                                 { label: 'Region', value: data.vendor_region },
                                 { label: 'FFT Vendor Code', value: data.fft_vendor_code },
-                                { label: 'FFT Status', value: formatFftStatus(data.fft_status, { statusCheck: data.status_check, requestStatus: data.request_status }) },
+                                { label: 'FFT Status', value: formatFftStatus(data.fft_status) },
                                 { label: 'Province', value: data.province },
                                 { label: 'Postal Code', value: data.postal_code },
                                 { label: 'Tel Center', value: data.tel_center },
@@ -489,9 +489,9 @@ export default function SearchResult() {
                 if (res.data?.Status) {
                     const rowData = (res.data.ResultOnDb || []).map((row: any) => ({
                         ...row,
-                        request_id: row.request_id ?? row.REQUEST_ID,
+                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
                         request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        vendor_id: row.vendor_id ?? row.VENDOR_ID,
+                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
                         request_status: row.request_status ?? row.REQUEST_STATUS,
                         supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
                         purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
@@ -502,7 +502,7 @@ export default function SearchResult() {
                         vendor_code: row.vendor_code ?? row.VENDOR_CODE,
                         assign_to: row.assign_to ?? row.ASSIGN_TO,
                         PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACT_ID,
+                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
                         Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
                         gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
                         gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
@@ -594,7 +594,7 @@ export default function SearchResult() {
                     const approvalSteps = typeof params.data?.approval_steps === 'string'
                         ? JSON.parse(params.data.approval_steps)
                         : (params.data?.approval_steps || [])
-                    const currentStep = approvalSteps.find((s: any) => s.step_status === 'in_progress')
+                    const currentStep = approvalSteps.find((s: any) => s.STEP_STATUS === 'in_progress')
                     if (currentStep) {
                         inGprCStep = isIssueGprCStep(currentStep)
                     } else {
@@ -755,10 +755,11 @@ export default function SearchResult() {
                             masterDetail={true}
                             detailCellRenderer={DetailRenderer}
                             detailRowAutoHeight={true}
-                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_ID ?? p.data.vendor_id ?? p.data.VENDOR_ID ?? p.rowIndex)}
+                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.vendor_id ?? p.data.VENDORS_ID ?? p.rowIndex)}
                             onGridReady={handleGridReady}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}
+                            overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No request history found</span>'
                         />
                     </CardContent>
                 </SearchResultCard>
@@ -805,3 +806,4 @@ export default function SearchResult() {
         </Grid>
     )
 }
+
