@@ -291,6 +291,19 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         return []
     })()
 
+    const approvalLogs = (() => {
+        const raw = rowData?.approval_logs
+        if (Array.isArray(raw)) return raw
+        if (typeof raw === 'string') {
+            try {
+                return JSON.parse(raw)
+            } catch {
+                return []
+            }
+        }
+        return []
+    })()
+
     const approvedStatuses = new Set(['approved', 'completed'])
 
     const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
@@ -356,6 +369,21 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         return matched[0]
     }
 
+    const findLatestLogForStep = (stepId: unknown) => {
+        const matched = approvalLogs.filter((log: any) => {
+            const logStepId = log?.REQUEST_APPROVAL_STEP_ID || log?.request_approval_step_id
+            return String(logStepId || '') === String(stepId || '')
+        })
+
+        matched.sort((a: any, b: any) => {
+            const aTime = new Date(a?.CREATE_DATE || a?.create_date || 0).getTime()
+            const bTime = new Date(b?.CREATE_DATE || b?.create_date || 0).getTime()
+            return bTime - aTime
+        })
+
+        return matched[0]
+    }
+
     const signatureSlots: SignatureSlot[] = [
         { role: 'Issuer', step: findLatestApprovedAgreementReachedStep() },
         { role: 'Manager', step: findLatestApprovedStep('PO_MGR_APPROVAL') },
@@ -363,11 +391,19 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         { role: 'Managing Director', step: findLatestApprovedStep('MD_APPROVAL') },
     ].map((item: any) => {
         const step = item.step
+        const latestLog = findLatestLogForStep(step?.REQUEST_APPROVAL_STEP_ID || step?.request_approval_step_id)
+        const code = String(step?.APPROVER_EMPCODE || step?.approver_empcode || latestLog?.ACTION_BY || latestLog?.action_by || '').trim()
+        const fullName = step?.approver_name
+            || step?.APPROVER_NAME
+            || latestLog?.ACTION_BY_NAME
+            || latestLog?.action_by_name
+            || ''
+
         return {
             role: item.role,
-            code: String(step?.APPROVER_EMPCODE || '').trim(),
-            signature: formatSignatureName(step?.approver_name, step?.APPROVER_EMPCODE),
-            date: formatDate(step?.UPDATE_DATE || step?.CREATE_DATE),
+            code,
+            signature: formatSignatureName(fullName, code),
+            date: formatDate(step?.UPDATE_DATE || step?.update_date || latestLog?.CREATE_DATE || latestLog?.create_date || step?.CREATE_DATE || step?.create_date),
         }
     })
 

@@ -1071,6 +1071,28 @@ const SuggestionSection = React.memo(
 // ── Main Dialog Component ─────────────────────────────────────────────────────
 
 export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnly = false }: GprFormDialogProps) {
+    const approvalSteps = useMemo(() => {
+        const rawSteps = rowData?.approval_steps
+
+        if (Array.isArray(rawSteps)) return rawSteps
+        if (typeof rawSteps === 'string') {
+            try {
+                return JSON.parse(rawSteps)
+            } catch {
+                return []
+            }
+        }
+
+        return []
+    }, [rowData?.approval_steps])
+
+    const isAccountVendorCodeOnlyMode = useMemo(() => {
+        const currentStep = approvalSteps.find((s: any) => s?.STEP_STATUS === 'in_progress')
+        return isAccountStep(currentStep)
+    }, [approvalSteps])
+
+    const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
+
     const {
         methods,
         initializing,
@@ -1092,24 +1114,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         checkSanctions,
         handleDialogClose,
         handleCloseClick,
-    } = useGprForm({ open, rowData, onClose, onSaved, readOnly })
+    } = useGprForm({ open, rowData, onClose, onSaved, readOnly: isReadOnlyMode })
     const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
     const [deleteCriteriaIndex, setDeleteCriteriaIndex] = useState<number | null>(null)
-
-    const approvalSteps = useMemo(() => {
-        const rawSteps = rowData?.approval_steps
-
-        if (Array.isArray(rawSteps)) return rawSteps
-        if (typeof rawSteps === 'string') {
-            try {
-                return JSON.parse(rawSteps)
-            } catch {
-                return []
-            }
-        }
-
-        return []
-    }, [rowData?.approval_steps])
 
     const approvalLogs = useMemo(() => {
         const rawLogs = rowData?.approval_logs
@@ -1126,12 +1133,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         return []
     }, [rowData?.approval_logs])
 
-    const isAccountVendorCodeOnlyMode = useMemo(() => {
-        const currentStep = approvalSteps.find((s: any) => s?.STEP_STATUS === 'in_progress')
-        return isAccountStep(currentStep)
-    }, [approvalSteps])
-
-    const isReadOnlyMode = readOnly && !isAccountVendorCodeOnlyMode
     const requestRef = rowData?.request_number || rowData?.request_id || '-'
     const handleConfirmAction = async () => {
         if (confirmAction === 'save') {
@@ -1153,9 +1154,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
 
-        const formatSignatureName = (fullName?: string) => {
+        const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
             const source = (fullName || '').trim()
-            if (!source) return ''
+            if (!source) return String(fallbackCode || '').trim()
 
             const parts = source.split(/\s+/).filter(Boolean)
             if (parts.length < 2) return source.toUpperCase()
@@ -1235,14 +1236,13 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                 step?.approver_name
                 || step?.APPROVER_NAME
                 || latestLog?.ACTION_BY_NAME
-                || latestLog?.ACTION_BY_NAME
                 || ''
             ).trim()
 
             return {
                 role,
                 code,
-                signature: formatSignatureName(fullName),
+                signature: formatSignatureName(fullName, code),
                 date: formatDate(step?.UPDATE_DATE || latestLog?.CREATE_DATE || step?.CREATE_DATE),
             }
         }
@@ -1308,7 +1308,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                             {isReadOnlyMode && (
                                 <Box sx={{ mb: 2, px: 2, py: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
                                     <Typography variant='body2' color='text.secondary'>
-                                    This sheet is in read-only mode at the current workflow step.
+                                    This sheet is in read-only mode after Document checker approved
                                     </Typography>
                                 </Box>
                             )}
@@ -1380,4 +1380,3 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         </FormProvider>
     )
 }
-

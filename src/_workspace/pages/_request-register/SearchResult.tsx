@@ -5,7 +5,8 @@ import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import {
     Grid, CardContent, Box, Typography, Chip, Divider,
     IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, List, ListItem, ListItemIcon, ListItemText, CircularProgress,
+    Button, List, ListItem, ListItemIcon, ListItemText,
+    TextField,
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 
@@ -70,6 +71,7 @@ import {
     resolveActionRequiredStage,
     getActionRequiredStageLabel,
     isVendorDisagreedStep,
+    isDocumentCheckApproved,
     getNextPendingMainApprovalStep,
     WORKFLOW_STEP_CODE,
     resolveNextStatus,
@@ -476,14 +478,12 @@ interface DetailPanelProps {
     onCompleted?: () => void
 }
 
-const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
+const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
+    const data = rawData || {}
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [allowApproveBypass, setAllowApproveBypass] = useState(false)
     const [gprCSentInSession, setGprCSentInSession] = useState(false)
     const [gprSavedInSession, setGprSavedInSession] = useState(false)
-    // Account step: complete registration
-    const [vendorCodeInput, setVendorCodeInput] = useState('')
-    const [completing, setCompleting] = useState(false)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
     // Edit Request dialog
@@ -507,35 +507,10 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         }
     })
     const files = buildFileUrls(data?.documents)
-    if (!data) return null
-
     useEffect(() => {
         setGprSavedInSession(false)
         setGprCSentInSession(false)
     }, [data?.request_id])
-
-
-    const handleCompleteRegistration = async () => {
-        if (!vendorCodeInput.trim()) return
-        setCompleting(true)
-        try {
-            const res = await RegisterRequestServices.completeRegistration({
-                request_id: data.request_id,
-                vendor_code: vendorCodeInput.trim(),
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-            if (res.data.Status) {
-                ToastMessageSuccess({ title: 'Complete Registration', message: 'Registration completed! Final emails sent.' })
-                onCompleted?.()
-            } else {
-                ToastMessageError({ title: 'Complete Registration', message: res.data.Message || 'Failed to complete registration' })
-            }
-        } catch (err: any) {
-            ToastMessageError({ title: 'Complete Registration', message: err?.response?.data?.Message || 'Failed to complete registration' })
-        } finally {
-            setCompleting(false)
-        }
-    }
 
     // Parse approval steps to determine if current user can act
     const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
@@ -572,6 +547,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         WORKFLOW_STEP_CODE.PO_GM_APPROVAL,
         WORKFLOW_STEP_CODE.MD_APPROVAL,
     ].includes(currentStepCode as any)
+    const isSelectionSheetLocked = isDocumentCheckApproved(approvalSteps)
     const isRequester = String(data?.Request_By_EmployeeCode || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
     const isRequesterGprCSetupPhase = Boolean(
         isRequester
@@ -583,8 +559,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
     const logs = approvalLogs
     const everRequestedVendor = approvalLogs.some((l: any) => l.ACTION_TYPE === 'vendor_requested')
 
-    const canOpenGprDialog = !isCurrentAccountStep && everRequestedVendor
-    const isGprReadOnly = !isCurrentAccountStep && (!isActionable || isPoMgrOrAboveStep)
+    const isGprReadOnly = isSelectionSheetLocked || (!isCurrentAccountStep && (!isActionable || isPoMgrOrAboveStep))
     const hasVendorRequested = !!currentStep && approvalLogs.some((l: any) =>
         String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') && l.ACTION_TYPE === 'vendor_requested'
     )
@@ -618,6 +593,7 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
         }
     })()
     const hasPersistedGprData = Boolean(data.gpr_data) || gprCriteriaFromData.length > 0
+    const canOpenGprDialog = !isCurrentAccountStep && (everRequestedVendor || hasPersistedGprData)
     const gprFormFilled = gprSavedInSession || hasPersistedGprData || gprCriteria.length > 0
     // Item 4.3 decides whether GPR B / Form B is needed.
     const gpr43Status = String(data.gpr_43_acceptance_status ?? data.GPR_43_ACCEPTANCE_STATUS ?? '').trim().replace(/[_-]+/g, ' ').toUpperCase()
@@ -911,8 +887,8 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     <Box sx={{ mb: 3 }}>
                         <SectionHeader icon='tabler-list-check' title={`Approval Steps (${steps.length})`} />
                         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                {['#', 'Description', 'Approver', 'Status', 'Updated'].map(h => (
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.6fr 1.2fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                {['#', 'Description', 'Status', 'Updated'].map(h => (
                                     <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
                                 ))}
                             </Box>
@@ -936,10 +912,9 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                                 }
                                 const stCfg = getStepStatusCfg(s.STEP_STATUS)
                                 return (
-                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.6fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
                                         <Typography variant='body2' fontWeight={600}>{s.STEP_ORDER}</Typography>
                                         <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{s.APPROVER_EMPCODE || '-'}</Typography>
                                         <Chip
                                             icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                             label={stCfg.label}
@@ -1064,43 +1039,6 @@ const DetailPanel = ({ data, onApprove, onReject, onEmailSent, onCompleted }: De
                     {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
                 </Box>
             )} */}
-
-            {/* Account Registration Step UI (only when Account step is in_progress) */}
-            {isCurrentAccountStep && (
-                <Box sx={{
-                    mb: 3, p: 2.5, borderRadius: 1,
-                    bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'rgba(102, 16, 242, 0.04)' : 'rgba(102, 16, 242, 0.12)',
-                    border: '1px solid', borderColor: 'rgba(102, 16, 242, 0.4)',
-                    display: 'flex', flexDirection: 'column', gap: 2
-                }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <i className='tabler-building-bank' style={{ fontSize: 22, color: '#6610f2' }} />
-                        <Box>
-                            <Typography variant='subtitle1' fontWeight={700} color='#6610f2'>Account Registration Step</Typography>
-                            <Typography variant='caption' color='text.secondary'>
-                                Register the vendor in the FFT system, then enter the Vendor Code to complete the process.
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <TextField
-                        fullWidth size='small'
-                        label='Vendor Code (FFT System)'
-                        placeholder='e.g. V-12345'
-                        value={vendorCodeInput}
-                        onChange={e => setVendorCodeInput(e.target.value)}
-                    />
-                    <Button
-                        variant='contained' fullWidth
-                        sx={{ bgcolor: '#6610f2', '&:hover': { bgcolor: '#5a0ec4' } }}
-                        disabled={completing || !vendorCodeInput.trim()}
-                        startIcon={completing ? <CircularProgress size={16} color='inherit' /> : <i className='tabler-circle-check' style={{ fontSize: 18 }} />}
-                        onClick={handleCompleteRegistration}
-                    >
-                        {completing ? 'Completing...' : 'Complete Registration'}
-                    </Button>
-                </Box>
-            )}
-
             {/* GPR Form */}
             {canOpenGprDialog && (
                 <Box sx={{

@@ -157,6 +157,15 @@ export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.
 export const isDisagreedBranchStep = (step: any) =>
     isVendorDisagreedStep(step) || isIssueGprBStep(step) || isIssueGprCStep(step)
 
+export const isApprovedStepStatus = (status: any) =>
+    ['approved', 'completed'].includes(String(status || '').trim().toLowerCase())
+
+export const isDocumentCheckApproved = (approvalSteps: any[] = []) =>
+    approvalSteps.some((step: any) =>
+        inferStepCode(step) === WORKFLOW_STEP_CODE.DOC_CHECK
+        && isApprovedStepStatus(step?.STEP_STATUS || step?.step_status)
+    )
+
 export const getNextPendingMainApprovalStep = (approvalSteps: any[], currentStep: any) => {
     if (!currentStep) return null
 

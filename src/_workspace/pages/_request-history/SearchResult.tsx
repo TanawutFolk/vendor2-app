@@ -282,6 +282,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                     </Box>
 
                     {/* Request Info Grid */}
+                    <SectionHeader icon='tabler-building-store' title='Request Info' />
                     <Grid container spacing={3} sx={{ mb: 4 }}>
                         <Grid item xs={12} sm={6} md={3}>
                             <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Process / Product</Typography>
@@ -308,6 +309,33 @@ const DetailRenderer = ({ data }: { data: any }) => {
                             </Grid>
                         )}
                     </Grid>
+
+                    {/* Attached Files */}
+                    <Box sx={{ mb: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                            <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
+                            <Divider sx={{ flex: 1 }} />
+                            <Button size='small' variant='tonal'
+                                startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
+                                onClick={() => setFileDialogOpen(true)}
+                                disabled={files.length === 0}
+                            >
+                                {files.length === 0 ? 'No Files' : `View ${files.length} File${files.length > 1 ? 's' : ''}`}
+                            </Button>
+                        </Box>
+                        {files.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                                {files.map((f, i) => (
+                                    <Chip key={i} label={f.name} size='small' variant='outlined'
+                                        icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
+                                        onClick={() => window.open(f.url, '_blank')}
+                                        sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                    />
+                                ))}
+                            </Box>
+                        )}
+                    </Box>
 
                     {/* Vendor Info */}
                     <Box sx={{ mb: 4 }}>
@@ -397,7 +425,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         />
                     </Box>
 
-                    {/* Attached Files */}
+                    {/* Attached Files
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
                         <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
                         <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
@@ -409,19 +437,8 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         >
                             {files.length === 0 ? 'No Files' : `View ${files.length} File${files.length > 1 ? 's' : ''}`}
                         </Button>
-                    </Box>
+                    </Box> */}
 
-                    {files.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                            {files.map((f, i) => (
-                                <Chip key={i} label={f.name} size='small' variant='outlined'
-                                    icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
-                                    onClick={() => window.open(f.url, '_blank')}
-                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                                />
-                            ))}
-                        </Box>
-                    )}
                 </CardContent>
             </Card>
 

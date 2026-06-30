@@ -437,11 +437,17 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
     }, [checkSanctions, open, reset, rowData, readOnly])
 
     const handleCriteriaUploadClick = useCallback((index: number) => {
+        if (readOnly) return
         uploadTargetRef.current = index
         fileInputRef.current?.click()
-    }, [])
+    }, [readOnly])
 
     const handleFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+        if (readOnly) {
+            event.target.value = ''
+            return
+        }
+
         const file = event.target.files?.[0]
         if (!file) return
 
@@ -453,9 +459,17 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
         setPendingCriteriaFiles(prev => ({ ...prev, [index]: file }))
         setValue(`criteria.${index}.uploaded_file` as any, `${PENDING_UPLOAD_PREFIX}${file.name}`, { shouldDirty: true })
         setValue(`criteria.${index}.uploaded_name` as any, file.name, { shouldDirty: true })
-    }, [setValue])
+    }, [readOnly, setValue])
 
     const removeCriteriaUpload = useCallback(async (index: number) => {
+        if (readOnly) {
+            ToastMessageError({
+                title: 'Delete File',
+                message: 'Selection Sheet is read-only after Document Checker approval.'
+            })
+            return
+        }
+
         const currentRow = getValues(`criteria.${index}` as any) as GprCriteria | undefined
         const normalizedFilePath = String(currentRow?.uploaded_file || '').trim()
         const normalizedFileName = String(currentRow?.uploaded_name || '').trim()
@@ -516,7 +530,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
         } finally {
             setCriteriaDeleting(prev => ({ ...prev, [index]: false }))
         }
-    }, [getValues, onSaved, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
+    }, [getValues, onSaved, readOnly, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
 
     const downloadCriteriaFile = useCallback(async (filePath?: string, fileName?: string) => {
         const normalizedFilePath = String(filePath || '').trim()
@@ -559,6 +573,8 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
     }, [rowData?.request_number])
 
     const uploadPendingCriteriaFiles = useCallback(async (formData: GprFormData) => {
+        if (readOnly) return formData
+
         const pendingEntries = Object.entries(pendingCriteriaFiles)
 
         if (!pendingEntries.length) {
@@ -614,10 +630,17 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
 
         setPendingCriteriaFiles({})
         return nextForm
-    }, [pendingCriteriaFiles, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
+    }, [pendingCriteriaFiles, readOnly, rowData?.request_id, rowData?.request_number, setValue, user?.EMPLOYEE_CODE])
 
     const handleSave = useCallback(async () => {
         if (!rowData?.request_id) return
+        if (readOnly) {
+            ToastMessageError({
+                title: 'Save GPR Form',
+                message: 'Selection Sheet is read-only after Document Checker approval.'
+            })
+            return
+        }
 
         setSaving(true)
 
@@ -652,10 +675,17 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
         } finally {
             setSaving(false)
         }
-    }, [rowData?.request_id, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
+    }, [readOnly, rowData?.request_id, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
 
     const handleExportPdf = useCallback(async () => {
         if (!rowData?.request_id) return
+        if (readOnly) {
+            ToastMessageError({
+                title: 'Generate PDF',
+                message: 'Selection Sheet is read-only after Document Checker approval.'
+            })
+            return
+        }
 
         setGeneratingPdf(true)
 
@@ -725,7 +755,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
         } finally {
             setGeneratingPdf(false)
         }
-    }, [rowData, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
+    }, [readOnly, rowData, getValues, uploadPendingCriteriaFiles, user?.EMPLOYEE_CODE, onSaved])
 
     const criteriaDeletingAny = Object.values(criteriaDeleting).some(Boolean)
     const isBusy = saving || generatingPdf || sanctionsChecking || criteriaDeletingAny

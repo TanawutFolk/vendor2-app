@@ -41,12 +41,13 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 
 // Services
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import AccRegisterServices from '@_workspace/services/_Acc-register/AccRegisterServices'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
-// Status — colors from DB
+// Status colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 import {
     getApproveActionLabel,
@@ -64,6 +65,7 @@ import {
     resolveNextStatus,
     normalizeWorkflowText,
     getNextPendingMainApprovalStep,
+    isDocumentCheckApproved,
 } from '@_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
@@ -113,9 +115,9 @@ const SearchResultSection = ({
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 
 const buildFileUrls = (documents: any): { name: string; url: string }[] => {
@@ -325,9 +327,9 @@ const getRowApprovalState = (row: any, empCode?: string, queueStepCode?: string,
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // File Viewer Dialog
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 const FileViewerDialog = ({ open, files, onClose }: {
     open: boolean; files: { name: string; url: string }[]; onClose: () => void
 }) => {
@@ -400,9 +402,9 @@ const FileViewerDialog = ({ open, files, onClose }: {
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Approve / Reject Dialog
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 interface ActionDialogProps {
     open: boolean
     mode: 'approve' | 'reject'
@@ -556,9 +558,9 @@ const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLab
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Detail Panel
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 interface DetailPanelProps {
     data: any
     empCode: string | undefined
@@ -575,6 +577,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
     const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
     const [gprSavedInSession, setGprSavedInSession] = useState(false)
+    const [accountCompleting, setAccountCompleting] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     if (!data) return null
 
@@ -605,6 +608,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
         ((isCurrentPicStep || isPicOwnedNegotiationStep) && data.assign_to === empCode)
     )
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
+    const isAccountRegisterQueue = normalizedQueueStepCode === 'ACCOUNT_REGISTERED'
     const isCurrentStepMatchingQueue = !normalizedQueueStepCode || inferStepCode(currentStep) === normalizedQueueStepCode
     const hasVendorRequested = !!currentStep && logs.some((l: any) =>
         String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') && l.ACTION_TYPE === 'vendor_requested'
@@ -625,7 +629,40 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
         isAgreementReachedStep(s) && String(s?.STEP_STATUS || '').toLowerCase() === 'completed'
     )
     const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue && !isAgreementReachedCompleted
-    const isGprReadOnly = !isActionable
+    const isSelectionSheetLocked = isDocumentCheckApproved(approvalSteps)
+    const isGprReadOnly = isSelectionSheetLocked || !isActionable
+    const vendorCodeSelector = String(data?.vendor_code_selector || data?.VENDOR_CODE_SELECTOR || '').trim()
+    const handleCompleteAccountRegistration = async () => {
+        const latestVendorCode = String(data?.vendor_code_selector || data?.VENDOR_CODE_SELECTOR || '').trim()
+        if (!latestVendorCode) {
+            ToastMessageError({
+                title: 'Complete Registration',
+                message: 'Please fill Vendor Code in the Selection Sheet before completing registration.'
+            })
+            return
+        }
+
+        setAccountCompleting(true)
+        try {
+            const res = await AccRegisterServices.completeRegistration({
+                request_id: Number(data?.request_id || 0),
+                UPDATE_BY: empCode || 'SYSTEM',
+            })
+            if (res.data.Status) {
+                ToastMessageSuccess({ title: 'Complete Registration', message: res.data.Message || 'Registration completed successfully.' })
+                onRefresh()
+            } else {
+                ToastMessageError({ title: 'Complete Registration', message: res.data.Message || 'Failed to complete registration.' })
+            }
+        } catch (err: any) {
+            ToastMessageError({
+                title: 'Complete Registration',
+                message: err?.response?.data?.Message || err?.message || 'Failed to complete registration.'
+            })
+        } finally {
+            setAccountCompleting(false)
+        }
+    }
     const hasPersistedGprData = (() => {
         if (!data.gpr_data) return false
         try {
@@ -692,7 +729,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.STEP_STATUS === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.STEP_STATUS === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
                                 <i className={myActionedStep.STEP_STATUS === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828' }} />
                                 <Typography variant='caption' sx={{ fontWeight: 700, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828', lineHeight: 1 }}>
-                                    Your action: {myActionedStep.STEP_STATUS === 'approved' ? 'Approved' : 'Rejected'} · {myActionedStep.DESCRIPTION}
+                                    Your action: {myActionedStep.STEP_STATUS === 'approved' ? 'Approved' : 'Rejected'} - {myActionedStep.DESCRIPTION}
                                 </Typography>
                             </Box>
                         )}
@@ -810,7 +847,59 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-            {showSelectionSheetReadOnly && (
+            {isAccountRegisterQueue && (
+                <Box
+                    sx={{
+                        mb: 3,
+                        p: 2.5,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'rgba(102, 16, 242, 0.4)',
+                        bgcolor: (theme: any) => theme.palette.mode === 'light' ? 'rgba(102, 16, 242, 0.04)' : 'rgba(102, 16, 242, 0.12)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <i className='tabler-building-bank' style={{ fontSize: 22, color: '#6610f2' }} />
+                        <Box>
+                            <Typography variant='subtitle1' fontWeight={700} color='#6610f2'>Account Registration Step</Typography>
+                            <Typography variant='caption' color='text.secondary'>
+                                Fill Vendor Code in the Selection Sheet, then complete registration.
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' } }}>
+                        <Box>
+                            <Typography variant='caption' color='text.disabled' fontWeight={700}>Vendor Code from Selection Sheet</Typography>
+                            <Typography variant='body2' fontWeight={700}>{vendorCodeSelector || '-'}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                                size='small'
+                                variant='contained'
+                                color='primary'
+                                startIcon={<i className={(hasPersistedGprData || gprSavedInSession) ? 'tabler-pencil' : 'tabler-plus'} style={{ fontSize: 14 }} />}
+                                onClick={() => setGprFormOpen(true)}
+                            >
+                                {(hasPersistedGprData || gprSavedInSession) ? 'Edit Selection Sheet' : 'Fill Selection Sheet'}
+                            </Button>
+                            <Button
+                                size='small'
+                                variant='contained'
+                                color='success'
+                                disabled={accountCompleting || !vendorCodeSelector}
+                                startIcon={accountCompleting ? <CircularProgress size={16} color='inherit' /> : <i className='tabler-circle-check' style={{ fontSize: 14 }} />}
+                                onClick={handleCompleteAccountRegistration}
+                            >
+                                {accountCompleting ? 'Completing...' : 'Complete Registration'}
+                            </Button>
+                        </Box>
+                    </Box>
+                </Box>
+            )}
+            {showSelectionSheetReadOnly && !isAccountRegisterQueue && (
                 <Box
                     sx={{
                         mb: 3,
@@ -855,18 +944,17 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-list-check' title={`Approval Steps (${approvalSteps.length})`} />
                     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                            {['#', 'Description', 'Approver', 'Status', 'Updated'].map(h => (
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.6fr 1.2fr 1.5fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                            {['#', 'Description', 'Status', 'Updated'].map(h => (
                                 <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
                             ))}
                         </Box>
                         {approvalSteps.map((s: any, i: number) => {
                             const stCfg = getStepStatusCfg(s.STEP_STATUS)
                             return (
-                                <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2fr 1.5fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                                <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.6fr 1.2fr 1.5fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
                                     <Typography variant='body2' fontWeight={600}>{s.STEP_ORDER}</Typography>
                                     <Typography variant='body2' fontWeight={600}>{s.DESCRIPTION || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{s.APPROVER_EMPCODE || '-'}</Typography>
                                     <Chip
                                         icon={<i className={stCfg.icon} style={{ fontSize: 13 }} />}
                                         label={stCfg.label}
@@ -980,7 +1068,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             )}
 
-{isActionable && (
+            {isActionable && !isAccountRegisterQueue && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
                     {isNegotiationStep && agreeAction && disagreeAction && (
                         <>
@@ -1045,9 +1133,9 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Detail Renderer for AG Grid Master/Detail
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 const DetailRenderer = (props: any) => {
     return (
         <DetailPanel
