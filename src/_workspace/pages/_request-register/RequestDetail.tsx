@@ -64,7 +64,7 @@ interface Props {
 
 const RequestDetail = ({ request }: Props) => {
     const cfg = statusConfig[request.status]
-    const isActionable = request.status === 'new' || request.status === 'in_progress'
+    const isActionable = request.status === 'new' || request.status === 'in_progress' || request.status === 'pending_docs'
 
     const [approveDialog, setApproveDialog] = useState(false)
     const [rejectDialog, setRejectDialog] = useState(false)
