@@ -1,3 +1,4 @@
+import type { ConfirmModalProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 'use client'
 
 import type { ReactElement, Ref } from 'react'
@@ -21,14 +22,7 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-interface ConfirmModalProps {
-    open: boolean
-    onClose: () => void
-    onConfirm: () => void
-    title?: string
-    message?: string
-    loading?: boolean
-}
+
 
 const ConfirmModal = ({
     open,

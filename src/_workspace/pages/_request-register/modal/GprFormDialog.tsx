@@ -1,3 +1,4 @@
+import type { SignatureSlot, CriteriaSectionProps } from '@_workspace/types/_request-register/RequestRegisterTypes'
 import React, { forwardRef, useMemo, useState } from 'react'
 import type { ReactElement, Ref } from 'react'
 import type { SlideProps } from '@mui/material'
@@ -104,12 +105,7 @@ const DisabledBlock = ({ disabled, children }: { disabled: boolean; children: Re
     </Box>
 )
 
-type SignatureSlot = {
-    role: string
-    code: string
-    signature: string
-    date: string
-}
+
 
 // ── Memoized Section Components ───────────────────────────────────────────────
 
@@ -708,14 +704,7 @@ const GeneralInfoSection = React.memo(() => {
     )
 })
 
-interface CriteriaSectionProps {
-    criteriaUploading: Record<number, boolean>
-    criteriaDeleting: Record<number, boolean>
-    criteriaError: Record<number, string>
-    onUploadClick: (idx: number) => void
-    onRemoveUpload: (idx: number) => void
-    onDownloadUpload: (filePath?: string, fileName?: string) => void
-}
+
 
 const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload }: CriteriaSectionProps) => {
     const { control, register } = useFormContext<GprFormData>()

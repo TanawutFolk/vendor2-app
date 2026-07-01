@@ -33,39 +33,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 // Schema & Types
 import { RegisterConfirmSchema, RegisterContactSelectionSchema, defaultRegisterConfirmValues } from './validateSchema'
 import type { RegisterConfirmFormData } from './validateSchema'
+import type { VendorContactOption, RegisterVendorData, RegisterConfirmModalProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type VendorContactOption = {
-    vendor_contact_id?: number | string
-    contact_name?: string
-    email?: string
-    tel_phone?: string
-    position?: string
-}
 
-type RegisterVendorData = VendorContactOption & {
-    contacts?: VendorContactOption[] | string
-    company_name?: string
-    vendor_type_name?: string
-    vendor_region?: string
-    province?: string
-    website?: string
-    tel_center?: string
-    status_check?: string
-    address?: string
-    group_name?: string
-    maker_name?: string
-    product_name?: string
-    model_list?: string
-}
 
-interface RegisterConfirmModalProps {
-    open: boolean
-    vendorData?: RegisterVendorData
-    skipAdditionalInfo?: boolean
-    contactSelectionOnly?: boolean
-    onClose: () => void
-    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactIds: string[]; files: File[] }) => void
-}
+
+
+
 
 // Styled Dropzone Component
 const Dropzone = styled(AppReactDropzone)<BoxProps>(({ theme }) => ({

@@ -2,11 +2,9 @@ import React, { useState } from 'react'
 import { Box, IconButton, Tooltip } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import MailOutlineIcon from '@mui/icons-material/MailOutline'
+import type { EmailActionButtonsProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-interface EmailActionButtonsProps {
-    email: string
-    contactName: string
-}
+
 
 export const EmailActionButtons = ({ email, contactName }: EmailActionButtonsProps) => {
     const [copied, setCopied] = useState(false)

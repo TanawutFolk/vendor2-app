@@ -20,27 +20,16 @@ import type { AssigneeGroupOption, AssigneesFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
+import type { GroupOptionSource, SelectOption } from '@_workspace/types/_Employee-manager/EmployeeManagerTypes'
 
 const inUseOptions = [
     { label: 'Active', value: '1' },
     { label: 'Inactive', value: '0' }
 ]
 
-type GroupOptionSource = {
-    label?: string
-    LABEL?: string
-    group_name?: string
-    GROUP_NAME?: string
-    value?: string
-    VALUE?: string
-    group_code?: string
-    GROUP_CODE?: string
-}
 
-type SelectOption = {
-    label: string
-    value: string
-}
+
+
 
 const mapGroupOption = (item: GroupOptionSource): AssigneeGroupOption => {
     const groupCode = String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || item.label || item.LABEL || '').trim().toUpperCase()

@@ -8,15 +8,12 @@ import { useDropzone } from 'react-dropzone'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import SelectCustom from '@components/react-select/SelectCustom'
 import AppReactDropzone from '@/libs/styles/AppReactDropzone'
-import type { UploadBlacklistPayload } from '../types'
+import type { UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 import { UploadBlacklistSchema } from '../validateSchema'
 import type { UploadBlacklistFormData } from '../validateSchema'
+import type { UploadBlacklistModalProps } from '@_workspace/types/_black-list/BlacklistTypes'
 
-interface UploadBlacklistModalProps {
-    open: boolean
-    onClose: () => void
-    onSubmit: (payload: UploadBlacklistPayload) => void | Promise<void>
-}
+
 
 const Dropzone = styled(AppReactDropzone)<BoxProps>(({ theme }) => ({
     '& .dropzone': {

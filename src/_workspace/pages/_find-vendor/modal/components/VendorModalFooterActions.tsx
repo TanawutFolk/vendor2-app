@@ -1,14 +1,9 @@
 import React from 'react'
 
 import { DialogActions, Button, CircularProgress } from '@mui/material'
+import type { VendorModalFooterActionsProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-interface VendorModalFooterActionsProps {
-    editingMode: 'view' | 'edit'
-    loading: boolean
-    saving: boolean
-    onSaveClick: () => void
-    onClose: () => void
-}
+
 
 const VendorModalFooterActions = ({
     editingMode,

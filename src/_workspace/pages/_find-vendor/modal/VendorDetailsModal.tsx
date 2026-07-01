@@ -10,6 +10,7 @@ import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 import { StatusCheckChip, FftStatusChip } from '../components/fftStatus'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { VendorDetailsModalProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement },
@@ -18,11 +19,7 @@ const Transition = forwardRef(function Transition(
     return <Slide direction='down' ref={ref} {...props} />
 })
 
-type VendorDetailsModalProps = {
-    open: boolean
-    onClose: () => void
-    data?: Partial<VendorComprehensiveI> | null
-}
+
 
 
 

@@ -18,30 +18,13 @@ import { ToastMessageError } from '@/components/ToastMessage'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useSaveGprCNotification } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
+import type { GprCNotificationDialogProps, GprCFormState, CircularMemberInfo } from '@_workspace/types/_request-history/RequestHistoryTypes'
 
-interface GprCNotificationDialogProps {
-    open: boolean
-    rowData: any
-    onClose: () => void
-    onSaved?: () => void
-}
 
-interface GprCFormState {
-    gpr_c_approver_empcode: string
-    gpr_c_approver_name: string
-    gpr_c_approver_email: string
-    gpr_c_pc_pic_empcode: string
-    gpr_c_pc_pic_name: string
-    gpr_c_pc_pic_email: string
-    gpr_c_circular_empcodes: string[]
-    gpr_c_circular_members: CircularMemberInfo[]
-}
 
-interface CircularMemberInfo {
-    empcode: string
-    name: string
-    email: string
-}
+
+
+
 
 const buildEmptyForm = (): GprCFormState => ({
     gpr_c_approver_empcode: '',

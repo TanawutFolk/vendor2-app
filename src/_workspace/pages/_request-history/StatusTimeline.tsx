@@ -2,7 +2,7 @@ import { Box, Typography, Chip, Avatar } from '@mui/material'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 // Types
-import type { RegisterStep, RegisterStatus, ApprovalStepRecord, ApprovalLogRecord } from './types'
+import type { RegisterStep, RegisterStatus, ApprovalStepRecord, ApprovalLogRecord } from '@_workspace/types/_request-history/RequestHistoryTypes'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config

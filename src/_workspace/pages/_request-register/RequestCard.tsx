@@ -2,7 +2,7 @@
 import { Box, Typography, Chip } from '@mui/material'
 
 // Types
-import type { RegistrationRequest, RequestStatus } from './types'
+import type { RegistrationRequest, RequestStatus } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config

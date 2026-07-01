@@ -6,13 +6,9 @@ import { EmailActionButtons } from '../../components/EmailActionButtons'
 
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
+import type { ContactsSectionProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type ContactsSectionProps = {
-    editingMode: 'view' | 'edit'
-    contactFields: any[]
-    removeContact: (index: number) => void
-    appendContact: (value: any) => void
-}
+
 
 const ContactsSection = ({ editingMode, contactFields, removeContact, appendContact }: ContactsSectionProps) => {
     const {

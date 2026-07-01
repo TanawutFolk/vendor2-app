@@ -8,25 +8,11 @@ import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { ToastMessageError } from '@/components/ToastMessage';
+import type { VendorActionRow, ActionCellRendererProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type VendorActionRow = {
-  vendor_id?: number;
-  status_check?: string;
-  INUSE?: number;
-  [key: string]: unknown;
-};
 
-interface ActionCellRendererProps extends ICellRendererParams<VendorActionRow> {
-  onEditClick?: (vendorId: number, data: VendorActionRow) => void;
-  onRegisterClick?: (vendorId: number, data: VendorActionRow) => void;
-  onVendorEditClick?: (vendorId: number, data: VendorActionRow) => void;
-  onVendorDeleteClick?: (vendorId: number, data: VendorActionRow) => void;
-  canRegister?: (data: VendorActionRow) => boolean;
-  registerDisabled?: (data: VendorActionRow) => boolean;
-  registerColor?: IconButtonProps['color'];
-  registerTitle?: string;
-  showMoreActions?: boolean;
-}
+
+
 
 export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);

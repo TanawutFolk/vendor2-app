@@ -19,8 +19,9 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { useQueryClient } from '@tanstack/react-query'
 import { getBlacklistQueryOptions } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
 import UploadBlacklistModal from './modal/UploadBlacklistModal'
-import type { BlacklistRow, UploadBlacklistPayload } from './types'
+import type { BlacklistRow, UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 import type { BlacklistFormData } from './validateSchema'
+import type { SearchResultProps, AgGridColumnFilter, AgGridFilterModelValue } from '@_workspace/types/_black-list/BlacklistTypes'
 
 const shimmerAnimation = keyframes`
     0% {
@@ -31,25 +32,11 @@ const shimmerAnimation = keyframes`
     }
 `
 
-interface SearchResultProps {
-    uploading: boolean
-    uploadProgress: number
-    onUpload: (payload: UploadBlacklistPayload) => void | Promise<void>
-}
 
-type AgGridColumnFilter = {
-    column: string
-    columnFns?: string
-    value: string | string[]
-}
 
-type AgGridFilterModelValue = {
-    filterType?: 'text' | 'number' | 'date' | 'set'
-    type?: string
-    filter?: string | number
-    dateFrom?: string
-    values?: string[]
-}
+
+
+
 
 const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridFilterModelValue>): AgGridColumnFilter[] => {
     return Object.entries(filterModel || {}).flatMap(([column, model]) => {

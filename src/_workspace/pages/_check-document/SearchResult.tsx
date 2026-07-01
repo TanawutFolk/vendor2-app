@@ -69,6 +69,7 @@ import {
 } from '@_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import type { SearchResultSectionProps, WorkflowActionColor, NegotiationAction, ActionDialogProps, DetailPanelProps, ApprovalPageContentProps } from '@_workspace/types/_check-document/CheckDocumentTypes'
 
 interface SearchResultSectionProps {
     columnDefs: ColDef[]
@@ -174,7 +175,7 @@ const resolveWorkflowStatusValue = (statusOptions: any[] = [], preferredText: st
     return matched?.value || fallbackValue
 }
 
-type WorkflowActionColor = Extract<ButtonProps['color'], 'success' | 'warning' | 'error'>
+
 
 interface NegotiationAction {
     key: 'agree' | 'disagree'
@@ -534,6 +535,7 @@ const ActionDialog = ({ open, mode, actions, approveActionLabel, rejectActionLab
                         placeholder='Enter your remark here...'
                         value={remark}
                         onChange={e => setRemark(e.target.value)}
+                        inputProps={{ maxLength: 500 }}
                     />
                 )}
             </DialogContent>
@@ -1216,6 +1218,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                         purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
                         requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
                         approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
+                        reject_reason: row.reject_reason ?? row.REJECT_REASON,
                         approve_by: row.approve_by ?? row.APPROVE_BY,
                         approve_date: row.approve_date ?? row.APPROVE_DATE,
                         vendor_code: row.vendor_code ?? row.VENDOR_CODE,

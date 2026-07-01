@@ -10,18 +10,12 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import { getChipSx } from '@_workspace/utils/statusChipStyles'
+import type { AssigneeApiRow } from '@_workspace/types/_Employee-manager/EmployeeManagerTypes'
 
 const activeStatusTone = { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' }
 const inactiveStatusTone = { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' }
 
-type AssigneeApiRow = AssigneeRow & {
-    ASSIGNEES_TO_ID?: number
-    EMPCODE?: string
-    EMPNAME?: string
-    EMPEMAIL?: string
-    GROUP_CODE?: string
-    GROUP_NAME?: string
-}
+
 
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<AssigneesFormData>()

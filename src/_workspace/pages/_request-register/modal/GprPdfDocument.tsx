@@ -8,6 +8,7 @@ import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react
 import type { GprFormData } from './useGprForm'
 import { inferStepCode, isAgreementReachedStep } from '@_workspace/utils/requestWorkflow'
 import fitelLogo from '@_workspace/utils/fitelLogo.png'
+import type { GprPdfDocumentProps, SignatureSlot } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
 // import { Font } from '@react-pdf/renderer'
@@ -236,18 +237,9 @@ const s = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF Document Component
 // ─────────────────────────────────────────────────────────────────────────────
-interface Props {
-    form: GprFormData
-    rowData: any
-    chartDataUri?: string
-}
 
-type SignatureSlot = {
-    role: string
-    code: string
-    signature: string
-    date: string
-}
+
+
 
 const normalizeSanctionsStatus = (value: unknown) => {
     const normalized = String(value || '').trim().replace(/[_-]+/g, ' ').toLowerCase()

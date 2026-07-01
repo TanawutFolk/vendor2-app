@@ -49,7 +49,7 @@ import type { RequestRegisterFormData } from './validateSchema'
 import { useDxContext } from '@/_template/DxContextProvider'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
-// Status — colors from DB
+// Status Ã¢â‚¬â€ colors from DB
 import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
 
 // GPR Form Dialog
@@ -82,11 +82,14 @@ import useGprWorkflowLogic from '@_workspace/hooks/useGprWorkflowLogic'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 import CustomTextField from '@components/mui/TextField'
+import type { RegisterRequestRow, EditRequestForm, ActionDialogForm, ActionDialogProps, DetailPanelProps } from '@_workspace/types/_request-register/RequestRegisterTypes'
+import type { RegisterRequestRow, EditRequestForm, ActionDialogProps, DetailPanelProps } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
+const REJECT_REMARK_MAX_LENGTH = 500
 
 const safeParseJSON = <T,>(input: unknown, fallback: T): T => {
     if (input == null) return fallback
@@ -185,18 +188,7 @@ const buildFileUrls = (documents: any): { name: string; url: string }[] => {
     }))
 }
 
-interface RegisterRequestRow {
-    request_id: number
-    request_status: string
-    company_name?: string
-    supportProduct_Process?: string
-    purchase_frequency?: string
-    FULL_NAME?: string
-    EMPLOYEE_CODE?: string
-    documents?: unknown
-    CREATE_DATE?: string
-    [key: string]: unknown
-}
+
 
 const normalizeRegisterRequestRow = (row: any): RegisterRequestRow => ({
     ...row,
@@ -208,6 +200,7 @@ const normalizeRegisterRequestRow = (row: any): RegisterRequestRow => ({
     purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
     requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
     approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
+    reject_reason: row.reject_reason ?? row.REJECT_REASON,
     approve_by: row.approve_by ?? row.APPROVE_BY,
     approve_date: row.approve_date ?? row.APPROVE_DATE,
     vendor_code: row.vendor_code ?? row.VENDOR_CODE,
@@ -234,20 +227,14 @@ const normalizeRegisterRequestRow = (row: any): RegisterRequestRow => ({
     emailmain: row.emailmain ?? row.EMAILMAIN,
 })
 
-interface EditRequestForm {
-    supportProduct_Process: string
-    purchase_frequency: string
-    requester_remark: string
-}
-
-interface ActionDialogForm {
-    remark: string
-}
 
 
-// ─────────────────────────────────────────────────────────────────────────────
+
+
+
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // File Viewer Dialog
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const FileViewerDialog = ({ open, files, onClose }: {
     open: boolean; files: { name: string; url: string }[]; onClose: () => void
 }) => {
@@ -324,20 +311,8 @@ const FileViewerDialog = ({ open, files, onClose }: {
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Approve / Reject Dialog
-// ─────────────────────────────────────────────────────────────────────────────
-interface ActionDialogProps {
-    open: boolean
-    mode: 'approve' | 'reject'
-    requestId: number | null
-    nextStatus: string
-    isFinalStep: boolean
-    approveActionLabel: string
-    rejectActionLabel: string
-    onClose: () => void
-    onSuccess: () => void
-}
+
+
 
 const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveActionLabel, rejectActionLabel, onClose, onSuccess }: ActionDialogProps) => {
     const user = getUserData()
@@ -359,29 +334,30 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
     const onSubmit = async (formData: ActionDialogForm) => {
         if (!requestId) return
         try {
-            const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase()
+            const effectiveNextStatus = mode === 'approve' ? nextStatus : (String(nextStatus || '').trim() || 'Rejected')
+            const normalizedNextStatus = String(effectiveNextStatus || '').trim().toLowerCase()
             const normalizedApproveLabel = String(approveActionLabel || '').trim().toLowerCase()
             const isSendGprCToRequesterAction = normalizedApproveLabel.includes('send gpr c to requester approval')
+            const isDisagreeStatus = normalizedNextStatus.includes('issue gpr b')
+                || normalizedNextStatus.includes('issue gpr c')
+                || normalizedNextStatus.includes('vendor disagre')
             const workflowAction: 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' =
                 mode === 'reject'
-                    ? 'REJECT'
+                    ? (isDisagreeStatus ? 'DISAGREE' : 'REJECT')
                     : (normalizedApproveLabel.includes('action required')
                         ? 'ACTION_REQUIRED'
-                        : ((normalizedNextStatus.includes('issue gpr b')
-                            || normalizedNextStatus.includes('issue gpr c')
-                            || normalizedNextStatus.includes('vendor disagre')
-                            ) && !isSendGprCToRequesterAction
+                        : (isDisagreeStatus && !isSendGprCToRequesterAction
                             ? 'DISAGREE'
                             : 'APPROVE'))
 
             const res = await ApprovalQueueServices.updateStatus({
                 request_id: requestId,
-                request_status: mode === 'approve' ? nextStatus : 'Rejected',
+                request_status: effectiveNextStatus,
                 workflow_action: workflowAction,
                 approve_by: user?.EMPLOYEE_CODE || '',
                 approver_remark: formData.remark,
                 UPDATE_BY: user?.EMPLOYEE_CODE || '',
-                isFinalStep: mode === 'approve' ? isFinalStep : false,
+                isFinalStep: mode === 'approve' || isDisagreeStatus ? isFinalStep : false,
             })
             if (res.data.Status) {
                 const responseMessage = res.data.Message || 'Status updated successfully'
@@ -436,6 +412,7 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                         fullWidth multiline rows={3}
                         label='Remark / Comment (Required for reject)'
                         placeholder='Enter your remark here...'
+                        inputProps={{ maxLength: REJECT_REMARK_MAX_LENGTH }}
                         {...register('remark')}
                     />
                 )}
@@ -467,16 +444,10 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Detail Drawer Content
-// ─────────────────────────────────────────────────────────────────────────────
-interface DetailPanelProps {
-    data: any
-    onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
-    onReject: (rejectActionLabel: string) => void
-    onEmailSent: (data?: RegisterRequestRow) => void
-    onCompleted?: () => void
-}
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+
 
 const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
     const data = rawData || {}
@@ -1015,7 +986,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                                                         {actorLabel}
                                                     </Typography>
                                                     <Typography variant='caption' color='text.secondary'>
-                                                        <strong>{l.ACTION_BY}</strong> — {actionTypeLabel} {detailText ? `(${detailText})` : ''} · {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : ''}
+                                                        <strong>{l.ACTION_BY}</strong> Ã¢â‚¬â€ {actionTypeLabel} {detailText ? `(${detailText})` : ''} Ã‚Â· {l.CREATE_DATE ? new Date(l.CREATE_DATE).toLocaleString('th-TH') : ''}
                                                     </Typography>
                                                 </Box>
                                             )
@@ -1247,7 +1218,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                                 <Button variant='contained' color='error' fullWidth
                                     startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
                                     disabled={gprWorkflow.disableRejectBtn}
-                                    onClick={() => onApprove(gprWorkflow.vendorDisagreedStatusValue || computedNextStatus, true, gprWorkflow.rejectLabel)}
+                                    onClick={() => onReject(gprWorkflow.rejectLabel, gprWorkflow.vendorDisagreedStatusValue || computedNextStatus, true)}
                                 >{gprWorkflow.rejectLabel}</Button>
                             )}
                             {gprWorkflow.showSendToVendorBtn && (
@@ -1350,7 +1321,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                 </DialogActions>
             </Dialog>
 
-            {/* Edit Vendor Modal (reuse from find-vendor — full Vendor Info + Contacts + Products editing) */}
+            {/* Edit Vendor Modal (reuse from find-vendor Ã¢â‚¬â€ full Vendor Info + Contacts + Products editing) */}
             <EditVendorModal
                 open={editVendorOpen}
                 onClose={() => setEditVendorOpen(false)}
@@ -1475,24 +1446,24 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Detail Renderer for Master/Detail AG Grid
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const DetailRenderer = (props: any) => {
     return (
         <DetailPanel
             data={props.data}
             onApprove={(status: string, finalStep: boolean, actionLabel: string) => props.context.onApprove(props.data, status, finalStep, actionLabel)}
-            onReject={(rejectActionLabel: string) => props.context.onReject(props.data, rejectActionLabel)}
+            onReject={(rejectActionLabel: string, status?: string, finalStep?: boolean) => props.context.onReject(props.data, rejectActionLabel, status, finalStep)}
             onEmailSent={(data?: RegisterRequestRow) => props.context.onEmailSent(data || props.data)}
             onCompleted={() => props.context.onCompleted()}
         />
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Main SearchResult Component
-// ─────────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -1521,7 +1492,7 @@ export default function SearchResult() {
     const user = getUserData()
     const empCode = user?.EMPLOYEE_CODE
 
-    // ── Server-Side Datasource ────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Server-Side Datasource Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params: IServerSideGetRowsParams) => {
             const f = getValues('searchFilters')
@@ -1554,11 +1525,11 @@ export default function SearchResult() {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [empCode]) // getValues is a stable ref — no need to re-create datasource
+    }), [empCode]) // getValues is a stable ref Ã¢â‚¬â€ no need to re-create datasource
 
     // Trigger refresh when Search / Clear button sets isEnableFetching = true
 
-    // ── Column / Grid State Persistence ──────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Column / Grid State Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -1635,7 +1606,7 @@ export default function SearchResult() {
             width: 100,
             cellRenderer: (params: ICellRendererParams<RegisterRequestRow>) => {
                 const count = buildFileUrls(params.value).length
-                if (count === 0) return <Typography variant='caption' color='text.disabled'>—</Typography>
+                if (count === 0) return <Typography variant='caption' color='text.disabled'>Ã¢â‚¬â€</Typography>
                 return (
                     <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
                         icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
@@ -1694,9 +1665,10 @@ export default function SearchResult() {
             setActionMode('approve')
             setActionDialogOpen(true)
         },
-        onReject: (data: any, actionLabel: string) => {
+        onReject: (data: any, actionLabel: string, status = 'Rejected', finalStep = false) => {
             setSelectedData(data)
-            setIsFinalStep(false)
+            setNextStatus(status || 'Rejected')
+            setIsFinalStep(finalStep)
             setApproveActionLabel('Approve')
             setRejectActionLabel(actionLabel || 'Reject')
             setActionMode('reject')

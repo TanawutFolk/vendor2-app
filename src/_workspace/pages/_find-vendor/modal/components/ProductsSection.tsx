@@ -7,15 +7,9 @@ import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load
 
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
+import type { ProductsSectionProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type ProductsSectionProps = {
-    editingMode: 'view' | 'edit'
-    productFields: any[]
-    removeProduct: (index: number) => void
-    appendProduct: (value: any) => void
-    productGroupRefreshKey: number
-    onOpenAddProductGroup: () => void
-}
+
 
 const ProductsSection = ({
     editingMode,

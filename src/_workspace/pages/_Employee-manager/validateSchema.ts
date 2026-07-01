@@ -35,15 +35,8 @@ export type AssigneesFormData = z.infer<typeof AssigneesSchema>
 export type AssigneeFormData = z.infer<typeof AssigneesFormSchema>
 export type AssigneeGroupOption = z.infer<typeof AssigneeGroupOptionSchema>
 
-export type AssigneeRow = {
-    empcode?: string
-    empName?: string
-    empEmail?: string
-    group_code?: string
-    group_name?: string
-    INUSE?: number | string
-    Assignees_id?: number
-}
+import type { AssigneeRow } from '@_workspace/types/_Employee-manager/EmployeeManagerTypes'
+export type { AssigneeRow }
 
 export const defaultSearchFilters: AssigneesSearchFiltersFormData = {
     keyword: '',

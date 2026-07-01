@@ -6,18 +6,9 @@ import { StatusCheckChip } from '../../components/fftStatus'
 import type { Control } from 'react-hook-form'
 import type { EditVendorSchemaType } from '../validateSchema'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
+import type { VendorModalHeaderBarProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type VendorModalHeaderBarProps = {
-    control: Control<EditVendorSchemaType>
-    originalData: VendorComprehensiveI | null
-    vendorFftCode: string | null | undefined
-    vendorStatusCheck: string | undefined
-    editingMode: 'view' | 'edit'
-    loading: boolean
-    onToggleEditMode: () => void
-    hideModeButton?: boolean
-    hideVendorCode?: boolean
-}
+
 
 const VendorModalHeaderBar = ({
     control,

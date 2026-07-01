@@ -1,4 +1,6 @@
 import type { AuditFields } from '../AuditFields'
+import type { ICellRendererParams } from 'ag-grid-community'
+import type { IconButtonProps } from '@mui/material/IconButton'
 
 // Vendor result type matching API response
 export interface VendorResultI extends AuditFields {
@@ -160,4 +162,152 @@ export interface UpdateVendorParamsI {
     deletedContactIds: number[]
     deletedProductIds: number[]
     userCode: string
+}
+
+export type VendorActionRow = {
+  vendor_id?: number;
+  status_check?: string;
+  INUSE?: number;
+  [key: string]: unknown;
+};
+
+export interface ActionCellRendererProps extends ICellRendererParams<VendorActionRow> {
+  onEditClick?: (vendorId: number, data: VendorActionRow) => void;
+  onRegisterClick?: (vendorId: number, data: VendorActionRow) => void;
+  onVendorEditClick?: (vendorId: number, data: VendorActionRow) => void;
+  onVendorDeleteClick?: (vendorId: number, data: VendorActionRow) => void;
+  canRegister?: (data: VendorActionRow) => boolean;
+  registerDisabled?: (data: VendorActionRow) => boolean;
+  registerColor?: IconButtonProps['color'];
+  registerTitle?: string;
+  showMoreActions?: boolean;
+}
+
+export interface ConfirmModalProps {
+    open: boolean
+    onClose: () => void
+    onConfirm: () => void
+    title?: string
+    message?: string
+    loading?: boolean
+}
+
+export interface EmailActionButtonsProps {
+    email: string
+    contactName: string
+}
+
+export interface FftStatusChipProps {
+    value: number | string | undefined
+    variant?: 'filled' | 'tonal'
+}
+
+export interface StatusCheckChipProps {
+    value: string | undefined
+    variant?: 'filled' | 'tonal'
+}
+
+export type ContactsSectionProps = {
+    editingMode: 'view' | 'edit'
+    contactFields: any[]
+    removeContact: (index: number) => void
+    appendContact: (value: any) => void
+}
+
+export type ProductsSectionProps = {
+    editingMode: 'view' | 'edit'
+    productFields: any[]
+    removeProduct: (index: number) => void
+    appendProduct: (value: any) => void
+    productGroupRefreshKey: number
+    onOpenAddProductGroup: () => void
+}
+
+export type SectionHeaderProps = {
+    icon: string
+    title: string
+}
+
+export interface VendorModalFooterActionsProps {
+    editingMode: 'view' | 'edit'
+    loading: boolean
+    saving: boolean
+    onSaveClick: () => void
+    onClose: () => void
+}
+
+export type VendorModalHeaderBarProps = {
+    control: any // Use any to avoid circular imports of Control
+    originalData: VendorComprehensiveI | null
+    vendorFftCode: string | null | undefined
+    vendorStatusCheck: string | undefined
+    editingMode: 'view' | 'edit'
+    loading: boolean
+    onToggleEditMode: () => void
+    hideModeButton?: boolean
+    hideVendorCode?: boolean
+}
+
+export type VendorProfileSectionProps = {
+    editingMode: 'view' | 'edit'
+    originalData: VendorComprehensiveI | null
+    fetchVendorTypes: (inputValue: string) => Promise<any[]>
+}
+
+export interface EditVendorModalProps {
+    open: boolean
+    onClose: () => void
+    vendorId: number | null
+    rowData?: Partial<VendorComprehensiveI>
+    forceRefreshOnEdit?: boolean
+    onSuccess?: () => void
+}
+
+export type UseEditVendorFormArgs = {
+    open: boolean
+    vendorId: number | null
+    rowData?: Partial<VendorComprehensiveI>
+    forceRefreshOnEdit?: boolean
+    initialMode?: 'view' | 'edit'
+    onClose: () => void
+    onSaveSuccess?: () => void
+}
+
+export type VendorDetailsModalProps = {
+    open: boolean
+    onClose: () => void
+    data?: Partial<VendorComprehensiveI> | null
+}
+
+export type VendorContactOption = {
+    vendor_contact_id?: number | string
+    contact_name?: string
+    email?: string
+    tel_phone?: string
+    position?: string
+}
+
+export type RegisterVendorData = VendorContactOption & {
+    contacts?: VendorContactOption[] | string
+    company_name?: string
+    vendor_type_name?: string
+    vendor_region?: string
+    province?: string
+    website?: string
+    tel_center?: string
+    status_check?: string
+    address?: string
+    group_name?: string
+    maker_name?: string
+    product_name?: string
+    model_list?: string
+}
+
+export interface RegisterConfirmModalProps {
+    open: boolean
+    vendorData?: RegisterVendorData
+    skipAdditionalInfo?: boolean
+    contactSelectionOnly?: boolean
+    onClose: () => void
+    onConfirm: (formData?: { supportType: string; purchaseFreq: string; vendorContactIds: string[]; files: File[] }) => void
 }

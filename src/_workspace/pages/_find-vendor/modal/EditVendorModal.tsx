@@ -45,15 +45,9 @@ import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServ
 
 import type { DropdownItemI, VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { useEditVendorForm } from './useEditVendorForm'
+import type { EditVendorModalProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-interface EditVendorModalProps {
-    open: boolean
-    onClose: () => void
-    vendorId: number | null
-    rowData?: Partial<VendorComprehensiveI>
-    forceRefreshOnEdit?: boolean
-    onSuccess?: () => void
-}
+
 
 const EditVendorModal = ({
     open,

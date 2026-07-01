@@ -12,6 +12,7 @@ import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServi
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import { AssigneesFormSchema, defaultAssigneeFormValues, type AssigneeFormData, type AssigneeRow } from './validateSchema'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import type { GroupOption, GroupOptionSource, AddEditFormProps } from '@_workspace/types/_Employee-manager/EmployeeManagerTypes'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement },
@@ -25,28 +26,11 @@ const inUseOptions = [
     { label: 'Inactive', value: 0 }
 ]
 
-type GroupOption = {
-    label: string
-    value: string
-}
 
-type GroupOptionSource = {
-    label?: string
-    LABEL?: string
-    group_name?: string
-    GROUP_NAME?: string
-    value?: string
-    VALUE?: string
-    group_code?: string
-    GROUP_CODE?: string
-}
 
-interface Props {
-    open: boolean
-    onClose: () => void
-    onSaved?: () => void
-    initialData?: AssigneeRow | null
-}
+
+
+
 
 const normalizeInUse = (value: unknown) => {
     if (value === 0 || value === '0' || value === false) return 0
@@ -58,7 +42,7 @@ const mapGroupOption = (item: GroupOptionSource): GroupOption => ({
     value: String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || '').trim().toUpperCase()
 })
 
-const AddEditForm = ({ open, onClose, onSaved, initialData }: Props) => {
+const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) => {
     const { mutate: saveAssignee, isPending } = useSaveAssignee()
     const user = getUserData()
     const [defaultGroupOptions, setDefaultGroupOptions] = useState<GroupOption[]>([])

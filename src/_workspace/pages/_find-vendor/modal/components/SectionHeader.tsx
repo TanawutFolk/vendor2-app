@@ -1,9 +1,7 @@
 import { Box, Typography } from '@mui/material'
+import type { SectionHeaderProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type SectionHeaderProps = {
-    icon: string
-    title: string
-}
+
 
 const SectionHeader = ({ icon, title }: SectionHeaderProps) => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>

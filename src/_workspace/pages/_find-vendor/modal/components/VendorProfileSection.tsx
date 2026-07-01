@@ -7,12 +7,9 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
+import type { VendorProfileSectionProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type VendorProfileSectionProps = {
-    editingMode: 'view' | 'edit'
-    originalData: VendorComprehensiveI | null
-    fetchVendorTypes: (inputValue: string) => Promise<any[]>
-}
+
 
 const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: VendorProfileSectionProps) => {
     const {

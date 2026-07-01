@@ -13,16 +13,9 @@ import {
 
 import type { UpdateVendorParamsI, VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { editVendorSchema, type EditVendorSchemaType } from './validateSchema'
+import type { UseEditVendorFormArgs } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
-type UseEditVendorFormArgs = {
-    open: boolean
-    vendorId: number | null
-    rowData?: Partial<VendorComprehensiveI>
-    forceRefreshOnEdit?: boolean
-    initialMode?: 'view' | 'edit'
-    onClose: () => void
-    onSaveSuccess?: () => void
-}
+
 
 const emptyDefaultValues: EditVendorSchemaType = {
     company_name: '',

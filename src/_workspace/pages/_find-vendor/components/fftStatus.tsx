@@ -5,6 +5,7 @@ import type { ICellRendererParams } from 'ag-grid-community'
 
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import type { FftStatusChipProps, StatusCheckChipProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
 // FFT Status configuration (for numeric values 0/1/2)
 const FFT_STATUS_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default' }> = {
@@ -22,10 +23,7 @@ const STATUS_CHECK_CONFIG: Record<string, { label: string; color: 'success' | 'e
 }
 
 // Base FFT Status Chip component
-interface FftStatusChipProps {
-    value: number | string | undefined
-    variant?: 'filled' | 'tonal'
-}
+
 
 export const FftStatusChip = ({ value, variant = 'filled' }: FftStatusChipProps) => {
     const label = formatFftStatus(value)
@@ -44,10 +42,7 @@ export const FftStatusChip = ({ value, variant = 'filled' }: FftStatusChipProps)
 }
 
 // Status Check Chip component (for string values)
-interface StatusCheckChipProps {
-    value: string | undefined
-    variant?: 'filled' | 'tonal'
-}
+
 
 export const StatusCheckChip = ({ value, variant = 'filled' }: StatusCheckChipProps) => {
     const status = STATUS_CHECK_CONFIG[value || ''] || STATUS_CHECK_CONFIG['Not Registered']

@@ -10,6 +10,7 @@ import type { BlacklistMatchI } from '@_workspace/types/_add-vendor/AddVendorTyp
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useSaveGprFormMutation, useAddDocumentMutation } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
+import type { SalesProfitYear, GprCriteria, ActionRequiredStageConfig, ActionRequiredSetup, GprFormData, GprFormDialogProps, SanctionsCheckState, UseGprFormArgs } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -323,7 +324,7 @@ const buildSelectionSheetPdfFileName = (requestNumber: unknown, requestId: unkno
     return `Supplier - Outsourcing Selection Sheet_${requestKey}.pdf`
 }
 
-type UseGprFormArgs = Pick<GprFormDialogProps, 'open' | 'rowData' | 'onClose' | 'onSaved' | 'readOnly'>
+
 
 export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }: UseGprFormArgs) => {
     const user = getUserData()

@@ -10,7 +10,7 @@ import { useUploadBlacklist } from '@_workspace/react-query/hooks/vendor/useBlac
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
 import { MENU_NAME, breadcrumbNavigation } from './env'
-import type { UploadBlacklistPayload } from './types'
+import type { UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 import type { BlacklistFormData } from './validateSchema'
 import { BlacklistSchema, defaultBlacklistValues } from './validateSchema'
 

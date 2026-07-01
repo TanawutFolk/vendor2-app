@@ -3,7 +3,7 @@ import { AxiosError, type AxiosProgressEvent, type AxiosResponse } from 'axios'
 import BlacklistServices from '@_workspace/services/_black-list/BlacklistServices'
 import type { BlacklistResponseI, BlacklistSearchRequestI } from '@_workspace/services/_black-list/BlacklistServices'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
-import type { BlacklistRow, UploadBlacklistImportPayload } from '@_workspace/pages/_black-list/types'
+import type { BlacklistRow, UploadBlacklistImportPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 
 export const PREFIX_QUERY_KEY = 'BLACKLIST'
 

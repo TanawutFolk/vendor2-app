@@ -33,18 +33,11 @@ import VendorDetailsModal from '../_find-vendor/modal/VendorDetailsModal'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { RegisterConfirmFormData } from '../_find-vendor/register-request/validateSchema'
 import type { ReRegisterFormData } from './validateSchema'
+import type { VendorRow, SortColumnState } from '@_workspace/types/_Re-register/ReRegisterTypes'
 
-type VendorRow = Partial<VendorComprehensiveI> & {
-    vendor_id?: number
-    vendor_product_id?: number
-    vendor_contact_id?: number
-    [key: string]: unknown
-}
 
-type SortColumnState = {
-    colId: string
-    sort?: 'asc' | 'desc' | null
-}
+
+
 
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<ReRegisterFormData>()

@@ -152,7 +152,7 @@ export default function ActionRequiredDialog({
         }
 
         if (!picName.trim() || !picEmail.trim()) {
-            const message = 'Please enter a valid PIC EmpCode.'
+            const message = 'Please enter a valid Requester PIC EmpCode.'
             setError('pic_empcode', { type: 'manual', message })
             ToastMessageError({ title: 'Action Required', message })
             onError?.(message)
@@ -226,23 +226,23 @@ export default function ActionRequiredDialog({
                         }}
                     >
                         <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 0.5 }}>
-                            Notify responsible PIC
+                            Notify requester PIC
                         </Typography>
                         <Typography variant='body2' color='text.secondary'>
-                            Fill in the PIC information and explain what must be completed before the GPR C flow can continue.
+                            Fill in the requester PIC information and explain what must be completed before the GPR C flow can continue.
                         </Typography>
                     </Box>
 
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={3}>
+                        <Grid item xs={12} md={4}>
                             <CustomTextField
                                 fullWidth
-                                label='PIC EmpCode'
+                                label='Requester PIC EmpCode'
                                 placeholder='S00000'
                                 error={!!errors.pic_empcode}
                                 helperText={errors.pic_empcode?.message}
                                 {...register('pic_empcode', {
-                                    required: 'PIC EmpCode is required',
+                                    required: 'Requester PIC EmpCode is required',
                                     onChange: () => {
                                         setValue('pic_name', '')
                                         setValue('pic_email', '')
@@ -254,15 +254,15 @@ export default function ActionRequiredDialog({
                         <Grid item xs={12} md={4}>
                             <CustomTextField
                                 fullWidth
-                                label='PIC Name'
+                                label='Requester PIC Name'
                                 value={picName}
                                 disabled
                             />
                         </Grid>
-                        <Grid item xs={12} md={5}>
+                        <Grid item xs={12} md={4}>
                             <CustomTextField
                                 fullWidth
-                                label='PIC Email'
+                                label='Requester PIC Email'
                                 value={picEmail}
                                 disabled
                             />

@@ -21,7 +21,7 @@ const Transition = forwardRef(function Transition(
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 
 // Types
-import type { RegistrationRequest } from './types'
+import type { RegistrationRequest } from '@_workspace/types/_request-register/RequestRegisterTypes'
 import { statusConfig } from './RequestCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
