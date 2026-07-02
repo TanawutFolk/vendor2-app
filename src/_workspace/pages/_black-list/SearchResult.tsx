@@ -17,7 +17,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { useQueryClient } from '@tanstack/react-query'
-import { getBlacklistQueryOptions } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
+import { getBlacklistQueryOptions } from '@_workspace/react-query/hooks/useBlacklist'
 import UploadBlacklistModal from './modal/UploadBlacklistModal'
 import type { BlacklistRow, UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 import type { BlacklistFormData } from './validateSchema'
@@ -104,16 +104,16 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 const currentFilters = getValues('searchFilters')
 
                 const payload = {
-                    SearchFilters: [
+                    SEARCHFILTERS: [
                         { id: 'vendor_name', value: currentFilters.vendor_name || '' },
                         { id: 'group_code', value: currentFilters.group_code === 'ALL' ? '' : currentFilters.group_code },
                     ],
-                    ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
-                    Order: sortModel && sortModel.length > 0
+                    COLUMNFILTERS: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
+                    ORDER: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
                         : [{ id: 'updated_date', desc: true }],
-                    Start: startRow ?? 0,
-                    Limit: limit || 20,
+                    START: startRow ?? 0,
+                    LIMIT: limit || 20,
                 }
 
                 const response = await queryClient.fetchQuery(getBlacklistQueryOptions(payload))

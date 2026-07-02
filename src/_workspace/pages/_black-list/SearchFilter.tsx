@@ -12,7 +12,7 @@ import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 // React Query Imports
 import { useQueryClient } from '@tanstack/react-query'
 
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -20,7 +20,6 @@ import SelectCustom from '@components/react-select/SelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
 
 // Utils Imports
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -30,7 +29,7 @@ import type { BlacklistFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
 import { MENU_ID } from './env'
 
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useBlacklist'
 
 const groupOptions = [
   { value: 'ALL', label: 'All' },
@@ -54,13 +53,13 @@ const SearchFilter = () => {
 
     setIsEnableFetching(true)
     queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-    handleAdd()
+    save()
   }
 
   const onSubmit: SubmitHandler<BlacklistFormData> = () => {
     setIsEnableFetching(true)
     queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-    handleAdd()
+    save()
   }
 
   const onError: SubmitErrorHandler<BlacklistFormData> = data => {
@@ -68,30 +67,7 @@ const SearchFilter = () => {
     console.log(data)
   }
 
-  const handleAdd = () => {
-    const dataItem = {
-      USER_ID: getUserData().USER_ID,
-      APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-      MENU_ID: MENU_ID.toString(),
-      USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: {
-          vendor_name: getValues('searchFilters.vendor_name'),
-          group_code: getValues('searchFilters.group_code')
-        },
-        searchResults: {
-          agGridState: getValues('searchResults.agGridState')
-        }
-      } as BlacklistFormData
-    }
-
-    mutate(dataItem)
-  }
-
-  const onMutateSuccess = () => {}
-
-  const onMutateError = (e: any) => {}
-
-  const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
+  const { save, isError, error } = useDxSaveSearchFilters<BlacklistFormData>({ MENU_ID })
 
   return (
     <Card style={{ overflow: 'visible', zIndex: 4 }}>

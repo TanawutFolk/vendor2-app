@@ -74,7 +74,7 @@ const SearchResult = () => {
                     : [{ id: 'company_name', desc: false }]
 
                 const res = await FindVendorServices.search({
-                    SearchFilters: [
+                    SEARCHFILTERS: [
                         { id: 'global_search', value: currentFilters?.global_search || '' },
                         { id: 'company_name', value: currentFilters?.company_name || '' },
                         { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
@@ -107,6 +107,7 @@ const SearchResult = () => {
                         vendor_region: row.vendor_region ?? row.VENDOR_REGION,
                         province: row.province ?? row.PROVINCE,
                         postal_code: row.postal_code ?? row.POSTAL_CODE,
+                        country: row.country ?? row.COUNTRY,
                         website: row.website ?? row.WEBSITE,
                         address: row.address ?? row.ADDRESS,
                         tel_center: row.tel_center ?? row.TEL_CENTER,
@@ -172,7 +173,7 @@ const SearchResult = () => {
                 ?.map((c) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
 
             const file = await FindVendorServices.downloadFileForExport({
-                DataForFetch: { SearchFilters: buildSearchFilters(), ColumnFilters: [], Order: sortModel },
+                DATAFORFETCH: { SEARCHFILTERS: buildSearchFilters(), COLUMNFILTERS: [], ORDER: sortModel },
                 TYPE: 'AllPage'
             })
             saveAs(file.data, `Re_Register_All_${buildTimestamp()}.xlsx`)
@@ -312,7 +313,7 @@ const SearchResult = () => {
 
         setDeleteLoading(true)
         try {
-            const response = await FindVendorServices.deleteVendor(selectedVendorId, getUserData()?.EMPLOYEE_CODE || 'SYSTEM')
+            const response = await FindVendorServices.deleteVendor({ VENDORS_ID: selectedVendorId, UPDATE_BY: getUserData()?.EMPLOYEE_CODE || 'SYSTEM' })
             if (response.data?.Status) {
                 ToastMessageSuccess({
                     title: 'Delete Vendor',

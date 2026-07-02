@@ -1,15 +1,17 @@
 import Grid from '@mui/material/Grid'
-import type { AxiosProgressEvent } from 'axios'
+import { AxiosError, type AxiosProgressEvent } from 'axios'
 import { FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import { useUploadBlacklist } from '@_workspace/react-query/hooks/vendor/useBlacklistHooks'
+import { useUploadBlacklist } from '@_workspace/react-query/hooks/useBlacklist'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
-import { MENU_NAME, breadcrumbNavigation } from './env'
+import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
 import type { UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
 import type { BlacklistFormData } from './validateSchema'
 import { BlacklistSchema, defaultBlacklistValues } from './validateSchema'
@@ -35,11 +37,22 @@ const InnerApp = () => {
         setIsEnableFetching(true)
     }, [setIsEnableFetching])
 
-    const uploadMutation = useUploadBlacklist(() => {
-        setUploadProgress(100)
-        setIsEnableFetching(true)
-        setTimeout(() => setUploadProgress(0), 200)
-    })
+    const uploadMutation = useUploadBlacklist(
+        (data: any) => {
+            ToastMessageSuccess({ title: 'Blacklist', message: data?.Message || 'Blacklist updated successfully' })
+            setUploadProgress(100)
+            setIsEnableFetching(true)
+            setTimeout(() => setUploadProgress(0), 200)
+        },
+        (error: unknown) => {
+            const errorMessage = error instanceof AxiosError
+                ? (error.response?.data as { Message?: string } | undefined)?.Message || error.message
+                : error instanceof Error
+                    ? error.message
+                    : 'Blacklist update failed'
+            ToastMessageError({ title: 'Blacklist', message: errorMessage })
+        }
+    )
 
     const handleUpload = (payload: UploadBlacklistPayload) => {
         const user = getUserData()
@@ -74,6 +87,7 @@ const InnerApp = () => {
     return (
         <Grid container spacing={6}>
             <FormProvider {...reactHookFormMethods}>
+                <DxWatchSearchFilters MENU_ID={MENU_ID} />
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
                 </Grid>

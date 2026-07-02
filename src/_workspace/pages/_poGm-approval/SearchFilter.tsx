@@ -12,8 +12,8 @@ import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 // React Query Imports
 import { useQueryClient } from '@tanstack/react-query'
 
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
+import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestStatusOptions'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
@@ -21,7 +21,6 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
 
 // Utils Imports
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -46,12 +45,12 @@ const SearchFilter = () => {
     setValue('searchFilters', defaultSearchFilters)
 
     setIsEnableFetching(true)
-    handleAdd()
+    save()
   }
 
   const onSubmit: SubmitHandler<RequestRegisterFormData> = () => {
     setIsEnableFetching(true)
-    handleAdd()
+    save()
   }
 
   const onError: SubmitErrorHandler<RequestRegisterFormData> = data => {
@@ -59,27 +58,7 @@ const SearchFilter = () => {
     console.log(data)
   }
 
-  const handleAdd = () => {
-    const dataItem = {
-      USER_ID: getUserData().USER_ID,
-      APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-      MENU_ID: MENU_ID.toString(),
-      USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: getValues('searchFilters'),
-        searchResults: {
-          agGridState: getValues('searchResults.agGridState')
-        }
-      } as RequestRegisterFormData
-    }
-
-    mutate(dataItem)
-  }
-
-  const onMutateSuccess = () => {}
-
-  const onMutateError = (e: any) => {}
-
-  const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
+  const { save, isError, error } = useDxSaveSearchFilters<RequestRegisterFormData>({ MENU_ID })
 
   return (
     <Card style={{ overflow: 'visible', zIndex: 4 }}>

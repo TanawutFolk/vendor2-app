@@ -6,13 +6,12 @@ import Grid from '@mui/material/Grid'
 import { Controller, useFormContext, useFormState } from 'react-hook-form'
 import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestStatusOptions'
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import { useDxContext } from '@/_template/DxContextProvider'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 import { MENU_ID } from './env'
 import { defaultSearchFilters, type AccRegisterFormData, type SelectOptionFormData } from './validateSchema'
 
@@ -22,33 +21,17 @@ const SearchFilter = () => {
     const { isLoading } = useFormState({ control })
     const { data: statusOptions = [] } = useRequestStatusOptions()
 
-    const onMutateSuccess = () => {}
-    const onMutateError = () => {}
-    const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
-
-    const handleSaveSearchPreference = () => {
-        mutate({
-            USER_ID: getUserData().USER_ID,
-            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-            MENU_ID: MENU_ID.toString(),
-            USER_PROFILE_SETTING_PROGRAM_DATA: {
-                searchFilters: getValues('searchFilters'),
-                searchResults: {
-                    agGridState: getValues('searchResults.agGridState'),
-                },
-            } as AccRegisterFormData,
-        })
-    }
+    const { save, isError, error } = useDxSaveSearchFilters<AccRegisterFormData>({ MENU_ID })
 
     const onHandleClearSearchFilters = () => {
         setValue('searchFilters', defaultSearchFilters)
         setIsEnableFetching(true)
-        handleSaveSearchPreference()
+        save(defaultSearchFilters)
     }
 
     const onSubmit: SubmitHandler<AccRegisterFormData> = () => {
         setIsEnableFetching(true)
-        handleSaveSearchPreference()
+        save()
     }
 
     const onError: SubmitErrorHandler<AccRegisterFormData> = data => {

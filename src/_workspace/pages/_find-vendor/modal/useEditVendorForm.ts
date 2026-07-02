@@ -9,7 +9,7 @@ import {
     getVendorDetailQueryConfig,
     useGetVendor,
     useUpdateVendor,
-} from '@_workspace/react-query/hooks/vendor/useFindVendor'
+} from '@_workspace/react-query/hooks/useFindVendor'
 
 import type { UpdateVendorParamsI, VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import { editVendorSchema, type EditVendorSchemaType } from './validateSchema'
@@ -21,6 +21,7 @@ const emptyDefaultValues: EditVendorSchemaType = {
     company_name: '',
     vendor_type_id: null,
     vendor_type_name: '',
+    country: '',
     contacts: [],
     products: [],
 }
@@ -41,30 +42,36 @@ const normalizeProductAuditFields = (product: any) => ({
     UPDATE_DATE: product?.UPDATE_DATE ?? product?.product_update_date ?? '',
 })
 
-const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): VendorComprehensiveI => ({
-    vendor_id: rowData.vendor_id ?? 0,
-    fft_vendor_code: rowData.fft_vendor_code,
-    fft_status: rowData.fft_status,
-    status_check: rowData.status_check,
-    reject_reason: rowData.reject_reason,
-    company_name: rowData.company_name ?? '',
-    vendor_type_id: rowData.vendor_type_id,
-    vendor_type_name: rowData.vendor_type_name ?? '',
-    province: rowData.province ?? '',
-    postal_code: rowData.postal_code ?? '',
-    website: rowData.website ?? '',
-    address: rowData.address ?? '',
-    tel_center: rowData.tel_center ?? '',
-    emailmain: rowData.emailmain,
-    vendor_region: rowData.vendor_region,
-    contacts: Array.isArray(rowData.contacts) ? rowData.contacts.map(normalizeContactAuditFields) : [],
-    products: Array.isArray(rowData.products) ? rowData.products.map(normalizeProductAuditFields) : [],
-    CREATE_BY: rowData.CREATE_BY ?? '',
-    UPDATE_BY: rowData.UPDATE_BY ?? '',
-    CREATE_DATE: rowData.CREATE_DATE ?? '',
-    UPDATE_DATE: rowData.UPDATE_DATE ?? '',
-    INUSE: rowData.INUSE ?? 1,
-})
+// rowData may arrive UPPER-cased (find-vendor's grid, Option A) or lowercase
+// (Re-register, not yet migrated), so this bridge tolerates both.
+const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): VendorComprehensiveI => {
+    const rd = rowData as any
+    return {
+        vendor_id: rd.vendor_id ?? rd.VENDORS_ID ?? 0,
+        fft_vendor_code: rd.fft_vendor_code ?? rd.FFT_VENDOR_CODE,
+        fft_status: rd.fft_status ?? rd.FFT_STATUS,
+        status_check: rd.status_check ?? rd.STATUS_CHECK,
+        reject_reason: rd.reject_reason ?? rd.REJECT_REASON,
+        company_name: rd.company_name ?? rd.COMPANY_NAME ?? '',
+        vendor_type_id: rd.vendor_type_id ?? rd.MASTER_VENDOR_TYPES_ID,
+        vendor_type_name: rd.vendor_type_name ?? rd.VENDOR_TYPE_NAME ?? '',
+        province: rd.province ?? rd.PROVINCE ?? '',
+        postal_code: rd.postal_code ?? rd.POSTAL_CODE ?? '',
+        country: rd.country ?? rd.COUNTRY ?? '',
+        website: rd.website ?? rd.WEBSITE ?? '',
+        address: rd.address ?? rd.ADDRESS ?? '',
+        tel_center: rd.tel_center ?? rd.TEL_CENTER ?? '',
+        emailmain: rd.emailmain ?? rd.EMAILMAIN,
+        vendor_region: rd.vendor_region ?? rd.VENDOR_REGION,
+        contacts: Array.isArray(rd.contacts) ? rd.contacts.map(normalizeContactAuditFields) : [],
+        products: Array.isArray(rd.products) ? rd.products.map(normalizeProductAuditFields) : [],
+        CREATE_BY: rd.CREATE_BY ?? '',
+        UPDATE_BY: rd.UPDATE_BY ?? '',
+        CREATE_DATE: rd.CREATE_DATE ?? '',
+        UPDATE_DATE: rd.UPDATE_DATE ?? '',
+        INUSE: rd.INUSE ?? 1,
+    }
+}
 
 const cloneVendorData = (data: VendorComprehensiveI): VendorComprehensiveI => {
     if (typeof structuredClone === 'function') return structuredClone(data)
@@ -95,11 +102,14 @@ export const useEditVendorForm = ({
     const isRowDataComprehensive = useMemo(() => {
         if (!rowData) return false
 
-        const hasCollections = Array.isArray(rowData.contacts) && Array.isArray(rowData.products)
+        const rd = rowData as any
+        const companyName = rd.company_name ?? rd.COMPANY_NAME
+        const vendorTypeId = rd.vendor_type_id ?? rd.MASTER_VENDOR_TYPES_ID
+        const hasCollections = Array.isArray(rd.contacts) && Array.isArray(rd.products)
         const hasCoreFields =
-            typeof rowData.company_name === 'string' &&
-            rowData.company_name.trim().length > 0 &&
-            rowData.vendor_type_id !== undefined
+            typeof companyName === 'string' &&
+            companyName.trim().length > 0 &&
+            vendorTypeId !== undefined
 
         return hasCollections && hasCoreFields
     }, [rowData])
@@ -196,8 +206,9 @@ export const useEditVendorForm = ({
             setVendorFftCode(comprehensive.fft_vendor_code)
             setVendorStatusCheck(comprehensive.status_check)
         } else if (rowData) {
-            setVendorFftCode(rowData.fft_vendor_code)
-            setVendorStatusCheck(rowData.status_check)
+            const rd = rowData as any
+            setVendorFftCode(rd.fft_vendor_code ?? rd.FFT_VENDOR_CODE)
+            setVendorStatusCheck(rd.status_check ?? rd.STATUS_CHECK)
         }
     }, [vendorId, rowData, reset, initialMode, shouldFetchVendorOnEdit])
 

@@ -115,7 +115,7 @@ export default function ActionRequiredDialog({
 
         clearErrors(['pic_empcode', 'root'])
 
-        void RegisterRequestServices.resolveEmployeeProfile(empcode)
+        void RegisterRequestServices.resolveEmployeeProfile({ EMPCODE: empcode })
             .then(response => {
                 if (String(watch('pic_empcode') || '').trim() !== empcode) return
 
@@ -162,11 +162,11 @@ export default function ActionRequiredDialog({
 
         try {
             const response = await RegisterRequestServices.gprCActionRequired({
-                request_id: requestId,
-                action_by: actionBy,
-                pic_name: picName.trim(),
-                pic_email: picEmail.trim(),
-                required_detail: formData.required_detail.trim(),
+                REQUEST_REGISTER_VENDOR_ID: requestId,
+                ACTION_BY: actionBy,
+                PIC_NAME: picName.trim(),
+                PIC_EMAIL: picEmail.trim(),
+                REQUIRED_DETAIL: formData.required_detail.trim(),
                 UPDATE_BY: updateBy || actionBy,
             })
 

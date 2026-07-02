@@ -59,7 +59,7 @@ const normalizeText = (value?: string | null) => (value || '').trim().toLowerCas
 const toRegisterStatus = (stepStatus?: string | null): RegisterStatus => {
     const normalized = normalizeText(stepStatus)
 
-    if (normalized.includes('approved') || normalized.includes('completed') || normalized.includes('agreement reached')) {
+    if (normalized.includes('approved') || normalized.includes('completed')) {
         return 'completed'
     }
 

@@ -16,11 +16,13 @@ import type { VendorActionRow, ActionCellRendererProps } from '@_workspace/types
 
 export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const vendorId = params.data?.vendor_id;
-  const isAlreadyRegistered = params.data?.status_check === 'Registered';
-  const isInProgress = params.data?.status_check === 'In Progress';
+  // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
+  const vendorId = params.data?.vendor_id ?? params.data?.VENDORS_ID;
+  const statusCheck = params.data?.status_check ?? params.data?.STATUS_CHECK;
+  const isAlreadyRegistered = statusCheck === 'Registered';
+  const isInProgress = statusCheck === 'In Progress';
 
-  const isCannotRegister = params.data?.status_check === 'Cannot Register';
+  const isCannotRegister = statusCheck === 'Cannot Register';
   const isActiveVendor = Number(params.data?.INUSE ?? 1) === 1;
   const showMoreActions = params.showMoreActions !== false;
   const canOpenMenu = showMoreActions && Boolean(vendorId);

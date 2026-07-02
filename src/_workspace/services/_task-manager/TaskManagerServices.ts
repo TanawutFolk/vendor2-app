@@ -10,22 +10,13 @@ export interface TaskManagerResponseI<T = any> {
     Message: string
 }
 
+// Pass-through transport layer (company pattern): callers build the UPPER_CASE
+// DB payload; the service only owns endpoint + method.
 export default class TaskManagerServices {
-    static searchAllTask(data?: Record<string, any>): Promise<AxiosResponse<TaskManagerResponseI<any[]>>> {
-        const payload = data ? {
-            SEARCHFILTERS: data.SearchFilters ?? data.SEARCHFILTERS,
-            COLUMNFILTERS: data.ColumnFilters ?? data.COLUMNFILTERS,
-            ORDER: data.Order ?? data.ORDER,
-            START: data.Start ?? data.START,
-            LIMIT: data.Limit ?? data.LIMIT,
-            OFFSET: data.Offset ?? data.OFFSET,
-            SQLWHERE: data.sqlWhere ?? data.SQLWHERE,
-            SQLWHERECOLUMNFILTER: data.sqlWhereColumnFilter ?? data.SQLWHERECOLUMNFILTER
-        } : {}
-
+    static searchAllTask(data: Record<string, unknown> = {}): Promise<AxiosResponse<TaskManagerResponseI<any[]>>> {
         return axiosRequest<TaskManagerResponseI<any[]>>({
             url: `${TaskManagerAPI.API_ROOT_URL}/SearchAllTask`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }

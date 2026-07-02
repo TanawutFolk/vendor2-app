@@ -14,6 +14,8 @@ export interface VendorResultI extends AuditFields {
     vendor_region?: 'Local' | 'Oversea' | null
     province: string
     postal_code: string
+    country?: string | null
+    COUNTRY?: string | null
     website: string
     address: string
     tel_center: string
@@ -52,6 +54,7 @@ export interface VendorUpdateRequestI {
     vendor_type_id?: number | null
     province?: string
     postal_code?: string
+    country?: string | null
     website?: string
     address?: string
     tel_center?: string
@@ -147,6 +150,8 @@ export interface VendorComprehensiveI extends AuditFields {
     vendor_region?: 'Local' | 'Oversea' | null
     province: string
     postal_code: string
+    country?: string | null
+    COUNTRY?: string | null
     website: string
     address: string
     tel_center: string
@@ -293,6 +298,8 @@ export type RegisterVendorData = VendorContactOption & {
     vendor_type_name?: string
     vendor_region?: string
     province?: string
+    postal_code?: string
+    country?: string
     website?: string
     tel_center?: string
     status_check?: string

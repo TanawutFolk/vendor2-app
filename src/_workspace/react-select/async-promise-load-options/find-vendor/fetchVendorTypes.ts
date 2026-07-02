@@ -7,13 +7,13 @@ export interface VendorTypeOption {
 }
 
 /**
- * Fetch vendor types for AsyncSelect
+ * Fetch vendor business category names for AsyncSelect
  * @param inputValue - Search input value for filtering
  * @returns Promise<VendorTypeOption[]>
  */
 export const fetchVendorTypes = (inputValue: string) =>
     new Promise<VendorTypeOption[]>(resolve => {
-        FindVendorServices.getVendorTypes()
+        FindVendorServices.getVendorBusinessCategoryName()
             .then(response => {
                 if (response.data.Status) {
                     const filtered = response.data.ResultOnDb.filter(item =>
@@ -25,7 +25,7 @@ export const fetchVendorTypes = (inputValue: string) =>
                 }
             })
             .catch(error => {
-                console.error('Error fetching vendor types:', error)
+                console.error('Error fetching vendor business category names:', error)
                 resolve([])
             })
     })

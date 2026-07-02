@@ -35,10 +35,12 @@ import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@/components/dialogs/DialogCloseButton'
 
 // React Query Imports
-import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateProductGroup'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCreateProductGroup, PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useAddVendor'
 
 // Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Validation Schema
 const addProductGroupSchema = z.object({
@@ -62,19 +64,25 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
         }
     })
 
+    const queryClient = useQueryClient()
+
     const onMutateSuccess = (data: any) => {
-        if (data && data.Status == true) {
+        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+        if (data?.Status === false) {
+            ToastMessageError({ title: 'Add Product Group', message: data?.Message || 'Failed to add product group' })
+        } else {
+            ToastMessageSuccess({ title: 'Add Product Group', message: data?.Message || 'Product Group added successfully' })
             handleClose()
             if (onSuccess) onSuccess()
         }
     }
 
-    const onMutateError = () => {
-        console.log('onMutateError')
+    const onMutateError = (error: any) => {
+        ToastMessageError({ title: 'Add Product Group', message: error?.message || 'Failed to add product group' })
     }
 
     // Hooks : React Query
-    const { mutate, isPending } = useCreate(onMutateSuccess, onMutateError)
+    const { mutate, isPending } = useCreateProductGroup(onMutateSuccess, onMutateError)
 
     // Functions
     const handleClose = () => {

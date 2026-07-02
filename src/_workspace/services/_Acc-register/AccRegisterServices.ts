@@ -3,17 +3,13 @@ import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import { RegisterRequestResponseI } from '@_workspace/services/_register-request/RegisterRequestServices'
 
+// Pass-through transport layer (company pattern): callers build the UPPER_CASE
+// DB payload; the service only owns endpoint + method.
 export default class AccRegisterServices {
-    static completeRegistration(data: {
-        request_id: number
-        UPDATE_BY?: string
-    }): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
+    static completeRegistration(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
         return axiosRequest<RegisterRequestResponseI<any>>({
             url: `${AccRegisterAPI.API_ROOT_URL}/completeRegistration`,
-            data: {
-                REQUEST_REGISTER_VENDOR_ID: data.request_id,
-                UPDATE_BY: data.UPDATE_BY
-            },
+            data,
             method: 'POST'
         })
     }

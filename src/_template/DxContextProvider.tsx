@@ -1,20 +1,23 @@
 import type { ReactNode } from 'react'
 import React, { createContext, useContext, useState } from 'react'
 
-import type { MRT_PaginationState } from 'material-react-table'
+// Structurally identical to MRT_PaginationState — kept local so this provider has
+// no material-react-table dependency (AG Grid pages don't use pagination at all,
+// but the prototype's MRT pages still read it from context).
+type DxPaginationState = { pageIndex: number; pageSize: number }
 
 type DxContextType = {
   isEnableFetching: boolean
   setIsEnableFetching: React.Dispatch<React.SetStateAction<boolean>>
-  pagination: MRT_PaginationState
-  setPagination: React.Dispatch<React.SetStateAction<MRT_PaginationState>>
+  pagination: DxPaginationState
+  setPagination: React.Dispatch<React.SetStateAction<DxPaginationState>>
 }
 const DxContext = createContext<DxContextType | undefined>(undefined)
 
 const DxProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isEnableFetching, setIsEnableFetching] = useState(false)
 
-  const [pagination, setPagination] = useState<MRT_PaginationState>({
+  const [pagination, setPagination] = useState<DxPaginationState>({
     pageIndex: 0,
     pageSize: 10
   })

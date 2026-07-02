@@ -2,25 +2,18 @@ import AddVendorAPI from '@_workspace/api/_add-vendor/AddVendorAPI'
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import type {
-    CheckDuplicateRequestI,
-    CreateVendorRequestI,
     CheckDuplicateResponseI,
     CreateVendorResponseI,
     AddVendorApiResponseI,
     VendorTypeI,
-    ProductGroupI,
-    CreateProductGroupRequestI
+    ProductGroupI
 } from '@_workspace/types/_add-vendor/AddVendorTypes'
 
+// Pass-through transport layer (company pattern): callers/hooks build the
+// UPPER_CASE DB payload; the service only owns endpoint + method.
 export default class AddVendorServices {
     // Check if vendor already exists
-    static checkDuplicate(params: CheckDuplicateRequestI): Promise<AxiosResponse<CheckDuplicateResponseI>> {
-        const data = {
-            COMPANY_NAME: params.company_name,
-            PROVINCE: params.province,
-            POSTAL_CODE: params.postal_code
-        }
-
+    static checkDuplicate(data: Record<string, unknown>): Promise<AxiosResponse<CheckDuplicateResponseI>> {
         return axiosRequest<CheckDuplicateResponseI>({
             url: `${AddVendorAPI.API_ROOT_URL}/check-duplicate`,
             data,
@@ -28,11 +21,7 @@ export default class AddVendorServices {
         })
     }
 
-    static checkBlacklist(params: Pick<CheckDuplicateRequestI, 'company_name'>): Promise<AxiosResponse<CheckDuplicateResponseI>> {
-        const data = {
-            COMPANY_NAME: params.company_name
-        }
-
+    static checkBlacklist(data: Record<string, unknown>): Promise<AxiosResponse<CheckDuplicateResponseI>> {
         return axiosRequest<CheckDuplicateResponseI>({
             url: `${AddVendorAPI.API_ROOT_URL}/check-blacklist`,
             data,
@@ -41,40 +30,10 @@ export default class AddVendorServices {
     }
 
     // Create new vendor with contacts and products
-    static create(data: CreateVendorRequestI): Promise<AxiosResponse<CreateVendorResponseI>> {
-        const payload = {
-            COMPANY_NAME: data.company_name,
-            PROVINCE: data.province,
-            POSTAL_CODE: data.postal_code,
-            MASTER_VENDOR_TYPES_ID: data.vendor_type_id,
-            VENDOR_REGION: data.vendor_region,
-            WEBSITE: data.website,
-            TEL_CENTER: data.tel_center,
-            ADDRESS: data.address,
-            EMAILMAIN: data.emailmain,
-            NOTE: data.note,
-            CREATE_BY: data.CREATE_BY,
-            CONTACTS: (data.contacts || []).map(contact => ({
-                VENDOR_CONTACTS_ID: contact.vendor_contact_id,
-                VENDORS_ID: contact.vendor_id,
-                CONTACT_NAME: contact.contact_name,
-                TEL_PHONE: contact.tel_phone,
-                EMAIL: contact.email,
-                POSITION: contact.position
-            })),
-            PRODUCTS: (data.products || []).map(product => ({
-                VENDOR_PRODUCTS_ID: product.vendor_product_id,
-                VENDORS_ID: product.vendor_id,
-                MASTER_PRODUCT_GROUPS_ID: product.product_group_id,
-                MAKER_NAME: product.maker_name,
-                PRODUCT_NAME: product.product_name,
-                MODEL_LIST: product.model_list
-            }))
-        }
-
+    static create(data: Record<string, unknown>): Promise<AxiosResponse<CreateVendorResponseI>> {
         return axiosRequest<CreateVendorResponseI>({
             url: `${AddVendorAPI.API_ROOT_URL}/CreateVendor`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }
@@ -96,15 +55,10 @@ export default class AddVendorServices {
     }
 
     // Create new product group
-    static createProductGroup(data: CreateProductGroupRequestI): Promise<AxiosResponse<AddVendorApiResponseI<{ product_group_id: number }>>> {
-        const payload = {
-            GROUP_NAME: data.group_name,
-            CREATE_BY: data.CREATE_BY
-        }
-
+    static createProductGroup(data: Record<string, unknown>): Promise<AxiosResponse<AddVendorApiResponseI<{ product_group_id: number }>>> {
         return axiosRequest<AddVendorApiResponseI<{ product_group_id: number }>>({
             url: `${AddVendorAPI.API_ROOT_URL}/create-product-group`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }

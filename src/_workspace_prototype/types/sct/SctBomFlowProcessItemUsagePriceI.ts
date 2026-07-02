@@ -1,0 +1,33 @@
+export interface SctBomFlowProcessItemUsagePriceI {
+  SCT_BOM_FLOW_PROCESS_ITEM_USAGE_PRICE_ID: string
+  SCT_ID: string
+  BOM_FLOW_PROCESS_ITEM_USAGE_ID: number
+  ITEM_M_S_PRICE_ID: string
+  PRICE: number
+  YIELD_ACCUMULATION: number
+  AMOUNT: number
+  IS_ADJUST_YIELD_ACCUMULATION: number
+  YIELD_ACCUMULATION_DEFAULT: number
+  CREATE_BY: string
+  CREATE_DATE: string
+  UPDATE_BY: string
+  UPDATE_DATE: string
+  INUSE: number
+  IS_FROM_SCT_COPY: number
+  ADJUST_YIELD_ACCUMULATION_VERSION_NO: number
+  SCT_ID_SELECTION: string
+  PURCHASE_UNIT_ID: number
+  PURCHASE_UNIT_NAME: string
+  USAGE_UNIT_ID: number
+  USAGE_UNIT_NAME: string
+  PURCHASE_PRICE: number
+  PURCHASE_UNIT_RATIO: number
+  EXCHANGE_RATE_VALUE: number
+  USAGE_UNIT_RATIO: number
+  FISCAL_YEAR: number
+  SCT_PATTERN_ID: number
+  ITEM_M_S_PRICE_VALUE: number
+  ITEM_M_S_PRICE_VERSION: number
+  PURCHASE_PRICE_CURRENCY_NAME: string
+  PURCHASE_PRICE_CURRENCY_CODE: string
+}

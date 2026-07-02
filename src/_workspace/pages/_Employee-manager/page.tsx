@@ -5,13 +5,14 @@ import { useUpdateEffect } from 'react-use'
 
 import SkeletonCustom from '@components/SkeletonCustom'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 
 import type { AssigneesFormData } from './validateSchema'
 import { AssigneesSchema, fetchDefaultValues } from './validateSchema'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
-import { MENU_NAME, breadcrumbNavigation } from './env'
+import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
 
 function Page() {
     return (
@@ -38,6 +39,7 @@ const InnerApp = () => {
 
     return (
         <FormProvider {...reactHookFormMethods}>
+            <DxWatchSearchFilters MENU_ID={MENU_ID} />
             <Grid container spacing={6}>
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />

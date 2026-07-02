@@ -137,7 +137,7 @@ export default function RequestDetailDialog({
         let active = true
         setLoading(true)
 
-        ApprovalQueueServices.getById(requestId)
+        ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
             .then(response => {
                 if (!active) return
 
@@ -279,8 +279,12 @@ export default function RequestDetailDialog({
                                     { label: 'Vendor Type', value: getValue(detail, fallbackRow || null, 'vendor_type_name') },
                                     { label: 'Region', value: getValue(detail, fallbackRow || null, 'vendor_region') },
                                     { label: 'FFT Vendor Code', value: getValue(detail, fallbackRow || null, 'fft_vendor_code') },
-                                    { label: 'Province', value: getValue(detail, fallbackRow || null, 'province') },
-                                    { label: 'Postal Code', value: getValue(detail, fallbackRow || null, 'postal_code') },
+                                    ...(getValue(detail, fallbackRow || null, 'vendor_region') === 'Oversea'
+                                        ? [{ label: 'Country', value: getValue(detail, fallbackRow || null, 'country') }]
+                                        : [
+                                            { label: 'Province', value: getValue(detail, fallbackRow || null, 'province') },
+                                            { label: 'Postal Code', value: getValue(detail, fallbackRow || null, 'postal_code') },
+                                        ]),
                                     { label: 'Tel Center', value: getValue(detail, fallbackRow || null, 'tel_center') },
                                     { label: 'Website', value: getValue(detail, fallbackRow || null, 'website') },
                                     { label: 'Email (Main)', value: getValue(detail, fallbackRow || null, 'emailmain') },

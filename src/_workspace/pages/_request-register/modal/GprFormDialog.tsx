@@ -52,7 +52,6 @@ import type { GprFormData, GprFormDialogProps, SanctionsCheckState } from './use
 import {
     inferStepCode,
     isAccountStep,
-    isAgreementReachedStep,
 } from '@_workspace/utils/requestWorkflow'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
@@ -1122,7 +1121,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         return []
     }, [rowData?.approval_logs])
 
-    const requestRef = rowData?.request_number || rowData?.request_id || '-'
+    const requestRef = rowData?.request_number || rowData?.REQUEST_NUMBER || rowData?.request_id || rowData?.REQUEST_REGISTER_VENDOR_ID || '-'
     const handleConfirmAction = async () => {
         if (confirmAction === 'save') {
             await handleSave()
@@ -1186,26 +1185,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             return matched[0]
         }
 
-        const findLatestApprovedAgreementReachedStep = () => {
-            const matched = approvalSteps.filter((step: any) => {
-                const status = String(step?.STEP_STATUS || '').toLowerCase()
-                if (!approvedStatuses.has(status)) return false
-
-                return isAgreementReachedStep(step)
-            })
-
-            matched.sort((a: any, b: any) => {
-                const orderDiff = Number(b?.STEP_ORDER || 0) - Number(a?.STEP_ORDER || 0)
-                if (orderDiff !== 0) return orderDiff
-
-                const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
-                const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
-                return bTime - aTime
-            })
-
-            return matched[0]
-        }
-
         const findLatestLogForStep = (stepId: unknown) => {
             const matched = approvalLogs.filter((log: any) => String(log?.REQUEST_APPROVAL_STEP_ID || '') === String(stepId || ''))
 
@@ -1237,7 +1216,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         return [
-            mapSlot('Issuer', findLatestApprovedAgreementReachedStep()),
+            mapSlot('Issuer', findLatestApprovedStep('PENDING_AGREEMENT')),
             mapSlot('Manager', findLatestApprovedStep('PO_MGR_APPROVAL')),
             mapSlot('General Manager', findLatestApprovedStep('PO_GM_APPROVAL')),
             mapSlot('Managing Director', findLatestApprovedStep('MD_APPROVAL')),
@@ -1270,7 +1249,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     <Typography variant='h5' component='span' fontWeight={800} sx={{ letterSpacing: 0.3 }}>
                         Supplier / Outsourcing Selection Sheet
                     </Typography>
-                    <DialogSubtitle fallbackName={rowData?.company_name} />
+                    <DialogSubtitle fallbackName={rowData?.company_name ?? rowData?.COMPANY_NAME} />
                     <Box sx={{ position: 'absolute', top: 16, right: 56, textAlign: 'right' }}>
                         <Typography variant='body2' fontWeight={700} color='text.secondary'>
                             {requestRef}

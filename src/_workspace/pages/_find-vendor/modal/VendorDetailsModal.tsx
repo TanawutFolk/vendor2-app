@@ -8,7 +8,7 @@ import type { SlideProps } from '@mui/material'
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
-import { StatusCheckChip, FftStatusChip } from '../components/fftStatus'
+import { StatusCheckChip } from '../components/fftStatus'
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { VendorDetailsModalProps } from '@_workspace/types/_find-vendor/FindVendorTypes'
 
@@ -34,6 +34,21 @@ const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
 const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) => {
     const contacts = (Array.isArray(data?.contacts) ? data.contacts : []).filter(Boolean)
     const products = (Array.isArray(data?.products) ? data.products : []).filter(Boolean)
+
+    // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
+    const companyName = data?.company_name ?? (data as any)?.COMPANY_NAME
+    const vendorTypeName = data?.vendor_type_name ?? (data as any)?.VENDOR_TYPE_NAME
+    const vendorRegion = data?.vendor_region ?? (data as any)?.VENDOR_REGION
+    const statusCheck = data?.status_check ?? (data as any)?.STATUS_CHECK
+    const rejectReason = data?.reject_reason ?? (data as any)?.REJECT_REASON
+    const fftVendorCode = data?.fft_vendor_code ?? (data as any)?.FFT_VENDOR_CODE
+    const country = data?.country ?? (data as any)?.COUNTRY
+    const province = data?.province ?? (data as any)?.PROVINCE
+    const postalCode = data?.postal_code ?? (data as any)?.POSTAL_CODE
+    const telCenter = data?.tel_center ?? (data as any)?.TEL_CENTER
+    const website = data?.website ?? (data as any)?.WEBSITE
+    const emailmain = data?.emailmain ?? (data as any)?.EMAILMAIN
+    const address = data?.address ?? (data as any)?.ADDRESS
 
     return (
         <Dialog
@@ -67,13 +82,13 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                     <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: 'primary.lighter', border: '1px solid', borderColor: 'primary.light' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                             <Box>
-                                <Typography variant='h6' fontWeight={800}>{data?.company_name || '-'}</Typography>
+                                <Typography variant='h6' fontWeight={800}>{companyName || '-'}</Typography>
                                 <Typography variant='body2' color='text.secondary'>
-                                    {data?.vendor_type_name || '-'} {data?.vendor_region ? `• ${data.vendor_region}` : ''}
+                                    {vendorTypeName || '-'} {vendorRegion ? `â€¢ ${vendorRegion}` : ''}
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                {data?.status_check && <StatusCheckChip value={data.status_check} />}
+                                {statusCheck && <StatusCheckChip value={statusCheck} />}
                                 <Chip
                                     label={Number(data?.INUSE ?? 1) === 1 ? 'Active' : 'Inactive'}
                                     size='small'
@@ -88,10 +103,10 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                         </Box>
                     </Box>
 
-                    {data?.status_check === 'Cannot Register' && data?.reject_reason && (
+                    {statusCheck === 'Cannot Register' && rejectReason && (
                         <Box sx={{ p: 2, mb: 3, borderRadius: 1, bgcolor: 'error.lighter', color: 'error.dark' }}>
                             <Typography variant='body2' fontWeight={700}>Reject Reason</Typography>
-                            <Typography variant='body2'>{data.reject_reason}</Typography>
+                            <Typography variant='body2'>{rejectReason}</Typography>
                         </Box>
                     )}
 
@@ -99,15 +114,19 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                         <SectionHeader icon='tabler-building-store' title='Vendor Info' />
                         <Grid container spacing={2}>
                             {[
-                                { label: 'Vendor Type', value: data?.vendor_type_name },
-                                { label: 'Region', value: data?.vendor_region },
-                                { label: 'FFT Vendor Code', value: data?.fft_vendor_code },
-                                { label: 'FFT Status', value: <FftStatusChip value={data?.fft_status} variant='tonal' /> },
-                                { label: 'Province', value: data?.province },
-                                { label: 'Postal Code', value: data?.postal_code },
-                                { label: 'Tel Center', value: data?.tel_center },
-                                { label: 'Website', value: data?.website },
-                                { label: 'Email (Main)', value: data?.emailmain },
+                                { label: 'Vendor Type', value: vendorTypeName },
+                                { label: 'Region', value: vendorRegion },
+                                { label: 'FFT Vendor Code', value: fftVendorCode },
+                                { label: 'FFT Status', value: <StatusCheckChip value={statusCheck} variant='tonal' /> },
+                                ...(vendorRegion === 'Oversea'
+                                    ? [{ label: 'Country', value: country }]
+                                    : [
+                                        { label: 'Province', value: province },
+                                        { label: 'Postal Code', value: postalCode },
+                                    ]),
+                                { label: 'Tel Center', value: telCenter },
+                                { label: 'Website', value: website },
+                                { label: 'Email (Main)', value: emailmain },
                             ].map(({ label, value }) => (
                                 <Grid item xs={12} sm={6} md={4} key={label}>
                                     <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
@@ -122,10 +141,10 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                                     </Box>
                                 </Grid>
                             ))}
-                            {data?.address && (
+                            {address && (
                                 <Grid item xs={12}>
                                     <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
-                                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.address}</Typography>
+                                    <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{address}</Typography>
                                 </Grid>
                             )}
                         </Grid>

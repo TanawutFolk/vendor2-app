@@ -4,11 +4,10 @@ import { Controller, useFormContext } from 'react-hook-form'
 
 // react-query Imports
 import { useQueryClient } from '@tanstack/react-query'
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 import { useDxContext } from '@/_template/DxContextProvider'
 
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestStatusOptions'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import type { AssigneeRowI } from '@_workspace/services/_task-manager/AssigneesServices'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
@@ -21,7 +20,7 @@ const PREFIX_QUERY_KEY = 'TASK_MANAGER'
 const TaskSearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
     const [picOptions, setPicOptions] = useState<SelectOption[]>([])
-    const { control, setValue, getValues, handleSubmit } = useFormContext<TaskManagerFormData>()
+    const { control, setValue, handleSubmit } = useFormContext<TaskManagerFormData>()
     const { data: statusOptions = [] } = useRequestStatusOptions()
 
     // react-query
@@ -32,7 +31,7 @@ const TaskSearchFilter = () => {
 
     useEffect(() => {
         const loadPicOptions = async () => {
-            const assigneeRows: AssigneeRowI[] = await AssigneesServices.searchAll({ in_use: '1' })
+            const assigneeRows: AssigneeRowI[] = await AssigneesServices.searchAll({ IN_USE: '1' })
 
             setPicOptions(
                 Array.from(
@@ -63,14 +62,14 @@ const TaskSearchFilter = () => {
         setValue('searchFilters', defaultSearchFilters)
         setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleSaveProfile()
+        save()
     }
 
     // Function : react-hook-form
     const onSubmit = () => {
         setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleSaveProfile()
+        save()
     }
 
     const onError = (data: unknown) => {
@@ -78,26 +77,7 @@ const TaskSearchFilter = () => {
     }
 
     // react-query: save user profile settings
-    const handleSaveProfile = () => {
-        const dataItem = {
-            USER_ID: getUserData().USER_ID,
-            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-            MENU_ID: MENU_ID.toString(),
-            USER_PROFILE_SETTING_PROGRAM_DATA: {
-                searchFilters: {
-                    picFilter: getValues('searchFilters.picFilter'),
-                    statusFilter: getValues('searchFilters.statusFilter'),
-                },
-                searchResults: {
-                    agGridState: getValues('searchResults.agGridState')
-                }
-            }
-        }
-
-        mutate(dataItem)
-    }
-
-    const { mutate } = useCreate(() => {}, () => {})
+    const { save } = useDxSaveSearchFilters<TaskManagerFormData>({ MENU_ID })
 
     return (
         <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>

@@ -1,91 +1,72 @@
-// React Imports
-import { useState } from 'react'
-
 // react-hook-form Imports
-import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
-import { useFormContext, useWatch } from 'react-hook-form'
-
-// react-use Imports
-import { useDebounce, useUpdateEffect } from 'react-use'
+import { useFormContext } from 'react-hook-form'
+import type { FieldValues } from 'react-hook-form'
 
 // common-system Imports
-import { useQueryClient } from '@tanstack/react-query'
-
 import { useCreate } from '@libs/react-query/hooks/common-system/useUserProfileSettingProgram'
 
 // utils Imports
 import { getUserData } from '@utils/user-profile/userLoginProfile'
-import { useDxContext } from './DxContextProvider'
 
-interface Props {
+// -----------------------------------------------------------------------------
+// useDxSaveSearchFilters
+//
+// Canonical "save search preference" helper for AG Grid pages. Persists the
+// current `searchFilters` together with the AG Grid state blob(s) under
+// `searchResults` to UserProfileSettingProgram.
+//
+// Every page's SearchFilter used to re-implement this inline — call this hook
+// instead so the payload shape stays identical across the whole workspace.
+//
+// Most pages keep a single grid state at `searchResults.agGridState` (the
+// default). Pages with multiple grids (e.g. approval-GPRC) pass their own
+// `searchResultsPaths`; the last path segment becomes the persisted key.
+// -----------------------------------------------------------------------------
+export const DEFAULT_SEARCH_RESULTS_PATHS = ['searchResults.agGridState']
+
+interface UseDxSaveSearchFiltersArgs {
   MENU_ID: number
-  searchFiltersData: Object
-  PREFIX_QUERY_KEY: string
+  searchResultsPaths?: string[]
+  onSuccess?: () => void
+  onError?: (error: unknown) => void
 }
 
-function DxSaveSearchFilters({ MENU_ID, searchFiltersData, PREFIX_QUERY_KEY }: Props) {
-  const { setIsEnableFetching } = useDxContext()
+export const useDxSaveSearchFilters = <T extends FieldValues = FieldValues>({
+  MENU_ID,
+  searchResultsPaths = DEFAULT_SEARCH_RESULTS_PATHS,
+  onSuccess,
+  onError
+}: UseDxSaveSearchFiltersArgs) => {
+  const { getValues } = useFormContext<T>()
 
-  const { getValues } = useFormContext()
+  const { mutate, isError, error } = useCreate(
+    () => onSuccess?.(),
+    (e: unknown) => onError?.(e)
+  )
 
-  const queryClient = useQueryClient()
+  // Pass `searchFilters` explicitly when saving right after a reset (so the
+  // freshly-set defaults are captured); otherwise the current form values are used.
+  const save = (searchFilters?: unknown) => {
+    const searchResults = searchResultsPaths.reduce<Record<string, unknown>>((acc, path) => {
+      const key = path.split('.').pop() as string
 
-  // Function - react-hook-form
-  const onSubmit: SubmitHandler<FormData> = () => {
-    setIsEnableFetching(true)
-    queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-    handleAdd()
-  }
+      acc[key] = getValues(path as never)
 
-  const onError: SubmitErrorHandler<FormData> = data => {
-    console.log(data)
-  }
+      return acc
+    }, {})
 
-  // react-query
-  const handleAdd = () => {
-    const dataItem = {
+    mutate({
       USER_ID: getUserData().USER_ID,
       APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
       MENU_ID: MENU_ID.toString(),
       USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: searchFiltersData,
-
-        // !! Example searchFiltersData
-        // {
-        // productCategory: getValues('searchFilters.productCategory'),
-        // productMainName: getValues('searchFilters.productMainName'),
-        // productMainCode: getValues('searchFilters.productMainCode'),
-        // productMainAlphabet: getValues('searchFilters.productMainAlphabet'),
-        // status: getValues('searchFilters.status')
-        // }
-
-        searchResults: {
-          pageSize: getValues('searchResults.pageSize'),
-          columnFilters: getValues('searchResults.columnFilters'),
-          sorting: getValues('searchResults.sorting'),
-          density: getValues('searchResults.density'),
-          columnVisibility: getValues('searchResults.columnVisibility'),
-          columnPinning: getValues('searchResults.columnPinning'),
-          columnOrder: getValues('searchResults.columnOrder'),
-          columnFilterFns: getValues('searchResults.columnFilterFns')
-        }
+        searchFilters: searchFilters ?? getValues('searchFilters' as never),
+        searchResults
       }
-    }
-
-    mutate(dataItem)
+    })
   }
 
-  const onMutateSuccess = () => {
-    //console.log('onMutateSuccess')
-  }
-
-  const onMutateError = (e: any) => {
-    console.log('onMutateError', e)
-  }
-
-  const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
-
-  return <>{isError ? <div>An error occurred: {error.message}</div> : null}</>
+  return { save, isError, error }
 }
 
-export default DxSaveSearchFilters
+export default useDxSaveSearchFilters

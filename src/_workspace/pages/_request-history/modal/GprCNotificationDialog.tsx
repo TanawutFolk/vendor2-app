@@ -14,10 +14,11 @@ import {
 import CustomTextField from '@components/mui/TextField'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import ConfirmModal from '@components/ConfirmModal'
-import { ToastMessageError } from '@/components/ToastMessage'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
+import { AxiosError } from 'axios'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import { useSaveGprCNotification } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
+import { useSaveGprCNotification } from '@_workspace/react-query/hooks/useRegisterRequest'
 import type { GprCNotificationDialogProps, GprCFormState, CircularMemberInfo } from '@_workspace/types/_request-history/RequestHistoryTypes'
 
 
@@ -56,13 +57,7 @@ const normalizeCircularMembers = (raw: any): CircularMemberInfo[] => {
 
 export default function GprCNotificationDialog({ open, rowData, onClose, onSaved }: GprCNotificationDialogProps) {
     const user = getUserData()
-    const requesterCode = String(
-        rowData?.Request_By_EmployeeCode
-        || rowData?.request_by_employeecode
-        || rowData?.request_by_employee_code
-        || rowData?.EMPLOYEE_CODE
-        || ''
-    ).trim()
+    const requesterCode = String(rowData?.EMPLOYEE_CODE || '').trim()
     const currentUserCode = String(user?.EMPLOYEE_CODE || '').trim()
     const isRequester = !!requesterCode && requesterCode === currentUserCode
 
@@ -76,26 +71,26 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     const employeeProfileCache = useRef<Record<string, CircularMemberInfo>>({})
 
     useEffect(() => {
-        if (!open || !rowData?.request_id) return
+        if (!open || !rowData?.REQUEST_REGISTER_VENDOR_ID) return
 
         let active = true
         setLoading(true)
 
         const load = async () => {
             try {
-                const res = await RegisterRequestServices.getGprForm(Number(rowData.request_id))
+                const res = await RegisterRequestServices.getGprForm({ REQUEST_REGISTER_VENDOR_ID: Number(rowData.REQUEST_REGISTER_VENDOR_ID) })
                 if (!active) return
 
                 const result = res?.data?.ResultOnDb || {}
                 const circularMembers = normalizeCircularMembers(result.gpr_c_circular_members || result.gpr_c_circular_json)
 
                 const nextForm = {
-                    gpr_c_approver_empcode: String(result.gpr_c_approver_empcode || rowData?.gpr_c_approver_empcode || '').trim(),
-                    gpr_c_approver_name: String(result.gpr_c_approver_name || rowData?.gpr_c_approver_name || '').trim(),
-                    gpr_c_approver_email: String(result.gpr_c_approver_email || rowData?.gpr_c_approver_email || '').trim(),
-                    gpr_c_pc_pic_empcode: String(result.gpr_c_pc_pic_empcode || rowData?.gpr_c_pc_pic_empcode || '').trim(),
-                    gpr_c_pc_pic_name: String(result.gpr_c_pc_pic_name || rowData?.gpr_c_pc_pic_name || '').trim(),
-                    gpr_c_pc_pic_email: String(result.gpr_c_pc_pic_email || rowData?.gpr_c_pc_pic_email || '').trim(),
+                    gpr_c_approver_empcode: String(result.gpr_c_approver_empcode || rowData?.GPR_C_APPROVER_EMPCODE || '').trim(),
+                    gpr_c_approver_name: String(result.gpr_c_approver_name || rowData?.GPR_C_APPROVER_NAME || '').trim(),
+                    gpr_c_approver_email: String(result.gpr_c_approver_email || rowData?.GPR_C_APPROVER_EMAIL || '').trim(),
+                    gpr_c_pc_pic_empcode: String(result.gpr_c_pc_pic_empcode || rowData?.GPR_C_PC_PIC_EMPCODE || '').trim(),
+                    gpr_c_pc_pic_name: String(result.gpr_c_pc_pic_name || rowData?.GPR_C_PC_PIC_NAME || '').trim(),
+                    gpr_c_pc_pic_email: String(result.gpr_c_pc_pic_email || rowData?.GPR_C_PC_PIC_EMAIL || '').trim(),
                     gpr_c_circular_empcodes: Array.from({ length: 6 }, (_, idx) => circularMembers[idx]?.empcode || ''),
                     gpr_c_circular_members: circularMembers,
                 }
@@ -103,14 +98,14 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 setCircularCount(Math.max(1, Math.min(6, circularMembers.length || 1)))
             } catch {
                 if (!active) return
-                const circularMembers = normalizeCircularMembers(rowData?.gpr_c_circular_members || rowData?.gpr_c_circular_json)
+                const circularMembers = normalizeCircularMembers(rowData?.GPR_C_CIRCULAR_JSON)
                 const fallbackForm = {
-                    gpr_c_approver_empcode: String(rowData?.gpr_c_approver_empcode || '').trim(),
-                    gpr_c_approver_name: String(rowData?.gpr_c_approver_name || '').trim(),
-                    gpr_c_approver_email: String(rowData?.gpr_c_approver_email || '').trim(),
-                    gpr_c_pc_pic_empcode: String(rowData?.gpr_c_pc_pic_empcode || '').trim(),
-                    gpr_c_pc_pic_name: String(rowData?.gpr_c_pc_pic_name || '').trim(),
-                    gpr_c_pc_pic_email: String(rowData?.gpr_c_pc_pic_email || '').trim(),
+                    gpr_c_approver_empcode: String(rowData?.GPR_C_APPROVER_EMPCODE || '').trim(),
+                    gpr_c_approver_name: String(rowData?.GPR_C_APPROVER_NAME || '').trim(),
+                    gpr_c_approver_email: String(rowData?.GPR_C_APPROVER_EMAIL || '').trim(),
+                    gpr_c_pc_pic_empcode: String(rowData?.GPR_C_PC_PIC_EMPCODE || '').trim(),
+                    gpr_c_pc_pic_name: String(rowData?.GPR_C_PC_PIC_NAME || '').trim(),
+                    gpr_c_pc_pic_email: String(rowData?.GPR_C_PC_PIC_EMAIL || '').trim(),
                     gpr_c_circular_empcodes: Array.from({ length: 6 }, (_, idx) => circularMembers[idx]?.empcode || ''),
                     gpr_c_circular_members: circularMembers,
                 }
@@ -135,7 +130,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         const cacheKey = empcode.toUpperCase()
         if (employeeProfileCache.current[cacheKey]) return employeeProfileCache.current[cacheKey]
 
-        const response = await RegisterRequestServices.resolveEmployeeProfile(empcode)
+        const response = await RegisterRequestServices.resolveEmployeeProfile({ EMPCODE: empcode })
         if (!response.data.Status) {
             throw new Error(response.data.Message || `Employee code not found: ${empcode}`)
         }
@@ -310,7 +305,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
     }
 
     const openConfirmSave = () => {
-        if (!rowData?.request_id) return
+        if (!rowData?.REQUEST_REGISTER_VENDOR_ID) return
         if (!isRequester) {
             ToastMessageError({ title: 'GPR C Notification', message: 'Only requester can update this section.' })
             return
@@ -318,20 +313,32 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         setConfirmOpen(true)
     }
 
-    const saveMutation = useSaveGprCNotification(() => {
-        setConfirmOpen(false)
-        onSaved?.()
-    })
+    const saveMutation = useSaveGprCNotification(
+        (data: any) => {
+            ToastMessageSuccess({ title: 'GPR C Notification', message: data?.Message || 'GPR C notification setup saved.' })
+            setConfirmOpen(false)
+            onSaved?.()
+        },
+        (error: unknown) => {
+            let message = 'Failed to save GPR C notification setup'
+            if (error instanceof AxiosError) {
+                message = (error.response?.data as any)?.Message || error.message
+            } else if (error instanceof Error) {
+                message = error.message
+            }
+            ToastMessageError({ title: 'GPR C Notification', message })
+        }
+    )
 
     const handleSave = () => {
-        if (!rowData?.request_id) return
+        if (!rowData?.REQUEST_REGISTER_VENDOR_ID) return
         if (!isRequester) {
             ToastMessageError({ title: 'GPR C Notification', message: 'Only requester can update this section.' })
             return
         }
 
         saveMutation.mutate({
-            request_id: Number(rowData.request_id),
+            request_id: Number(rowData.REQUEST_REGISTER_VENDOR_ID),
             gpr_c_data: {
                 gpr_c_approver_empcode: form.gpr_c_approver_empcode,
                 gpr_c_pc_pic_empcode: form.gpr_c_pc_pic_empcode,

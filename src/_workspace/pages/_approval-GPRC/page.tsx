@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useUpdateEffect } from 'react-use'
 import SkeletonCustom from '@components/SkeletonCustom'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
-import { MENU_NAME, breadcrumbNavigation } from './env'
+import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
 import { ApprovalGprCSchema, fetchDefaultValues, type ApprovalGprCFormData } from './validateSchema'
@@ -35,6 +36,10 @@ const InnerApp = () => {
 
     return (
         <FormProvider {...reactHookFormMethods}>
+            <DxWatchSearchFilters
+                MENU_ID={MENU_ID}
+                watchPaths={['searchResults.approvalGridState', 'searchResults.actionRequiredGridState']}
+            />
             <Grid container spacing={6}>
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />

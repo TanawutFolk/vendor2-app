@@ -14,11 +14,12 @@ import SkeletonCustom from '@components/SkeletonCustom'
 // Template Imports
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 
 // Schema & Env
 import type { RequestHistoryFormData } from './validateSchema'
 import { RequestHistorySchema, fetchDefaultValues } from './validateSchema'
-import { MENU_NAME, breadcrumbNavigation } from './env'
+import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
 
 // Component Imports
 import SearchFilter from './SearchFilter'
@@ -56,6 +57,7 @@ const InnerApp = () => {
 
     return (
         <FormProvider {...reactHookFormMethods}>
+            <DxWatchSearchFilters MENU_ID={MENU_ID} />
             <Grid container spacing={6}>
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />

@@ -44,7 +44,7 @@ export class EditVendorUtils {
         products: VendorProductI[],
         comprehensive: VendorComprehensiveI
     }> {
-        const vendorResponse = await FindVendorServices.getById(vendor_id)
+        const vendorResponse = await FindVendorServices.getById({ VENDORS_ID: vendor_id })
         if (!vendorResponse.data.Status) {
             throw new Error('Vendor not found')
         }
@@ -67,6 +67,7 @@ export class EditVendorUtils {
             vendor_type_name: vendorData.vendor_type_name ?? vendorData.VENDOR_TYPE_NAME,
             province: vendorData.province ?? vendorData.PROVINCE,
             postal_code: vendorData.postal_code ?? vendorData.POSTAL_CODE,
+            country: vendorData.country ?? vendorData.COUNTRY,
             website: vendorData.website ?? vendorData.WEBSITE,
             address: vendorData.address ?? vendorData.ADDRESS,
             tel_center: vendorData.tel_center ?? vendorData.TEL_CENTER,
@@ -101,7 +102,7 @@ export class EditVendorUtils {
 
         // Helper: Check if vendor fields have changed
         const hasVendorFieldsChanged = (original: VendorComprehensiveI, current: any): boolean => {
-            const vendorFields = ['company_name', 'province', 'postal_code', 'website', 'address', 'tel_center', 'INUSE'] as const
+            const vendorFields = ['company_name', 'province', 'postal_code', 'country', 'website', 'address', 'tel_center', 'INUSE'] as const
             if (vendorFields.some(field => (original as any)[field] != (current as any)[field])) return true
             if (original.vendor_type_id !== current.vendor_type_id) return true
             return false
@@ -170,6 +171,7 @@ export class EditVendorUtils {
                 { key: 'vendor_type_name', label: 'Vendor Type' },
                 { key: 'province', label: 'Province' },
                 { key: 'postal_code', label: 'Postal Code' },
+                { key: 'country', label: 'Country' },
                 { key: 'website', label: 'Website' },
                 { key: 'address', label: 'Address' },
                 { key: 'tel_center', label: 'Tel Center' },
@@ -305,24 +307,46 @@ export class EditVendorUtils {
         }
 
         const res = await FindVendorServices.updateComprehensive({
-            vendor_id: vendorId,
-            vendor: {
-                company_name: data.company_name,
-                vendor_type_id: data.vendor_type_id ?? null,
-                vendor_region: data.vendor_region ?? null,
-                province: data.province ?? '',
-                postal_code: data.postal_code ?? '',
-                website: data.website ?? '',
-                address: data.address ?? '',
-                tel_center: data.tel_center ?? '',
-                emailmain: data.emailmain ?? '',
+            VENDORS_ID: vendorId,
+            VENDOR: {
+                COMPANY_NAME: data.company_name,
+                MASTER_VENDOR_TYPES_ID: data.vendor_type_id ?? null,
+                VENDOR_REGION: data.vendor_region ?? null,
+                PROVINCE: data.province ?? '',
+                POSTAL_CODE: data.postal_code ?? '',
+                COUNTRY: data.country ?? '',
+                WEBSITE: data.website ?? '',
+                ADDRESS: data.address ?? '',
+                TEL_CENTER: data.tel_center ?? '',
+                EMAILMAIN: data.emailmain ?? '',
                 INUSE: data.INUSE !== undefined ? data.INUSE : undefined,
             },
-            contacts: [...changedContacts, ...newContacts],
-            products: [...changedProducts, ...newProducts],
-            deleted_contact_ids: deletedContactIds,
-            deleted_product_ids: deletedProductIds,
-            vendor_changed: vendorChanged,
+            CONTACTS: [...changedContacts, ...newContacts].map(contact => ({
+                VENDOR_CONTACTS_ID: contact.vendor_contact_id,
+                CONTACT_NAME: contact.contact_name,
+                POSITION: contact.position,
+                TEL_PHONE: contact.tel_phone,
+                EMAIL: contact.email,
+                CREATE_BY: contact.CREATE_BY,
+                UPDATE_BY: contact.UPDATE_BY,
+                CREATE_DATE: contact.CREATE_DATE,
+                UPDATE_DATE: contact.UPDATE_DATE,
+            })),
+            PRODUCTS: [...changedProducts, ...newProducts].map(product => ({
+                VENDOR_PRODUCTS_ID: product.vendor_product_id,
+                MASTER_PRODUCT_GROUPS_ID: product.product_group_id,
+                GROUP_NAME: product.group_name,
+                MAKER_NAME: product.maker_name,
+                PRODUCT_NAME: product.product_name,
+                MODEL_LIST: product.model_list,
+                CREATE_BY: product.CREATE_BY,
+                UPDATE_BY: product.UPDATE_BY,
+                CREATE_DATE: product.CREATE_DATE,
+                UPDATE_DATE: product.UPDATE_DATE,
+            })),
+            DELETED_CONTACT_IDS: deletedContactIds,
+            DELETED_PRODUCT_IDS: deletedProductIds,
+            VENDOR_CHANGED: vendorChanged,
             UPDATE_BY: userCode,
         })
 
@@ -351,18 +375,18 @@ export class EditVendorUtils {
 
 /**
  * ====================================================================================================
- * 📘 MODULE: EditVendorUtils (English Documentation)
+ * ðŸ“˜ MODULE: EditVendorUtils (English Documentation)
  * ====================================================================================================
- * 
- * 📌 OVERVIEW:
+ *
+ * ðŸ“Œ OVERVIEW:
  * This utility class serves as the **Business Logic Facade** for the "Edit Vendor" functionality.
  * It abstracts complex data manipulation, aggregation, and orchestration logic away from the React Component layer (`EditVendorModal.tsx`).
- * 
+ *
  * ----------------------------------------------------------------------------------------------------
- * 🛠 KEY RESPONSIBILITIES:
+ * ðŸ›  KEY RESPONSIBILITIES:
  * ----------------------------------------------------------------------------------------------------
- * 
- * 1. 📥 DATA AGGREGATION & NORMALIZATION (`getComprehensiveByVendorId`)
+ *
+ * 1. ðŸ“¥ DATA AGGREGATION & NORMALIZATION (`getComprehensiveByVendorId`)
  *    ------------------------------------------------------------
  *    - **Problem**: Vendor data is scattered across multiple tables (Vendor, Contacts, Products).
  *      Fetching them individually requires handling multiple API states in the UI.
@@ -372,8 +396,8 @@ export class EditVendorUtils {
  *      - Fetches basic Vendor info.
  *      - Fetches ALL records via `search` API to find related contacts/products by Company Name.
  *      - Deduplicates contacts/products using Map to ensure uniqueness.
- * 
- * 2. 🔄 CHANGE DETECTION & DIFFING ALGORITHM (`updateComprehensive` internals)
+ *
+ * 2. ðŸ”„ CHANGE DETECTION & DIFFING ALGORITHM (`updateComprehensive` internals)
  *    ------------------------------------------------------------
  *    - **Problem**: We need to know exactly WHAT changed to send optimized API calls.
  *      Sending everything every time is inefficient and risky.
@@ -383,8 +407,8 @@ export class EditVendorUtils {
  *        - `Added`: Item exists in Current but has no ID.
  *        - `Modified`: Item exists in both, ID matches, but fields differ.
  *        - `Removed`: ID exists in `deletedIds` array passed from UI.
- * 
- * 3. 🚀 BATCH UPDATE ORCHESTRATION (`updateComprehensive`)
+ *
+ * 3. ðŸš€ BATCH UPDATE ORCHESTRATION (`updateComprehensive`)
  *    ------------------------------------------------------------
  *    - **Execution Order** (Critical for Data Integrity):
  *      1. Update Vendor Details (Parent)
@@ -395,92 +419,92 @@ export class EditVendorUtils {
  *      6. Delete Removed Contacts (Soft Delete: INUSE=0)
  *      7. Delete Removed Products (Soft Delete: INUSE=0)
  *    - **Transaction-like Behavior**: If any step fails, the process halts and throws an error explaining which step failed.
- * 
- * 4. 📝 AUDIT LOG GENERATION (`generateChangesSummary`)
+ *
+ * 4. ðŸ“ AUDIT LOG GENERATION (`generateChangesSummary`)
  *    ------------------------------------------------------------
  *    - **Purpose**: Generates a human-readable list of changes for the "Success Modal".
  *    - **Output**: { added: [], removed: [], modified: [{ field, before, after }] }
  *    - **Formatting**: Handles special formatting like `INUSE` (1/0 -> Active/Inactive).
- * 
+ *
  * ----------------------------------------------------------------------------------------------------
- * ⚠️ MAINTENANCE NOTES:
+ * âš ï¸ MAINTENANCE NOTES:
  * ----------------------------------------------------------------------------------------------------
  * 1. **Adding New Fields**: When adding a column to the database:
  *    - Add to `VendorComprehensiveI` interface.
  *    - Update `hasVendorFieldsChanged` to include the new field in the comparison array.
  *    - Update `generateChangesSummary` to provide a label for the Success Modal.
- * 
+ *
  * 2. **Soft Delete**: Deletion logic for Contacts/Products uses `INUSE = 0`.
  *    Ensure the Backend API (`find-vendor/deleteContact`) supports this.
- * 
+ *
  * 3. **Type Safety**: Avoid using `any` when possible. Maintain strict typing with `FindVendorTypes.ts`.
- * 
+ *
  * ====================================================================================================
  */
 
 /**
  * ====================================================================================================
- * 📘 MODULE: EditVendorUtils (เอกสารภาษาไทย)
+ * ðŸ“˜ MODULE: EditVendorUtils (à¹€à¸­à¸à¸ªà¸²à¸£à¸ à¸²à¸©à¸²à¹„à¸—à¸¢)
  * ====================================================================================================
- * 
- * 📌 ภาพรวม (Overview):
- * คลาสนี้ทำหน้าที่เป็นตัวจัดการ Logic ทั้งหมด (Business Logic Facade) ของการแก้ไข Vendor 
- * โดยมีเป้าหมายเพื่อแยกความซับซ้อนของการจัดการข้อมูล ออกจากส่วนการแสดงผล (UI) ใน `EditVendorModal.tsx`
- * 
+ *
+ * ðŸ“Œ à¸ à¸²à¸žà¸£à¸§à¸¡ (Overview):
+ * à¸„à¸¥à¸²à¸ªà¸™à¸µà¹‰à¸—à¸³à¸«à¸™à¹‰à¸²à¸—à¸µà¹ˆà¹€à¸›à¹‡à¸™à¸•à¸±à¸§à¸ˆà¸±à¸”à¸à¸²à¸£ Logic à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸” (Business Logic Facade) à¸‚à¸­à¸‡à¸à¸²à¸£à¹à¸à¹‰à¹„à¸‚ Vendor
+ * à¹‚à¸”à¸¢à¸¡à¸µà¹€à¸›à¹‰à¸²à¸«à¸¡à¸²à¸¢à¹€à¸žà¸·à¹ˆà¸­à¹à¸¢à¸à¸„à¸§à¸²à¸¡à¸‹à¸±à¸šà¸‹à¹‰à¸­à¸™à¸‚à¸­à¸‡à¸à¸²à¸£à¸ˆà¸±à¸”à¸à¸²à¸£à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ à¸­à¸­à¸à¸ˆà¸²à¸à¸ªà¹ˆà¸§à¸™à¸à¸²à¸£à¹à¸ªà¸”à¸‡à¸œà¸¥ (UI) à¹ƒà¸™ `EditVendorModal.tsx`
+ *
  * ----------------------------------------------------------------------------------------------------
- * 🛠 หน้าที่หลัก (Key Responsibilities):
+ * ðŸ›  à¸«à¸™à¹‰à¸²à¸—à¸µà¹ˆà¸«à¸¥à¸±à¸ (Key Responsibilities):
  * ----------------------------------------------------------------------------------------------------
- * 
- * 1. 📥 การรวบรวมและจัดเตรียมข้อมูล (`getComprehensiveByVendorId`)
+ *
+ * 1. ðŸ“¥ à¸à¸²à¸£à¸£à¸§à¸šà¸£à¸§à¸¡à¹à¸¥à¸°à¸ˆà¸±à¸”à¹€à¸•à¸£à¸µà¸¢à¸¡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ (`getComprehensiveByVendorId`)
  *    ------------------------------------------------------------
- *    - **ปัญหา**: ข้อมูล Vendor ถูกเก็บแยกหลายตาราง (Vendor, Contacts, Products) ทำให้การดึงข้อมูลมาแสดงผลมีความยุ่งยากและซับซ้อนในหน้า UI
- *    - **ทางแก้**: ดึงข้อมูลทั้งหมดที่เกี่ยวข้องมารวมกัน จัดการค่าว่าง (Null/Undefined) และส่งคืนเป็น Object เดียว (`VendorComprehensiveI`) เพื่อให้ Form ใช้งานง่าย
- *    - **หลักการทำงาน**: 
- *      - ดึงข้อมูล Vendor หลัก
- *      - ค้นหาข้อมูลที่เกี่ยวข้องทั้งหมดด้วยชื่อบริษัท (เพื่อให้ได้ Contact/Product ทั้งหมด)
- *      - กรองข้อมูลซ้ำออกเพื่อให้ได้ข้อมูลที่ถูกต้องแม่นยำที่สุด
- * 
- * 2. 🔄 ระบบตรวจจับการเปลี่ยนแปลง (`updateComprehensive` internals)
+ *    - **à¸›à¸±à¸à¸«à¸²**: à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ Vendor à¸–à¸¹à¸à¹€à¸à¹‡à¸šà¹à¸¢à¸à¸«à¸¥à¸²à¸¢à¸•à¸²à¸£à¸²à¸‡ (Vendor, Contacts, Products) à¸—à¸³à¹ƒà¸«à¹‰à¸à¸²à¸£à¸”à¸¶à¸‡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸¡à¸²à¹à¸ªà¸”à¸‡à¸œà¸¥à¸¡à¸µà¸„à¸§à¸²à¸¡à¸¢à¸¸à¹ˆà¸‡à¸¢à¸²à¸à¹à¸¥à¸°à¸‹à¸±à¸šà¸‹à¹‰à¸­à¸™à¹ƒà¸™à¸«à¸™à¹‰à¸² UI
+ *    - **à¸—à¸²à¸‡à¹à¸à¹‰**: à¸”à¸¶à¸‡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”à¸—à¸µà¹ˆà¹€à¸à¸µà¹ˆà¸¢à¸§à¸‚à¹‰à¸­à¸‡à¸¡à¸²à¸£à¸§à¸¡à¸à¸±à¸™ à¸ˆà¸±à¸”à¸à¸²à¸£à¸„à¹ˆà¸²à¸§à¹ˆà¸²à¸‡ (Null/Undefined) à¹à¸¥à¸°à¸ªà¹ˆà¸‡à¸„à¸·à¸™à¹€à¸›à¹‡à¸™ Object à¹€à¸”à¸µà¸¢à¸§ (`VendorComprehensiveI`) à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰ Form à¹ƒà¸Šà¹‰à¸‡à¸²à¸™à¸‡à¹ˆà¸²à¸¢
+ *    - **à¸«à¸¥à¸±à¸à¸à¸²à¸£à¸—à¸³à¸‡à¸²à¸™**:
+ *      - à¸”à¸¶à¸‡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ Vendor à¸«à¸¥à¸±à¸
+ *      - à¸„à¹‰à¸™à¸«à¸²à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸—à¸µà¹ˆà¹€à¸à¸µà¹ˆà¸¢à¸§à¸‚à¹‰à¸­à¸‡à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”à¸”à¹‰à¸§à¸¢à¸Šà¸·à¹ˆà¸­à¸šà¸£à¸´à¸©à¸±à¸— (à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰à¹„à¸”à¹‰ Contact/Product à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”)
+ *      - à¸à¸£à¸­à¸‡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸‹à¹‰à¸³à¸­à¸­à¸à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰à¹„à¸”à¹‰à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸—à¸µà¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¹à¸¡à¹ˆà¸™à¸¢à¸³à¸—à¸µà¹ˆà¸ªà¸¸à¸”
+ *
+ * 2. ðŸ”„ à¸£à¸°à¸šà¸šà¸•à¸£à¸§à¸ˆà¸ˆà¸±à¸šà¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹à¸›à¸¥à¸‡ (`updateComprehensive` internals)
  *    ------------------------------------------------------------
- *    - **ปัญหา**: เราต้องรู้ว่า "อะไรเปลี่ยนไปบ้าง" เพื่อที่จะส่งเฉพาะข้อมูลที่จำเป็นไปบันทึก (ดีกว่าส่งทั้งหมดซึ่งช้าและเสี่ยงต่อข้อมูลผิดพลาด)
- *    - **ทางแก้**: ใช้ระบบเปรียบเทียบข้อมูล (Diffing Strategy):
- *      - **ข้อมูลบริษัท**: เทียบค่าของแต่ละฟิลด์ว่าตรงกันไหม
+ *    - **à¸›à¸±à¸à¸«à¸²**: à¹€à¸£à¸²à¸•à¹‰à¸­à¸‡à¸£à¸¹à¹‰à¸§à¹ˆà¸² "à¸­à¸°à¹„à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹„à¸›à¸šà¹‰à¸²à¸‡" à¹€à¸žà¸·à¹ˆà¸­à¸—à¸µà¹ˆà¸ˆà¸°à¸ªà¹ˆà¸‡à¹€à¸‰à¸žà¸²à¸°à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸—à¸µà¹ˆà¸ˆà¸³à¹€à¸›à¹‡à¸™à¹„à¸›à¸šà¸±à¸™à¸—à¸¶à¸ (à¸”à¸µà¸à¸§à¹ˆà¸²à¸ªà¹ˆà¸‡à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”à¸‹à¸¶à¹ˆà¸‡à¸Šà¹‰à¸²à¹à¸¥à¸°à¹€à¸ªà¸µà¹ˆà¸¢à¸‡à¸•à¹ˆà¸­à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸œà¸´à¸”à¸žà¸¥à¸²à¸”)
+ *    - **à¸—à¸²à¸‡à¹à¸à¹‰**: à¹ƒà¸Šà¹‰à¸£à¸°à¸šà¸šà¹€à¸›à¸£à¸µà¸¢à¸šà¹€à¸—à¸µà¸¢à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥ (Diffing Strategy):
+ *      - **à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸šà¸£à¸´à¸©à¸±à¸—**: à¹€à¸—à¸µà¸¢à¸šà¸„à¹ˆà¸²à¸‚à¸­à¸‡à¹à¸•à¹ˆà¸¥à¸°à¸Ÿà¸´à¸¥à¸”à¹Œà¸§à¹ˆà¸²à¸•à¸£à¸‡à¸à¸±à¸™à¹„à¸«à¸¡
  *      - **Contacts/Products**:
- *        - `เพิ่มใหม่ (Added)`: มีข้อมูลในชุดใหม่ แต่ไม่มี ID
- *        - `แก้ไข (Modified)`: มี ID ตรงกัน แต่ข้อมูลข้างในไม่เหมือนเดิม
- *        - `ลบ (Removed)`: ID อยู่ในรายการที่ถูกสั่งลบ (deletedIds)
- * 
- * 3. 🚀 การจัดการลำดับการบันทึก (`updateComprehensive`)
+ *        - `à¹€à¸žà¸´à¹ˆà¸¡à¹ƒà¸«à¸¡à¹ˆ (Added)`: à¸¡à¸µà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹ƒà¸™à¸Šà¸¸à¸”à¹ƒà¸«à¸¡à¹ˆ à¹à¸•à¹ˆà¹„à¸¡à¹ˆà¸¡à¸µ ID
+ *        - `à¹à¸à¹‰à¹„à¸‚ (Modified)`: à¸¡à¸µ ID à¸•à¸£à¸‡à¸à¸±à¸™ à¹à¸•à¹ˆà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸‚à¹‰à¸²à¸‡à¹ƒà¸™à¹„à¸¡à¹ˆà¹€à¸«à¸¡à¸·à¸­à¸™à¹€à¸”à¸´à¸¡
+ *        - `à¸¥à¸š (Removed)`: ID à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆà¸–à¸¹à¸à¸ªà¸±à¹ˆà¸‡à¸¥à¸š (deletedIds)
+ *
+ * 3. ðŸš€ à¸à¸²à¸£à¸ˆà¸±à¸”à¸à¸²à¸£à¸¥à¸³à¸”à¸±à¸šà¸à¸²à¸£à¸šà¸±à¸™à¸—à¸¶à¸ (`updateComprehensive`)
  *    ------------------------------------------------------------
- *    - **ลำดับการทำงาน** (สำคัญมากเพื่อความถูกต้องของข้อมูล):
- *      1. อัปเดตข้อมูล Vendor หลัก (Parent)
- *      2. อัปเดต Contact ที่มีการแก้ไข
- *      3. อัปเดต Product ที่มีการแก้ไข
- *      4. สร้าง Contact ใหม่
- *      5. สร้าง Product ใหม่
- *      6. ลบ Contact ที่สั่งลบ (Soft Delete: INUSE=0)
- *      7. ลบ Product ที่สั่งลบ (Soft Delete: INUSE=0)
- *    - **ระบบป้องกัน**: ถ้าขั้นตอนไหนพัง ระบบจะหยุดทันทีและแจ้ง Error กลับไปอย่างชัดเจนว่าพังที่ขั้นตอนไหน
- * 
- * 4. 📝 การสร้างสรุปรายการเปลี่ยนแปลง (`generateChangesSummary`)
+ *    - **à¸¥à¸³à¸”à¸±à¸šà¸à¸²à¸£à¸—à¸³à¸‡à¸²à¸™** (à¸ªà¸³à¸„à¸±à¸à¸¡à¸²à¸à¹€à¸žà¸·à¹ˆà¸­à¸„à¸§à¸²à¸¡à¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¸‚à¸­à¸‡à¸‚à¹‰à¸­à¸¡à¸¹à¸¥):
+ *      1. à¸­à¸±à¸›à¹€à¸”à¸•à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ Vendor à¸«à¸¥à¸±à¸ (Parent)
+ *      2. à¸­à¸±à¸›à¹€à¸”à¸• Contact à¸—à¸µà¹ˆà¸¡à¸µà¸à¸²à¸£à¹à¸à¹‰à¹„à¸‚
+ *      3. à¸­à¸±à¸›à¹€à¸”à¸• Product à¸—à¸µà¹ˆà¸¡à¸µà¸à¸²à¸£à¹à¸à¹‰à¹„à¸‚
+ *      4. à¸ªà¸£à¹‰à¸²à¸‡ Contact à¹ƒà¸«à¸¡à¹ˆ
+ *      5. à¸ªà¸£à¹‰à¸²à¸‡ Product à¹ƒà¸«à¸¡à¹ˆ
+ *      6. à¸¥à¸š Contact à¸—à¸µà¹ˆà¸ªà¸±à¹ˆà¸‡à¸¥à¸š (Soft Delete: INUSE=0)
+ *      7. à¸¥à¸š Product à¸—à¸µà¹ˆà¸ªà¸±à¹ˆà¸‡à¸¥à¸š (Soft Delete: INUSE=0)
+ *    - **à¸£à¸°à¸šà¸šà¸›à¹‰à¸­à¸‡à¸à¸±à¸™**: à¸–à¹‰à¸²à¸‚à¸±à¹‰à¸™à¸•à¸­à¸™à¹„à¸«à¸™à¸žà¸±à¸‡ à¸£à¸°à¸šà¸šà¸ˆà¸°à¸«à¸¢à¸¸à¸”à¸—à¸±à¸™à¸—à¸µà¹à¸¥à¸°à¹à¸ˆà¹‰à¸‡ Error à¸à¸¥à¸±à¸šà¹„à¸›à¸­à¸¢à¹ˆà¸²à¸‡à¸Šà¸±à¸”à¹€à¸ˆà¸™à¸§à¹ˆà¸²à¸žà¸±à¸‡à¸—à¸µà¹ˆà¸‚à¸±à¹‰à¸™à¸•à¸­à¸™à¹„à¸«à¸™
+ *
+ * 4. ðŸ“ à¸à¸²à¸£à¸ªà¸£à¹‰à¸²à¸‡à¸ªà¸£à¸¸à¸›à¸£à¸²à¸¢à¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹à¸›à¸¥à¸‡ (`generateChangesSummary`)
  *    ------------------------------------------------------------
- *    - **เป้าหมาย**: สร้างสรุปรายการเปลี่ยนแปลงที่อ่านง่าย (เช่น "ชื่อบริษัท เปลี่ยนจาก A -> B") เพื่อแสดงใน Success Modal ให้ User ตรวจสอบได้
- *    - **การแสดงผล**: แยกเป็นหมวดหมู่ (Added, Removed, Modified) และแปลงค่า Code เป็นข้อความที่เข้าใจง่าย (เช่น INUSE 1/0 -> Active/Inactive)
- * 
+ *    - **à¹€à¸›à¹‰à¸²à¸«à¸¡à¸²à¸¢**: à¸ªà¸£à¹‰à¸²à¸‡à¸ªà¸£à¸¸à¸›à¸£à¸²à¸¢à¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹à¸›à¸¥à¸‡à¸—à¸µà¹ˆà¸­à¹ˆà¸²à¸™à¸‡à¹ˆà¸²à¸¢ (à¹€à¸Šà¹ˆà¸™ "à¸Šà¸·à¹ˆà¸­à¸šà¸£à¸´à¸©à¸±à¸— à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸ˆà¸²à¸ A -> B") à¹€à¸žà¸·à¹ˆà¸­à¹à¸ªà¸”à¸‡à¹ƒà¸™ Success Modal à¹ƒà¸«à¹‰ User à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¹„à¸”à¹‰
+ *    - **à¸à¸²à¸£à¹à¸ªà¸”à¸‡à¸œà¸¥**: à¹à¸¢à¸à¹€à¸›à¹‡à¸™à¸«à¸¡à¸§à¸”à¸«à¸¡à¸¹à¹ˆ (Added, Removed, Modified) à¹à¸¥à¸°à¹à¸›à¸¥à¸‡à¸„à¹ˆà¸² Code à¹€à¸›à¹‡à¸™à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸—à¸µà¹ˆà¹€à¸‚à¹‰à¸²à¹ƒà¸ˆà¸‡à¹ˆà¸²à¸¢ (à¹€à¸Šà¹ˆà¸™ INUSE 1/0 -> Active/Inactive)
+ *
  * ----------------------------------------------------------------------------------------------------
- * ⚠️ ข้อควรระวังสำหรับผู้ดูแล (Maintenance Notes):
+ * âš ï¸ à¸‚à¹‰à¸­à¸„à¸§à¸£à¸£à¸°à¸§à¸±à¸‡à¸ªà¸³à¸«à¸£à¸±à¸šà¸œà¸¹à¹‰à¸”à¸¹à¹à¸¥ (Maintenance Notes):
  * ----------------------------------------------------------------------------------------------------
- * 1. **การเพิ่ม Field ใหม่**: หากมีการเพิ่มคอลัมน์ใน Database ต้องทำการอัปเดต 3 จุดหลัก:
- *    - เพิ่มใน Interface `VendorComprehensiveI`
- *    - เพิ่มในฟังก์ชันตรวจสอบการเปลี่ยนแปลง `hasVendorFieldsChanged`
- *    - เพิ่มคำอธิบายในฟังก์ชันสรุปผล `generateChangesSummary` (เพื่อให้แสดง Label ถูกต้องใน Modal)
- * 
- * 2. **การลบข้อมูล (Soft Delete)**: 
- *    - ระบบใช้ Soft Delete (อัปเดตค่า `INUSE = 0`) ไม่ได้ลบ Record จริงออกจาก Database
- *    - ต้องมั่นใจว่า API หลังบ้าน (`find-vendor/deleteContact`) รองรับ Logic นี้
- * 
- * 3. **Validation & Typing**: 
- *    - พยายามเลี่ยงการใช้ `any` และใช้ Type ที่กำหนดไว้ใน `FindVendorTypes.ts` เสมอ เพื่อลด Human Error
- * 
+ * 1. **à¸à¸²à¸£à¹€à¸žà¸´à¹ˆà¸¡ Field à¹ƒà¸«à¸¡à¹ˆ**: à¸«à¸²à¸à¸¡à¸µà¸à¸²à¸£à¹€à¸žà¸´à¹ˆà¸¡à¸„à¸­à¸¥à¸±à¸¡à¸™à¹Œà¹ƒà¸™ Database à¸•à¹‰à¸­à¸‡à¸—à¸³à¸à¸²à¸£à¸­à¸±à¸›à¹€à¸”à¸• 3 à¸ˆà¸¸à¸”à¸«à¸¥à¸±à¸:
+ *    - à¹€à¸žà¸´à¹ˆà¸¡à¹ƒà¸™ Interface `VendorComprehensiveI`
+ *    - à¹€à¸žà¸´à¹ˆà¸¡à¹ƒà¸™à¸Ÿà¸±à¸‡à¸à¹Œà¸Šà¸±à¸™à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹à¸›à¸¥à¸‡ `hasVendorFieldsChanged`
+ *    - à¹€à¸žà¸´à¹ˆà¸¡à¸„à¸³à¸­à¸˜à¸´à¸šà¸²à¸¢à¹ƒà¸™à¸Ÿà¸±à¸‡à¸à¹Œà¸Šà¸±à¸™à¸ªà¸£à¸¸à¸›à¸œà¸¥ `generateChangesSummary` (à¹€à¸žà¸·à¹ˆà¸­à¹ƒà¸«à¹‰à¹à¸ªà¸”à¸‡ Label à¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¹ƒà¸™ Modal)
+ *
+ * 2. **à¸à¸²à¸£à¸¥à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥ (Soft Delete)**:
+ *    - à¸£à¸°à¸šà¸šà¹ƒà¸Šà¹‰ Soft Delete (à¸­à¸±à¸›à¹€à¸”à¸•à¸„à¹ˆà¸² `INUSE = 0`) à¹„à¸¡à¹ˆà¹„à¸”à¹‰à¸¥à¸š Record à¸ˆà¸£à¸´à¸‡à¸­à¸­à¸à¸ˆà¸²à¸ Database
+ *    - à¸•à¹‰à¸­à¸‡à¸¡à¸±à¹ˆà¸™à¹ƒà¸ˆà¸§à¹ˆà¸² API à¸«à¸¥à¸±à¸‡à¸šà¹‰à¸²à¸™ (`find-vendor/deleteContact`) à¸£à¸­à¸‡à¸£à¸±à¸š Logic à¸™à¸µà¹‰
+ *
+ * 3. **Validation & Typing**:
+ *    - à¸žà¸¢à¸²à¸¢à¸²à¸¡à¹€à¸¥à¸µà¹ˆà¸¢à¸‡à¸à¸²à¸£à¹ƒà¸Šà¹‰ `any` à¹à¸¥à¸°à¹ƒà¸Šà¹‰ Type à¸—à¸µà¹ˆà¸à¸³à¸«à¸™à¸”à¹„à¸§à¹‰à¹ƒà¸™ `FindVendorTypes.ts` à¹€à¸ªà¸¡à¸­ à¹€à¸žà¸·à¹ˆà¸­à¸¥à¸” Human Error
+ *
  * ====================================================================================================
  */

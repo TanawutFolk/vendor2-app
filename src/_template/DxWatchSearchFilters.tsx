@@ -7,93 +7,48 @@ import { useWatch } from 'react-hook-form'
 // react-use Imports
 import { useDebounce, useUpdateEffect } from 'react-use'
 
-// common-system Imports
-import { useCreate } from '@libs/react-query/hooks/common-system/useUserProfileSettingProgram'
+// template Imports
+import { useDxSaveSearchFilters, DEFAULT_SEARCH_RESULTS_PATHS } from './DxSaveSearchFilters'
 
-// utils Imports
-import { getUserData } from '@utils/user-profile/userLoginProfile'
-
+// -----------------------------------------------------------------------------
+// DxWatchSearchFilters
+//
+// Mount once inside the page's FormProvider. Watches the AG Grid state blob(s)
+// under `searchResults` and debounce-persists them to UserProfileSettingProgram
+// whenever the user reorders / resizes / sorts / filters / pins columns — so
+// grid layout survives a reload without waiting for the next Search click.
+//
+// This is the AG Grid equivalent of the prototype's per-page `<XxxWatch />`.
+// Pages with multiple grids pass their own `watchPaths`.
+// -----------------------------------------------------------------------------
 interface Props {
   MENU_ID: number
-  searchFiltersData: object
+  watchPaths?: string[]
 }
 
-function DxWatchSearchFilters({ MENU_ID, searchFiltersData }: Props) {
-  const data = useWatch({
-    name: [
-      'searchResults.pageSize',
-      'searchResults.columnFilters',
-      'searchResults.sorting',
-      'searchResults.density',
-      'searchResults.columnVisibility',
-      'searchResults.columnPinning',
-      'searchResults.columnOrder',
-      'searchResults.columnFilterFns'
-    ],
-    exact: true
-  })
+function DxWatchSearchFilters({ MENU_ID, watchPaths = DEFAULT_SEARCH_RESULTS_PATHS }: Props) {
+  const { save, isError, error } = useDxSaveSearchFilters({ MENU_ID, searchResultsPaths: watchPaths })
+
+  const watched = useWatch({ name: watchPaths })
 
   const [isFirstMount, setIsFirstMount] = useState(true)
 
-  // react-query
-  const handleAdd = (data: Array<any>) => {
-    const dataItem = {
-      USER_ID: getUserData().USER_ID,
-      APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-      MENU_ID: MENU_ID.toString(),
-      USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: searchFiltersData,
-
-        // !! Example searchFiltersData
-        // {
-        // productCategory: getValues('searchFilters.productCategory'),
-        // productMainName: getValues('searchFilters.productMainName'),
-        // productMainCode: getValues('searchFilters.productMainCode'),
-        // productMainAlphabet: getValues('searchFilters.productMainAlphabet'),
-        // status: getValues('searchFilters.status')
-        // }
-
-        searchResults: {
-          pageSize: data[0],
-          columnFilters: data[1],
-          sorting: data[2],
-          density: data[3],
-          columnVisibility: data[4],
-          columnPinning: data[5],
-          columnOrder: data[6],
-          columnFilterFns: data[7]
-        }
-      }
-    }
-
-    mutate(dataItem)
-  }
-
-  const onMutateSuccess = () => {
-    console.log('onMutateSuccess')
-  }
-
-  const onMutateError = (e: any) => {
-    console.log('onMutateError', e)
-  }
-
-  const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
-
-  const [,] = useDebounce(
+  // Skip the initial value (restored from DB); only persist real user changes.
+  useDebounce(
     () => {
       if (isFirstMount === false) {
-        handleAdd(data)
+        save()
       }
     },
     1500,
-    [JSON.stringify(data)]
+    [JSON.stringify(watched)]
   )
 
   useUpdateEffect(() => {
     setIsFirstMount(false)
-  }, [JSON.stringify(data)])
+  }, [JSON.stringify(watched)])
 
-  return <>{isError ? <div>An error occurred: {error.message}</div> : null}</>
+  return <>{isError ? <div>An error occurred: {error?.message}</div> : null}</>
 }
 
 export default DxWatchSearchFilters

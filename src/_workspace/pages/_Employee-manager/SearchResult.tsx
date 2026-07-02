@@ -48,16 +48,16 @@ const SearchResult = () => {
                 const currentFilters = getValues('searchFilters')
 
                 const payload = {
-                    SearchFilters: [
+                    SEARCHFILTERS: [
                         { id: 'keyword', value: currentFilters.keyword || '' },
                         { id: 'group_code', value: currentFilters.group_code?.value || '' },
                         { id: 'in_use', value: currentFilters.in_use || '' },
                     ],
-                    Order: sortModel && sortModel.length > 0
+                    ORDER: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
                         : [{ id: 'group_code', desc: false }, { id: 'empcode', desc: false }],
-                    Start: startRow ?? 0,
-                    Limit: limit || 20,
+                    START: startRow ?? 0,
+                    LIMIT: limit || 20,
                 }
 
                 const response = await AssigneesServices.search(payload)

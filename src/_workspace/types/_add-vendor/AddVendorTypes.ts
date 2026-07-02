@@ -24,7 +24,7 @@ export interface VendorContactI {
 export interface VendorProductI {
     vendor_product_id?: number
     vendor_id?: number
-    product_group_id: number
+    product_group_id?: number
     maker_name: string
     product_name: string
     model_list?: string
@@ -34,8 +34,9 @@ export interface VendorProductI {
 export interface VendorI {
     vendor_id?: number
     company_name: string
-    province: string
-    postal_code: string
+    province?: string
+    postal_code?: string
+    country?: string
     vendor_type_id: number
     vendor_region?: 'Local' | 'Oversea'
     website?: string
@@ -55,8 +56,9 @@ export interface VendorI {
 // --- Create Vendor Request (email removed) ---
 export interface CreateVendorRequestI {
     company_name: string
-    province: string
-    postal_code: string
+    province?: string
+    postal_code?: string
+    country?: string
     vendor_type_id: number
     vendor_region?: 'Local' | 'Oversea'
     website?: string
@@ -72,8 +74,10 @@ export interface CreateVendorRequestI {
 // --- Check Duplicate Request (email removed, uses province + postal_code) ---
 export interface CheckDuplicateRequestI {
     company_name: string
-    province: string
-    postal_code: string
+    vendor_region?: 'Local' | 'Oversea'
+    province?: string
+    postal_code?: string
+    country?: string
 }
 
 // --- Check Duplicate Response ---

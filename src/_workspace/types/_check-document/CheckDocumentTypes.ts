@@ -46,6 +46,10 @@ export interface DetailPanelProps {
     onApprove: (nextStatus: string, isFinalStep: boolean, approveActionLabel: string) => void
     onReject: (rejectActionLabel: string) => void
     onRefresh: () => void
+    // Silent refresh after saving a sub-form (e.g. Selection Sheet): re-fetches
+    // this request's detail in place without closing the detail dialog, unlike
+    // onRefresh which is for terminal actions (approve/reject/complete).
+    onDetailRefresh?: () => void
 }
 
 export interface ApprovalPageContentProps {

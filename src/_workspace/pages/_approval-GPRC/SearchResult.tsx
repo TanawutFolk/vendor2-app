@@ -253,12 +253,12 @@ const SearchResult = () => {
 
         try {
             const response = await RegisterRequestServices.gprCActionRequiredQueue({
-                pic_email: userEmail,
-                SearchFilters: buildSearchFilters(),
-                ColumnFilters: [],
-                Order: [{ id: 'SENT_AT', desc: true }, { id: 'REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID', desc: true }],
-                Start: 0,
-                Limit: 1,
+                PIC_EMAIL: userEmail,
+                SEARCHFILTERS: buildSearchFilters(),
+                COLUMNFILTERS: [],
+                ORDER: [{ id: 'SENT_AT', desc: true }, { id: 'REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID', desc: true }],
+                START: 0,
+                LIMIT: 1,
             })
             const result = response.data
             setActionRequiredTotalCount(result?.Status ? result.TotalCountOnDb || 0 : 0)
@@ -290,14 +290,14 @@ const SearchResult = () => {
                 const { startRow, endRow, sortModel, filterModel } = params.request
                 const limit = (endRow ?? 20) - (startRow ?? 0)
                 const response = await RegisterRequestServices.gprCQueue({
-                    approver_empcode: empCode,
-                    SearchFilters: buildSearchFilters(),
-                    ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
-                    Order: sortModel && sortModel.length > 0
+                    APPROVER_EMPCODE: empCode,
+                    SEARCHFILTERS: buildSearchFilters(),
+                    COLUMNFILTERS: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
+                    ORDER: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
                         : [{ id: 'REQUEST_VENDOR_GPR_C_FLOWS_ID', desc: true }],
-                    Start: startRow ?? 0,
-                    Limit: limit || 20,
+                    START: startRow ?? 0,
+                    LIMIT: limit || 20,
                 })
                 const result = response.data
 
@@ -314,6 +314,9 @@ const SearchResult = () => {
                         purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
                         address: row.address ?? row.ADDRESS,
                         vendor_region: row.vendor_region ?? row.VENDOR_REGION,
+                        province: row.province ?? row.PROVINCE,
+                        postal_code: row.postal_code ?? row.POSTAL_CODE,
+                        country: row.country ?? row.COUNTRY,
                         tel_phone: row.tel_phone ?? row.TEL_PHONE,
                     }))
                     params.success({
@@ -343,14 +346,14 @@ const SearchResult = () => {
                 const { startRow, endRow, sortModel, filterModel } = params.request
                 const limit = (endRow ?? 20) - (startRow ?? 0)
                 const response = await RegisterRequestServices.gprCActionRequiredQueue({
-                    pic_email: userEmail,
-                    SearchFilters: buildSearchFilters(),
-                    ColumnFilters: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
-                    Order: sortModel && sortModel.length > 0
+                    PIC_EMAIL: userEmail,
+                    SEARCHFILTERS: buildSearchFilters(),
+                    COLUMNFILTERS: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
+                    ORDER: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
                         : [{ id: 'SENT_AT', desc: true }, { id: 'REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID', desc: true }],
-                    Start: startRow ?? 0,
-                    Limit: limit || 20,
+                    START: startRow ?? 0,
+                    LIMIT: limit || 20,
                 })
                 const result = response.data
 
@@ -433,13 +436,13 @@ const SearchResult = () => {
         setSubmitting(true)
         try {
             const basePayload = {
-                request_id: requestId,
-                action_by: empCode,
+                REQUEST_REGISTER_VENDOR_ID: requestId,
+                ACTION_BY: empCode,
                 UPDATE_BY: empCode,
             }
             const response = dialogMode === 'REJECT'
-                ? await RegisterRequestServices.gprCRejectStep({ ...basePayload, remark })
-                : await RegisterRequestServices.gprCApproveStep({ ...basePayload, remark })
+                ? await RegisterRequestServices.gprCRejectStep({ ...basePayload, REMARK: remark })
+                : await RegisterRequestServices.gprCApproveStep({ ...basePayload, REMARK: remark })
 
             const payload = response.data
             if (!payload.Status) {
@@ -470,10 +473,10 @@ const SearchResult = () => {
         setSubmitting(true)
         try {
             const response = await RegisterRequestServices.gprCRecordActionResult({
-                action_required_id: actionRequiredId,
-                result_status: resultStatus,
-                result_remark: remark,
-                result_by: empCode,
+                REQUEST_VENDOR_GPR_C_ACTION_REQUIRED_ID: actionRequiredId,
+                RESULT_STATUS: resultStatus,
+                RESULT_REMARK: remark,
+                RESULT_BY: empCode,
                 UPDATE_BY: empCode,
             })
             const payload = response.data

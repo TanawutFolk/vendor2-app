@@ -146,8 +146,6 @@ export const resolveGroupCodeForStep = (step: any, isOversea: boolean) => {
 
 export const isPendingAgreementStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('pending agreement')
 
-export const isAgreementReachedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('agreement reached')
-
 export const isIssueGprBStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr b')
 
 export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr c')
@@ -203,22 +201,21 @@ export const getActionRequiredStageLabel = (step: any) => {
 }
 
 export const getApproveActionLabel = (currentStep: any, hasVendorRequested: boolean) => {
-    if (!currentStep) return 'Confirm'
+    if (!currentStep) return 'Approve'
 
     if (isPicStep(currentStep)) {
         if (!hasVendorRequested) return 'Approve and Send Email To Vendor'
         if (isPendingAgreementStep(currentStep)) return 'Approve and Send to Doc Checker'
         if (isIssueGprBStep(currentStep)) return 'Send GPR C to Requester Approval'
         if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
-        return 'Confirm'
+        return 'Approve'
     }
 
     if (isPendingAgreementStep(currentStep)) return 'Confirm Agreement'
     if (isIssueGprBStep(currentStep)) return 'Send GPR C to Requester Approval'
     if (isIssueGprCStep(currentStep)) return 'Approve GPR C'
-    if (isAgreementReachedStep(currentStep)) return 'Approve and Send to Doc Checker'
 
-    return 'Confirm'
+    return 'Approve'
 }
 
 export const getRejectActionLabel = (currentStep: any) => {

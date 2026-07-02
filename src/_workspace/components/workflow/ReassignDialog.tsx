@@ -89,7 +89,7 @@ export default function ReassignDialog({
         setLoading(true)
         setError(null)
 
-        AssigneesServices.searchAll({ group_code: groupCode, in_use: '1' })
+        AssigneesServices.searchAll({ GROUP_CODE: groupCode, IN_USE: '1' })
             .then(rows => {
                 if (!isMounted) return
                 const availableRows = Array.from(
@@ -132,11 +132,11 @@ export default function ReassignDialog({
         setError(null)
         try {
             const res = await ApprovalQueueServices.reassign({
-                request_id: requestId,
-                scope: 'REQUEST_PIC',
-                group_code: groupCode || undefined,
-                to_empcode: toEmpcode,
-                reason: reason.trim(),
+                REQUEST_REGISTER_VENDOR_ID: requestId,
+                SCOPE: 'REQUEST_PIC',
+                GROUP_CODE: groupCode || undefined,
+                TO_EMPCODE: toEmpcode,
+                REASON: reason.trim(),
                 UPDATE_BY: updateBy || 'SYSTEM'
             })
 

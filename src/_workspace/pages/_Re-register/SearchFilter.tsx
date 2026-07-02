@@ -7,8 +7,7 @@ import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SelectCustom from '@components/react-select/SelectCustom'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 import { useDxContext } from '@/_template/DxContextProvider'
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
@@ -21,7 +20,7 @@ export const PREFIX_QUERY_KEY = 'RE_REGISTER'
 
 const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
-    const { setValue, getValues, control, handleSubmit } = useFormContext<ReRegisterFormData>()
+    const { setValue, control, handleSubmit } = useFormContext<ReRegisterFormData>()
     const queryClient = useQueryClient()
     const { setIsEnableFetching } = useDxContext()
 
@@ -32,42 +31,14 @@ const SearchFilter = () => {
     const onSubmit = () => {
         setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleAdd()
+        save()
     }
 
     const onError = (data: unknown) => {
         console.log(data)
     }
 
-    const handleAdd = () => {
-        const dataItem = {
-            USER_ID: getUserData().USER_ID,
-            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-            MENU_ID: MENU_ID.toString(),
-            USER_PROFILE_SETTING_PROGRAM_DATA: {
-                searchFilters: {
-                    company_name: getValues('searchFilters.company_name'),
-                    global_search: getValues('searchFilters.global_search'),
-                    vendor_type_id: getValues('searchFilters.vendor_type_id'),
-                    province: getValues('searchFilters.province'),
-                    product_group_id: getValues('searchFilters.product_group_id'),
-                    status: getValues('searchFilters.status'),
-                    inuse: getValues('searchFilters.inuse'),
-                    product_name: getValues('searchFilters.product_name'),
-                    maker_name: getValues('searchFilters.maker_name'),
-                    model_list: getValues('searchFilters.model_list'),
-                    fft_vendor_code: getValues('searchFilters.fft_vendor_code')
-                },
-                searchResults: {
-                    agGridState: getValues('searchResults.agGridState')
-                }
-            }
-        }
-
-        mutate(dataItem)
-    }
-
-    const { mutate } = useCreate(() => {}, () => {})
+    const { save } = useDxSaveSearchFilters<ReRegisterFormData>({ MENU_ID })
 
     return (
         <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>

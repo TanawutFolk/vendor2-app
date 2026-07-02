@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import {
-    isAgreementReachedStep,
     isIssueGprBStep,
     isIssueGprCStep,
     isPendingAgreementStep,
@@ -146,28 +145,6 @@ export const useApprovalWorkflow = (
                         color: 'error',
                         nextStatus: vendorDisagreedStatus,
                         isFinalStep: true,
-                    },
-                ],
-            }
-        }
-
-        if (isAgreementReachedStep(currentStep)) {
-            return {
-                isNegotiationStep: true,
-                actions: [
-                    {
-                        key: 'agree',
-                        label: 'Approve and Send to Doc Checker',
-                        color: 'success',
-                        nextStatus: documentCheckStatus,
-                        isFinalStep: false,
-                    },
-                    {
-                        key: 'disagree',
-                        label: 'Send GPR B to Vendor',
-                        color: 'warning',
-                        nextStatus: issueGprBStatus,
-                        isFinalStep: false,
                     },
                 ],
             }

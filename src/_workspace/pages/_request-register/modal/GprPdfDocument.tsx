@@ -6,7 +6,7 @@
 
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
 import type { GprFormData } from './useGprForm'
-import { inferStepCode, isAgreementReachedStep } from '@_workspace/utils/requestWorkflow'
+import { inferStepCode } from '@_workspace/utils/requestWorkflow'
 import fitelLogo from '@_workspace/utils/fitelLogo.png'
 import type { GprPdfDocumentProps, SignatureSlot } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
@@ -341,26 +341,6 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         return matched[0]
     }
 
-    const findLatestApprovedAgreementReachedStep = () => {
-        const matched = approvalSteps.filter((step: any) => {
-            const status = String(step?.STEP_STATUS || '').toLowerCase()
-            if (!approvedStatuses.has(status)) return false
-
-            return isAgreementReachedStep(step)
-        })
-
-        matched.sort((a: any, b: any) => {
-            const orderDiff = Number(b?.STEP_ORDER || 0) - Number(a?.STEP_ORDER || 0)
-            if (orderDiff !== 0) return orderDiff
-
-            const aTime = new Date(a?.UPDATE_DATE || a?.CREATE_DATE || 0).getTime()
-            const bTime = new Date(b?.UPDATE_DATE || b?.CREATE_DATE || 0).getTime()
-            return bTime - aTime
-        })
-
-        return matched[0]
-    }
-
     const findLatestLogForStep = (stepId: unknown) => {
         const matched = approvalLogs.filter((log: any) => {
             const logStepId = log?.REQUEST_APPROVAL_STEP_ID || log?.request_approval_step_id
@@ -377,7 +357,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
     }
 
     const signatureSlots: SignatureSlot[] = [
-        { role: 'Issuer', step: findLatestApprovedAgreementReachedStep() },
+        { role: 'Issuer', step: findLatestApprovedStep('PENDING_AGREEMENT') },
         { role: 'Manager', step: findLatestApprovedStep('PO_MGR_APPROVAL') },
         { role: 'General Manager', step: findLatestApprovedStep('PO_GM_APPROVAL') },
         { role: 'Managing Director', step: findLatestApprovedStep('MD_APPROVAL') },
@@ -402,7 +382,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
     return (
         <Document>
             <Page size='A4' style={s.page}>
-                <Text fixed style={s.fixedRequestNumber}>{rowData?.request_number || rowData?.request_id || ''}</Text>
+                <Text fixed style={s.fixedRequestNumber}>{rowData?.request_number || rowData?.REQUEST_NUMBER || rowData?.request_id || rowData?.REQUEST_REGISTER_VENDOR_ID || ''}</Text>
 
                 {/* ── Header ─────────────────────────────────────────────── */}
                 <View style={s.headerRow}>

@@ -27,76 +27,24 @@ export interface AssigneeRowI extends Record<string, unknown>, Partial<AuditFiel
     inuse?: number
 }
 
-interface AssigneeSearchParams {
-    SearchFilters?: unknown
-    SEARCHFILTERS?: unknown
-    ColumnFilters?: unknown
-    COLUMNFILTERS?: unknown
-    Order?: unknown
-    ORDER?: unknown
-    Start?: number
-    START?: number
-    Limit?: number
-    LIMIT?: number
-    keyword?: string
-    KEYWORD?: string
-    group_code?: string
-    GROUP_CODE?: string
-    in_use?: string | number
-    IN_USE?: string | number
-}
-
-interface AssigneeSaveParams {
-    Assignees_id?: number
-    ASSIGNEES_TO_ID?: number
-    empcode?: string
-    EMPCODE?: string
-    empName?: string
-    EMPNAME?: string
-    empEmail?: string
-    EMPEMAIL?: string
-    group_code?: string
-    GROUP_CODE?: string
-    group_name?: string
-    GROUP_NAME?: string
-    CREATE_BY?: string
-    UPDATE_BY?: string
-    INUSE?: number
-}
-
 export default class AssigneesServices {
-    static getGroups(data?: { keyword?: string }): Promise<AxiosResponse<AssigneesResponseI<AssigneeRowI[]>>> {
-        const payload = data ? {
-            KEYWORD: data.keyword
-        } : {}
-
+    static getGroups(data: Record<string, unknown> = {}): Promise<AxiosResponse<AssigneesResponseI<AssigneeRowI[]>>> {
         return axiosRequest<AssigneesResponseI<AssigneeRowI[]>>({
             url: `${AssigneesAPI.API_ROOT_URL}/groups`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }
 
-    static search(data: AssigneeSearchParams = {}): Promise<AxiosResponse<AssigneesResponseI<AssigneeRowI[]>>> {
-        const payload = data ? {
-            SEARCHFILTERS: data.SearchFilters ?? data.SEARCHFILTERS,
-            COLUMNFILTERS: data.ColumnFilters ?? data.COLUMNFILTERS,
-            ORDER: data.Order ?? data.ORDER,
-            START: data.Start ?? data.START,
-            LIMIT: data.Limit ?? data.LIMIT,
-            KEYWORD: data.keyword ?? data.KEYWORD,
-            GROUP_CODE: data.group_code ?? data.GROUP_CODE,
-            IN_USE: data.in_use ?? data.IN_USE
-        } : {}
-
+    static search(data: Record<string, unknown> = {}): Promise<AxiosResponse<AssigneesResponseI<AssigneeRowI[]>>> {
         return axiosRequest<AssigneesResponseI<AssigneeRowI[]>>({
             url: `${AssigneesAPI.API_ROOT_URL}/search`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }
 
-    static async searchAll(data: AssigneeSearchParams = {}, pageSize = 500): Promise<AssigneeRowI[]> {
+    static async searchAll(data: Record<string, unknown> = {}, pageSize = 500): Promise<AssigneeRowI[]> {
         const rows: AssigneeRowI[] = []
         let start = 0
         let totalCount = 0
@@ -104,8 +52,8 @@ export default class AssigneesServices {
         do {
             const response = await AssigneesServices.search({
                 ...data,
-                Start: start,
-                Limit: pageSize,
+                START: start,
+                LIMIT: pageSize,
             })
 
             if (!response.data?.Status) {
@@ -131,22 +79,10 @@ export default class AssigneesServices {
         return rows
     }
 
-    static save(data: AssigneeSaveParams): Promise<AxiosResponse<AssigneesResponseI<Record<string, unknown>>>> {
-        const payload = {
-            ASSIGNEES_TO_ID: data.Assignees_id ?? data.ASSIGNEES_TO_ID,
-            EMPCODE: data.empcode ?? data.EMPCODE,
-            EMPNAME: data.empName ?? data.EMPNAME,
-            EMPEMAIL: data.empEmail ?? data.EMPEMAIL,
-            GROUP_CODE: data.group_code ?? data.GROUP_CODE,
-            GROUP_NAME: data.group_name ?? data.GROUP_NAME,
-            CREATE_BY: data.CREATE_BY ?? data.UPDATE_BY,
-            UPDATE_BY: data.UPDATE_BY ?? data.CREATE_BY,
-            INUSE: data.INUSE
-        }
-
+    static save(data: Record<string, unknown>): Promise<AxiosResponse<AssigneesResponseI<Record<string, unknown>>>> {
         return axiosRequest<AssigneesResponseI<Record<string, unknown>>>({
             url: `${AssigneesAPI.API_ROOT_URL}/save`,
-            data: payload,
+            data,
             method: 'POST'
         })
     }

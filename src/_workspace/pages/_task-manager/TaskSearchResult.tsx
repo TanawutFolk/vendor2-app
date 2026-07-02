@@ -51,14 +51,14 @@ const TaskSearchResult = () => {
                 const orderStr = orderParams.map(item => `t.${item.id} ${item.desc ? 'DESC' : 'ASC'}`).join(', ')
 
                 const res = await TaskManagerServices.searchAllTask({
-                    SearchFilters: [
+                    SEARCHFILTERS: [
                         { id: 'request_status', value: currentFilters?.statusFilter?.value || '' },
                         { id: 'current_owner_empcode', value: currentFilters?.picFilter?.value || '' },
                     ],
-                    ColumnFilters: [],
-                    Order: orderStr,
-                    Offset: startRow ?? 0,
-                    Limit: limit
+                    COLUMNFILTERS: [],
+                    ORDER: orderStr,
+                    OFFSET: startRow ?? 0,
+                    LIMIT: limit
                 })
 
                 const result = res?.data

@@ -1,456 +1,119 @@
 // React Imports
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 
 // MUI Imports
 import {
-    Grid, Card, CardContent, Box, Typography, Chip, Divider,
-    IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, List, ListItem, ListItemIcon, ListItemText
+    Grid, CardContent, Box, Typography, Chip, CircularProgress,
+    IconButton, Tooltip, Dialog, DialogTitle, DialogContent
 } from '@mui/material'
 
 // AG Grid Imports
 import type { ColDef, IServerSideDatasource } from 'ag-grid-community'
 import DxAGgridTable from '@/_template/DxAGgridTable'
 
-import type { ReactElement, Ref } from 'react'
-import { forwardRef } from 'react'
-import { Slide } from '@mui/material'
-import type { SlideProps } from '@mui/material'
+// Template / hooks
+import { useDxContext } from '@/_template/DxContextProvider'
+import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
 
-const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactElement<any, any> },
-    ref: Ref<unknown>
-) {
-    return <Slide direction='down' ref={ref} {...props} />
-})
-
+// Components
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import SearchResultCard from '@_workspace/components/search/SearchResultCard'
+import GprCNotificationDialog from './modal/GprCNotificationDialog'
+import DetailRenderer from './components/DetailRenderer'
+import { Transition, buildFileUrls, hasCompletedGprCSetup } from './components/shared'
 
+// Services
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
-
-// React Hook Form
-import { useFormContext } from 'react-hook-form'
-import type { RequestHistoryFormData } from './validateSchema'
-
-// Context
-import { useDxContext } from '@/_template/DxContextProvider'
-import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
-
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
-import StatusTimeline from './StatusTimeline'
-import SearchResultCard from '@_workspace/components/search/SearchResultCard'
-import GprCNotificationDialog from './modal/GprCNotificationDialog'
+import { isIssueGprCStep } from '@_workspace/utils/requestWorkflow'
 
 // React Query
 import { useQueryClient } from '@tanstack/react-query'
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRequestHistory'
-import { isIssueGprCStep } from '@_workspace/utils/requestWorkflow'
-import { formatFftStatus } from '@_workspace/utils/fftStatus'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useRequestHistory'
 
+// Types & Schema
+import type { RequestHistoryFormData } from './validateSchema'
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// Helpers
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
+const getRequestIdFromRow = (row: any) => Number(row?.REQUEST_REGISTER_VENDOR_ID ?? row?.request_id ?? 0)
 
-// Build accessible file URLs from comma-separated filenames stored in DB
-const buildFileUrls = (documents: any): { name: string; url: string }[] => {
-    try {
-        const docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
-        return docs.filter(Boolean).map((d: any) => ({
-            name: d.file_name || d.file_path || 'Unnamed File',
-            url: `${API_BASE}/uploads/documents/${d.file_path}`
-        }))
-    } catch { return [] }
-}
+const hasFullRequestDetail = (row: any) => Boolean(
+    row?.approval_steps || row?.approval_logs || row?.documents || row?.contacts || row?.products || row?.gpr_criteria
+)
 
-
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// File Viewer Dialog
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const parseGprCCircularList = (raw: unknown): unknown[] => {
-    try {
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
-    } catch {
-        return []
-    }
-}
-
-const hasCompletedGprCSetup = (row: Record<string, unknown>) => {
-    const hasText = (value: unknown) => String(value || '').trim().length > 0
-
-    return (
-        hasText(row?.gpr_c_approver_name) &&
-        hasText(row?.gpr_c_approver_email) &&
-        hasText(row?.gpr_c_pc_pic_name) &&
-        hasText(row?.gpr_c_pc_pic_email) &&
-        parseGprCCircularList(row?.gpr_c_circular_json).length > 0
-    )
-}
-
-const FileViewerDialog = ({ open, files, onClose }: {
-    open: boolean
-    files: { name: string; url: string }[]
-    onClose: () => void
-}) => {
-    const getFileIcon = (name: string) => {
-        const ext = name.split('.').pop()?.toLowerCase()
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'tabler-photo'
-        if (ext === 'pdf') return 'tabler-file-type-pdf'
-        if (['xls', 'xlsx'].includes(ext || '')) return 'tabler-file-type-xls'
-        if (['doc', 'docx'].includes(ext || '')) return 'tabler-file-type-doc'
-        return 'tabler-file'
+const getDocumentCount = (row: any) => {
+    if (row?.DOCUMENTS_COUNT !== undefined || row?.documents_count !== undefined) {
+        return Number(row?.DOCUMENTS_COUNT ?? row?.documents_count) || 0
     }
 
-    return (
-        <Dialog
-            maxWidth='sm'
-            fullWidth={true}
-            onClose={(event, reason) => {
-                if (reason !== 'backdropClick') {
-                    onClose()
-                }
-            }}
-            TransitionComponent={Transition}
-            open={open}
-            sx={{
-                '& .MuiDialog-paper': { overflow: 'visible' },
-                '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
-            }}
-        >
-            <DialogTitle>
-                <Typography variant='h5' component='span'>Attached Files ({files.length})</Typography>
-                <DialogCloseButton onClick={onClose} disableRipple>
-                    <i className='tabler-x' />
-                </DialogCloseButton>
-            </DialogTitle>
-            <DialogContent dividers>
-                {files.length === 0 ? (
-                    <Typography color='text.secondary' sx={{ py: 2, textAlign: 'center' }}>No files attached</Typography>
-                ) : (
-                    <List disablePadding>
-                        {files.map((file, idx) => (
-                            <ListItem
-                                key={idx}
-                                disablePadding
-                                sx={{
-                                    py: 1.5, px: 2, mb: 1, borderRadius: 1,
-                                    border: '1px solid', borderColor: 'divider',
-                                    '&:hover': { bgcolor: 'action.hover' }
-                                }}
-                                secondaryAction={
-                                    <Tooltip title='Open / Download'>
-                                        <IconButton
-                                            edge='end'
-                                            size='small'
-                                            onClick={() => window.open(file.url, '_blank')}
-                                            sx={{ color: 'primary.main' }}
-                                        >
-                                            <i className='tabler-external-link' style={{ fontSize: 18 }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                }
-                            >
-                                <ListItemIcon sx={{ minWidth: 40 }}>
-                                    <i className={getFileIcon(file.name)} style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={
-                                        <Typography
-                                            variant='body2'
-                                            fontWeight={600}
-                                            sx={{
-                                                cursor: 'pointer', color: 'primary.main',
-                                                '&:hover': { textDecoration: 'underline' }
-                                            }}
-                                            onClick={() => window.open(file.url, '_blank')}
-                                        >
-                                            {file.name}
-                                        </Typography>
-                                    }
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                )}
-            </DialogContent>
-            <DialogActions sx={{ justifyContent: 'flex-start' }}>
-                <Button onClick={onClose} variant='tonal' color='secondary'>Close</Button>
-            </DialogActions>
-        </Dialog>
-    )
+    return buildFileUrls(row?.documents).length
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// Master-Detail Renderer
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const DetailRenderer = ({ data }: { data: any }) => {
-    const [fileDialogOpen, setFileDialogOpen] = useState(false)
-    const { data: statusOptions = [] } = useRequestStatusOptions()
-    const files = buildFileUrls(data?.documents)
-    const approvalSteps = useMemo(() => {
-        try {
-            return typeof data?.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data?.approval_steps || [])
-        } catch {
-            return []
-        }
-    }, [data?.approval_steps])
-    const approvalLogs = useMemo(() => {
-        try {
-            return typeof data?.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data?.approval_logs || [])
-        } catch {
-            return []
-        }
-    }, [data?.approval_logs])
-    const workflowSteps = useMemo(() => {
-        try {
-            const approvalSteps = typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || [])
-            if (approvalSteps.length > 0) return []
-        } catch { /* ignore */ }
+const DetailLoading = () => (
+    <Box sx={{ minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
+        <CircularProgress size={22} />
+        <Typography variant='body2' color='text.secondary'>Loading request details...</Typography>
+    </Box>
+)
 
-        const submitted = { title: 'Request Submitted', status: 'completed' as const, step: 0, description: '' }
-        let currentStepIndex = -1
-        if (data.request_status !== 'Rejected') {
-            const normalizeStr = (str?: string | null) => (str || '').replace(/\s+/g, '').toLowerCase()
-            if (normalizeStr(data.request_status).includes('senttopo')) currentStepIndex = 0
-            else currentStepIndex = statusOptions.findIndex((s: any) => normalizeStr(s.value) === normalizeStr(data.request_status))
+const loadRequestDetail = async (row: any) => {
+    const requestId = getRequestIdFromRow(row)
+    if (!requestId) return row || null
+
+    const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
+    const payload = response.data
+
+    if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
+        return row || null
+    }
+
+    return payload.ResultOnDb
+}
+
+const LazyDetailRenderer = (props: any) => {
+    const [detailData, setDetailData] = useState<any | null>(() => hasFullRequestDetail(props.data) ? props.data : null)
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        let active = true
+        const row = props.data || null
+
+        if (!row) {
+            setDetailData(null)
+            return
         }
 
-        const s = statusOptions
-            .filter((s: any) => s.value !== 'Rejected')
-            .map((s: any, idx: number) => {
-                let stepState: any = 'pending'
-                if (data.request_status !== 'Rejected' && currentStepIndex >= 0) {
-                    if (idx + 1 <= currentStepIndex) stepState = 'completed'
-                    else if (idx + 1 === currentStepIndex + 1) stepState = 'in_progress'
-                }
-                return { title: s.label, status: stepState, step: idx + 1, description: '' }
+        if (hasFullRequestDetail(row)) {
+            setDetailData(row)
+            return
+        }
+
+        setDetailData(row)
+        setLoading(true)
+        loadRequestDetail(row)
+            .then(detail => {
+                if (active) setDetailData(detail || row)
             })
-        return [submitted, ...s]
-    }, [statusOptions, data.request_status, data.approval_steps])
+            .catch(error => {
+                console.error('Load request history detail failed:', error)
+                if (active) setDetailData(row)
+            })
+            .finally(() => {
+                if (active) setLoading(false)
+            })
 
-    if (!data) return null
+        return () => {
+            active = false
+        }
+    }, [props.data])
 
-    const contacts: any[] = (() => {
-        try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
-    })().filter(Boolean)
+    if (loading && !hasFullRequestDetail(detailData)) return <DetailLoading />
+    if (!detailData) return null
 
-    const products: any[] = (() => {
-        try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
-    })().filter(Boolean)
-
-    const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <i className={icon} style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
-            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>{title}</Typography>
-            <Divider sx={{ flex: 1 }} />
-        </Box>
-    )
-
-    return (
-        <Box sx={{ p: 4, bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Card variant='outlined' sx={{ border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
-                <CardContent sx={{ p: '24px !important' }}>
-
-                    {/* Header Banner */}
-                    <Box sx={{ p: 3, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-                            <Box>
-                                <Typography variant='h5' fontWeight={800} sx={{ mb: 0.25 }}>{data.company_name}</Typography>
-                            </Box>
-                            <Box
-                                sx={{
-                                    px: 1.5,
-                                    py: 0.75,
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: 1,
-                                    bgcolor: 'transparent',
-                                    maxWidth: 320,
-                                }}
-                            >
-                                <Typography variant='caption' fontWeight={700} color='text.secondary' sx={{ lineHeight: 1.2 }}>
-                                    {data.request_status || '-'}
-                                </Typography>
-                            </Box>
-                        </Box>
-                    </Box>
-
-                    {/* Request Info Grid */}
-                    <SectionHeader icon='tabler-building-store' title='Request Info' />
-                    <Grid container spacing={3} sx={{ mb: 4 }}>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Support Process / Product</Typography>
-                            <Typography variant='body2' fontWeight={600}>{data.supportProduct_Process || '-'}</Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Purchase Frequency / Year</Typography>
-                            <Typography variant='body2' fontWeight={600}>{data.purchase_frequency || '-'}{' Times / Year'}</Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>PO PIC</Typography>
-                            <Typography variant='body2' fontWeight={600}>{data.assign_to || '-'}</Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Typography variant='caption' color='text.disabled' fontWeight={600}>Submitted Date</Typography>
-                            <Typography variant='body2' fontWeight={600}>
-                                {data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : '-'}
-                            </Typography>
-                        </Grid>
-                        {data.requester_remark && (
-                            <Grid item xs={12}>
-                                <Typography variant='caption' color='text.disabled' fontWeight={600}>Remark</Typography>
-                                <Typography variant='body2'>{data.requester_remark}</Typography>
-                            </Grid>
-                        )}
-                    </Grid>
-
-                    {/* Attached Files */}
-                    <Box sx={{ mb: 4 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-                            <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
-                            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
-                            <Divider sx={{ flex: 1 }} />
-                            <Button size='small' variant='tonal'
-                                startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
-                                onClick={() => setFileDialogOpen(true)}
-                                disabled={files.length === 0}
-                            >
-                                {files.length === 0 ? 'No Files' : `View ${files.length} File${files.length > 1 ? 's' : ''}`}
-                            </Button>
-                        </Box>
-                        {files.length > 0 && (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                {files.map((f, i) => (
-                                    <Chip key={i} label={f.name} size='small' variant='outlined'
-                                        icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
-                                        onClick={() => window.open(f.url, '_blank')}
-                                        sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    </Box>
-
-                    {/* Vendor Info */}
-                    <Box sx={{ mb: 4 }}>
-                        <SectionHeader icon='tabler-building-store' title='Vendor Info' />
-                        <Grid container spacing={2}>
-                            {[
-                                { label: 'Company Name', value: data.company_name },
-                                { label: 'Vendor Type', value: data.vendor_type_name },
-                                { label: 'Region', value: data.vendor_region },
-                                { label: 'FFT Vendor Code', value: data.fft_vendor_code },
-                                { label: 'FFT Status', value: formatFftStatus(data.fft_status) },
-                                { label: 'Province', value: data.province },
-                                { label: 'Postal Code', value: data.postal_code },
-                                { label: 'Tel Center', value: data.tel_center },
-                                { label: 'Website', value: data.website },
-                                { label: 'Email (Main)', value: data.emailmain },
-                            ].map(({ label, value }) => (
-                                <Grid item xs={12} sm={6} md={4} key={label}>
-                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>{label}</Typography>
-                                    <Typography variant='body2' fontWeight={600}>{value || '-'}</Typography>
-                                </Grid>
-                            ))}
-                            {data.address && (
-                                <Grid item xs={12}>
-                                    <Typography variant='caption' color='text.disabled' fontWeight={600}>Address</Typography>
-                                    <Typography variant='body2' fontWeight={600}>{data.address}</Typography>
-                                </Grid>
-                            )}
-                        </Grid>
-                    </Box>
-
-                    {/* Contacts */}
-                    {contacts.length > 0 && (
-                        <Box sx={{ mb: 4 }}>
-                            <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
-                            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                    {['Name', 'Tel', 'Position', 'Email'].map(h => (
-                                        <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
-                                    ))}
-                                </Box>
-                                {contacts.map((c, i) => (
-                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                        <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-                    )}
-
-                    {/* Products */}
-                    {products.length > 0 && (
-                        <Box sx={{ mb: 4 }}>
-                            <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
-                            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                    {['Group', 'Maker', 'Product Name', 'Model List'].map(h => (
-                                        <Typography key={h} variant='caption' fontWeight={700} color='text.secondary'>{h}</Typography>
-                                    ))}
-                                </Box>
-                                {products.map((p, i) => (
-                                    <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                        <Typography variant='body2' fontWeight={600}>{p.product_group || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-                    )}
-
-                    {/* Registration Steps Timeline */}
-                    <Box sx={{ mb: 4 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                
-                            <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Registration Steps</Typography>
-                            <Divider sx={{ flex: 1 }} />
-                        </Box>
-                        <StatusTimeline
-                            steps={workflowSteps}
-                            approvalSteps={approvalSteps}
-                            approvalLogs={approvalLogs}
-                        />
-                    </Box>
-
-                    {/* Attached Files
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-                        <i className='tabler-paperclip' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
-                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Attached Files</Typography>
-                        <Divider sx={{ flex: 1 }} />
-                        <Button size='small' variant='tonal'
-                            startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />}
-                            onClick={() => setFileDialogOpen(true)}
-                            disabled={files.length === 0}
-                        >
-                            {files.length === 0 ? 'No Files' : `View ${files.length} File${files.length > 1 ? 's' : ''}`}
-                        </Button>
-                    </Box> */}
-
-                </CardContent>
-            </Card>
-
-            <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
-        </Box>
-    )
+    return <DetailRenderer data={detailData} />
 }
-
-
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// Main SearchResult Component
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function SearchResult() {
     const { getValues, setValue } = useFormContext<RequestHistoryFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -462,38 +125,39 @@ export default function SearchResult() {
         setValue,
         isEnableFetching,
         setIsEnableFetching,
-        lockedLeftColIds: ['view', 'request_number']
+        lockedLeftColIds: ['view', 'REQUEST_NUMBER']
     })
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Dialog State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Dialog State ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [selectedData, setSelectedData] = useState<any>(null)
+    const [detailLoading, setDetailLoading] = useState(false)
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ GPR C Notification Dialog State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ GPR C Notification Dialog State ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const [gprCOpen, setGprCOpen] = useState(false)
     const [gprCRowData, setGprCRowData] = useState<any>(null)
 
     const currentUserCode = String(getUserData()?.EMPLOYEE_CODE || '').trim()
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Server-Side Datasource Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Server-Side Datasource ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
             const f = getValues('searchFilters')
             const { startRow, endRow } = params.request
             const order = params.request.sortModel?.length > 0
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
-                : [{ id: 'request_id', desc: true }]
+                : [{ id: 'REQUEST_REGISTER_VENDOR_ID', desc: true }]
             try {
                 const payload = {
-                    Request_By_EmployeeCode: getUserData()?.EMPLOYEE_CODE || '',
-                    SearchFilters: [
+                    REQUEST_BY_EMPLOYEECODE: getUserData()?.EMPLOYEE_CODE || '',
+                    SEARCHFILTERS: [
                         { id: 'company_name', value: f.vendor_name || null },
                         { id: 'request_status', value: f.overall_status?.value || null }
                     ].filter((x: any) => x.value !== null && x.value !== ''),
-                    ColumnFilters: [],
-                    Order: order,
-                    Start: startRow ?? 0,
-                    Limit: (endRow ?? 50) - (startRow ?? 0)
+                    COLUMNFILTERS: [],
+                    ORDER: order,
+                    START: startRow ?? 0,
+                    LIMIT: (endRow ?? 50) - (startRow ?? 0)
                 }
 
                 // Fetch using React Query client to integrate with devtools and app-wide caching invalidation
@@ -504,42 +168,9 @@ export default function SearchResult() {
                 })
 
                 if (res.data?.Status) {
-                    const rowData = (res.data.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
-                        request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
-                        request_status: row.request_status ?? row.REQUEST_STATUS,
-                        supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
-                        purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
-                        requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
-                        approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
-                        reject_reason: row.reject_reason ?? row.REJECT_REASON,
-                        approve_by: row.approve_by ?? row.APPROVE_BY,
-                        approve_date: row.approve_date ?? row.APPROVE_DATE,
-                        vendor_code: row.vendor_code ?? row.VENDOR_CODE,
-                        assign_to: row.assign_to ?? row.ASSIGN_TO,
-                        PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
-                        Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
-                        gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
-                        gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
-                        gpr_c_pc_pic_name: row.gpr_c_pc_pic_name ?? row.GPR_C_PC_PIC_NAME,
-                        gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
-                        gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
-                        action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
-                        gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
-                        fft_status: row.fft_status ?? row.FFT_STATUS,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        province: row.province ?? row.PROVINCE,
-                        postal_code: row.postal_code ?? row.POSTAL_CODE,
-                        address: row.address ?? row.ADDRESS,
-                        tel_center: row.tel_center ?? row.TEL_CENTER,
-                        website: row.website ?? row.WEBSITE,
-                        emailmain: row.emailmain ?? row.EMAILMAIN,
-                    }))
+                    // Option A: backend returns UPPER-cased column keys directly;
+                    // the grid/detail/modal read those keys as-is (no re-lowercasing).
+                    const rowData = res.data.ResultOnDb || []
                     setTotalCount(res.data.TotalCountOnDb)
                     params.success({ rowData, rowCount: res.data.TotalCountOnDb })
                 } else {
@@ -550,9 +181,27 @@ export default function SearchResult() {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), []) // getValues is a stable ref Ã¢â‚¬â€ no need to re-create datasource
+    }), []) // getValues is a stable ref ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no need to re-create datasource
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Column / Grid State Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Column / Grid State Persistence ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    const openDetailDialog = useCallback(async (row?: any | null) => {
+        const baseRow = row || null
+        setSelectedData(baseRow)
+        setDrawerOpen(true)
+
+        if (!baseRow) return
+
+        setDetailLoading(true)
+        try {
+            const detail = await loadRequestDetail(baseRow)
+            setSelectedData(detail || baseRow)
+        } catch (error) {
+            console.error('Open request history detail failed:', error)
+            setSelectedData(baseRow)
+        } finally {
+            setDetailLoading(false)
+        }
+    }, [])
     const colDefs = useMemo<ColDef[]>(() => [
         {
             headerName: 'Actions',
@@ -568,10 +217,7 @@ export default function SearchResult() {
                             <IconButton
                                 size='small'
                                 color='primary'
-                                onClick={() => {
-                                    setSelectedData(params.data)
-                                    setDrawerOpen(true)
-                                }}
+                                onClick={() => openDetailDialog(params.data)}
                             >
                                 <i className='tabler-eye' style={{ fontSize: 18 }} />
                             </IconButton>
@@ -581,13 +227,13 @@ export default function SearchResult() {
             }
         },
         {
-            field: 'request_number',
+            field: 'REQUEST_NUMBER',
             headerName: 'Request Number',
             width: 170,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,
-            valueGetter: params => params.data?.request_number || params.data?.request_id || '-'
+            valueGetter: params => params.data?.REQUEST_NUMBER || params.data?.REQUEST_REGISTER_VENDOR_ID || '-'
         },
         {
             headerName: 'Require Action',
@@ -597,13 +243,7 @@ export default function SearchResult() {
             sortable: false,
             filter: false,
             cellRenderer: (params: any) => {
-                const rowRequesterCode = String(
-                    params.data?.Request_By_EmployeeCode
-                    || params.data?.request_by_employeecode
-                    || params.data?.request_by_employee_code
-                    || params.data?.EMPLOYEE_CODE
-                    || ''
-                ).trim()
+                const rowRequesterCode = String(params.data?.EMPLOYEE_CODE || '').trim()
                 const isRequester = !!rowRequesterCode && rowRequesterCode === currentUserCode
 
                 // Check if current step is GPR C (from approval_steps or request_status)
@@ -617,16 +257,16 @@ export default function SearchResult() {
                         inGprCStep = isIssueGprCStep(currentStep)
                     } else {
                         // Fallback: check request_status text
-                        const statusNorm = String(params.data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase()
+                        const statusNorm = String(params.data?.REQUEST_STATUS || '').replace(/[_-]+/g, ' ').toLowerCase()
                         inGprCStep = statusNorm.includes('issue gpr c')
                     }
                 } catch {
-                    const statusNorm = String(params.data?.request_status || '').replace(/[_-]+/g, ' ').toLowerCase()
+                    const statusNorm = String(params.data?.REQUEST_STATUS || '').replace(/[_-]+/g, ' ').toLowerCase()
                     inGprCStep = statusNorm.includes('issue gpr c')
                 }
 
                 if (!inGprCStep || !isRequester) {
-                    return <Typography variant='caption' color='text.disabled'>Ã¢â‚¬â€</Typography>
+                    return <Typography variant='caption' color='text.disabled'>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</Typography>
                 }
 
                 if (hasCompletedGprCSetup(params.data)) {
@@ -660,7 +300,7 @@ export default function SearchResult() {
         },
 
         {
-            field: 'request_status',
+            field: 'REQUEST_STATUS',
             headerName: 'Status',
             flex: 1.2,
             minWidth: 230,
@@ -690,19 +330,19 @@ export default function SearchResult() {
             }
         },
         {
-            field: 'company_name',
+            field: 'COMPANY_NAME',
             headerName: 'Company Name',
             flex: 1.5,
             minWidth: 220
         },
         {
-            field: 'supportProduct_Process',
+            field: 'SUPPORTPRODUCT_PROCESS',
             headerName: 'Support Product / Process',
             flex: 1,
             minWidth: 150
         },
         {
-            field: 'purchase_frequency',
+            field: 'PURCHASE_FREQUENCY',
             headerName: 'Purchase Freqency',
             flex: 0.9,
             minWidth: 130
@@ -721,7 +361,7 @@ export default function SearchResult() {
             minWidth: 130
         },
         {
-            field: 'assign_to',
+            field: 'ASSIGN_TO',
             headerName: 'PO PIC',
             flex: 1,
             minWidth: 150
@@ -732,8 +372,8 @@ export default function SearchResult() {
             flex: 0.6,
             minWidth: 90,
             cellRenderer: (params: any) => {
-                const count = buildFileUrls(params.value).length
-                if (count === 0) return <Typography variant='caption' color='text.disabled'>Ã¢â‚¬â€</Typography>
+                const count = getDocumentCount(params.data)
+                if (count === 0) return <Typography variant='caption' color='text.disabled'>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</Typography>
                 return (
                     <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
                         icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
@@ -757,7 +397,7 @@ export default function SearchResult() {
             minWidth: 140,
             valueFormatter: p => p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-'
         }
-    ], [currentUserCode])
+    ], [currentUserCode, openDetailDialog])
 
     return (
         <Grid container spacing={6}>
@@ -771,9 +411,9 @@ export default function SearchResult() {
                             serverSideDatasource={datasource}
                             height={600}
                             masterDetail={true}
-                            detailCellRenderer={DetailRenderer}
+                            detailCellRenderer={LazyDetailRenderer}
                             detailRowAutoHeight={true}
-                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.vendor_id ?? p.data.VENDORS_ID ?? p.rowIndex)}
+                            getRowId={(p: any) => String(p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.VENDORS_ID ?? p.rowIndex)}
                             onGridReady={handleGridReady}
                             initialState={savedGridState}
                             onStateUpdated={handleStateUpdated}
@@ -807,11 +447,11 @@ export default function SearchResult() {
                     </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
-                    {selectedData && <DetailRenderer data={selectedData} />}
+                    {detailLoading ? <DetailLoading /> : selectedData && <DetailRenderer data={selectedData} />}
                 </DialogContent>
             </Dialog>
 
-            {/* GPR C Notification Dialog Ã¢â‚¬â€ Requester Action only */}
+            {/* GPR C Notification Dialog ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Requester Action only */}
             <GprCNotificationDialog
                 open={gprCOpen}
                 rowData={gprCRowData}

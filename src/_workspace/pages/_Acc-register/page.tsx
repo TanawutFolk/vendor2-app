@@ -5,8 +5,9 @@ import { useUpdateEffect } from 'react-use'
 
 import SkeletonCustom from '@components/SkeletonCustom'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
-import { MENU_NAME, breadcrumbNavigation } from './env'
+import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
 import SearchFilter from './SearchFilter'
 import SearchResult from './SearchResult'
 import { AccRegisterSchema, fetchDefaultValues, type AccRegisterFormData } from './validateSchema'
@@ -36,6 +37,7 @@ const InnerApp = () => {
 
     return (
         <FormProvider {...reactHookFormMethods}>
+            {!isLoadingReactHookForm && <DxWatchSearchFilters MENU_ID={MENU_ID} />}
             <Grid container spacing={6}>
                 <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
                     <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />

@@ -7,6 +7,7 @@ export const editVendorSchema = z.object({
     vendor_region: z.enum(['Local', 'Oversea']).nullable().optional(),
     province: z.string().nullable().optional(),
     postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
     website: z.string().nullable().optional(),
     tel_center: z.string().nullable().optional(),
     emailmain: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
@@ -43,6 +44,20 @@ export const editVendorSchema = z.object({
             UPDATE_DATE: z.string().nullable().optional()
         })
     ).optional()
+}).superRefine((data, ctx) => {
+    if (data.vendor_region === 'Oversea') {
+        if (!data.country?.trim()) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['country'], message: 'Country is required' })
+        }
+        return
+    }
+
+    if (!data.province?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['province'], message: 'Province is required' })
+    }
+    if (!data.postal_code?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['postal_code'], message: 'Postal Code is required' })
+    }
 });
 
 export type EditVendorSchemaType = z.infer<typeof editVendorSchema>;

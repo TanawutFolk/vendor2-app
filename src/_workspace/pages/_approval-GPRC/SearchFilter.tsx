@@ -10,14 +10,13 @@ import { Controller, useFormContext, useFormState } from 'react-hook-form'
 import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 
 // React Query Imports
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 import SkeletonCustom from '@components/SkeletonCustom'
 
 // Utils Imports
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -39,12 +38,12 @@ const SearchFilter = () => {
         setValue('searchFilters', defaultSearchFilters)
 
         setIsEnableFetching(true)
-        handleAdd()
+        save()
     }
 
     const onSubmit: SubmitHandler<ApprovalGprCFormData> = () => {
         setIsEnableFetching(true)
-        handleAdd()
+        save()
     }
 
     const onError: SubmitErrorHandler<ApprovalGprCFormData> = data => {
@@ -52,25 +51,10 @@ const SearchFilter = () => {
         console.log(data)
     }
 
-    const handleAdd = () => {
-        mutate({
-            USER_ID: getUserData().USER_ID,
-            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-            MENU_ID: MENU_ID.toString(),
-            USER_PROFILE_SETTING_PROGRAM_DATA: {
-                searchFilters: getValues('searchFilters'),
-                searchResults: {
-                    approvalGridState: getValues('searchResults.approvalGridState'),
-                    actionRequiredGridState: getValues('searchResults.actionRequiredGridState'),
-                },
-            } as ApprovalGprCFormData,
-        })
-    }
-
-    const onMutateSuccess = () => {}
-    const onMutateError = (_error: unknown) => {}
-
-    const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
+    const { save, isError, error } = useDxSaveSearchFilters<ApprovalGprCFormData>({
+        MENU_ID,
+        searchResultsPaths: ['searchResults.approvalGridState', 'searchResults.actionRequiredGridState'],
+    })
 
     return (
         <Card style={{ overflow: 'visible', zIndex: 4 }}>

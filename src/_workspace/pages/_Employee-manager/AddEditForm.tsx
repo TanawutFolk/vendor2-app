@@ -7,8 +7,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
-import { useSaveAssignee } from '@_workspace/react-query/useAssigneesMutation'
+import { useQueryClient } from '@tanstack/react-query'
+import { useSaveAssignee, PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useAssignees'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
 import { AssigneesFormSchema, defaultAssigneeFormValues, type AssigneeFormData, type AssigneeRow } from './validateSchema'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -43,8 +45,26 @@ const mapGroupOption = (item: GroupOptionSource): GroupOption => ({
 })
 
 const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) => {
-    const { mutate: saveAssignee, isPending } = useSaveAssignee()
+    const queryClient = useQueryClient()
     const user = getUserData()
+
+    const onMutateSuccess = (resData: any) => {
+        if (resData?.Status) {
+            ToastMessageSuccess({ title: 'Save Assignee', message: resData.Message || 'Saved successfully' })
+        }
+        queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
+        onSaved?.()
+        onClose()
+    }
+
+    const onMutateError = (error: any) => {
+        ToastMessageError({
+            title: 'Save Assignee',
+            message: error?.response?.data?.Message || error.message || 'Failed to save assignee'
+        })
+    }
+
+    const { mutate: saveAssignee, isPending } = useSaveAssignee(onMutateSuccess, onMutateError)
     const [defaultGroupOptions, setDefaultGroupOptions] = useState<GroupOption[]>([])
 
     const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<AssigneeFormData>({
@@ -80,7 +100,7 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) 
             return
         }
 
-        AssigneesServices.getGroups({ keyword: '' })
+        AssigneesServices.getGroups({ KEYWORD: '' })
             .then(res => {
                 if (!isMounted) return
                 const options = (res.data?.ResultOnDb || []).map(mapGroupOption)
@@ -97,20 +117,20 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) 
 
     const onSubmit = (data: AssigneeFormData) => {
         saveAssignee({
-            ...data,
+            ASSIGNEES_TO_ID: data.Assignees_id,
+            EMPCODE: data.empcode,
+            EMPNAME: data.empName,
+            EMPEMAIL: data.empEmail,
+            GROUP_CODE: data.group_code,
+            GROUP_NAME: data.group_name,
             CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
             INUSE: normalizeInUse(data.INUSE)
-        }, {
-            onSuccess: () => {
-                onSaved?.()
-                onClose()
-            }
         })
     }
 
     const loadGroupOptions = async (inputValue: string) => {
-        const res = await AssigneesServices.getGroups({ keyword: inputValue || '' })
+        const res = await AssigneesServices.getGroups({ KEYWORD: inputValue || '' })
         const options = (res.data?.ResultOnDb || []).map(mapGroupOption)
         setDefaultGroupOptions(prev => {
             const map = new Map<string, GroupOption>()

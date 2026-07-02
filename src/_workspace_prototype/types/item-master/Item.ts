@@ -1,0 +1,9 @@
+export interface ItemI {
+  ITEM_MANUFACTURING_ID: number
+  ITEM_ID: number
+  ITEM_CATEGORY_ID: number
+  ITEM_CATEGORY_NAME: string
+  ITEM_CATEGORY_ALPHABET: string
+  ITEM_CATEGORY_SHORT_NAME: string
+  ITEM_CODE_FOR_SUPPORT_MES: string
+}

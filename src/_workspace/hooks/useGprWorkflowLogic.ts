@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { isAgreementReachedStep, isIssueGprBStep, isIssueGprCStep, isPendingAgreementStep, isPicStep } from '@_workspace/utils/requestWorkflow'
+import { isIssueGprBStep, isIssueGprCStep, isPendingAgreementStep, isPicStep } from '@_workspace/utils/requestWorkflow'
 
 interface StatusOptionLike {
     value?: string
@@ -64,7 +64,6 @@ const useGprWorkflowLogic = ({
 
         const isCurrentIssueGprBStep = !!currentStep && isIssueGprBStep(currentStep)
         const isCurrentIssueGprCStep = !!currentStep && isIssueGprCStep(currentStep)
-        const isCurrentAgreementReachedStep = !!currentStep && isAgreementReachedStep(currentStep)
         const isApproveBypassEnabled = isCurrentIssueGprBStep || allowApproveBypass
         const isPostSendGprBFlow = isCurrentIssueGprBStep || isCurrentIssueGprCStep || allowApproveBypass || hasSentGprCInSession
 
@@ -83,7 +82,7 @@ const useGprWorkflowLogic = ({
         const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.STEP_STATUS || '').toLowerCase()))
         const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
 
-        const showSendToCheckerBtn = isPicPostVendorStep && (isCurrentAgreementReachedStep || (isCurrentIssueGprCStep && hasGprCApproved))
+        const showSendToCheckerBtn = isPicPostVendorStep && isCurrentIssueGprCStep && hasGprCApproved
         const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
         const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
         const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
@@ -104,7 +103,6 @@ const useGprWorkflowLogic = ({
             isPicPostVendorStep,
             isCurrentIssueGprBStep,
             isCurrentIssueGprCStep,
-            isCurrentAgreementReachedStep,
             isPostSendGprBFlow,
             isApproveBypassEnabled,
             showSendToCheckerBtn,

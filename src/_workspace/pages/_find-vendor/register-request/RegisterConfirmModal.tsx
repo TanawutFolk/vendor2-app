@@ -73,10 +73,10 @@ const InfoField = ({ label, value }: { label: string; value?: string | React.Rea
         </Typography>
         {typeof value === 'string' ? (
             <Typography variant='body2' sx={{ color: value ? 'text.primary' : 'text.disabled', fontStyle: value ? 'normal' : 'italic' }}>
-                {value || '—'}
+                {value || 'â€”'}
             </Typography>
         ) : (
-            value || <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>—</Typography>
+            value || <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>â€”</Typography>
         )}
     </Box>
 )
@@ -144,15 +144,17 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
     // Watch values for UI logic
     const files = watch('files')
     const contactOptions = React.useMemo(() => {
+        // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
+        const vd = vendorData as any
         const parsedContacts = parseContactOptions(vendorData)
         const contacts = parsedContacts.length > 0
             ? parsedContacts
             : [{
-                vendor_contact_id: vendorData?.vendor_contact_id,
-                contact_name: vendorData?.contact_name,
-                email: vendorData?.email,
-                tel_phone: vendorData?.tel_phone,
-                position: vendorData?.position
+                vendor_contact_id: vd?.vendor_contact_id ?? vd?.VENDOR_CONTACTS_ID,
+                contact_name: vd?.contact_name ?? vd?.CONTACT_NAME,
+                email: vd?.email ?? vd?.EMAIL,
+                tel_phone: vd?.tel_phone ?? vd?.TEL_PHONE,
+                position: vd?.position ?? vd?.POSITION
             }]
 
         const seen = new Set<string>()
@@ -352,7 +354,28 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                         </Typography>
                     </Box>
 
-                    {step === 1 && vendorData && (
+                    {step === 1 && vendorData && (() => {
+                        // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
+                        const vd = vendorData as any
+                        const companyName = vd.company_name ?? vd.COMPANY_NAME
+                        const vendorTypeName = vd.vendor_type_name ?? vd.VENDOR_TYPE_NAME
+                        const vendorRegion = vd.vendor_region ?? vd.VENDOR_REGION
+                        const country = vd.country ?? vd.COUNTRY
+                        const province = vd.province ?? vd.PROVINCE
+                        const website = vd.website ?? vd.WEBSITE
+                        const telCenter = vd.tel_center ?? vd.TEL_CENTER
+                        const statusCheck = vd.status_check ?? vd.STATUS_CHECK
+                        const address = vd.address ?? vd.ADDRESS
+                        const contactName = vd.contact_name ?? vd.CONTACT_NAME
+                        const email = vd.email ?? vd.EMAIL
+                        const emailmain = vd.emailmain ?? vd.EMAILMAIN
+                        const telPhone = vd.tel_phone ?? vd.TEL_PHONE
+                        const groupName = vd.group_name ?? vd.GROUP_NAME
+                        const makerName = vd.maker_name ?? vd.MAKER_NAME
+                        const productName = vd.product_name ?? vd.PRODUCT_NAME
+                        const modelList = vd.model_list ?? vd.MODEL_LIST
+
+                        return (
                         <Box sx={{
                             p: 2.5, borderRadius: 1.5,
                             bgcolor: 'background.paper',
@@ -363,44 +386,50 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                             overflowY: 'auto'
                         }}>
                             <Typography variant="h6" fontWeight={800} color="primary.main" sx={{ mb: 2 }}>
-                                {vendorData.company_name}
+                                {companyName}
                             </Typography>
 
                             {/* Company Profile */}
                             <SectionHeader icon="tabler-building-store" title="Company Profile" />
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Vendor Type" value={vendorData.vendor_type_name} />
+                                    <InfoField label="Vendor Type" value={vendorTypeName} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <InfoField
                                         label="Region"
                                         value={
-                                            vendorData.vendor_region ? (
+                                            vendorRegion ? (
                                                     <Chip
                                                         size="small"
-                                                        label={vendorData.vendor_region === 'Oversea' ? 'Oversea' : 'Local'}
-                                                        color={vendorData.vendor_region === 'Oversea' ? 'info' : 'success'}
-                                                        sx={getChipSx(getRegionTone(vendorData.vendor_region), { height: 22 })}
+                                                        label={vendorRegion === 'Oversea' ? 'Oversea' : 'Local'}
+                                                        color={vendorRegion === 'Oversea' ? 'info' : 'success'}
+                                                        sx={getChipSx(getRegionTone(vendorRegion), { height: 22 })}
                                                     />
                                             ) : undefined
                                         }
                                     />
                                 </Grid>
+                                {vendorRegion === 'Oversea' ? (
+                                    <Grid item xs={12} sm={6}>
+                                        <InfoField label="Country" value={country} />
+                                    </Grid>
+                                ) : (
+                                    <Grid item xs={12} sm={6}>
+                                        <InfoField label="Province" value={province} />
+                                    </Grid>
+                                )}
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Province" value={vendorData.province} />
+                                    <InfoField label="Website" value={website} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Website" value={vendorData.website} />
+                                    <InfoField label="Tel Company" value={telCenter} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Tel Company" value={vendorData.tel_center} />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <InfoField label="Prones Status" value={vendorData.status_check} />
+                                    <InfoField label="Prones Status" value={statusCheck} />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <InfoField label="Address" value={vendorData.address} />
+                                    <InfoField label="Address" value={address} />
                                 </Grid>
                             </Grid>
 
@@ -410,13 +439,13 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                             <SectionHeader icon="tabler-users" title="Contact Info" />
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Contact Name" value={vendorData.contact_name} />
+                                    <InfoField label="Contact Name" value={contactName} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Email" value={vendorData.email || vendorData.emailmain} />
+                                    <InfoField label="Email" value={email || emailmain} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Tel Contact" value={vendorData.tel_phone} />
+                                    <InfoField label="Tel Contact" value={telPhone} />
                                 </Grid>
                             </Grid>
 
@@ -426,20 +455,21 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                             <SectionHeader icon="tabler-package" title="Products / Services" />
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Product Group" value={vendorData.group_name} />
+                                    <InfoField label="Product Group" value={groupName} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Maker Name" value={vendorData.maker_name} />
+                                    <InfoField label="Maker Name" value={makerName} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <InfoField label="Product Name" value={vendorData.product_name} />
+                                    <InfoField label="Product Name" value={productName} />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <InfoField label="Model List" value={vendorData.model_list ? vendorData.model_list.replace(/\n/g, ', ') : undefined} />
+                                    <InfoField label="Model List" value={modelList ? modelList.replace(/\n/g, ', ') : undefined} />
                                 </Grid>
                             </Grid>
                         </Box>
-                    )}
+                        )
+                    })()}
 
                     {step === 2 && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>

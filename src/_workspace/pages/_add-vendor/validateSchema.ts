@@ -46,9 +46,7 @@ const ProductGroupOptionSchema = z.object({
 })
 
 export const ProductSchema = z.object({
-    product_group: ProductGroupOptionSchema.refine(val => val !== null && val !== undefined, {
-        message: requiredFieldMessage({ fieldName: 'Product Group' })
-    }),
+    product_group: ProductGroupOptionSchema.nullable().optional(),
     maker_name: z
         .string({
             required_error: requiredFieldMessage({ fieldName: 'Maker Name' }),
@@ -78,20 +76,25 @@ export const AddVendorSchema = z.object({
         .max(200, maxLengthFieldMessage({ fieldName: 'Company Name', maxLength: 200 })),
     province: z
         .string({
-            required_error: requiredFieldMessage({ fieldName: 'Province' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Province', typeName: 'String' })
         })
-        .min(1, requiredFieldMessage({ fieldName: 'Province' }))
-        .max(50, maxLengthFieldMessage({ fieldName: 'Province', maxLength: 50 })),
+        .max(50, maxLengthFieldMessage({ fieldName: 'Province', maxLength: 50 }))
+        .optional()
+        .or(z.literal('')),
     postal_code: z
         .string({
-            required_error: requiredFieldMessage({ fieldName: 'Postal Code' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Postal Code', typeName: 'String' })
         })
-        .min(1, requiredFieldMessage({ fieldName: 'Postal Code' }))
-        .max(10, maxLengthFieldMessage({ fieldName: 'Postal Code', maxLength: 10 })),
-
-    // Profile Section
+        .max(10, maxLengthFieldMessage({ fieldName: 'Postal Code', maxLength: 10 }))
+        .optional()
+        .or(z.literal('')),
+    country: z
+        .string({
+            invalid_type_error: typeFieldMessage({ fieldName: 'Country', typeName: 'String' })
+        })
+        .max(100, maxLengthFieldMessage({ fieldName: 'Country', maxLength: 100 }))
+        .optional()
+        .or(z.literal('')),
     // Profile Section
     vendor_type: z.object({
         value: z.number(),
@@ -140,6 +143,23 @@ export const AddVendorSchema = z.object({
     CREATE_BY: z.string({
         required_error: requiredFieldMessage({ fieldName: 'Creator' })
     })
+
+}).superRefine((data, ctx) => {
+    const isOversea = data.vendor_region === 'Oversea'
+
+    if (isOversea) {
+        if (!data.country?.trim()) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['country'], message: requiredFieldMessage({ fieldName: 'Country' }) })
+        }
+        return
+    }
+
+    if (!data.province?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['province'], message: requiredFieldMessage({ fieldName: 'Province' }) })
+    }
+    if (!data.postal_code?.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['postal_code'], message: requiredFieldMessage({ fieldName: 'Postal Code' }) })
+    }
 })
 
 // --- Types ---
@@ -156,7 +176,7 @@ export const defaultContactValues: ContactFormData = {
 }
 
 export const defaultProductValues: ProductFormData = {
-    product_group: undefined as any, // Will be set by user
+    product_group: undefined as any,
     maker_name: '',
     product_name: '',
     model_list: ''
@@ -166,6 +186,7 @@ export const defaultAddVendorValues: AddVendorFormData = {
     company_name: '',
     province: '',
     postal_code: '',
+    country: '',
     vendor_type: undefined as any,
     vendor_type_name: '',
     vendor_region: 'Local',

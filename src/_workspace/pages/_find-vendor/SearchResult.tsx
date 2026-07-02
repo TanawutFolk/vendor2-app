@@ -65,7 +65,7 @@ const SearchResult = () => {
         setIsEnableFetching
     })
 
-    // â”€â”€ Server-Side Datasource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Server-Side Datasource Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
             try {
@@ -78,12 +78,13 @@ const SearchResult = () => {
                 const sortModel = params.request.sortModel
                 const orderParams = sortModel && sortModel.length > 0
                     ? sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
-                    : [{ id: 'company_name', desc: false }]
+                    : [{ id: 'COMPANY_NAME', desc: false }]
 
                 const res = await FindVendorServices.search({
-                    SearchFilters: [
+                    SEARCHFILTERS: [
                         { id: 'global_search', value: currentFilters?.global_search || '' },
                         { id: 'company_name', value: currentFilters?.company_name || '' },
+                        { id: 'country', value: currentFilters?.country || '' },
                         { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
                         { id: 'province', value: currentFilters?.province?.value || '' },
                         { id: 'product_group_id', value: currentFilters?.product_group_id?.value || null },
@@ -102,36 +103,9 @@ const SearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
-                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
-                        fft_status: row.fft_status ?? row.FFT_STATUS,
-                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCTS_ID,
-                        product_group_id: row.product_group_id ?? row.MASTER_PRODUCT_GROUPS_ID,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        vendor_type_id: row.vendor_type_id ?? row.MASTER_VENDOR_TYPES_ID,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        province: row.province ?? row.PROVINCE,
-                        postal_code: row.postal_code ?? row.POSTAL_CODE,
-                        website: row.website ?? row.WEBSITE,
-                        address: row.address ?? row.ADDRESS,
-                        tel_center: row.tel_center ?? row.TEL_CENTER,
-                        emailmain: row.emailmain ?? row.EMAILMAIN,
-                        group_name: row.group_name ?? row.GROUP_NAME,
-                        maker_name: row.maker_name ?? row.MAKER_NAME,
-                        product_name: row.product_name ?? row.PRODUCT_NAME,
-                        model_list: row.model_list ?? row.MODEL_LIST,
-                        contact_name: row.contact_name ?? row.CONTACT_NAME,
-                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
-                        email: row.email ?? row.EMAIL,
-                        position: row.position ?? row.POSITION,
-                        match_method: row.match_method ?? row.MATCH_METHOD,
-                        prones_code: row.prones_code ?? row.PRONES_CODE,
-                        prones_name_en: row.prones_name_en ?? row.PRONES_NAME,
-                        reject_reason: row.reject_reason ?? row.APPROVER_REMARK,
-                    }))
+                    // Option A: backend returns UPPER-cased column keys directly;
+                    // the grid/detail/register modals read those keys as-is.
+                    const rowData = result.ResultOnDb || []
                     params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -141,19 +115,20 @@ const SearchResult = () => {
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), []) // getValues is a stable ref â€” no need to re-create datasource
+    }), []) // getValues is a stable ref Ã¢â‚¬â€ no need to re-create datasource
 
-    // â”€â”€ Column State Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Read saved state once on mount â€” AG Grid restores it via initialState prop
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Column State Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // Read saved state once on mount Ã¢â‚¬â€ AG Grid restores it via initialState prop
 
     // Persist to RHF whenever AG Grid state changes (sort, pin, reorder, hide)
 
-    // â”€â”€ Export helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Export helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const buildSearchFilters = () => {
         const f = getValues('searchFilters')
         return [
             { id: 'global_search',   value: f?.global_search || '' },
             { id: 'company_name',    value: f?.company_name || '' },
+            { id: 'country',         value: f?.country || '' },
             { id: 'vendor_type_id',  value: f?.vendor_type_id?.value || null },
             { id: 'province',        value: f?.province?.value || '' },
             { id: 'product_group_id',value: f?.product_group_id?.value || null },
@@ -190,7 +165,7 @@ const SearchResult = () => {
                 ?.map((c: any) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
 
             const file = await FindVendorServices.downloadFileForExport({
-                DataForFetch: { SearchFilters: buildSearchFilters(), ColumnFilters: [], Order: sortModel },
+                DATAFORFETCH: { SEARCHFILTERS: buildSearchFilters(), COLUMNFILTERS: [], ORDER: sortModel },
                 TYPE: 'AllPage'
             })
             saveAs(file.data, `Vendor_List_All_${buildTimestamp()}.xlsx`)
@@ -204,7 +179,7 @@ const SearchResult = () => {
         }
     }
 
-    // â”€â”€ Edit / Register handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Edit / Register handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const handleEditClick = useCallback((vendorId: number, data: any) => {
         void vendorId
         setSelectedRowData(data)
@@ -230,7 +205,7 @@ const SearchResult = () => {
             const payload = new FormData()
             const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
 
-            payload.append('VENDORS_ID', String(selectedRegisterVendor.vendor_id))
+            payload.append('VENDORS_ID', String(selectedRegisterVendor.VENDORS_ID))
             payload.append('VENDOR_CONTACTS_ID', selectedContactIds[0] || '')
             selectedContactIds.forEach((contactId: string) => {
                 payload.append('VENDOR_CONTACT_IDS[]', contactId)
@@ -266,7 +241,7 @@ const SearchResult = () => {
         }
     }
 
-    // ── Column Definitions ──────────────────────────────────────────────────────────────────
+    // â”€â”€ Column Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const columnDefs = useMemo<ColDef[]>(() => [
         {
             headerName: 'Actions',
@@ -285,20 +260,20 @@ const SearchResult = () => {
             floatingFilter: false,
             suppressMovable: true
         },
-        { field: 'company_name',    headerName: 'Company Name',  width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
+        { field: 'COMPANY_NAME',    headerName: 'Company Name',  width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
         {
-            field: 'status_check',   headerName: 'Prones Status', width: 140, filter: 'agTextColumnFilter', pinned: 'left',
+            field: 'STATUS_CHECK',   headerName: 'Prones Status', width: 140, filter: 'agTextColumnFilter', pinned: 'left',
             cellRenderer: StatusCheckCellRenderer,
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
         },
-        { field: 'prones_code',     headerName: 'Prones Code',   width: 105, filter: 'agTextColumnFilter', pinned: 'left', valueFormatter: (p) => p.value || '-' },
-        { field: 'vendor_type_name',headerName: 'Vendor Type',   width: 150, filter: 'agTextColumnFilter' },
+        { field: 'PRONES_CODE',     headerName: 'Prones Code',   width: 105, filter: 'agTextColumnFilter', pinned: 'left', valueFormatter: (p) => p.value || '-' },
+        { field: 'VENDOR_TYPE_NAME',headerName: 'Vendor Type',   width: 150, filter: 'agTextColumnFilter' },
         {
-            field: 'vendor_region', headerName: 'Region', width: 110, filter: 'agTextColumnFilter',
+            field: 'VENDOR_REGION', headerName: 'Region', width: 110, filter: 'agTextColumnFilter',
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
             cellRenderer: (params: any) => {
                 const val = params.value
-                if (!val) return <span style={{ color: '#9e9e9e' }}>—</span>
+                if (!val) return <span style={{ color: '#9e9e9e' }}>â€”</span>
                 const tone = getRegionTone(val)
                 return (
                     <Chip
@@ -310,15 +285,16 @@ const SearchResult = () => {
                 )
             }
         },
-        { field: 'province',     headerName: 'Province',      width: 150, filter: 'agTextColumnFilter' },
-        { field: 'emailmain',    headerName: 'Email (Main)',   width: 220, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer },
-        { field: 'group_name',   headerName: 'Product group', width: 165, filter: 'agTextColumnFilter' },
-        { field: 'maker_name',   headerName: 'Maker Name',    width: 150, filter: 'agTextColumnFilter' },
-        { field: 'product_name', headerName: 'Product Name',  width: 180, filter: 'agTextColumnFilter' },
-        { field: 'model_list',   headerName: 'Model List',    width: 180, filter: 'agTextColumnFilter', valueFormatter: (p) => p.value ? p.value.replace(/\n/g, ', ') : '' },
-        { field: 'contact_name', headerName: 'Contact Name',  width: 180, filter: 'agTextColumnFilter' },
-        { field: 'tel_phone',    headerName: 'Tel. Contact',  width: 125, filter: 'agTextColumnFilter' },
-        { field: 'email',        headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer }
+        { field: 'COUNTRY',      headerName: 'Country',       width: 150, filter: 'agTextColumnFilter', valueFormatter: (p) => p.value || '-' },
+        { field: 'PROVINCE',     headerName: 'Province',      width: 150, filter: 'agTextColumnFilter' },
+        { field: 'EMAILMAIN',    headerName: 'Email (Main)',   width: 220, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer },
+        { field: 'GROUP_NAME',   headerName: 'Product group', width: 165, filter: 'agTextColumnFilter' },
+        { field: 'MAKER_NAME',   headerName: 'Maker Name',    width: 150, filter: 'agTextColumnFilter' },
+        { field: 'PRODUCT_NAME', headerName: 'Product Name',  width: 180, filter: 'agTextColumnFilter' },
+        { field: 'MODEL_LIST',   headerName: 'Model List',    width: 180, filter: 'agTextColumnFilter', valueFormatter: (p) => p.value ? p.value.replace(/\n/g, ', ') : '' },
+        { field: 'CONTACT_NAME', headerName: 'Contact Name',  width: 180, filter: 'agTextColumnFilter' },
+        { field: 'TEL_PHONE',    headerName: 'Tel. Contact',  width: 125, filter: 'agTextColumnFilter' },
+        { field: 'EMAIL',        headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer }
     ], [handleEditClick, handleRegisterClick])
 
     return (
@@ -363,9 +339,9 @@ const SearchResult = () => {
                 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: any) => {
-                    const vendorId   = params.data.vendor_id || params.data.VENDORS_ID || 0
-                    const productId  = params.data.vendor_product_id || params.data.VENDOR_PRODUCTS_ID || 0
-                    const contactId  = params.data.vendor_contact_id || params.data.VENDOR_CONTACTS_ID || 0
+                    const vendorId   = params.data.VENDORS_ID || 0
+                    const productId  = params.data.VENDOR_PRODUCTS_ID || 0
+                    const contactId  = params.data.VENDOR_CONTACTS_ID || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
             />

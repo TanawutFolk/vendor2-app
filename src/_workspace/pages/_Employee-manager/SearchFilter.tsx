@@ -14,10 +14,12 @@ import SelectCustom from '@components/react-select/SelectCustom'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 
 // Types & Schema
 import type { AssigneeGroupOption, AssigneesFormData } from './validateSchema'
 import { defaultSearchFilters } from './validateSchema'
+import { MENU_ID } from './env'
 import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import type { GroupOptionSource, SelectOption } from '@_workspace/types/_Employee-manager/EmployeeManagerTypes'
@@ -45,17 +47,21 @@ const SearchFilter = () => {
 
     const { setValue, control, handleSubmit } = useFormContext<AssigneesFormData>()
     const { setIsEnableFetching } = useDxContext()
+    const { save } = useDxSaveSearchFilters<AssigneesFormData>({ MENU_ID })
 
-    const onResetFormSearch = async () => {
+    const onResetFormSearch = () => {
         setValue('searchFilters', defaultSearchFilters)
+        setIsEnableFetching(true)
+        save(defaultSearchFilters)
     }
 
     const onSubmit = () => {
         setIsEnableFetching(true)
+        save()
     }
 
     const loadGroupOptions = async (inputValue: string) => {
-        const res = await AssigneesServices.getGroups({ keyword: inputValue || '' })
+        const res = await AssigneesServices.getGroups({ KEYWORD: inputValue || '' })
         return (res.data?.ResultOnDb || []).map(mapGroupOption)
     }
 

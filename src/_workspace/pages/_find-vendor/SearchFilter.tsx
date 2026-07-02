@@ -12,9 +12,8 @@ import SelectCustom from '@components/react-select/SelectCustom'
 
 // react-query Imports
 import { useQueryClient } from '@tanstack/react-query'
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useFindVendor'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useFindVendor'
 import { useDxContext } from '@/_template/DxContextProvider'
 
 // Fetch functions
@@ -33,7 +32,7 @@ const SearchFilter = () => {
     const [collapse, setCollapse] = useState(false)
 
     // react-hook-form
-    const { setValue, getValues, control, handleSubmit } = useFormContext<FindVendorFormData>()
+    const { setValue, control, handleSubmit } = useFormContext<FindVendorFormData>()
 
     // react-query
     const queryClient = useQueryClient()
@@ -49,43 +48,14 @@ const SearchFilter = () => {
     const onSubmit = () => {
         setIsEnableFetching(true)
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-        handleAdd()
+        save()
     }
 
     const onError = (data: any) => {
         console.log(data)
     }
 
-    // react-query
-    const handleAdd = () => {
-        const dataItem = {
-            USER_ID: getUserData().USER_ID,
-            APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-            MENU_ID: MENU_ID.toString(),
-            USER_PROFILE_SETTING_PROGRAM_DATA: {
-                searchFilters: {
-                    company_name: getValues('searchFilters.company_name'),
-                    global_search: getValues('searchFilters.global_search'),
-                    vendor_type_id: getValues('searchFilters.vendor_type_id'),
-                    province: getValues('searchFilters.province'),
-                    product_group_id: getValues('searchFilters.product_group_id'),
-                    status: getValues('searchFilters.status'),
-                    inuse: getValues('searchFilters.inuse'),
-                    product_name: getValues('searchFilters.product_name'),
-                    maker_name: getValues('searchFilters.maker_name'),
-                    model_list: getValues('searchFilters.model_list'),
-                    fft_vendor_code: getValues('searchFilters.fft_vendor_code')
-                },
-                searchResults: {
-                    agGridState: getValues('searchResults.agGridState')
-                }
-            }
-        }
-
-        mutate(dataItem)
-    }
-
-    const { mutate } = useCreate(() => {}, () => {})
+    const { save } = useDxSaveSearchFilters<FindVendorFormData>({ MENU_ID })
 
 
 
@@ -134,6 +104,21 @@ const SearchFilter = () => {
                             />
                         </Grid>
 
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Controller
+                                name='searchFilters.country'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Country'
+                                        placeholder='Enter ...'
+                                        autoComplete='off'
+                                    />
+                                )}
+                            />
+                        </Grid>
                         <Grid item xs={12} sm={6} md={3}>
                             <Controller
                                 name='searchFilters.vendor_type_id'

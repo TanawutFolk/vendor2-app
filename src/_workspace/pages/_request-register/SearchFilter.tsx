@@ -17,11 +17,10 @@ import SkeletonCustom from '@components/SkeletonCustom'
 // React Query Imports
 import { useQueryClient } from '@tanstack/react-query'
 
-import { useCreate } from '@/libs/react-query/hooks/common-system/useUserProfileSettingProgram'
-import useRequestStatusOptions from '@_workspace/react-query/useRequestStatusOptions'
+import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
+import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestStatusOptions'
 
 // Utils Imports
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Context
 import { useDxContext } from '@/_template/DxContextProvider'
@@ -32,7 +31,7 @@ import { defaultSearchFilters } from './validateSchema'
 import { MENU_ID } from './env'
 
 // TODO: เปลี่ยน path นี้ให้ตรงกับ hook/query key ของหน้านี้
-import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/vendor/useRegisterRequestHooks'
+import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useRegisterRequest'
 
 const SearchFilter = () => {
   // Context
@@ -53,14 +52,14 @@ const SearchFilter = () => {
 
     setIsEnableFetching(true)
     queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-    handleAdd()
+    save()
   }
 
   // Function : react-hook-form
   const onSubmit: SubmitHandler<RequestRegisterFormData> = () => {
     setIsEnableFetching(true)
     queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
-    handleAdd()
+    save()
   }
 
   const onError: SubmitErrorHandler<RequestRegisterFormData> = data => {
@@ -68,27 +67,7 @@ const SearchFilter = () => {
     console.log(data)
   }
 
-  const handleAdd = () => {
-    const dataItem = {
-      USER_ID: getUserData().USER_ID,
-      APPLICATION_ID: import.meta.env.VITE_APPLICATION_ID,
-      MENU_ID: MENU_ID.toString(),
-      USER_PROFILE_SETTING_PROGRAM_DATA: {
-        searchFilters: getValues('searchFilters'),
-        searchResults: {
-          agGridState: getValues('searchResults.agGridState')
-        }
-      } as RequestRegisterFormData
-    }
-
-    mutate(dataItem)
-  }
-
-  const onMutateSuccess = () => {}
-
-  const onMutateError = (e: any) => {}
-
-  const { mutate, isError, error } = useCreate(onMutateSuccess, onMutateError)
+  const { save, isError, error } = useDxSaveSearchFilters<RequestRegisterFormData>({ MENU_ID })
 
   return (
     <Card style={{ overflow: 'visible', zIndex: 4 }}>

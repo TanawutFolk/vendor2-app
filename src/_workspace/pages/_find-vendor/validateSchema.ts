@@ -10,6 +10,7 @@ import { MENU_ID } from './env'
 // --- Search Filters Schema ---
 export const SearchFiltersSchema = z.object({
     company_name: z.string().optional().or(z.literal('')),
+    country: z.string().optional().or(z.literal('')),
     vendor_type_id: z.object({
         value: z.number(),
         label: z.string()
@@ -55,6 +56,7 @@ export type FindVendorFormData = z.infer<typeof FindVendorSchema>
 // Default Values
 export const defaultSearchFilters: SearchFiltersFormData = {
     company_name: '',
+    country: '',
     vendor_type_id: null,
     province: null,
     product_group_id: null,
@@ -79,6 +81,7 @@ export const columns = [
     'status_check',
     'prones_code',
     'vendor_type_name',
+    'country',
     'province',
     'website',
     'address',

@@ -26,6 +26,10 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
         control,
         name: 'vendor_type_name',
     })
+    const watchedVendorRegion = useWatch({
+        control,
+        name: 'vendor_region',
+    })
 
     const currentVendorTypeLabel =
         watchedVendorTypeName
@@ -130,6 +134,16 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                                         label='Vendor Region'
                                         value={field.value || 'Local'}
                                         size='small'
+                                        onChange={event => {
+                                            const nextRegion = event.target.value as 'Local' | 'Oversea'
+                                            field.onChange(nextRegion)
+                                            if (nextRegion === 'Oversea') {
+                                                setValue('province', '')
+                                                setValue('postal_code', '')
+                                            } else {
+                                                setValue('country', '')
+                                            }
+                                        }}
                                     >
                                         <MenuItem value='Local'>Local</MenuItem>
                                         <MenuItem value='Oversea'>Oversea</MenuItem>
@@ -138,44 +152,68 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                             )}
                         />
                     </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Controller
-                            name='province'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Province'
-                                    value={field.value || ''}
-                                    size='small'
-                                    error={!!errors.province}
-                                    helperText={errors.province?.message}
-                                    disabled={editingMode === 'view'}
-                                    InputProps={{ readOnly: editingMode === 'view' }}
+                    {watchedVendorRegion === 'Oversea' ? (
+                        <Grid item xs={12} md={6}>
+                            <Controller
+                                name='country'
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomTextField
+                                        {...field}
+                                        fullWidth
+                                        label='Country'
+                                        value={field.value || ''}
+                                        size='small'
+                                        error={!!errors.country}
+                                        helperText={errors.country?.message}
+                                        disabled={editingMode === 'view'}
+                                        InputProps={{ readOnly: editingMode === 'view' }}
+                                    />
+                                )}
+                            />
+                        </Grid>
+                    ) : (
+                        <>
+                            <Grid item xs={6} md={3}>
+                                <Controller
+                                    name='province'
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomTextField
+                                            {...field}
+                                            fullWidth
+                                            label='Province'
+                                            value={field.value || ''}
+                                            size='small'
+                                            error={!!errors.province}
+                                            helperText={errors.province?.message}
+                                            disabled={editingMode === 'view'}
+                                            InputProps={{ readOnly: editingMode === 'view' }}
+                                        />
+                                    )}
                                 />
-                            )}
-                        />
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Controller
-                            name='postal_code'
-                            control={control}
-                            render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
-                                    label='Postal Code'
-                                    value={field.value || ''}
-                                    size='small'
-                                    error={!!errors.postal_code}
-                                    helperText={errors.postal_code?.message}
-                                    disabled={editingMode === 'view'}
-                                    InputProps={{ readOnly: editingMode === 'view' }}
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Controller
+                                    name='postal_code'
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomTextField
+                                            {...field}
+                                            fullWidth
+                                            label='Postal Code'
+                                            value={field.value || ''}
+                                            size='small'
+                                            error={!!errors.postal_code}
+                                            helperText={errors.postal_code?.message}
+                                            disabled={editingMode === 'view'}
+                                            InputProps={{ readOnly: editingMode === 'view' }}
+                                        />
+                                    )}
                                 />
-                            )}
-                        />
-                    </Grid>
+                            </Grid>
+                        </>
+                    )}
                     <Grid item xs={6} md={3}>
                         <Controller
                             name='website'

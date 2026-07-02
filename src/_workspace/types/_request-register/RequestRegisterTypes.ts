@@ -55,6 +55,7 @@ export interface RegistrationRequest extends Partial<AuditFields> {
     vendor_type: string
     province: string
     postal_code: string
+    country?: string | null
     tel_center: string
     website?: string
     address: string
@@ -153,6 +154,7 @@ export interface RegisterRequestRow {
     FULL_NAME?: string
     EMPLOYEE_CODE?: string
     documents?: unknown
+    documents_count?: number
     CREATE_DATE?: string
     [key: string]: unknown
 }
@@ -161,6 +163,10 @@ export interface EditRequestForm {
     supportProduct_Process: string
     purchase_frequency: string
     requester_remark: string
+}
+
+export interface ActionDialogForm {
+    remark: string
 }
 
 export interface ActionDialogProps {

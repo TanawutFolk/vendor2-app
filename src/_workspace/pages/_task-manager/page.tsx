@@ -18,10 +18,11 @@ import type { TaskManagerFormData } from './validateSchema'
 import { TaskManagerSchema, fetchDefaultValues } from './validateSchema'
 
 // My Components Imports
-import { breadcrumbNavigation, MENU_NAME } from './env'
+import { MENU_ID, breadcrumbNavigation, MENU_NAME } from './env'
 import TaskSearchFilter from './TaskSearchFilter'
 import TaskSearchResult from './TaskSearchResult'
 import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
+import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
 
 function Page() {
     return (
@@ -55,6 +56,7 @@ const InnerApp = () => {
         <>
             <Grid container spacing={6}>
                 <FormProvider {...reactHookFormMethods}>
+                    <DxWatchSearchFilters MENU_ID={MENU_ID} />
                     <Grid
                         item
                         xs={12}

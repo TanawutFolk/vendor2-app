@@ -19,7 +19,8 @@ import { SectionCheck, SectionProfile, SectionContacts, SectionProducts } from '
 import ConfirmModal from '@components/ConfirmModal'
 
 // React Query Imports
-import { useCreate } from '@_workspace/react-query/hooks/vendor/useCreateVendor'
+import { useCreateVendor } from '@_workspace/react-query/hooks/useAddVendor'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 // Schema & Types
 import { AddVendorSchema, defaultAddVendorValues } from './validateSchema'
@@ -49,15 +50,18 @@ const AddVendorPage = () => {
     const { handleSubmit, reset, getValues } = methods
 
     // Hooks : React Query - Create Vendor
-    const { mutate: saveVendor, isPending: isSaving } = useCreate(
-        (response: any) => {
-            const result = response.data || response
+    const { mutate: saveVendor, isPending: isSaving } = useCreateVendor(
+        (data: any) => {
             setConfirmModal(false)
-            if (result.Status) {
+            if (data?.Status) {
+                ToastMessageSuccess({ title: 'Add Vendor', message: 'Vendor added successfully' })
                 handleReset()
+            } else {
+                ToastMessageError({ title: 'Add Vendor', message: data?.Message || 'Failed to create vendor' })
             }
         },
-        () => {
+        (error: any) => {
+            ToastMessageError({ title: 'Add Vendor', message: error?.message || 'Failed to create vendor' })
             setConfirmModal(false)
         }
     )
@@ -86,6 +90,7 @@ const AddVendorPage = () => {
             company_name: getValues('company_name'),
             province: getValues('province'),
             postal_code: getValues('postal_code'),
+            country: getValues('country'),
             vendor_type_id: getValues('vendor_type')?.value || 0,
             vendor_region: getValues('vendor_region'),
             website: getValues('website'),
@@ -93,7 +98,7 @@ const AddVendorPage = () => {
             emailmain: getValues('emailmain'),
             address: getValues('address'),
             note: getValues('note'),
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ถ้าเห็นข้อความนี้ติดต่อพี่มอส',
+            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'à¸–à¹‰à¸²à¹€à¸«à¹‡à¸™à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸™à¸µà¹‰à¸•à¸´à¸”à¸•à¹ˆà¸­à¸žà¸µà¹ˆà¸¡à¸­à¸ª',
             contacts: getValues('contacts').map(c => ({
                 contact_name: c.contact_name,
                 tel_phone: c.tel_phone,
@@ -101,7 +106,7 @@ const AddVendorPage = () => {
                 position: c.position
             })),
             products: getValues('products').map(p => ({
-                product_group_id: p.product_group?.value || 0,
+                product_group_id: p.product_group?.value,
                 maker_name: p.maker_name,
                 product_name: p.product_name,
                 model_list: p.model_list ? p.model_list.split('\n').map(m => m.trim()).filter(m => m).join(', ') : ''
