@@ -257,7 +257,7 @@ export default function SearchResult() {
                 }
 
                 if (!inGprCStep || !isRequester) {
-                    return <Typography variant='caption' color='text.disabled'>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</Typography>
+                    return <Typography variant='caption' color='text.disabled'>-</Typography>
                 }
 
                 if (hasCompletedGprCSetup(params.data)) {
@@ -364,7 +364,7 @@ export default function SearchResult() {
             minWidth: 90,
             cellRenderer: (params: any) => {
                 const count = getDocumentCount(params.data)
-                if (count === 0) return <Typography variant='caption' color='text.disabled'>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</Typography>
+                if (count === 0) return <Typography variant='caption' color='text.disabled'>-</Typography>
                 return (
                     <Chip label={`${count} file${count > 1 ? 's' : ''}`} size='small'
                         icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
