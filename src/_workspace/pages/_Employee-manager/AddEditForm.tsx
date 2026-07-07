@@ -40,8 +40,8 @@ const normalizeInUse = (value: unknown) => {
 }
 
 const mapGroupOption = (item: GroupOptionSource): GroupOption => ({
-    label: String(item.label || item.LABEL || item.group_name || item.GROUP_NAME || item.value || item.VALUE || item.group_code || item.GROUP_CODE || '').trim(),
-    value: String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || '').trim().toUpperCase()
+    label: String(item.label || item.GROUP_NAME || item.value || item.GROUP_CODE || '').trim(),
+    value: String(item.value || item.GROUP_CODE || '').trim().toUpperCase()
 })
 
 const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) => {
@@ -78,12 +78,12 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) 
         if (open) {
             if (initialData) {
                 reset({
-                    Assignees_id: initialData.Assignees_id,
-                    empcode: initialData.empcode || '',
-                    empName: initialData.empName || '',
-                    empEmail: initialData.empEmail || '',
-                    group_code: initialData.group_code || '',
-                    group_name: initialData.group_name || '',
+                    Assignees_id: initialData.ASSIGNEES_TO_ID,
+                    empcode: initialData.EMPCODE || '',
+                    empName: initialData.EMPNAME || '',
+                    empEmail: initialData.EMPEMAIL || '',
+                    group_code: initialData.GROUP_CODE || '',
+                    group_name: initialData.GROUP_NAME || '',
                     INUSE: normalizeInUse(initialData.INUSE)
                 })
             } else {

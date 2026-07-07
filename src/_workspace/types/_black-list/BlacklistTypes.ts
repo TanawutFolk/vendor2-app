@@ -1,22 +1,22 @@
 export type BlacklistGroup = 'US' | 'CN'
 
 export interface BlacklistRow {
-    blacklist_id: number
-    vendor_name: string
-    group_code: BlacklistGroup
-    source_name?: string | null
-    entity_number?: string | null
-    entity_type?: string | null
-    programs?: string | null
-    country?: string | null
-    wmd_type?: string | null
-    description?: string | null
-    create_by?: string | null
-    update_by?: string | null
-    in_use?: 0 | 1
-    alias_count?: number
-    updated_date: string
-    create_date?: string
+    BLACKLIST_ID: number
+    VENDOR_NAME: string
+    GROUP_CODE: BlacklistGroup
+    SOURCE_NAME?: string | null
+    ENTITY_NUMBER?: string | null
+    ENTITY_TYPE?: string | null
+    PROGRAMS?: string | null
+    COUNTRY?: string | null
+    WMD_TYPE?: string | null
+    DESCRIPTION?: string | null
+    CREATE_BY?: string | null
+    UPDATE_BY?: string | null
+    IN_USE?: 0 | 1
+    ALIAS_COUNT?: number
+    UPDATED_DATE: string
+    CREATE_DATE?: string
 }
 
 export interface BlacklistSearchFilters {

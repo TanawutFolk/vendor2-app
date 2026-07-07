@@ -42,7 +42,7 @@ const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase().r
 
 export const getRequestStatusPresentation = (option?: Partial<RawStatusOption>): RequestStatusPresentation => {
     if (!option) return DEFAULT_STATUS_PRESENTATION
-    const stepCode = String(option.stepCode ?? '').trim().toUpperCase()
+    const stepCode = String(option.STEP_CODE ?? '').trim().toUpperCase()
     const resolvedStepCode = stepCode || STEP_CODE_BY_STATUS_VALUE[normalize(option.value || option.label)]
 
     return PRESENTATION_BY_STEP_CODE[resolvedStepCode] ?? DEFAULT_STATUS_PRESENTATION
@@ -53,7 +53,8 @@ export const applyRequestStatusPresentation = (option: RawStatusOption): StatusO
         return {
             label: '',
             value: '',
-            sortOrder: 0,
+            M_REQUEST_STATUS_ID: 0,
+            DEFAULT_STEP_ORDER: 0,
             chipColor: 'default',
             accent: '#8A8D99',
             icon: 'tabler-file'

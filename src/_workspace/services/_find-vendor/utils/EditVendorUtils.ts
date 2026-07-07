@@ -10,30 +10,30 @@ import type {
 export class EditVendorUtils {
     private static normalizeContact(contact: any): VendorContactI {
         return {
-            vendor_contact_id: contact?.vendor_contact_id ?? contact?.VENDOR_CONTACTS_ID,
-            contact_name: contact?.contact_name ?? contact?.CONTACT_NAME ?? '',
-            position: contact?.position ?? contact?.POSITION ?? '',
-            tel_phone: contact?.tel_phone ?? contact?.TEL_PHONE ?? '',
-            email: contact?.email ?? contact?.EMAIL ?? '',
-            CREATE_BY: contact?.CREATE_BY ?? contact?.contact_create_by ?? '',
-            UPDATE_BY: contact?.UPDATE_BY ?? contact?.contact_update_by ?? '',
-            CREATE_DATE: contact?.CREATE_DATE ?? contact?.contact_create_date ?? '',
-            UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.contact_update_date ?? '',
+            vendor_contact_id: contact?.VENDOR_CONTACT_ID ?? contact?.VENDOR_CONTACTS_ID,
+            contact_name: contact?.CONTACT_NAME ?? '',
+            position: contact?.POSITION ?? '',
+            tel_phone: contact?.TEL_PHONE ?? '',
+            email: contact?.EMAIL ?? '',
+            CREATE_BY: contact?.CREATE_BY ?? contact?.CONTACT_CREATE_BY ?? '',
+            UPDATE_BY: contact?.UPDATE_BY ?? contact?.CONTACT_UPDATE_BY ?? '',
+            CREATE_DATE: contact?.CREATE_DATE ?? contact?.CONTACT_CREATE_DATE ?? '',
+            UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.CONTACT_UPDATE_DATE ?? '',
         }
     }
 
     private static normalizeProduct(product: any): VendorProductI {
         return {
-            vendor_product_id: product?.vendor_product_id ?? product?.VENDOR_PRODUCTS_ID,
-            product_group_id: product?.product_group_id ?? product?.MASTER_PRODUCT_GROUPS_ID,
-            group_name: product?.group_name ?? product?.GROUP_NAME ?? '',
-            maker_name: product?.maker_name ?? product?.MAKER_NAME ?? '',
-            product_name: product?.product_name ?? product?.PRODUCT_NAME ?? '',
-            model_list: product?.model_list ?? product?.MODEL_LIST ?? '',
-            CREATE_BY: product?.CREATE_BY ?? product?.product_create_by ?? '',
-            UPDATE_BY: product?.UPDATE_BY ?? product?.product_update_by ?? '',
-            CREATE_DATE: product?.CREATE_DATE ?? product?.product_create_date ?? '',
-            UPDATE_DATE: product?.UPDATE_DATE ?? product?.product_update_date ?? '',
+            vendor_product_id: product?.VENDOR_PRODUCT_ID ?? product?.VENDOR_PRODUCTS_ID,
+            product_group_id: product?.PRODUCT_GROUP_ID ?? product?.MASTER_PRODUCT_GROUPS_ID,
+            group_name: product?.GROUP_NAME ?? '',
+            maker_name: product?.MAKER_NAME ?? '',
+            product_name: product?.PRODUCT_NAME ?? '',
+            model_list: product?.MODEL_LIST ?? '',
+            CREATE_BY: product?.CREATE_BY ?? product?.PRODUCT_CREATE_BY ?? '',
+            UPDATE_BY: product?.UPDATE_BY ?? product?.PRODUCT_UPDATE_BY ?? '',
+            CREATE_DATE: product?.CREATE_DATE ?? product?.PRODUCT_CREATE_DATE ?? '',
+            UPDATE_DATE: product?.UPDATE_DATE ?? product?.PRODUCT_UPDATE_DATE ?? '',
         }
     }
 
@@ -44,35 +44,35 @@ export class EditVendorUtils {
         products: VendorProductI[],
         comprehensive: VendorComprehensiveI
     }> {
-        const vendorResponse = await FindVendorServices.getById({ VENDORS_ID: vendor_id })
+        const vendorResponse = await FindVendorServices.getVendorDetails({ VENDORS_ID: vendor_id })
         if (!vendorResponse.data.Status) {
             throw new Error('Vendor not found')
         }
 
         const vendorData = vendorResponse.data.ResultOnDb
-        const contactsList = Array.isArray(vendorData.contacts)
-            ? vendorData.contacts.map(contact => this.normalizeContact(contact))
+        const contactsList = Array.isArray(vendorData.CONTACTS)
+            ? vendorData.CONTACTS.map(contact => this.normalizeContact(contact))
             : []
-        const productsList = Array.isArray(vendorData.products)
-            ? vendorData.products.map(product => this.normalizeProduct(product))
+        const productsList = Array.isArray(vendorData.PRODUCTS)
+            ? vendorData.PRODUCTS.map(product => this.normalizeProduct(product))
             : []
 
         const comprehensive: VendorComprehensiveI = {
-            vendor_id: vendorData.vendor_id ?? vendorData.VENDORS_ID,
-            fft_vendor_code: vendorData.fft_vendor_code ?? vendorData.FFT_VENDOR_CODE,
-            fft_status: vendorData.fft_status ?? vendorData.FFT_STATUS,
-            status_check: vendorData.status_check ?? vendorData.STATUS_CHECK,
-            company_name: vendorData.company_name ?? vendorData.COMPANY_NAME,
-            vendor_type_id: vendorData.vendor_type_id ?? vendorData.MASTER_VENDOR_TYPES_ID,
-            vendor_type_name: vendorData.vendor_type_name ?? vendorData.VENDOR_TYPE_NAME,
-            province: vendorData.province ?? vendorData.PROVINCE,
-            postal_code: vendorData.postal_code ?? vendorData.POSTAL_CODE,
-            country: vendorData.country ?? vendorData.COUNTRY,
-            website: vendorData.website ?? vendorData.WEBSITE,
-            address: vendorData.address ?? vendorData.ADDRESS,
-            tel_center: vendorData.tel_center ?? vendorData.TEL_CENTER,
-            emailmain: vendorData.emailmain ?? vendorData.EMAILMAIN,
-            vendor_region: vendorData.vendor_region ?? vendorData.VENDOR_REGION,
+            vendor_id: vendorData.VENDORS_ID,
+            fft_vendor_code: vendorData.FFT_VENDOR_CODE,
+            fft_status: vendorData.FFT_STATUS,
+            status_check: vendorData.STATUS_CHECK,
+            company_name: vendorData.COMPANY_NAME,
+            vendor_type_id: vendorData.MASTER_VENDOR_TYPES_ID,
+            vendor_type_name: vendorData.VENDOR_TYPE_NAME,
+            province: vendorData.PROVINCE,
+            postal_code: vendorData.POSTAL_CODE,
+            country: vendorData.COUNTRY,
+            website: vendorData.WEBSITE,
+            address: vendorData.ADDRESS,
+            tel_center: vendorData.TEL_CENTER,
+            emailmain: vendorData.EMAILMAIN,
+            vendor_region: vendorData.VENDOR_REGION,
             contacts: contactsList.length > 0 ? contactsList : [this.normalizeContact(vendorData)],
             products: productsList.length > 0 ? productsList : [this.normalizeProduct(vendorData)],
             CREATE_BY: vendorData.CREATE_BY,

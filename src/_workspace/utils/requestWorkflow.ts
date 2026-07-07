@@ -33,10 +33,8 @@ export const normalizeWorkflowText = (value: any) => normalizeText(String(value 
 
 export const inferStepCode = (step: any) => {
     if (step?.STEP_CODE) return String(step.STEP_CODE).trim().toUpperCase()
-    if (step?.step_code) return String(step.step_code).trim().toUpperCase()
-    if (step?.stepCode) return String(step.stepCode).trim().toUpperCase()
 
-    const source = normalizeText(`${step?.DESCRIPTION || ''} ${step?.description || ''} ${step?.label || ''}`)
+    const source = normalizeText(`${step?.DESCRIPTION || ''} ${step?.label || ''}`)
 
     if (source.includes('checker') || source.includes('check document') || source.includes('check all document')) {
         return WORKFLOW_STEP_CODE.DOC_CHECK
@@ -61,8 +59,7 @@ export const inferStepCode = (step: any) => {
 }
 
 export const inferActorType = (step: any) => {
-    if (step?.actor_type) return String(step.actor_type).trim().toUpperCase()
-    if (step?.actorType) return String(step.actorType).trim().toUpperCase()
+    if (step?.ACTOR_TYPE) return String(step.ACTOR_TYPE).trim().toUpperCase()
 
     const stepCode = inferStepCode(step)
     if (stepCode === WORKFLOW_STEP_CODE.PIC_REVIEW) return 'PIC'
@@ -79,16 +76,16 @@ export const isPicStep = (step: any) => inferActorType(step) === 'PIC'
 export const isAccountStep = (step: any) => inferActorType(step) === 'ACCOUNT'
 
 export const requiresVendorReply = (step: any) => {
-    if (step?.requiresVendorReply !== undefined && step?.requiresVendorReply !== null) {
-        return Number(step.requiresVendorReply) === 1
+    if (step?.REQUIRES_VENDOR_REPLY !== undefined && step?.REQUIRES_VENDOR_REPLY !== null) {
+        return Number(step.REQUIRES_VENDOR_REPLY) === 1
     }
 
     return inferStepCode(step) === WORKFLOW_STEP_CODE.PIC_REVIEW
 }
 
 export const requiresVendorCode = (step: any) => {
-    if (step?.requiresVendorCode !== undefined && step?.requiresVendorCode !== null) {
-        return Number(step.requiresVendorCode) === 1
+    if (step?.REQUIRES_VENDOR_CODE !== undefined && step?.REQUIRES_VENDOR_CODE !== null) {
+        return Number(step.REQUIRES_VENDOR_CODE) === 1
     }
 
     return inferStepCode(step) === WORKFLOW_STEP_CODE.ACCOUNT_REGISTERED
@@ -123,8 +120,7 @@ export const resolveNextStatus = (statusOptions: any[], currentStep: any, nextSt
 }
 
 export const resolveGroupCodeForStep = (step: any, isOversea: boolean) => {
-    if (step?.group_code) return String(step.group_code).trim().toUpperCase()
-    if (step?.groupCode) return String(step.groupCode).trim().toUpperCase()
+    if (step?.GROUP_CODE) return String(step.GROUP_CODE).trim().toUpperCase()
 
     switch (inferStepCode(step)) {
         case WORKFLOW_STEP_CODE.PIC_REVIEW:
@@ -144,13 +140,13 @@ export const resolveGroupCodeForStep = (step: any, isOversea: boolean) => {
     }
 }
 
-export const isPendingAgreementStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('pending agreement')
+export const isPendingAgreementStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.label).includes('pending agreement')
 
-export const isIssueGprBStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr b')
+export const isIssueGprBStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.label).includes('issue gpr b')
 
-export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('issue gpr c')
+export const isIssueGprCStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.label).includes('issue gpr c')
 
-export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label).includes('vendor disagre')
+export const isVendorDisagreedStep = (step: any) => normalizeWorkflowText(step?.DESCRIPTION || step?.label).includes('vendor disagre')
 
 export const isDisagreedBranchStep = (step: any) =>
     isVendorDisagreedStep(step) || isIssueGprBStep(step) || isIssueGprCStep(step)
@@ -161,7 +157,7 @@ export const isApprovedStepStatus = (status: any) =>
 export const isDocumentCheckApproved = (approvalSteps: any[] = []) =>
     approvalSteps.some((step: any) =>
         inferStepCode(step) === WORKFLOW_STEP_CODE.DOC_CHECK
-        && isApprovedStepStatus(step?.STEP_STATUS || step?.step_status)
+        && isApprovedStepStatus(step?.STEP_STATUS)
     )
 
 export const getNextPendingMainApprovalStep = (approvalSteps: any[], currentStep: any) => {
@@ -169,15 +165,15 @@ export const getNextPendingMainApprovalStep = (approvalSteps: any[], currentStep
 
     return (approvalSteps || [])
         .filter((step: any) =>
-            String(step?.STEP_STATUS || step?.step_status || '').toLowerCase() === 'pending'
-            && Number(step?.STEP_ORDER || step?.step_order || 0) > Number(currentStep?.STEP_ORDER || currentStep?.step_order || 0)
+            String(step?.STEP_STATUS || '').toLowerCase() === 'pending'
+            && Number(step?.STEP_ORDER || 0) > Number(currentStep?.STEP_ORDER || 0)
             && !isDisagreedBranchStep(step)
         )
-        .sort((a: any, b: any) => Number(a?.STEP_ORDER || a?.step_order || 0) - Number(b?.STEP_ORDER || b?.step_order || 0))[0] || null
+        .sort((a: any, b: any) => Number(a?.STEP_ORDER || 0) - Number(b?.STEP_ORDER || 0))[0] || null
 }
 
 export const resolveActionRequiredStage = (step: any) => {
-    const source = normalizeWorkflowText(step?.DESCRIPTION || step?.description || step?.label)
+    const source = normalizeWorkflowText(step?.DESCRIPTION || step?.label)
     if (source.includes('engineer')) return 'engineer'
     if (source.includes('emr')) return 'emr'
     if (source.includes('qms')) return 'qms'
@@ -353,6 +349,6 @@ export const buildActionLogPresentation = (log: any, approvalSteps: any[] = []) 
         actionColor: getActionTypeColor(actionType),
         detailText: detailParts.length > 0 ? detailParts.join(' | ') : (parsedRemark.rawRemark || ''),
         actorLabel: actorName ? `${actorName}${actorCode ? ` (${actorCode})` : ''}` : (actorCode || '-'),
-        stepDescription: String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim(),
+        stepDescription: String(matchedStep?.DESCRIPTION || '').trim(),
     }
 }

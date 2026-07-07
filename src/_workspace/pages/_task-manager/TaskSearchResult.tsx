@@ -45,34 +45,22 @@ const TaskSearchResult = () => {
                 const sortModel = params.request.sortModel
                 const orderParams = sortModel && sortModel.length > 0
                     ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
-                    : [{ id: 'request_id', desc: true }]
-
-                // Build Order string for SQL
-                const orderStr = orderParams.map(item => `t.${item.id} ${item.desc ? 'DESC' : 'ASC'}`).join(', ')
+                    : [{ id: 'REQUEST_REGISTER_VENDOR_ID', desc: true }]
 
                 const res = await TaskManagerServices.searchAllTask({
                     SEARCHFILTERS: [
-                        { id: 'request_status', value: currentFilters?.statusFilter?.value || '' },
-                        { id: 'current_owner_empcode', value: currentFilters?.picFilter?.value || '' },
+                        { id: 'REQUEST_STATUS', value: currentFilters?.statusFilter?.value || '' },
+                        { id: 'CURRENT_OWNER_EMPCODE', value: currentFilters?.picFilter?.value || '' },
                     ],
                     COLUMNFILTERS: [],
-                    ORDER: orderStr,
-                    OFFSET: startRow ?? 0,
+                    ORDER: orderParams,
+                    START: startRow ?? 0,
                     LIMIT: limit
                 })
 
                 const result = res?.data
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: Record<string, unknown>) => ({
-                        ...row,
-                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
-                        request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        request_status: row.request_status ?? row.REQUEST_STATUS,
-                        request_state: row.request_state ?? row.REQUEST_STATE,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        CREATE_DATE: row.CREATE_DATE ?? row.create_date,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -102,7 +90,7 @@ const TaskSearchResult = () => {
                     size='small'
                     variant='contained'
                     color='warning'
-                    disabled={!Number(params.data?.reassign_enabled)}
+                    disabled={!Number(params.data?.REASSIGN_ENABLED)}
                     onClick={() => setDialogRow(params.data || null)}
                 >
                     Reassign
@@ -110,16 +98,16 @@ const TaskSearchResult = () => {
             ),
         },
         {
-            field: 'request_number',
+            field: 'REQUEST_NUMBER',
             headerName: 'Request Number',
             width: 170,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,
-            valueGetter: params => params.data?.request_number || params.data?.request_id || '-',
+            valueGetter: params => params.data?.REQUEST_NUMBER || params.data?.REQUEST_REGISTER_VENDOR_ID || '-',
         },
         {
-            field: 'workflow_type',
+            field: 'WORKFLOW_TYPE',
             headerName: 'Workflow',
             width: 180,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => (
@@ -131,10 +119,10 @@ const TaskSearchResult = () => {
                 />
             ),
         },
-        { field: 'request_id', headerName: 'Request ID', width: 120 },
-        { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 220 },
+        { field: 'REQUEST_REGISTER_VENDOR_ID', headerName: 'Request ID', width: 120 },
+        { field: 'COMPANY_NAME', headerName: 'Company Name', flex: 1.5, minWidth: 220 },
         {
-            field: 'request_status',
+            field: 'REQUEST_STATUS',
             headerName: 'Status',
             width: 180,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => {
@@ -159,15 +147,15 @@ const TaskSearchResult = () => {
                 )
             },
         },
-        { field: 'current_step_name', headerName: 'Current Step', flex: 1.2, minWidth: 220 },
-        { field: 'current_group_name', headerName: 'PO PIC Group', flex: 1.1, minWidth: 190 },
-        { field: 'current_owner_empcode', headerName: 'PO PIC (assign_to)', width: 170 },
+        { field: 'CURRENT_STEP_NAME', headerName: 'Current Step', flex: 1.2, minWidth: 220 },
+        { field: 'CURRENT_GROUP_NAME', headerName: 'PO PIC Group', flex: 1.1, minWidth: 190 },
+        { field: 'CURRENT_OWNER_EMPCODE', headerName: 'PO PIC (assign_to)', width: 170 },
         {
-            field: 'assignment_health',
+            field: 'ASSIGNMENT_HEALTH',
             headerName: 'PO PIC Status',
             width: 150,
             cellRenderer: (params: ICellRendererParams<TaskQueueRow>) => {
-                const healthy = Number(params.data?.current_owner_active)
+                const healthy = Number(params.data?.CURRENT_OWNER_ACTIVE)
                 return (
                     <Chip
                         label={healthy ? 'Active' : 'Needs Reassign'}
@@ -195,7 +183,7 @@ const TaskSearchResult = () => {
                 boxSx={{ p: 2 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No task queue found</span>'
                 getRowId={(params: GetRowIdParams<TaskQueueRow>) => {
-                    return String(params.data.request_id || params.data.REQUEST_REGISTER_VENDOR_ID || 0)
+                    return String(params.data.REQUEST_REGISTER_VENDOR_ID || 0)
                 }}
                 initialState={savedGridState}
                 onStateUpdated={handleStateUpdated}
@@ -204,9 +192,9 @@ const TaskSearchResult = () => {
 
             <ReassignDialog
                 open={!!dialogRow}
-                requestId={dialogRow?.request_id || null}
-                groupCode={dialogRow?.current_group_code || ''}
-                currentEmpCode={dialogRow?.current_owner_empcode || ''}
+                requestId={dialogRow?.REQUEST_REGISTER_VENDOR_ID || null}
+                groupCode={dialogRow?.CURRENT_GROUP_CODE || ''}
+                currentEmpCode={dialogRow?.CURRENT_OWNER_EMPCODE || ''}
                 updateBy={user?.EMPLOYEE_CODE || 'SYSTEM'}
                 onClose={() => setDialogRow(null)}
                 onSuccess={() => {

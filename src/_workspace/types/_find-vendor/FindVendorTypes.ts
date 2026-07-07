@@ -4,47 +4,48 @@ import type { IconButtonProps } from '@mui/material/IconButton'
 
 // Vendor result type matching API response
 export interface VendorResultI extends AuditFields {
-    vendor_id: number
-    fft_vendor_code?: string | null
-    fft_status?: string | null
-    status_check?: string
-    company_name: string
-    vendor_type_id?: number
-    vendor_type_name: string
-    vendor_region?: 'Local' | 'Oversea' | null
-    province: string
-    postal_code: string
-    country?: string | null
+    VENDORS_ID: number
+    FFT_VENDOR_CODE?: string | null
+    FFT_STATUS?: string | null
+    STATUS_CHECK?: string
+    COMPANY_NAME: string
+    MASTER_VENDOR_TYPES_ID?: number
+    VENDOR_TYPE_NAME: string
+    VENDOR_REGION?: 'Local' | 'Oversea' | null
+    PROVINCE: string
+    POSTAL_CODE: string
     COUNTRY?: string | null
-    website: string
-    address: string
-    tel_center: string
-    emailmain?: string | null
-    group_name: string
-    maker_name: string
-    product_name: string
-    model_list: string
-    vendor_contact_id?: number
-    vendor_product_id?: number
-    product_group_id?: number
-    contact_name: string
-    tel_phone: string
-    email: string
-    position: string
+    WEBSITE: string
+    ADDRESS: string
+    TEL_CENTER: string
+    EMAILMAIN?: string | null
+    GROUP_NAME: string
+    MAKER_NAME: string
+    PRODUCT_NAME: string
+    MODEL_LIST: string
+    VENDOR_CONTACTS_ID?: number
+    VENDOR_PRODUCTS_ID?: number
+    MASTER_PRODUCT_GROUPS_ID?: number
+    CONTACT_NAME: string
+    TEL_PHONE: string
+    EMAIL: string
+    POSITION: string
     // Contact Audit
-    contact_create_by?: string
-    contact_update_by?: string
-    contact_create_date?: string
-    contact_update_date?: string
+    CONTACT_CREATE_BY?: string
+    CONTACT_UPDATE_BY?: string
+    CONTACT_CREATE_DATE?: string
+    CONTACT_UPDATE_DATE?: string
 
     // Product Audit
-    product_create_by?: string
-    product_create_date?: string
-    product_update_by?: string
-    product_update_date?: string
+    PRODUCT_CREATE_BY?: string
+    PRODUCT_CREATE_DATE?: string
+    PRODUCT_UPDATE_BY?: string
+    PRODUCT_UPDATE_DATE?: string
 
-    contacts?: VendorContactI[]
-    products?: VendorProductI[]
+    CONTACTS?: VendorContactI[]
+    PRODUCTS?: VendorProductI[]
+
+    [key: string]: unknown
 }
 
 // Vendor update request interface
@@ -170,8 +171,8 @@ export interface UpdateVendorParamsI {
 }
 
 export type VendorActionRow = {
-  vendor_id?: number;
-  status_check?: string;
+  VENDORS_ID?: number;
+  STATUS_CHECK?: string;
   INUSE?: number;
   [key: string]: unknown;
 };
@@ -263,7 +264,7 @@ export interface EditVendorModalProps {
     open: boolean
     onClose: () => void
     vendorId: number | null
-    rowData?: Partial<VendorComprehensiveI>
+    rowData?: Record<string, any>
     forceRefreshOnEdit?: boolean
     onSuccess?: () => void
 }
@@ -271,7 +272,7 @@ export interface EditVendorModalProps {
 export type UseEditVendorFormArgs = {
     open: boolean
     vendorId: number | null
-    rowData?: Partial<VendorComprehensiveI>
+    rowData?: Record<string, any>
     forceRefreshOnEdit?: boolean
     initialMode?: 'view' | 'edit'
     onClose: () => void
@@ -281,33 +282,33 @@ export type UseEditVendorFormArgs = {
 export type VendorDetailsModalProps = {
     open: boolean
     onClose: () => void
-    data?: Partial<VendorComprehensiveI> | null
+    data?: Record<string, any> | null
 }
 
 export type VendorContactOption = {
-    vendor_contact_id?: number | string
-    contact_name?: string
-    email?: string
-    tel_phone?: string
-    position?: string
+    VENDOR_CONTACT_ID?: number | string
+    CONTACT_NAME?: string
+    EMAIL?: string
+    TEL_PHONE?: string
+    POSITION?: string
 }
 
 export type RegisterVendorData = VendorContactOption & {
-    contacts?: VendorContactOption[] | string
-    company_name?: string
-    vendor_type_name?: string
-    vendor_region?: string
-    province?: string
-    postal_code?: string
-    country?: string
-    website?: string
-    tel_center?: string
-    status_check?: string
-    address?: string
-    group_name?: string
-    maker_name?: string
-    product_name?: string
-    model_list?: string
+    CONTACTS?: VendorContactOption[] | string
+    COMPANY_NAME?: string
+    VENDOR_TYPE_NAME?: string
+    VENDOR_REGION?: string
+    PROVINCE?: string
+    POSTAL_CODE?: string
+    COUNTRY?: string
+    WEBSITE?: string
+    TEL_CENTER?: string
+    STATUS_CHECK?: string
+    ADDRESS?: string
+    GROUP_NAME?: string
+    MAKER_NAME?: string
+    PRODUCT_NAME?: string
+    MODEL_LIST?: string
 }
 
 export interface RegisterConfirmModalProps {

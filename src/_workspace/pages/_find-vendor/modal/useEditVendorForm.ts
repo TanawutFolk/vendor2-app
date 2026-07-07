@@ -28,18 +28,18 @@ const emptyDefaultValues: EditVendorSchemaType = {
 
 const normalizeContactAuditFields = (contact: any) => ({
     ...contact,
-    CREATE_BY: contact?.CREATE_BY ?? contact?.contact_create_by ?? '',
-    UPDATE_BY: contact?.UPDATE_BY ?? contact?.contact_update_by ?? '',
-    CREATE_DATE: contact?.CREATE_DATE ?? contact?.contact_create_date ?? '',
-    UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.contact_update_date ?? '',
+    CREATE_BY: contact?.CREATE_BY ?? contact?.CONTACT_CREATE_BY ?? '',
+    UPDATE_BY: contact?.UPDATE_BY ?? contact?.CONTACT_UPDATE_BY ?? '',
+    CREATE_DATE: contact?.CREATE_DATE ?? contact?.CONTACT_CREATE_DATE ?? '',
+    UPDATE_DATE: contact?.UPDATE_DATE ?? contact?.CONTACT_UPDATE_DATE ?? '',
 })
 
 const normalizeProductAuditFields = (product: any) => ({
     ...product,
-    CREATE_BY: product?.CREATE_BY ?? product?.product_create_by ?? '',
-    UPDATE_BY: product?.UPDATE_BY ?? product?.product_update_by ?? '',
-    CREATE_DATE: product?.CREATE_DATE ?? product?.product_create_date ?? '',
-    UPDATE_DATE: product?.UPDATE_DATE ?? product?.product_update_date ?? '',
+    CREATE_BY: product?.CREATE_BY ?? product?.PRODUCT_CREATE_BY ?? '',
+    UPDATE_BY: product?.UPDATE_BY ?? product?.PRODUCT_UPDATE_BY ?? '',
+    CREATE_DATE: product?.CREATE_DATE ?? product?.PRODUCT_CREATE_DATE ?? '',
+    UPDATE_DATE: product?.UPDATE_DATE ?? product?.PRODUCT_UPDATE_DATE ?? '',
 })
 
 // rowData may arrive UPPER-cased (find-vendor's grid, Option A) or lowercase
@@ -47,22 +47,22 @@ const normalizeProductAuditFields = (product: any) => ({
 const toComprehensiveFromRowData = (rowData: Partial<VendorComprehensiveI>): VendorComprehensiveI => {
     const rd = rowData as any
     return {
-        vendor_id: rd.vendor_id ?? rd.VENDORS_ID ?? 0,
-        fft_vendor_code: rd.fft_vendor_code ?? rd.FFT_VENDOR_CODE,
-        fft_status: rd.fft_status ?? rd.FFT_STATUS,
-        status_check: rd.status_check ?? rd.STATUS_CHECK,
-        reject_reason: rd.reject_reason ?? rd.REJECT_REASON,
-        company_name: rd.company_name ?? rd.COMPANY_NAME ?? '',
-        vendor_type_id: rd.vendor_type_id ?? rd.MASTER_VENDOR_TYPES_ID,
-        vendor_type_name: rd.vendor_type_name ?? rd.VENDOR_TYPE_NAME ?? '',
-        province: rd.province ?? rd.PROVINCE ?? '',
-        postal_code: rd.postal_code ?? rd.POSTAL_CODE ?? '',
-        country: rd.country ?? rd.COUNTRY ?? '',
-        website: rd.website ?? rd.WEBSITE ?? '',
-        address: rd.address ?? rd.ADDRESS ?? '',
-        tel_center: rd.tel_center ?? rd.TEL_CENTER ?? '',
-        emailmain: rd.emailmain ?? rd.EMAILMAIN,
-        vendor_region: rd.vendor_region ?? rd.VENDOR_REGION,
+        vendor_id: rd.VENDORS_ID ?? 0,
+        fft_vendor_code: rd.FFT_VENDOR_CODE,
+        fft_status: rd.FFT_STATUS,
+        status_check: rd.STATUS_CHECK,
+        reject_reason: rd.REJECT_REASON,
+        company_name: rd.COMPANY_NAME ?? '',
+        vendor_type_id: rd.MASTER_VENDOR_TYPES_ID,
+        vendor_type_name: rd.VENDOR_TYPE_NAME ?? '',
+        province: rd.PROVINCE ?? '',
+        postal_code: rd.POSTAL_CODE ?? '',
+        country: rd.COUNTRY ?? '',
+        website: rd.WEBSITE ?? '',
+        address: rd.ADDRESS ?? '',
+        tel_center: rd.TEL_CENTER ?? '',
+        emailmain: rd.EMAILMAIN,
+        vendor_region: rd.VENDOR_REGION,
         contacts: Array.isArray(rd.contacts) ? rd.contacts.map(normalizeContactAuditFields) : [],
         products: Array.isArray(rd.products) ? rd.products.map(normalizeProductAuditFields) : [],
         CREATE_BY: rd.CREATE_BY ?? '',

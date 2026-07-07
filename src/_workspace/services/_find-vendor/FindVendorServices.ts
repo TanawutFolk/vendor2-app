@@ -19,13 +19,18 @@ export default class FindVendorServices {
         })
     }
 
-    // Get vendor by ID
-    static getById(data: Record<string, unknown>): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI>>> {
+    // Get full vendor details for Find Vendor/Re-register modals
+    static getVendorDetails(data: Record<string, unknown>): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI>>({
-            url: `${FindVendorAPI.API_ROOT_URL}/getById`,
+            url: `${FindVendorAPI.API_ROOT_URL}/vendor-details`,
             data,
             method: 'POST'
         })
+    }
+
+    // Legacy alias kept for older callers.
+    static getById(data: Record<string, unknown>): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI>>> {
+        return FindVendorServices.getVendorDetails(data)
     }
 
     // Get all contacts of a vendor

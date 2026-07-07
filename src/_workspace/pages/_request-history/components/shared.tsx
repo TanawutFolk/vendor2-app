@@ -15,15 +15,51 @@ export const Transition = forwardRef(function Transition(
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 
-// Build accessible file URLs from comma-separated filenames stored in DB
-export const buildFileUrls = (documents: any): { name: string; url: string }[] => {
+// Request attachments live in the request's 02.Request Documents network folder (moved out
+// of uploads/documents). Those are streamed through the managed download route; only legacy rows
+// whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
+const isNetworkStoredPath = (filePath: string) =>
+    filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+
+export const buildFileUrls = (documents: any, requestNumber?: string): { name: string; url: string }[] => {
+    let docs: any[] = []
     try {
-        const docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
-        return docs.filter(Boolean).map((d: any) => ({
-            name: d.file_name || d.file_path || 'Unnamed File',
-            url: `${API_BASE}/uploads/documents/${d.file_path}`
+        docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
+    } catch {
+        return []
+    }
+
+    const isRequestAttachment = (doc: any) => {
+        const fileName = String(doc?.FILE_NAME || '').trim()
+        const filePath = String(doc?.FILE_PATH || '').trim()
+
+        if (!filePath) return false
+        if (fileName.startsWith('[GPR] ')) return false
+        if (filePath.includes('00.Sending') || filePath.includes('01.Receiving')) return false
+
+        return true
+    }
+
+    const buildUrl = (doc: any) => {
+        const filePath = String(doc?.FILE_PATH || '').trim()
+        const fileName = String(doc?.FILE_NAME || '').trim()
+
+        if (requestNumber || isNetworkStoredPath(filePath)) {
+            // REQUEST_NUMBER lets the API recover the file by scanning the request's network
+            // folder if FILE_PATH is stale, missing, or was corrupted on a previous save; the API also falls back to uploads/documents for legacy rows.
+            const params = new URLSearchParams({ FILE_PATH: filePath, FILE_NAME: fileName, REQUEST_NUMBER: requestNumber || '' })
+            return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
+        }
+
+        return `${API_BASE}/uploads/documents/${filePath}`
+    }
+
+    return docs
+        .filter((d: any) => Boolean(d) && isRequestAttachment(d))
+        .map((d: any) => ({
+            name: d.FILE_NAME || d.FILE_PATH || 'Unnamed File',
+            url: buildUrl(d),
         }))
-    } catch { return [] }
 }
 
 const parseGprCCircularList = (raw: unknown): unknown[] => {
@@ -37,7 +73,7 @@ const parseGprCCircularList = (raw: unknown): unknown[] => {
 }
 
 export const hasCompletedGprCSetup = (row: Record<string, unknown>) => {
-    const directFlag = row?.GPR_C_SETUP_COMPLETED ?? row?.gpr_c_setup_completed
+    const directFlag = row?.GPR_C_SETUP_COMPLETED
     if (directFlag !== undefined && directFlag !== null) {
         return directFlag === true || Number(directFlag) === 1 || String(directFlag).trim().toLowerCase() === 'true'
     }

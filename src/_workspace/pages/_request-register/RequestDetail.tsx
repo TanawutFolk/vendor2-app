@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 // MUI Imports
 import {
-    Box, Typography, Chip, Divider, Button, TextField,
+    Box, Typography, Chip, Divider, Button,
     Dialog, DialogTitle, DialogContent, DialogActions,
     Slide
 } from '@mui/material'
@@ -19,6 +19,7 @@ const Transition = forwardRef(function Transition(
 })
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import CustomTextField from '@components/mui/TextField'
 
 // Types
 import type { RegistrationRequest } from '@_workspace/types/_request-register/RequestRegisterTypes'
@@ -345,7 +346,7 @@ const RequestDetail = ({ request }: Props) => {
                     <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
                         Reject the request for <strong>{request.company_name}</strong>. Please provide a reason.
                     </Typography>
-                    <TextField
+                    <CustomTextField
                         fullWidth multiline rows={3}
                         label='Reason for rejection *'
                         placeholder='e.g. Incomplete information, vendor does not meet requirements...'

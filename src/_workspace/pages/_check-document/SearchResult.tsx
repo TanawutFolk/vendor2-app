@@ -1,6 +1,8 @@
 // React Imports
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { useFormContext } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 
 // MUI Imports
 import {
@@ -25,6 +27,7 @@ import { Transition, buildFileUrls, getMyQueueStepStatus } from './components/sh
 
 // Services
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import { requestDetailQueryOptions, REQUEST_DETAIL_QUERY_KEY } from '@_workspace/react-query/hooks/useRegisterRequest'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -69,18 +72,18 @@ const SearchResultSection = ({
     )
 }
 
-const getRequestIdFromRow = (row: any) => Number(row?.REQUEST_REGISTER_VENDOR_ID ?? row?.request_id ?? 0)
+const getRequestIdFromRow = (row: any) => Number(row?.REQUEST_REGISTER_VENDOR_ID ?? 0)
 
 const hasFullRequestDetail = (row: any) => Boolean(
-    row?.approval_steps || row?.approval_logs || row?.documents || row?.contacts || row?.products || row?.gpr_criteria
+    row?.APPROVAL_STEPS || row?.APPROVAL_LOGS || row?.DOCUMENTS || row?.CONTACTS || row?.PRODUCTS || row?.GPR_CRITERIA
 )
 
 const getDocumentCount = (row: any) => {
-    if (row?.DOCUMENTS_COUNT !== undefined || row?.documents_count !== undefined) {
-        return Number(row?.DOCUMENTS_COUNT ?? row?.documents_count) || 0
+    if (row?.DOCUMENTS_COUNT !== undefined) {
+        return Number(row?.DOCUMENTS_COUNT) || 0
     }
 
-    return buildFileUrls(row?.documents).length
+    return buildFileUrls(row?.DOCUMENTS).length
 }
 
 const DetailLoading = () => (
@@ -90,22 +93,20 @@ const DetailLoading = () => (
     </Box>
 )
 
-const loadRequestDetail = async (row: any) => {
+const loadRequestDetail = async (row: any, queryClient: QueryClient) => {
     const requestId = getRequestIdFromRow(row)
     if (!requestId) return row || null
 
-    const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
-    const payload = response.data
-
-    if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
+    try {
+        return await queryClient.fetchQuery(requestDetailQueryOptions(requestId))
+    } catch {
         return row || null
     }
-
-    return payload.ResultOnDb
 }
 
 // --- Detail renderer for AG Grid master/detail ---
 const DetailRenderer = (props: any) => {
+    const queryClient = useQueryClient()
     const [detailData, setDetailData] = useState<any | null>(() => hasFullRequestDetail(props.data) ? props.data : null)
     const [loading, setLoading] = useState(false)
 
@@ -125,7 +126,7 @@ const DetailRenderer = (props: any) => {
 
         setDetailData(row)
         setLoading(true)
-        loadRequestDetail(row)
+        loadRequestDetail(row, queryClient)
             .then(detail => {
                 if (active) setDetailData(detail || row)
             })
@@ -140,17 +141,19 @@ const DetailRenderer = (props: any) => {
         return () => {
             active = false
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props.data])
 
     const refreshDetail = useCallback(async () => {
         if (!detailData) return
         try {
-            const detail = await loadRequestDetail(detailData)
+            await queryClient.invalidateQueries({ queryKey: [...REQUEST_DETAIL_QUERY_KEY, getRequestIdFromRow(detailData)] })
+            const detail = await loadRequestDetail(detailData, queryClient)
             setDetailData(detail || detailData)
         } catch (error) {
             console.error('Refresh approval request detail failed:', error)
         }
-    }, [detailData])
+    }, [detailData, queryClient])
 
     if (loading && !hasFullRequestDetail(detailData)) return <DetailLoading />
     if (!detailData) return null
@@ -168,7 +171,8 @@ const DetailRenderer = (props: any) => {
         />
     )
 }
-export default function ApprovalPageContent({ pageTitle, queueStepCode, accentColor = '#7367F0', showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
+export default function ApprovalPageContent({ pageTitle, queueStepCode, showSelectionSheetReadOnly = false }: ApprovalPageContentProps) {
+    const queryClient = useQueryClient()
     const gridApiRef = useRef<any>(null)
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -180,9 +184,15 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
         lockedLeftColIds: ['view', 'REQUEST_NUMBER']
     })
 
-    const [selectedData, setSelectedData] = useState<any | null>(null)
+    // Modal subscribes to the request detail via react-query (single source of truth); the grid is
+    // AG Grid SSRM and is refreshed separately via refreshServerSide.
+    const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
-    const [detailLoading, setDetailLoading] = useState(false)
+    const detailQuery = useQuery({
+        ...requestDetailQueryOptions(selectedRequestId ?? 0),
+        enabled: drawerOpen && !!selectedRequestId,
+    })
+    const selectedData = (detailQuery.data ?? null) as any
 
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
     const [actionDialogOpen, setActionDialogOpen] = useState(false)
@@ -208,9 +218,9 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                     APPROVER_EMPCODE: empCode,
                     QUEUE_STEP_CODE: queueStepCode,
                     SEARCHFILTERS: [
-                        { id: 'company_name', value: getValues('searchFilters.vendor_name') || null },
-                        { id: 'Request_By_EmployeeCode', value: getValues('searchFilters.submitted_by') || null },
-                        { id: 'request_status', value: getValues('searchFilters.overall_status')?.value || null }
+                        { id: 'COMPANY_NAME', value: getValues('searchFilters.vendor_name') || null },
+                        { id: 'REQUEST_BY_EMPLOYEECODE', value: getValues('searchFilters.submitted_by') || null },
+                        { id: 'REQUEST_STATUS', value: getValues('searchFilters.overall_status')?.value || null }
                     ].filter((x: any) => x.value !== null && x.value !== ''),
                     COLUMNFILTERS: [],
                     ORDER: order,
@@ -232,23 +242,9 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [empCode, queueStepCode])
 
-    const openDetailDialog = useCallback(async (row?: any | null) => {
-        const baseRow = row || null
-        setSelectedData(baseRow)
+    const openDetailDialog = useCallback((row?: any | null) => {
+        setSelectedRequestId(getRequestIdFromRow(row) || null)
         setDrawerOpen(true)
-
-        if (!baseRow) return
-
-        setDetailLoading(true)
-        try {
-            const detail = await loadRequestDetail(baseRow)
-            setSelectedData(detail || baseRow)
-        } catch (error) {
-            console.error('Open approval request detail failed:', error)
-            setSelectedData(baseRow)
-        } finally {
-            setDetailLoading(false)
-        }
     }, [])
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -333,7 +329,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             valueGetter: (p: any) => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
         },
         {
-            field: 'documents',
+            field: 'DOCUMENTS_COUNT',
             headerName: 'Files',
             width: 100,
             cellRenderer: (params: any) => {
@@ -354,17 +350,18 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
 
     const handleActionSuccess = useCallback(() => {
         refreshServerSide()
+        if (selectedRequestId) void queryClient.invalidateQueries({ queryKey: [...REQUEST_DETAIL_QUERY_KEY, selectedRequestId] })
         setDrawerOpen(false)
-        setSelectedData(null)
+        setSelectedRequestId(null)
         setPendingActions([])
-    }, [refreshServerSide])
+    }, [refreshServerSide, queryClient, selectedRequestId])
 
     const gridContext = useMemo(() => ({
         empCode,
         queueStepCode,
         showSelectionSheetReadOnly,
         onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
-            setSelectedData(data)
+            setSelectedRequestId(getRequestIdFromRow(data) || null)
             setPendingActions([{
                 requestId: Number(data?.REQUEST_REGISTER_VENDOR_ID),
                 nextStatus: status,
@@ -376,7 +373,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
             setActionDialogOpen(true)
         },
         onReject: (data: any, actionLabel: string) => {
-            setSelectedData(data)
+            setSelectedRequestId(getRequestIdFromRow(data) || null)
             setPendingActions([{
                 requestId: Number(data?.REQUEST_REGISTER_VENDOR_ID),
                 nextStatus: 'Rejected',
@@ -438,16 +435,13 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, accentCo
                 }}
             >
                 <DialogTitle>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: accentColor, flexShrink: 0 }} />
-                        <Typography variant='h5' component='span'>{pageTitle} Details</Typography>
-                    </Box>
+                    <Typography variant='h5' component='span'>{pageTitle} Details</Typography>
                     <DialogCloseButton onClick={() => setDrawerOpen(false)} disableRipple>
                         <i className='tabler-x' />
                     </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
-                    {detailLoading ? <DetailLoading /> : selectedData && <DetailRenderer data={selectedData} context={{ ...gridContext, empCode }} />}
+                    {detailQuery.isLoading ? <DetailLoading /> : selectedData && <DetailRenderer data={selectedData} context={{ ...gridContext, empCode }} />}
                 </DialogContent>
             </Dialog>
         </Grid>

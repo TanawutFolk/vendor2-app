@@ -1,7 +1,5 @@
+import { useState } from 'react'
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import CardHeader from '@mui/material/CardHeader'
 import Grid from '@mui/material/Grid'
 import { Controller, useFormContext, useFormState } from 'react-hook-form'
 import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
@@ -10,12 +8,14 @@ import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestSta
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 import { useDxContext } from '@/_template/DxContextProvider'
 import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 import { MENU_ID } from './env'
 import { defaultSearchFilters, type AccRegisterFormData, type SelectOptionFormData } from './validateSchema'
 
 const SearchFilter = () => {
+    const [collapse, setCollapse] = useState(false)
     const { setIsEnableFetching } = useDxContext()
     const { setValue, getValues, control, handleSubmit } = useFormContext<AccRegisterFormData>()
     const { isLoading } = useFormState({ control })
@@ -40,14 +40,7 @@ const SearchFilter = () => {
     }
 
     return (
-        <Card style={{ overflow: 'visible', zIndex: 4 }}>
-            <CardHeader
-                title='Search filters'
-                titleTypographyProps={{ variant: 'h5' }}
-                sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
-            />
-
-            <CardContent>
+        <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
                 {isError && <div>An error occurred: {error.message}</div>}
                 {isLoading ? (
                     <SkeletonCustom />
@@ -121,8 +114,7 @@ const SearchFilter = () => {
                         </Grid>
                     </Grid>
                 )}
-            </CardContent>
-        </Card>
+        </SearchFilterCard>
     )
 }
 

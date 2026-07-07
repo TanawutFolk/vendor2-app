@@ -85,7 +85,10 @@ const useGprWorkflowLogic = ({
         const showSendToCheckerBtn = isPicPostVendorStep && isCurrentIssueGprCStep && hasGprCApproved
         const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
         const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
-        const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow
+        // Once GPR C has been sent for approval (Issue GPR C phase), the GPR C sub-workflow owns the
+        // reject decision — a GPR C rejection auto-cancels the request — so the PIC no longer needs a
+        // manual Reject button here.
+        const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow && !isCurrentIssueGprCStep
 
         const showMissingSheetWarning = isPicPostVendorStep && !gprFormFilled
         const shouldEnforceGprACriteria = !isPostSendGprBFlow && !isApproveBypassEnabled

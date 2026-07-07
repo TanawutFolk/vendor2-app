@@ -1,11 +1,11 @@
 export type AssigneeRow = {
-    empcode?: string
-    empName?: string
-    empEmail?: string
-    group_code?: string
-    group_name?: string
+    EMPCODE?: string
+    EMPNAME?: string
+    EMPEMAIL?: string
+    GROUP_CODE?: string
+    GROUP_NAME?: string
     INUSE?: number | string
-    Assignees_id?: number
+    ASSIGNEES_TO_ID?: number
 }
 
 export type GroupOption = {
@@ -15,12 +15,8 @@ export type GroupOption = {
 
 export type GroupOptionSource = {
     label?: string
-    LABEL?: string
-    group_name?: string
     GROUP_NAME?: string
     value?: string
-    VALUE?: string
-    group_code?: string
     GROUP_CODE?: string
 }
 

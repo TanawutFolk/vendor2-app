@@ -29,6 +29,7 @@ const Transition = forwardRef(function Transition(
 })
 
 type ActionRequiredDialogForm = {
+    root: string
     pic_empcode: string
     pic_name: string
     pic_email: string
@@ -69,6 +70,7 @@ export default function ActionRequiredDialog({
         formState: { isSubmitting, errors },
     } = useForm<ActionRequiredDialogForm>({
         defaultValues: {
+            root: '',
             pic_empcode: '',
             pic_name: '',
             pic_email: '',
@@ -80,6 +82,7 @@ export default function ActionRequiredDialog({
         if (!open) return
 
         reset({
+            root: '',
             pic_empcode: '',
             pic_name: '',
             pic_email: '',

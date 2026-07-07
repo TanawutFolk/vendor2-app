@@ -7,7 +7,6 @@ import { Slide } from '@mui/material'
 import type { SlideProps } from '@mui/material'
 
 import { parseActionRequiredRemark } from '@_workspace/utils/requestWorkflow'
-import type { RegisterRequestRow } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 export const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -89,70 +88,48 @@ export const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
         actionColor: getActionTypeColor(actionType),
         detailText: detailParts.length > 0 ? detailParts.join(' | ') : (parsedRemark.rawRemark || ''),
         actorLabel: actorName ? `${actorName}${actorCode ? ` (${actorCode})` : ''}` : (actorCode || '-'),
-        stepDescription: String(matchedStep?.DESCRIPTION || matchedStep?.description || '').trim(),
+        stepDescription: String(matchedStep?.DESCRIPTION || '').trim(),
     }
 }
 
-export const buildFileUrls = (documents: any): { name: string; url: string }[] => {
+// Request attachments now live in the request's 02.Request Documents network folder (moved out
+// of uploads/documents). Those are streamed through the managed download route; only legacy rows
+// whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
+const isNetworkStoredPath = (filePath: string) =>
+    filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+
+export const buildFileUrls = (documents: any, requestNumber?: string): { name: string; url: string }[] => {
     const docs = safeParseJSON<any[]>(documents, [])
 
     const isRequestAttachment = (doc: any) => {
-        const fileName = String(doc?.file_name || '').trim()
-        const filePath = String(doc?.file_path || '').trim()
+        const fileName = String(doc?.FILE_NAME || '').trim()
+        const filePath = String(doc?.FILE_PATH || '').trim()
 
         if (!filePath) return false
         if (fileName.startsWith('[GPR] ')) return false
-        if (/^[a-zA-Z]:\\/.test(filePath) || /^\\\\/.test(filePath)) return false
         if (filePath.includes('00.Sending') || filePath.includes('01.Receiving')) return false
 
         return true
     }
 
+    const buildUrl = (doc: any) => {
+        const filePath = String(doc?.FILE_PATH || '').trim()
+        const fileName = String(doc?.FILE_NAME || '').trim()
+
+        if (requestNumber || isNetworkStoredPath(filePath)) {
+            // REQUEST_NUMBER lets the API recover the file by scanning the request's network
+            // folder if FILE_PATH is stale, missing, or was corrupted on a previous save; the API also falls back to uploads/documents for legacy rows.
+            const params = new URLSearchParams({ FILE_PATH: filePath, FILE_NAME: fileName, REQUEST_NUMBER: requestNumber || '' })
+            return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
+        }
+
+        return `${API_BASE}/uploads/documents/${filePath}`
+    }
+
     return docs
         .filter((d: any) => Boolean(d) && isRequestAttachment(d))
         .map((d: any) => ({
-        name: d.file_name || d.file_path || 'Unnamed File',
-        url: `${API_BASE}/uploads/documents/${d.file_path}`
+        name: d.FILE_NAME || d.FILE_PATH || 'Unnamed File',
+        url: buildUrl(d),
     }))
 }
-
-
-
-export const normalizeRegisterRequestRow = (row: any): RegisterRequestRow => ({
-    ...row,
-    request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
-    request_number: row.request_number ?? row.REQUEST_NUMBER,
-    vendor_id: row.vendor_id ?? row.VENDORS_ID,
-    request_status: row.request_status ?? row.REQUEST_STATUS,
-    supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
-    purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
-    requester_remark: row.requester_remark ?? row.REQUESTER_REMARK,
-    approver_remark: row.approver_remark ?? row.APPROVER_REMARK,
-    reject_reason: row.reject_reason ?? row.REJECT_REASON,
-    approve_by: row.approve_by ?? row.APPROVE_BY,
-    approve_date: row.approve_date ?? row.APPROVE_DATE,
-    vendor_code: row.vendor_code ?? row.VENDOR_CODE,
-    assign_to: row.assign_to ?? row.ASSIGN_TO,
-    PIC_Email: row.PIC_Email ?? row.PIC_EMAIL,
-    vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
-    documents_count: row.documents_count ?? row.DOCUMENTS_COUNT,
-    Request_By_EmployeeCode: row.Request_By_EmployeeCode ?? row.REQUEST_BY_EMPLOYEECODE ?? row.EMPLOYEE_CODE,
-    gpr_c_approver_name: row.gpr_c_approver_name ?? row.GPR_C_APPROVER_NAME,
-    gpr_c_approver_email: row.gpr_c_approver_email ?? row.GPR_C_APPROVER_EMAIL,
-    gpr_c_pc_pic_name: row.gpr_c_pc_pic_name ?? row.GPR_C_PC_PIC_NAME,
-    gpr_c_pc_pic_email: row.gpr_c_pc_pic_email ?? row.GPR_C_PC_PIC_EMAIL,
-    gpr_c_circular_json: row.gpr_c_circular_json ?? row.GPR_C_CIRCULAR_JSON,
-    action_required_json: row.action_required_json ?? row.ACTION_REQUIRED_JSON,
-    gpr_43_acceptance_status: row.gpr_43_acceptance_status ?? row.GPR_43_ACCEPTANCE_STATUS,
-    company_name: row.company_name ?? row.COMPANY_NAME,
-    fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
-    fft_status: row.fft_status ?? row.FFT_STATUS,
-    vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-    province: row.province ?? row.PROVINCE,
-    postal_code: row.postal_code ?? row.POSTAL_CODE,
-    country: row.country ?? row.COUNTRY,
-    address: row.address ?? row.ADDRESS,
-    tel_center: row.tel_center ?? row.TEL_CENTER,
-    website: row.website ?? row.WEBSITE,
-    emailmain: row.emailmain ?? row.EMAILMAIN,
-})

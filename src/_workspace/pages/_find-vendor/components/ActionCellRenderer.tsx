@@ -17,8 +17,8 @@ import type { VendorActionRow, ActionCellRendererProps } from '@_workspace/types
 export default function ActionCellRenderer(params: ActionCellRendererProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
-  const vendorId = params.data?.vendor_id ?? params.data?.VENDORS_ID;
-  const statusCheck = params.data?.status_check ?? params.data?.STATUS_CHECK;
+  const vendorId = params.data?.VENDORS_ID;
+  const statusCheck = params.data?.STATUS_CHECK;
   const isAlreadyRegistered = statusCheck === 'Registered';
   const isInProgress = statusCheck === 'In Progress';
 

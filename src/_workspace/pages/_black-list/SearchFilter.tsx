@@ -1,8 +1,8 @@
+// React Imports
+import { useState } from 'react'
+
 // MUI Imports
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import CardHeader from '@mui/material/CardHeader'
 import Grid from '@mui/material/Grid'
 
 // React Hook Form Imports
@@ -18,6 +18,9 @@ import { useDxSaveSearchFilters } from '@/_template/DxSaveSearchFilters'
 import CustomTextField from '@components/mui/TextField'
 import SelectCustom from '@components/react-select/SelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
+
+// Workspace Components
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 
 // Utils Imports
 
@@ -38,6 +41,9 @@ const groupOptions = [
 ]
 
 const SearchFilter = () => {
+  // State
+  const [collapse, setCollapse] = useState(false)
+
   // Context
   const { setIsEnableFetching } = useDxContext()
 
@@ -70,14 +76,7 @@ const SearchFilter = () => {
   const { save, isError, error } = useDxSaveSearchFilters<BlacklistFormData>({ MENU_ID })
 
   return (
-    <Card style={{ overflow: 'visible', zIndex: 4 }}>
-      <CardHeader
-        title='Search filters'
-        titleTypographyProps={{ variant: 'h5' }}
-        sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
-      />
-
-      <CardContent>
+    <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
         {isError && <div>An error occurred: {error.message}</div>}
         {isLoading ? (
           <>
@@ -134,8 +133,7 @@ const SearchFilter = () => {
             </Grid>
           </>
         )}
-      </CardContent>
-    </Card>
+    </SearchFilterCard>
   )
 }
 

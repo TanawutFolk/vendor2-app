@@ -105,13 +105,13 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
 
                 const payload = {
                     SEARCHFILTERS: [
-                        { id: 'vendor_name', value: currentFilters.vendor_name || '' },
-                        { id: 'group_code', value: currentFilters.group_code === 'ALL' ? '' : currentFilters.group_code },
+                        { id: 'VENDOR_NAME', value: currentFilters.vendor_name || '' },
+                        { id: 'GROUP_CODE', value: currentFilters.group_code === 'ALL' ? '' : currentFilters.group_code },
                     ],
                     COLUMNFILTERS: mapAgGridFilterModelToColumnFilters(filterModel as Record<string, AgGridFilterModelValue>),
                     ORDER: sortModel && sortModel.length > 0
                         ? sortModel.map((item: SortModelItem) => ({ id: item.colId, desc: item.sort === 'desc' }))
-                        : [{ id: 'updated_date', desc: true }],
+                        : [{ id: 'UPDATED_DATE', desc: true }],
                     START: startRow ?? 0,
                     LIMIT: limit || 20,
                 }
@@ -121,22 +121,7 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 const result = response?.data
 
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        blacklist_id: row.blacklist_id ?? row.BLACKLIST_ID ?? row.ID,
-                        vendor_name: row.vendor_name ?? row.VENDOR_NAME ?? row.PRIMARY_NAME ?? row.NAME,
-                        group_code: row.group_code ?? row.GROUP_CODE,
-                        source_name: row.source_name ?? row.SOURCE_NAME ?? row.SOURCE,
-                        country: row.country ?? row.COUNTRY,
-                        entity_number: row.entity_number ?? row.ENTITY_NUMBER,
-                        entity_type: row.entity_type ?? row.ENTITY_TYPE ?? row.TYPE,
-                        programs: row.programs ?? row.PROGRAMS,
-                        wmd_type: row.wmd_type ?? row.WMD_TYPE,
-                        alias_count: row.alias_count ?? row.ALIAS_COUNT,
-                        in_use: row.in_use ?? row.INUSE,
-                        update_by: row.update_by ?? row.UPDATE_BY,
-                        updated_date: row.updated_date ?? row.UPDATE_DATE,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     params.success({
                         rowData,
                         rowCount: result.TotalCountOnDb || 0,
@@ -153,10 +138,10 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
     }), [])
 
     const colDefs = useMemo<ColDef<BlacklistRow>[]>(() => [
-        { field: 'blacklist_id', headerName: 'Blacklist ID', width: 130, pinned: 'left', filter: 'agNumberColumnFilter' },
-        { field: 'vendor_name', headerName: 'Vendor Name', flex: 1.4, minWidth: 240, pinned: 'left', filter: 'agTextColumnFilter' },
+        { field: 'BLACKLIST_ID', headerName: 'Blacklist ID', width: 130, pinned: 'left', filter: 'agNumberColumnFilter' },
+        { field: 'VENDOR_NAME', headerName: 'Vendor Name', flex: 1.4, minWidth: 240, pinned: 'left', filter: 'agTextColumnFilter' },
         {
-            field: 'group_code',
+            field: 'GROUP_CODE',
             headerName: 'Group',
             width: 120,
             filter: 'agTextColumnFilter',
@@ -165,14 +150,14 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 return <Chip size='small' label={params.value || '-'} color={color} variant='tonal' />
             },
         },
-        { field: 'source_name', headerName: 'Source', flex: 1.6, minWidth: 320, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
-        { field: 'country', headerName: 'Country', width: 220, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
-        { field: 'entity_number', headerName: 'Entity Number', width: 160, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
-        { field: 'entity_type', headerName: 'Type', width: 140, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
-        { field: 'programs', headerName: 'Programs', flex: 1.2, minWidth: 220, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
-        { field: 'wmd_type', headerName: 'WMD', width: 120, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'SOURCE_NAME', headerName: 'Source', flex: 1.6, minWidth: 320, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'COUNTRY', headerName: 'Country', width: 220, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'ENTITY_NUMBER', headerName: 'Entity Number', width: 160, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'ENTITY_TYPE', headerName: 'Type', width: 140, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'PROGRAMS', headerName: 'Programs', flex: 1.2, minWidth: 220, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'WMD_TYPE', headerName: 'WMD', width: 120, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
         {
-            field: 'alias_count',
+            field: 'ALIAS_COUNT',
             headerName: 'Aliases',
             width: 120,
             filter: 'agNumberColumnFilter',
@@ -186,7 +171,7 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
             ),
         },
         {
-            field: 'in_use',
+            field: 'IN_USE',
             headerName: 'Status',
             width: 120,
             filter: 'agTextColumnFilter',
@@ -199,9 +184,9 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                 />
             ),
         },
-        { field: 'update_by', headerName: 'Updated By', width: 150, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
+        { field: 'UPDATE_BY', headerName: 'Updated By', width: 150, filter: 'agTextColumnFilter', valueFormatter: (params: ValueFormatterParams<BlacklistRow>) => params.value || '-' },
         {
-            field: 'updated_date',
+            field: 'UPDATED_DATE',
             headerName: 'Updated Date',
             width: 170,
             filter: 'agDateColumnFilter',
@@ -233,7 +218,7 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No blacklist vendors found</span>'
                     getRowId={(params: GetRowIdParams<BlacklistRow>) => {
                         const row = params.data as any
-                        return String(row.blacklist_id || row.BLACKLIST_ID || row.ID || '')
+                        return String(row.BLACKLIST_ID || '')
                     }}
                 />
             </CardContent>

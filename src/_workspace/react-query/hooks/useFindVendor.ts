@@ -30,6 +30,19 @@ export const useSearch = (params: FindVendorSearchRequestI, enabled: boolean = t
     })
 }
 
+// Raw /getVendorDetails row (UPPER keys + CONTACTS/PRODUCTS arrays), cached per vendor.
+export const rawVendorDetailQueryOptions = (vendorId: number) => ({
+    queryKey: [PREFIX_QUERY_KEY, 'RAW_DETAIL', vendorId],
+    queryFn: async () => {
+        const response = await FindVendorServices.getVendorDetails({ VENDORS_ID: vendorId })
+        if (!response.data?.Status || !response.data?.ResultOnDb) {
+            throw new Error(response.data?.Message || 'Failed to load vendor details')
+        }
+        return response.data.ResultOnDb
+    },
+    staleTime: 30_000,
+})
+
 export const getVendorDetailQueryConfig = (vendorId: number | null) => ({
     queryKey: [PREFIX_QUERY_KEY, 'DETAIL', vendorId],
     queryFn: async () => {

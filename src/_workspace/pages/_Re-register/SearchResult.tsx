@@ -14,10 +14,12 @@ import type {
 } from 'ag-grid-community'
 import { saveAs } from 'file-saver'
 import { useFormContext } from 'react-hook-form'
+import { useQueryClient } from '@tanstack/react-query'
 
 import DxAGgridTable from '@/_template/DxAGgridTable'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
+import { rawVendorDetailQueryOptions } from '@_workspace/react-query/hooks/useFindVendor'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { useDxContext } from '@/_template/DxContextProvider'
 import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
@@ -40,6 +42,7 @@ import type { VendorRow, SortColumnState } from '@_workspace/types/_Re-register/
 
 
 const SearchResult = () => {
+    const queryClient = useQueryClient()
     const { getValues, setValue } = useFormContext<ReRegisterFormData>()
     const gridApiRef = useRef<GridApi<VendorRow> | null>(null)
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -62,6 +65,23 @@ const SearchResult = () => {
         setIsEnableFetching
     })
 
+    const loadVendorDetails = useCallback(async (row: VendorRow, fallbackVendorId?: number): Promise<VendorRow> => {
+        const rowData = row as any
+        const vendorId = Number(rowData?.VENDORS_ID ?? fallbackVendorId ?? 0)
+        if (!vendorId) return row
+
+        try {
+            const details = await queryClient.fetchQuery(rawVendorDetailQueryOptions(vendorId))
+            return { ...row, ...details }
+        } catch (error: any) {
+            ToastMessageError({
+                title: 'Vendor Details',
+                message: error?.message || 'Failed to load vendor details'
+            })
+            return row
+        }
+    }, [queryClient])
+
     const datasource = useMemo<IServerSideDatasource>(() => ({
         getRows: async (params) => {
             try {
@@ -71,21 +91,21 @@ const SearchResult = () => {
                 const sortModel = params.request.sortModel
                 const orderParams = sortModel && sortModel.length > 0
                     ? sortModel.map((s) => ({ id: s.colId, desc: s.sort === 'desc' }))
-                    : [{ id: 'company_name', desc: false }]
+                    : [{ id: 'COMPANY_NAME', desc: false }]
 
                 const res = await FindVendorServices.search({
                     SEARCHFILTERS: [
                         { id: 'global_search', value: currentFilters?.global_search || '' },
-                        { id: 'company_name', value: currentFilters?.company_name || '' },
-                        { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
-                        { id: 'province', value: currentFilters?.province?.value || '' },
-                        { id: 'product_group_id', value: currentFilters?.product_group_id?.value || null },
+                        { id: 'COMPANY_NAME', value: currentFilters?.company_name || '' },
+                        { id: 'MASTER_VENDOR_TYPES_ID', value: currentFilters?.vendor_type_id?.value || null },
+                        { id: 'PROVINCE', value: currentFilters?.province?.value || '' },
+                        { id: 'MASTER_PRODUCT_GROUPS_ID', value: currentFilters?.product_group_id?.value || null },
                         { id: 'status', value: currentFilters?.status?.value || '' },
-                        { id: 'product_name', value: currentFilters?.product_name || '' },
-                        { id: 'maker_name', value: currentFilters?.maker_name || '' },
-                        { id: 'model_list', value: currentFilters?.model_list || '' },
-                        { id: 'prones_code', value: currentFilters?.fft_vendor_code || '' },
-                        { id: 'inuse', value: currentFilters?.inuse?.value ?? null }
+                        { id: 'PRODUCT_NAME', value: currentFilters?.product_name || '' },
+                        { id: 'MAKER_NAME', value: currentFilters?.maker_name || '' },
+                        { id: 'MODEL_LIST', value: currentFilters?.model_list || '' },
+                        { id: 'PRONES_CODE', value: currentFilters?.fft_vendor_code || '' },
+                        { id: 'INUSE', value: currentFilters?.inuse?.value ?? null }
                     ],
                     ColumnFilters: [],
                     Order: orderParams,
@@ -95,33 +115,7 @@ const SearchResult = () => {
 
                 const result = res?.data
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: VendorRow) => ({
-                        ...row,
-                        vendor_id: row.vendor_id ?? row.VENDORS_ID,
-                        fft_vendor_code: row.fft_vendor_code ?? row.FFT_VENDOR_CODE,
-                        fft_status: row.fft_status ?? row.FFT_STATUS,
-                        vendor_product_id: row.vendor_product_id ?? row.VENDOR_PRODUCTS_ID,
-                        product_group_id: row.product_group_id ?? row.MASTER_PRODUCT_GROUPS_ID,
-                        vendor_contact_id: row.vendor_contact_id ?? row.VENDOR_CONTACTS_ID,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        province: row.province ?? row.PROVINCE,
-                        postal_code: row.postal_code ?? row.POSTAL_CODE,
-                        country: row.country ?? row.COUNTRY,
-                        website: row.website ?? row.WEBSITE,
-                        address: row.address ?? row.ADDRESS,
-                        tel_center: row.tel_center ?? row.TEL_CENTER,
-                        emailmain: row.emailmain ?? row.EMAILMAIN,
-                        group_name: row.group_name ?? row.GROUP_NAME,
-                        maker_name: row.maker_name ?? row.MAKER_NAME,
-                        product_name: row.product_name ?? row.PRODUCT_NAME,
-                        model_list: row.model_list ?? row.MODEL_LIST,
-                        contact_name: row.contact_name ?? row.CONTACT_NAME,
-                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
-                        email: row.email ?? row.EMAIL,
-                        position: row.position ?? row.POSITION,
-                        match_method: row.match_method ?? row.MATCH_METHOD,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     params.success({ rowData, rowCount: result.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -137,16 +131,16 @@ const SearchResult = () => {
         const f = getValues('searchFilters')
         return [
             { id: 'global_search', value: f?.global_search || '' },
-            { id: 'company_name', value: f?.company_name || '' },
-            { id: 'vendor_type_id', value: f?.vendor_type_id?.value || null },
-            { id: 'province', value: f?.province?.value || '' },
-            { id: 'product_group_id', value: f?.product_group_id?.value || null },
+            { id: 'COMPANY_NAME', value: f?.company_name || '' },
+            { id: 'MASTER_VENDOR_TYPES_ID', value: f?.vendor_type_id?.value || null },
+            { id: 'PROVINCE', value: f?.province?.value || '' },
+            { id: 'MASTER_PRODUCT_GROUPS_ID', value: f?.product_group_id?.value || null },
             { id: 'status', value: f?.status?.value || '' },
-            { id: 'product_name', value: f?.product_name || '' },
-            { id: 'maker_name', value: f?.maker_name || '' },
-            { id: 'model_list', value: f?.model_list || '' },
-            { id: 'prones_code', value: f?.fft_vendor_code || '' },
-            { id: 'inuse', value: f?.inuse?.value ?? null }
+            { id: 'PRODUCT_NAME', value: f?.product_name || '' },
+            { id: 'MAKER_NAME', value: f?.maker_name || '' },
+            { id: 'MODEL_LIST', value: f?.model_list || '' },
+            { id: 'PRONES_CODE', value: f?.fft_vendor_code || '' },
+            { id: 'INUSE', value: f?.inuse?.value ?? null }
         ]
     }
 
@@ -178,14 +172,14 @@ const SearchResult = () => {
             })
             saveAs(file.data, `Re_Register_All_${buildTimestamp()}.xlsx`)
         } catch {
-            alert('Export failed. Please try again.')
+            ToastMessageError({ title: 'Re-register', message: 'Export failed. Please try again.' })
         } finally {
             setIsExporting(false)
         }
     }
 
     const handleCreateReRegister = useCallback(async (row?: VendorRow, formData?: RegisterConfirmFormData) => {
-        const vendorId = Number(row?.vendor_id || 0)
+        const vendorId = Number(row?.VENDORS_ID || 0)
         const user = getUserData()
         const empCode = String(user?.EMPLOYEE_CODE || '').trim()
         const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
@@ -204,7 +198,7 @@ const SearchResult = () => {
         try {
             const payload = new FormData()
             payload.append('VENDORS_ID', String(vendorId))
-            payload.append('VENDOR_CONTACTS_ID', selectedContactIds[0] || (row?.vendor_contact_id ? String(row.vendor_contact_id) : ''))
+            payload.append('VENDOR_CONTACTS_ID', selectedContactIds[0] || (row?.VENDOR_CONTACTS_ID ? String(row.VENDOR_CONTACTS_ID) : ''))
             selectedContactIds.forEach((contactId: string) => {
                 payload.append('VENDOR_CONTACT_IDS[]', contactId)
             })
@@ -245,14 +239,24 @@ const SearchResult = () => {
     }, [refreshServerSide])
 
     const handleOpenReRegisterModal = useCallback((_vendorId: number, data: VendorRow) => {
-        if (!data?.vendor_id) {
+        const vendorId = Number(data?.VENDORS_ID || _vendorId || 0)
+        if (!vendorId) {
             ToastMessageError({ title: 'Re-register', message: 'Vendor data is not ready' })
             return
         }
 
-        setSelectedReRegisterVendor(data)
+        const normalizedData = { ...data, VENDORS_ID: vendorId }
+        setSelectedReRegisterVendor(normalizedData)
         setReRegisterModalOpen(true)
-    }, [])
+        void loadVendorDetails(normalizedData, vendorId)
+            .then(setSelectedReRegisterVendor)
+            .catch((error: unknown) => {
+                ToastMessageError({
+                    title: 'Vendor Details',
+                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
+                })
+            })
+    }, [loadVendorDetails])
 
     const handleCloseReRegisterModal = useCallback(() => {
         if (creatingVendorId) return
@@ -269,10 +273,19 @@ const SearchResult = () => {
     }, [handleOpenReRegisterModal])
 
     const handleViewDetailsClick = useCallback((vendorId: number, data: VendorRow) => {
+        const normalizedData = { ...data, VENDORS_ID: vendorId }
         setSelectedVendorId(vendorId)
-        setSelectedRowData(data)
+        setSelectedRowData(normalizedData)
         setDetailsModalOpen(true)
-    }, [])
+        void loadVendorDetails(normalizedData, vendorId)
+            .then(setSelectedRowData)
+            .catch((error: unknown) => {
+                ToastMessageError({
+                    title: 'Vendor Details',
+                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
+                })
+            })
+    }, [loadVendorDetails])
 
     const handleCloseSelection = useCallback(() => {
         setDetailsModalOpen(false)
@@ -351,8 +364,8 @@ const SearchResult = () => {
                 onVendorDeleteClick: handleVendorDeleteClick,
                 registerColor: 'primary',
                 registerTitle: 'Send Re-register Request',
-                canRegister: (data: VendorRow) => String(data.status_check || '') === 'Registered',
-                registerDisabled: (data: VendorRow) => creatingVendorId === Number(data.vendor_id || 0)
+                canRegister: (data: VendorRow) => String(data.STATUS_CHECK || '') === 'Registered',
+                registerDisabled: (data: VendorRow) => creatingVendorId === Number(data.VENDORS_ID || 0)
             },
             sortable: false,
             filter: false,
@@ -360,9 +373,9 @@ const SearchResult = () => {
             suppressMovable: true,
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
         },
-        { field: 'company_name', headerName: 'Company Name', width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
+        { field: 'COMPANY_NAME', headerName: 'Company Name', width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
         {
-            field: 'status_check',
+            field: 'STATUS_CHECK',
             headerName: 'Prones Status',
             width: 140,
             filter: 'agTextColumnFilter',
@@ -370,10 +383,10 @@ const SearchResult = () => {
             cellRenderer: StatusCheckCellRenderer,
             cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
         },
-        { field: 'prones_code', headerName: 'Prones Code', width: 115, filter: 'agTextColumnFilter', pinned: 'left', valueFormatter: (p) => p.value || '-' },
-        { field: 'vendor_type_name', headerName: 'Vendor Type', width: 150, filter: 'agTextColumnFilter' },
+        { field: 'PRONES_CODE', headerName: 'Prones Code', width: 115, filter: 'agTextColumnFilter', pinned: 'left', valueFormatter: (p) => p.value || '-' },
+        { field: 'VENDOR_TYPE_NAME', headerName: 'Vendor Type', width: 150, filter: 'agTextColumnFilter' },
         {
-            field: 'vendor_region',
+            field: 'VENDOR_REGION',
             headerName: 'Region',
             width: 110,
             filter: 'agTextColumnFilter',
@@ -393,15 +406,15 @@ const SearchResult = () => {
                 )
             }
         },
-        { field: 'province', headerName: 'Province', width: 150, filter: 'agTextColumnFilter' },
-        { field: 'emailmain', headerName: 'Email (Main)', width: 220, filter: 'agTextColumnFilter' },
-        { field: 'group_name', headerName: 'Product group', width: 165, filter: 'agTextColumnFilter' },
-        { field: 'maker_name', headerName: 'Maker Name', width: 150, filter: 'agTextColumnFilter' },
-        { field: 'product_name', headerName: 'Product Name', width: 180, filter: 'agTextColumnFilter' },
-        { field: 'model_list', headerName: 'Model List', width: 180, filter: 'agTextColumnFilter', valueFormatter: (p: ValueFormatterParams<VendorRow>) => p.value ? String(p.value).replace(/\n/g, ', ') : '' },
-        { field: 'contact_name', headerName: 'Contact Name', width: 180, filter: 'agTextColumnFilter' },
-        { field: 'tel_phone', headerName: 'Tel. Contact', width: 125, filter: 'agTextColumnFilter' },
-        { field: 'email', headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter' }
+        { field: 'PROVINCE', headerName: 'Province', width: 150, filter: 'agTextColumnFilter' },
+        { field: 'EMAILMAIN', headerName: 'Email (Main)', width: 220, filter: 'agTextColumnFilter' },
+        { field: 'GROUP_NAME', headerName: 'Product group', width: 165, filter: 'agTextColumnFilter' },
+        { field: 'MAKER_NAME', headerName: 'Maker Name', width: 150, filter: 'agTextColumnFilter' },
+        { field: 'PRODUCT_NAME', headerName: 'Product Name', width: 180, filter: 'agTextColumnFilter' },
+        { field: 'MODEL_LIST', headerName: 'Model List', width: 180, filter: 'agTextColumnFilter', valueFormatter: (p: ValueFormatterParams<VendorRow>) => p.value ? String(p.value).replace(/\n/g, ', ') : '' },
+        { field: 'CONTACT_NAME', headerName: 'Contact Name', width: 180, filter: 'agTextColumnFilter' },
+        { field: 'TEL_PHONE', headerName: 'Tel. Contact', width: 125, filter: 'agTextColumnFilter' },
+        { field: 'EMAIL', headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter' }
     ], [creatingVendorId, handleReRegisterAction, handleViewDetailsClick, handleVendorDeleteClick, handleVendorEditClick])
 
     return (
@@ -448,9 +461,9 @@ const SearchResult = () => {
                 }}
                 overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
                 getRowId={(params: GetRowIdParams<VendorRow>) => {
-                    const vendorId = params.data.vendor_id || params.data.VENDORS_ID || 0
-                    const productId = params.data.vendor_product_id || params.data.VENDOR_PRODUCTS_ID || 0
-                    const contactId = params.data.vendor_contact_id || params.data.VENDOR_CONTACTS_ID || 0
+                    const vendorId = params.data.VENDORS_ID || 0
+                    const productId = params.data.VENDOR_PRODUCTS_ID || 0
+                    const contactId = params.data.VENDOR_CONTACTS_ID || 0
                     return `${vendorId}_${productId}_${contactId}`
                 }}
             />
@@ -471,7 +484,7 @@ const SearchResult = () => {
 
             <RegisterConfirmModal
                 open={reRegisterModalOpen}
-                vendorData={selectedReRegisterVendor || undefined}
+                vendorData={(selectedReRegisterVendor || undefined) as any}
                 contactSelectionOnly
                 onClose={handleCloseReRegisterModal}
                 onConfirm={handleConfirmReRegister}

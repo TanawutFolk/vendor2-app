@@ -266,8 +266,8 @@ export default class RegisterRequestServices {
 
     // Attach a single document file to an existing request
     // Used for: GPR criteria per-row uploads, generated Form A PDF attachment
-    static addDocument(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ document_id: number; file_path: string; file_name: string }>>> {
-        return axiosRequest<RegisterRequestResponseI<{ document_id: number; file_path: string; file_name: string }>>({
+    static addDocument(formData: FormData): Promise<AxiosResponse<RegisterRequestResponseI<{ DOCUMENT_ID: number; FILE_PATH: string; FILE_NAME: string }>>> {
+        return axiosRequest<RegisterRequestResponseI<{ DOCUMENT_ID: number; FILE_PATH: string; FILE_NAME: string }>>({
             url: `${RegisterRequestAPI.API_ROOT_URL}/addDocument`,
             data: formData,
             method: 'POST',
@@ -294,20 +294,20 @@ export default class RegisterRequestServices {
 }
 
 export interface StatusOption {
-    workflowStepId?: number
-    statusId: number
+    WORKFLOW_STEP_MASTER_ID?: number
+    M_REQUEST_STATUS_ID: number
     value: string
     label: string
-    stepCode?: string
-    actorType?: string
-    defaultGroupCodeLocal?: string
-    defaultGroupCodeOversea?: string
-    requiresVendorReply?: number
-    requiresVendorCode?: number
+    STEP_CODE?: string
+    ACTOR_TYPE?: string
+    DEFAULT_GROUP_CODE_LOCAL?: string
+    DEFAULT_GROUP_CODE_OVERSEA?: string
+    REQUIRES_VENDOR_REPLY?: number
+    REQUIRES_VENDOR_CODE?: number
     chipColor: string
     accent: string
     icon?: string
-    sortOrder: number
+    DEFAULT_STEP_ORDER: number
 }
 
 export type RawStatusOption = Omit<StatusOption, 'chipColor' | 'accent' | 'icon'> & Partial<Pick<StatusOption, 'chipColor' | 'accent' | 'icon'>>
@@ -325,9 +325,9 @@ export interface ApprovalStep extends AuditFields {
     ACTOR_TYPE?: string
     GROUP_CODE?: string
     ASSIGNMENT_MODE?: string
-    master_status_value?: string
-    master_status_label?: string
-    approver_name?: string
+    MASTER_STATUS_VALUE?: string
+    MASTER_STATUS_LABEL?: string
+    APPROVER_NAME?: string
 }
 
 export interface ApprovalLog extends AuditFields {

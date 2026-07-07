@@ -1,18 +1,18 @@
 export type TaskQueueRow = Record<string, unknown> & {
-    request_id?: number
-    request_number?: string
-    company_name?: string
-    request_status?: string
-    request_state?: string
-    vendor_region?: string
+    REQUEST_REGISTER_VENDOR_ID?: number
+    REQUEST_NUMBER?: string
+    COMPANY_NAME?: string
+    REQUEST_STATUS?: string
+    REQUEST_STATE?: string
+    VENDOR_REGION?: string
     CREATE_DATE?: string
-    workflow_type?: string
-    current_step_name?: string
-    current_step_code?: string
-    current_group_code?: string
-    current_group_name?: string
-    current_owner_empcode?: string
-    current_owner_active?: boolean | number
-    reassign_enabled?: boolean | number
-    assignment_health?: string
+    WORKFLOW_TYPE?: string
+    CURRENT_STEP_NAME?: string
+    CURRENT_STEP_CODE?: string
+    CURRENT_GROUP_CODE?: string
+    CURRENT_GROUP_NAME?: string
+    CURRENT_OWNER_EMPCODE?: string
+    CURRENT_OWNER_ACTIVE?: boolean | number
+    REASSIGN_ENABLED?: boolean | number
+    ASSIGNMENT_HEALTH?: string
 }

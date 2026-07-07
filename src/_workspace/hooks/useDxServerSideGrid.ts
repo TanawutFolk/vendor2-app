@@ -22,12 +22,18 @@ export const enforceLockedLeftColumns = (state: any, lockedLeftColIds: string[] 
   const columnPinning = state.columnPinning || {}
   const leftColIds = Array.isArray(columnPinning.leftColIds) ? columnPinning.leftColIds : []
   const rightColIds = Array.isArray(columnPinning.rightColIds) ? columnPinning.rightColIds : []
+  const columnVisibility = state.columnVisibility || {}
+  const hiddenColIds = Array.isArray(columnVisibility.hiddenColIds) ? columnVisibility.hiddenColIds : []
   const nextState = {
     ...state,
     columnPinning: {
       ...columnPinning,
       leftColIds: unique([...locked, ...leftColIds.filter((colId: string) => !locked.includes(colId))]),
       rightColIds: rightColIds.filter((colId: string) => !locked.includes(colId))
+    },
+    columnVisibility: {
+      ...columnVisibility,
+      hiddenColIds: hiddenColIds.filter((colId: string) => !locked.includes(colId))
     }
   }
 

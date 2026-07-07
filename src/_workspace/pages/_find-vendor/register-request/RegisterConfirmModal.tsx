@@ -96,7 +96,7 @@ const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
 )
 
 const parseContactOptions = (vendorData?: RegisterVendorData): VendorContactOption[] => {
-    const rawContacts = vendorData?.contacts
+    const rawContacts = (vendorData as any)?.CONTACTS
 
     if (Array.isArray(rawContacts)) return rawContacts
 
@@ -144,23 +144,22 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
     // Watch values for UI logic
     const files = watch('files')
     const contactOptions = React.useMemo(() => {
-        // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
         const vd = vendorData as any
         const parsedContacts = parseContactOptions(vendorData)
         const contacts = parsedContacts.length > 0
             ? parsedContacts
             : [{
-                vendor_contact_id: vd?.vendor_contact_id ?? vd?.VENDOR_CONTACTS_ID,
-                contact_name: vd?.contact_name ?? vd?.CONTACT_NAME,
-                email: vd?.email ?? vd?.EMAIL,
-                tel_phone: vd?.tel_phone ?? vd?.TEL_PHONE,
-                position: vd?.position ?? vd?.POSITION
+                VENDOR_CONTACT_ID: vd?.VENDOR_CONTACTS_ID,
+                CONTACT_NAME: vd?.CONTACT_NAME,
+                EMAIL: vd?.EMAIL,
+                TEL_PHONE: vd?.TEL_PHONE,
+                POSITION: vd?.POSITION
             }]
 
         const seen = new Set<string>()
 
         return contacts.filter((contact: VendorContactOption) => {
-            const contactId = String(contact?.vendor_contact_id || '')
+            const contactId = String(contact?.VENDOR_CONTACT_ID || '')
             if (!contactId || seen.has(contactId)) return false
             seen.add(contactId)
             return true
@@ -180,7 +179,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
 
     useEffect(() => {
         if (open && contactOptions.length > 0) {
-            setValue('vendorContactIds', contactOptions.map((contact) => String(contact.vendor_contact_id)), { shouldValidate: true })
+            setValue('vendorContactIds', contactOptions.map((contact) => String(contact.VENDOR_CONTACT_ID)), { shouldValidate: true })
         }
     }, [contactOptions, open, setValue])
 
@@ -357,23 +356,23 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                     {step === 1 && vendorData && (() => {
                         // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
                         const vd = vendorData as any
-                        const companyName = vd.company_name ?? vd.COMPANY_NAME
-                        const vendorTypeName = vd.vendor_type_name ?? vd.VENDOR_TYPE_NAME
-                        const vendorRegion = vd.vendor_region ?? vd.VENDOR_REGION
-                        const country = vd.country ?? vd.COUNTRY
-                        const province = vd.province ?? vd.PROVINCE
-                        const website = vd.website ?? vd.WEBSITE
-                        const telCenter = vd.tel_center ?? vd.TEL_CENTER
-                        const statusCheck = vd.status_check ?? vd.STATUS_CHECK
-                        const address = vd.address ?? vd.ADDRESS
-                        const contactName = vd.contact_name ?? vd.CONTACT_NAME
-                        const email = vd.email ?? vd.EMAIL
-                        const emailmain = vd.emailmain ?? vd.EMAILMAIN
-                        const telPhone = vd.tel_phone ?? vd.TEL_PHONE
-                        const groupName = vd.group_name ?? vd.GROUP_NAME
-                        const makerName = vd.maker_name ?? vd.MAKER_NAME
-                        const productName = vd.product_name ?? vd.PRODUCT_NAME
-                        const modelList = vd.model_list ?? vd.MODEL_LIST
+                        const companyName = vd.COMPANY_NAME
+                        const vendorTypeName = vd.VENDOR_TYPE_NAME
+                        const vendorRegion = vd.VENDOR_REGION
+                        const country = vd.COUNTRY
+                        const province = vd.PROVINCE
+                        const website = vd.WEBSITE
+                        const telCenter = vd.TEL_CENTER
+                        const statusCheck = vd.STATUS_CHECK
+                        const address = vd.ADDRESS
+                        const contactName = vd.CONTACT_NAME
+                        const email = vd.EMAIL
+                        const emailmain = vd.EMAILMAIN
+                        const telPhone = vd.TEL_PHONE
+                        const groupName = vd.GROUP_NAME
+                        const makerName = vd.MAKER_NAME
+                        const productName = vd.PRODUCT_NAME
+                        const modelList = vd.MODEL_LIST
 
                         return (
                         <Box sx={{
@@ -492,7 +491,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                                         render={({ field }) => (
                                             <Box>
                                                 {contactOptions.map((contact, index: number) => {
-                                                    const contactId = String(contact.vendor_contact_id)
+                                                    const contactId = String(contact.VENDOR_CONTACT_ID)
                                                     const checked = field.value?.includes(contactId) || false
 
                                                     return (
@@ -513,9 +512,9 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                                                             }
                                                             label={
                                                                 <Box>
-                                                                    <Typography variant="body2" fontWeight={600}>{contact.contact_name || `Contact ${index + 1}`}</Typography>
+                                                                    <Typography variant="body2" fontWeight={600}>{contact.CONTACT_NAME || `Contact ${index + 1}`}</Typography>
                                                                     <Typography variant="caption" color="text.secondary">
-                                                                        {contact.email ? contact.email : 'No email'} {contact.tel_phone ? `| Tel: ${contact.tel_phone}` : ''}
+                                                                        {contact.EMAIL ? contact.EMAIL : 'No email'} {contact.TEL_PHONE ? `| Tel: ${contact.TEL_PHONE}` : ''}
                                                                     </Typography>
                                                                 </Box>
                                                             }

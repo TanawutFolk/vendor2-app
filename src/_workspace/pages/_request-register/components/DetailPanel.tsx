@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
 import {
     Grid, Box, Typography, Chip, Divider,
-    Dialog, DialogTitle, DialogContent, DialogActions, Button
+    Dialog, DialogTitle, DialogContent, DialogActions, Button,
+    List, ListItem, IconButton, CircularProgress
 } from '@mui/material'
+import { styled } from '@mui/material/styles'
+import type { BoxProps } from '@mui/material/Box'
+import { useDropzone } from 'react-dropzone'
 import { useForm } from 'react-hook-form'
 
-import GprFormDialog from '../modal/GprFormDialog'
+import AppReactDropzone from '@/libs/styles/AppReactDropzone'
+
+import SelectionFormDialong from '../modal/SelectionFormDialong'
 import EditVendorModal from '@_workspace/pages/_find-vendor/modal/EditVendorModal'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -39,12 +45,56 @@ import type { EditRequestForm, DetailPanelProps } from '@_workspace/types/_reque
 import { Transition, buildFileUrls, safeParseJSON, buildActionLogPresentation, formatActionTypeLabel, getActionTypeColor } from './shared'
 import FileViewerDialog from './FileViewerDialog'
 import { useUpdateRequest } from '@_workspace/react-query/hooks/useRegisterRequest'
+import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+
+// Styled dropzone — same look as the Requester's "Quotation, Concerned documents"
+// upload in /find-vendor (RegisterConfirmModal).
+const Dropzone = styled(AppReactDropzone)<BoxProps>(({ theme }) => ({
+    '& .dropzone': {
+        minHeight: 'unset',
+        padding: theme.spacing(4),
+        border: `2px dashed ${theme.palette.divider}`,
+        borderRadius: theme.shape.borderRadius,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        cursor: 'pointer',
+        transition: 'border 0.3s ease-in-out',
+        '&:hover': {
+            borderColor: theme.palette.primary.main
+        },
+        [theme.breakpoints.down('sm')]: {
+            paddingInline: theme.spacing(4)
+        },
+        '&+.MuiList-root .MuiListItem-root .file-name': {
+            fontWeight: theme.typography.body1.fontWeight
+        }
+    }
+}))
+
+const renderGprBFilePreview = (fileName: string) => {
+    const name = String(fileName || '').toLowerCase()
+    let fileIcon = 'tabler-file-description'
+    let color = 'primary'
+
+    if (name.endsWith('.pdf')) { fileIcon = 'tabler-file-type-pdf'; color = 'error' }
+    else if (name.endsWith('.xls') || name.endsWith('.xlsx')) { fileIcon = 'tabler-file-spreadsheet'; color = 'success' }
+    else if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) { fileIcon = 'tabler-photo'; color = 'info' }
+    else if (name.endsWith('.doc') || name.endsWith('.docx')) { fileIcon = 'tabler-file-word'; color = 'info' }
+    else if (name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z')) { fileIcon = 'tabler-file-zip'; color = 'warning' }
+
+    return (
+        <Box sx={{ width: 40, height: 40, borderRadius: 1.5, bgcolor: `${color}.lighter`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <i className={fileIcon} style={{ color: `var(--mui-palette-${color}-main)`, fontSize: '1.5rem' }} />
+        </Box>
+    )
+}
 
 const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onCompleted }: DetailPanelProps) => {
     const data = rawData || {}
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const [allowApproveBypass, setAllowApproveBypass] = useState(false)
-    const [gprCSentInSession, setGprCSentInSession] = useState(false)
     const [gprSavedInSession, setGprSavedInSession] = useState(false)
     // GPR Form dialog
     const [gprDialogOpen, setGprDialogOpen] = useState(false)
@@ -54,6 +104,11 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     const [editVendorOpen, setEditVendorOpen] = useState(false)
     const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
     const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
+    // GPR B (vendor's returned file, uploaded by PO PIC at the Issue GPR B step)
+    const [gprBUploading, setGprBUploading] = useState(false)
+    const [gprBFileSession, setGprBFileSession] = useState<{ path: string; name: string; size?: number } | null>(null)
+    const [gprBFileError, setGprBFileError] = useState<string | null>(null)
+    const [gprBPendingFile, setGprBPendingFile] = useState<File | null>(null)
     const { data: statusOptions = [] } = useRequestStatusOptions()
     const user = getUserData()
     const {
@@ -67,14 +122,16 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
             requester_remark: ''
         }
     })
-    const files = buildFileUrls(data?.documents)
+    const files = buildFileUrls(data?.DOCUMENTS, String(data?.REQUEST_NUMBER || ''))
     useEffect(() => {
         setGprSavedInSession(false)
-        setGprCSentInSession(false)
-    }, [data?.request_id])
+        setGprBFileSession(null)
+        setGprBFileError(null)
+        setGprBPendingFile(null)
+    }, [data?.REQUEST_REGISTER_VENDOR_ID])
 
     // Parse approval steps to determine if current user can act
-    const approvalSteps: any[] = safeParseJSON<any[]>(data.approval_steps, [])
+    const approvalSteps: any[] = safeParseJSON<any[]>(data.APPROVAL_STEPS, [])
         .filter(Boolean)
         .sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
 
@@ -88,7 +145,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     )
     const isCurrentStepMine = !!currentStep && (
         currentStep.APPROVER_EMPCODE === user?.EMPLOYEE_CODE ||
-        ((isPicStep(currentStep) || isPicOwnedNegotiationStep) && user?.EMPLOYEE_CODE === data.assign_to)
+        ((isPicStep(currentStep) || isPicOwnedNegotiationStep) && user?.EMPLOYEE_CODE === data.ASSIGN_TO)
     )
     const isRequestRegisterActionStep = !!currentStep && (
         isPicStep(currentStep) ||
@@ -97,8 +154,8 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     )
     const isActionable = isCurrentStepMine && isRequestRegisterActionStep
     const isCurrentAccountStep = isActionable && isAccountStep(currentStep)
-    const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.assign_to
-    const isAssignedPicUser = String(user?.EMPLOYEE_CODE || '').trim() === String(data.assign_to || '').trim()
+    const isCurrentPicStep = isActionable && isPicStep(currentStep) && user?.EMPLOYEE_CODE === data.ASSIGN_TO
+    const isAssignedPicUser = String(user?.EMPLOYEE_CODE || '').trim() === String(data.ASSIGN_TO || '').trim()
     const isPoMgrOrAboveStep = [
         WORKFLOW_STEP_CODE.PO_MGR_APPROVAL,
         WORKFLOW_STEP_CODE.PO_GM_APPROVAL,
@@ -112,7 +169,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
         && isIssueGprCStep(currentStep)
         && String(currentStep?.APPROVER_EMPCODE || '').trim() === String(user?.EMPLOYEE_CODE || '').trim()
     )
-    const approvalLogs: any[] = safeParseJSON<any[]>(data.approval_logs, []).filter(Boolean)
+    const approvalLogs: any[] = safeParseJSON<any[]>(data.APPROVAL_LOGS, []).filter(Boolean)
     const logs = approvalLogs
     const everRequestedVendor = approvalLogs.some((l: any) => l.ACTION_TYPE === 'vendor_requested')
 
@@ -128,7 +185,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     )
     const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested)
     const rejectButtonLabel = getRejectActionLabel(currentStep)
-    const actionRequiredSetup = safeParseJSON<any>(data.action_required_json, {})
+    const actionRequiredSetup = safeParseJSON<any>(data.ACTION_REQUIRED_JSON, {})
     const actionRequiredStage = resolveActionRequiredStage(currentStep)
     const actionRequiredStageConfig = actionRequiredStage ? (actionRequiredSetup?.[actionRequiredStage] || {}) : null
     const showActionRequiredBtn = Boolean(isActionable && actionRequiredStage)
@@ -136,41 +193,38 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     const actionRequiredLabel = actionRequiredStage
         ? `Action Required - ${getActionRequiredStageLabel(currentStep)}`
         : 'Action Required'
-    // GPR evaluation: determine pass/fail from gpr_criteria (joined via vendor_selection_criteria)
-    const parsedGprData = safeParseJSON<any>(data.gpr_data, null)
-    const gprCriteriaFromData = Array.isArray(parsedGprData?.criteria) ? parsedGprData.criteria : []
+    // GPR evaluation: determine pass/fail from GPR_CRITERIA (joined via vendor_selection_criteria)
     const gprCriteria: any[] = (() => {
-        const raw = data.gpr_criteria
-        if (Array.isArray(raw)) return raw
+        const raw = data.GPR_CRITERIA
+        if (Array.isArray(raw)) return raw.filter(Boolean)
         try {
             const parsed = JSON.parse(raw)
-            return Array.isArray(parsed) && parsed.length > 0 ? parsed : gprCriteriaFromData
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : []
         } catch {
-            return gprCriteriaFromData
+            return []
         }
     })()
-    const hasPersistedGprData = Boolean(data.gpr_data) || gprCriteriaFromData.length > 0
+    const hasPersistedGprData = gprCriteria.length > 0
     const canOpenGprDialog = !isCurrentAccountStep && (everRequestedVendor || hasPersistedGprData)
-    const gprFormFilled = gprSavedInSession || hasPersistedGprData || gprCriteria.length > 0
+    const gprFormFilled = gprSavedInSession || hasPersistedGprData
     // Item 4.3 decides whether GPR B / Form B is needed.
-    const gpr43Status = String(data.gpr_43_acceptance_status ?? data.GPR_43_ACCEPTANCE_STATUS ?? '').trim().replace(/[_-]+/g, ' ').toUpperCase()
-    const gpr43Decision = String(gprCriteria.find((c: any) => String(c?.no || '') === '4.3')?.remark || '').trim()
+    const gpr43Status = String(data.GPR_43_ACCEPTANCE_STATUS ?? '').trim().replace(/[_-]+/g, ' ').toUpperCase()
+    const gpr43Decision = String(gprCriteria.find((c: any) => String(c?.NO || '') === '4.3')?.REMARK || '').trim()
     const isGpr43Accepted = gpr43Status ? gpr43Status === 'ACCEPT' : gpr43Decision === 'Accept'
     const isGprBRequired = gpr43Status ? gpr43Status === 'NOT ACCEPT' : gpr43Decision === 'Not Accept'
     const gprPassNeed = gprFormFilled && isGpr43Accepted && ['4.1', '4.2', '4.4', '4.5', '4.11']
-        .every((no) => gprCriteria.some((c: any) => String(c?.no || '') === no && !!c?.uploaded_file))
+        .every((no) => gprCriteria.some((c: any) => String(c?.NO || '') === no && !!c?.UPLOADED_FILE))
     // Optional criteria require at least 3 documents.
     const gprPassOptional = gprFormFilled && gprCriteria
         .filter((c: any) => {
             const no = String(c?.no || '')
             return ['4.6', '4.7', '4.8', '4.9', '4.10', '4.12', '4.13'].includes(no)
         })
-        .filter((c: any) => !!c?.uploaded_file).length >= 3
+        .filter((c: any) => !!c?.UPLOADED_FILE).length >= 3
     const gprEvalPassed = gprPassNeed && gprPassOptional
     const gprWorkflow = useGprWorkflowLogic({
         currentStep,
         approvalSteps,
-        hasSentGprCInSession: gprCSentInSession,
         isActionable,
         isAssignedPicUser,
         isPicOwnedNegotiationStep,
@@ -188,11 +242,111 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
         }
     }, [gprWorkflow.isCurrentIssueGprBStep])
 
+    // GPR B file: prefer the just-uploaded session file, fall back to what the request already holds.
+    const gprBFilePath = gprBFileSession?.path || String(data.GPR_B_FILE_PATH || '')
+    const gprBFileName = gprBFileSession?.name || String(data.GPR_B_FILE_NAME || '')
+    const hasGprBFile = Boolean(gprBFilePath)
+
+    const uploadGprBFile = async (file: File) => {
+        const requestId = Number(data.REQUEST_REGISTER_VENDOR_ID) || 0
+        const requestNumber = String(data.REQUEST_NUMBER || '')
+        if (!requestId || !requestNumber) {
+            ToastMessageError({ title: 'Upload GPR B', message: 'Request information is missing.' })
+            return
+        }
+
+        setGprBUploading(true)
+        try {
+            const uploadForm = new FormData()
+            uploadForm.append('REQUEST_REGISTER_VENDOR_ID', String(requestId))
+            uploadForm.append('file', file)
+            uploadForm.append('CREATE_BY', user?.EMPLOYEE_CODE || 'SYSTEM')
+            uploadForm.append('DOCUMENT_SCOPE', 'GPR_B')
+            uploadForm.append('REQUEST_NUMBER', requestNumber)
+
+            const response = await RegisterRequestServices.addDocument(uploadForm)
+            if (!response.data?.Status) {
+                throw new Error(response.data?.Message || 'Upload failed')
+            }
+
+            const { FILE_PATH: file_path, FILE_NAME: file_name } = response.data.ResultOnDb
+            setGprBFileSession({ path: file_path || '', name: file_name || file.name, size: file.size })
+            setGprBPendingFile(null)
+            ToastMessageSuccess({ title: 'Upload GPR B', message: 'GPR B file uploaded successfully.' })
+        } catch (error: any) {
+            ToastMessageError({
+                title: 'Upload GPR B',
+                message: error?.response?.data?.Message || error?.message || 'Failed to upload GPR B file',
+            })
+        } finally {
+            setGprBUploading(false)
+        }
+    }
+
+    const { getRootProps: getGprBRootProps, getInputProps: getGprBInputProps } = useDropzone({
+        multiple: false,
+        disabled: gprBUploading,
+        onDrop: (acceptedFiles) => {
+            setGprBFileError(null)
+            if (acceptedFiles[0]) setGprBPendingFile(acceptedFiles[0])
+        },
+        onDropRejected: (fileRejections) => {
+            const messages = fileRejections.map(r => {
+                const sizeErr = r.errors.find(e => e.code === 'file-too-large')
+                const typeErr = r.errors.find(e => e.code === 'file-invalid-type')
+                if (sizeErr) return `File "${r.file.name}" is too large (max 10MB).`
+                if (typeErr) return `File "${r.file.name}" type is not allowed.`
+                return `File "${r.file.name}" was rejected.`
+            })
+            setGprBFileError(messages[0])
+        },
+        accept: {
+            'application/pdf': ['.pdf'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg']
+        },
+        maxSize: 10 * 1024 * 1024 // 10MB
+    })
+
+    const formatGprBFileSize = (size?: number) => {
+        if (!size) return ''
+        return Math.round(size / 100) / 10 > 1000
+            ? `${(Math.round(size / 100) / 10000).toFixed(1)} MB`
+            : `${(Math.round(size / 100) / 10).toFixed(1)} KB`
+    }
+    const gprBFileSizeLabel = formatGprBFileSize(gprBFileSession?.size) || 'Uploaded file'
+
+    const handleGprBDownload = async () => {
+        if (!gprBFilePath) return
+        try {
+            const response = await RegisterRequestServices.downloadSelectionDocument({
+                FILE_PATH: gprBFilePath,
+                FILE_NAME: gprBFileName,
+                REQUEST_NUMBER: String(data.REQUEST_NUMBER || ''),
+            })
+            const blob = response.data
+            const downloadName = gprBFileName || gprBFilePath.split(/[/\\]/).pop() || 'gpr-b-file'
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url
+            anchor.download = downloadName
+            anchor.click()
+            URL.revokeObjectURL(url)
+        } catch (error: any) {
+            ToastMessageError({
+                title: 'Download GPR B',
+                message: error?.response?.data?.Message || error?.message || 'Failed to download GPR B file',
+            })
+        }
+    }
+
     const handleOpenEditDialog = () => {
         resetEdit({
-            supportProduct_Process: data.supportProduct_Process || '',
-            purchase_frequency: data.purchase_frequency || '',
-            requester_remark: data.requester_remark || ''
+            supportProduct_Process: data.SUPPORTPRODUCT_PROCESS || '',
+            purchase_frequency: data.PURCHASE_FREQUENCY || '',
+            requester_remark: data.REQUESTER_REMARK || ''
         })
         setEditDialogOpen(true)
     }
@@ -214,7 +368,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
 
     const handleSaveEdit = (formData: EditRequestForm) => {
         updateMutation.mutate({
-            REQUEST_REGISTER_VENDOR_ID: data.request_id,
+            REQUEST_REGISTER_VENDOR_ID: data.REQUEST_REGISTER_VENDOR_ID,
             SUPPORTPRODUCT_PROCESS: formData.supportProduct_Process,
             PURCHASE_FREQUENCY: formData.purchase_frequency,
             REQUESTER_REMARK: formData.requester_remark,
@@ -236,8 +390,8 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
     const shouldShowNegotiationDisagree = !(isPendingAgreementStep(currentStep) && !isGprBRequired)
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
 
-    const contacts: any[] = safeParseJSON<any[]>(data.contacts, []).filter(Boolean)
-    const products: any[] = safeParseJSON<any[]>(data.products, []).filter(Boolean)
+    const contacts: any[] = safeParseJSON<any[]>(data.CONTACTS, []).filter(Boolean)
+    const products: any[] = safeParseJSON<any[]>(data.PRODUCTS, []).filter(Boolean)
 
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
@@ -261,7 +415,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
             <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
-                        <Typography variant='h6' fontWeight={800}>{data.company_name}</Typography>
+                        <Typography variant='h6' fontWeight={800}>{data.COMPANY_NAME}</Typography>
                     </Box>
                     <Box
                         sx={{
@@ -275,7 +429,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                         }}
                     >
                         <Typography variant='body2' color='text.secondary' fontWeight={600}>
-                            {data.request_status || '-'}
+                            {data.REQUEST_STATUS || '-'}
                         </Typography>
                     </Box>
                 </Box>
@@ -305,9 +459,9 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                 </Box>
                 <Grid container spacing={2}>
                     {[
-                        { label: 'Support Product / Process', value: data.supportProduct_Process },
-                        { label: 'Purchase Frequency', value: data.purchase_frequency },
-                        { label: 'Assigned To (PIC)', value: data.assign_to },
+                        { label: 'Support Product / Process', value: data.SUPPORTPRODUCT_PROCESS },
+                        { label: 'Purchase Frequency', value: data.PURCHASE_FREQUENCY },
+                        { label: 'Assigned To (PIC)', value: data.ASSIGN_TO },
                         { label: 'Submitted Date', value: data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : '-' },
                     ].map(({ label, value }) => (
                         <Grid item xs={12} sm={6} md={3} key={label}>
@@ -315,10 +469,10 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                             <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{value || '-'}</Typography>
                         </Grid>
                     ))}
-                    {data.requester_remark && (
+                    {data.REQUESTER_REMARK && (
                         <Grid item xs={12}>
                             <Typography variant='caption' color='text.disabled' fontWeight={600}>Requester Remark</Typography>
-                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.requester_remark}</Typography>
+                            <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>{data.REQUESTER_REMARK}</Typography>
                         </Grid>
                     )}
                 </Grid>
@@ -384,18 +538,18 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                 </Box>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                     {[
-                        { label: 'Company Name', value: data.company_name },
-                        { label: 'Vendor Type', value: data.vendor_type_name },
-                        { label: 'Region', value: data.vendor_region },
-                        { label: 'FFT Vendor Code', value: data.fft_vendor_code },
-                        { label: 'FFT Status', value: formatFftStatus(data.fft_status) },
-                        ...(data.vendor_region === 'Oversea'
+                        { label: 'Company Name', value: data.COMPANY_NAME },
+                        { label: 'Vendor Type', value: data.VENDOR_TYPE_NAME },
+                        { label: 'Region', value: data.VENDOR_REGION },
+                        { label: 'FFT Vendor Code', value: data.FFT_VENDOR_CODE },
+                        { label: 'FFT Status', value: formatFftStatus(data.FFT_STATUS) },
+                        ...(data.VENDOR_REGION === 'Oversea'
                             ? [{ label: 'Country', value: data.country }]
                             : [
                                 { label: 'Province', value: data.province },
-                                { label: 'Postal Code', value: data.postal_code }
+                                { label: 'Postal Code', value: data.POSTAL_CODE }
                             ]),
-                        { label: 'Tel Center', value: data.tel_center },
+                        { label: 'Tel Center', value: data.TEL_CENTER },
                         { label: 'Website', value: data.website },
                         { label: 'Email (Main)', value: data.emailmain },
                     ].map(({ label, value }) => (
@@ -425,8 +579,8 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                         </Box>
                         {contacts.map((c, i) => (
                             <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
+                                <Typography variant='body2' fontWeight={600}>{c.CONTACT_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{c.TEL_PHONE || '-'}</Typography>
                                 <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
                                 <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
                             </Box>
@@ -447,10 +601,10 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                         </Box>
                         {products.map((p, i) => (
                             <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                <Typography variant='body2' fontWeight={600}>{p.product_group || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
+                                <Typography variant='body2' fontWeight={600}>{p.PRODUCT_GROUP || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.MAKER_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.PRODUCT_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.MODEL_LIST || '-'}</Typography>
                             </Box>
                         ))}
                     </Box>
@@ -506,15 +660,6 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                                                 '& .MuiChip-icon': { color: stCfg.tone.color }
                                             })}
                                         />
-                                        {isIssueGprCStep(s) && ['approved', 'completed'].includes(String(s?.STEP_STATUS || '').toLowerCase()) && (
-                                            <Chip
-                                                size='small'
-                                                color='success'
-                                                variant='tonal'
-                                                label='Requester Completed'
-                                                sx={{ ml: 1, fontSize: '0.65rem', height: 20, verticalAlign: 'middle' }}
-                                            />
-                                        )}
                                         <Typography variant='body2' color='text.secondary'>
                                             {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
                                         </Typography>
@@ -609,13 +754,13 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
             })()}
 
             {/* Decision Info
-            {(data.approve_by || data.approver_remark) && (
+            {(data.APPROVE_BY || data.APPROVER_REMARK) && (
                 <Box sx={{ mb: 3 }}>
                     <SectionHeader icon='tabler-user-check' title='Decision Info' />
-                    {infoRow('Approved / Rejected By', data.approve_by)}
-                    {infoRow('Approval Date', data.approve_date ? new Date(data.approve_date).toLocaleDateString('th-TH') : '-')}
-                    {infoRow('Approver Remark', data.approver_remark)}
-                    {data.vendor_code && infoRow('Vendor Code (FFT)', data.vendor_code)}
+                    {infoRow('Approved / Rejected By', data.APPROVE_BY)}
+                    {infoRow('Approval Date', data.APPROVE_DATE ? new Date(data.APPROVE_DATE).toLocaleDateString('th-TH') : '-')}
+                    {infoRow('Approver Remark', data.APPROVER_REMARK)}
+                    {data.VENDOR_CODE && infoRow('Vendor Code (FFT)', data.VENDOR_CODE)}
                 </Box>
             )} */}
             {/* GPR Form */}
@@ -632,7 +777,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                             <Typography variant='caption' color='text.secondary'>
                                 {isGprReadOnly
                                     ? 'Selection Sheet (read-only)'
-                                    : (data.gpr_data
+                                    : (hasPersistedGprData
                                         ? 'Selection Sheet filled - click to edit'
                                         : 'Fill in Selection Sheet from vendor response')}
                             </Typography>
@@ -710,7 +855,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                                         {gprWorkflow.hasGprCApproved
                                             ? 'Requester head approved GPR C. PIC can continue with Approve and Send to Doc Checker.'
                                             : (gprWorkflow.hasGprCRejected
-                                                ? 'Requester head rejected/disagreed GPR C. PIC should choose Reject to continue rejection loop.'
+                                                ? 'Requester head rejected/disagreed GPR C. The request is rejected automatically by the GPR C approval flow — no action needed.'
                                                 : (isWaitingForExternalGprCApproval
                                                     ? `Waiting for requester head (${currentStep?.APPROVER_EMPCODE}) to approve GPR C.`
                                                     : 'Waiting for requester head approval decision.'))}
@@ -732,13 +877,132 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                                 >{actionRequiredLabel}</Button>
                             )}
                             {gprWorkflow.showSendToRequesterBtn && (
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 600 }}>
+                                        GPR B (Vendor Response) <Typography component='span' color='error'>*</Typography>
+                                    </Typography>
+                                    <Dropzone>
+                                        <div {...getGprBRootProps({ className: 'dropzone' })}>
+                                            <input {...getGprBInputProps()} />
+                                            <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 1.5, textAlign: 'center' }}>
+                                                <Box sx={{
+                                                    width: 48, height: 48, borderRadius: 1.5,
+                                                    bgcolor: 'secondary.lightOpacity', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    <i className='tabler-file-upload' style={{ fontSize: 24, color: 'var(--mui-palette-secondary-main)' }} />
+                                                </Box>
+                                                <Typography variant='h6' sx={{ mb: 0.5 }}>
+                                                    {(gprBPendingFile || hasGprBFile) ? 'Drop file here or click to replace' : 'Drop file here or click to select'}
+                                                </Typography>
+                                                <Typography variant='body2' fontWeight={600} color='primary.main'>
+                                                    Allowed: PDF, Excel, PNG, JPG (Max 10MB)
+                                                </Typography>
+                                                {gprBFileError && (
+                                                    <Typography variant='caption' color='error' sx={{ mt: 1, fontWeight: 700 }}>
+                                                        {gprBFileError}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </div>
+                                        {(gprBPendingFile || hasGprBFile) && (
+                                            <List sx={{ mt: 2, p: 0 }}>
+                                                {gprBPendingFile ? (
+                                                    <ListItem sx={{ px: 0, py: 0.75 }}>
+                                                        <Box sx={{
+                                                            display: 'flex', alignItems: 'center', width: '100%', gap: 2,
+                                                            p: 1.5, borderRadius: 1.5, border: '1px solid', borderColor: 'warning.main',
+                                                            bgcolor: 'background.paper',
+                                                            transition: 'border 0.2s'
+                                                        }}>
+                                                            <Box sx={{ flexShrink: 0, display: 'flex' }}>{renderGprBFilePreview(gprBPendingFile.name)}</Box>
+                                                            <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                                                                <Typography variant='body2' noWrap fontWeight={600} color='text.primary'>
+                                                                    {gprBPendingFile.name}
+                                                                </Typography>
+                                                                <Typography variant='caption' color='warning.dark'>
+                                                                    {formatGprBFileSize(gprBPendingFile.size)} - Waiting for upload
+                                                                </Typography>
+                                                            </Box>
+                                                            <Button
+                                                                size='small'
+                                                                variant='contained'
+                                                                color='primary'
+                                                                disabled={gprBUploading}
+                                                                startIcon={gprBUploading ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-upload' style={{ fontSize: 16 }} />}
+                                                                onClick={() => uploadGprBFile(gprBPendingFile)}
+                                                            >
+                                                                {gprBUploading ? 'Uploading...' : 'Upload'}
+                                                            </Button>
+                                                            <IconButton
+                                                                onClick={() => setGprBPendingFile(null)}
+                                                                size='small'
+                                                                disabled={gprBUploading}
+                                                                sx={{
+                                                                    color: 'error.main',
+                                                                    bgcolor: 'error.lighter',
+                                                                    opacity: 0.8,
+                                                                    '&:hover': { opacity: 1, bgcolor: 'error.light' }
+                                                                }}
+                                                            >
+                                                                <i className='tabler-trash' style={{ fontSize: '1.25rem' }} />
+                                                            </IconButton>
+                                                        </Box>
+                                                    </ListItem>
+                                                ) : (
+                                                    <ListItem sx={{ px: 0, py: 0.75 }}>
+                                                        <Box sx={{
+                                                            display: 'flex', alignItems: 'center', width: '100%', gap: 2,
+                                                            p: 1.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
+                                                            bgcolor: 'background.paper',
+                                                            transition: 'border 0.2s',
+                                                            '&:hover': { borderColor: 'primary.main' }
+                                                        }}>
+                                                            <Box sx={{ flexShrink: 0, display: 'flex' }}>{renderGprBFilePreview(gprBFileName)}</Box>
+                                                            <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                                                                <Typography
+                                                                    variant='body2'
+                                                                    noWrap
+                                                                    fontWeight={600}
+                                                                    color='primary.main'
+                                                                    sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                                                                    onClick={handleGprBDownload}
+                                                                >
+                                                                    {gprBFileName || 'GPR B file'}
+                                                                </Typography>
+                                                                <Typography variant='caption' color='text.secondary'>
+                                                                    {gprBFileSizeLabel}
+                                                                </Typography>
+                                                            </Box>
+                                                            <IconButton
+                                                                onClick={handleGprBDownload}
+                                                                size='small'
+                                                                sx={{
+                                                                    color: 'primary.main',
+                                                                    bgcolor: 'primary.lighter',
+                                                                    opacity: 0.8,
+                                                                    '&:hover': { opacity: 1, bgcolor: 'primary.light' }
+                                                                }}
+                                                            >
+                                                                <i className='tabler-download' style={{ fontSize: '1.25rem' }} />
+                                                            </IconButton>
+                                                        </Box>
+                                                    </ListItem>
+                                                )}
+                                            </List>
+                                        )}
+                                    </Dropzone>
+                                    {!hasGprBFile && (
+                                        <Typography variant='caption' color='warning.dark' sx={{ mt: 1, display: 'block' }}>
+                                            Please upload the GPR B file received from the vendor before sending GPR C to the requester.
+                                        </Typography>
+                                    )}
+                                </Box>
+                            )}
+                            {gprWorkflow.showSendToRequesterBtn && (
                                 <Button variant='contained' color='warning' fullWidth
                                     startIcon={<i className='tabler-send' style={{ fontSize: 18 }} />}
-                                    disabled={gprWorkflow.disableSendToRequesterBtn}
-                                    onClick={() => {
-                                        setGprCSentInSession(true)
-                                        onApprove(gprWorkflow.issueGprCStatusValue || computedNextStatus, false, gprWorkflow.sendToRequesterLabel)
-                                    }}
+                                    disabled={gprWorkflow.disableSendToRequesterBtn || !hasGprBFile}
+                                    onClick={() => onApprove(gprWorkflow.issueGprCStatusValue || computedNextStatus, false, gprWorkflow.sendToRequesterLabel)}
                                 >{gprWorkflow.sendToRequesterLabel}</Button>
                             )}
                             {gprWorkflow.showRejectBtn && (
@@ -893,7 +1157,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
             )}
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
-            <GprFormDialog
+            <SelectionFormDialong
                 open={gprDialogOpen}
                 rowData={data}
                 readOnly={isGprReadOnly}
@@ -933,24 +1197,24 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
             <EditVendorModal
                 open={editVendorOpen}
                 onClose={() => setEditVendorOpen(false)}
-                vendorId={data.vendor_id || null}
+                vendorId={data.VENDORS_ID || null}
                 rowData={{
-                    vendor_id: data.vendor_id,
-                    fft_vendor_code: data.fft_vendor_code,
-                    fft_status: data.fft_status,
-                    status_check: data.status_check,
-                    company_name: data.company_name,
-                    vendor_type_id: data.vendor_type_id,
-                    vendor_type_name: data.vendor_type_name,
-                    province: data.province,
-                    postal_code: data.postal_code,
-                    website: data.website,
-                    address: data.address,
-                    tel_center: data.tel_center,
-                    emailmain: data.emailmain,
-                    vendor_region: data.vendor_region,
-                    contacts: contacts,
-                    products: products,
+                    VENDORS_ID: data.VENDORS_ID,
+                    FFT_VENDOR_CODE: data.FFT_VENDOR_CODE,
+                    FFT_STATUS: data.FFT_STATUS,
+                    STATUS_CHECK: data.STATUS_CHECK,
+                    COMPANY_NAME: data.COMPANY_NAME,
+                    MASTER_VENDOR_TYPES_ID: data.MASTER_VENDOR_TYPES_ID,
+                    VENDOR_TYPE_NAME: data.VENDOR_TYPE_NAME,
+                    PROVINCE: data.PROVINCE,
+                    POSTAL_CODE: data.POSTAL_CODE,
+                    WEBSITE: data.WEBSITE,
+                    ADDRESS: data.ADDRESS,
+                    TEL_CENTER: data.TEL_CENTER,
+                    EMAILMAIN: data.EMAILMAIN,
+                    VENDOR_REGION: data.VENDOR_REGION,
+                    CONTACTS: contacts,
+                    PRODUCTS: products,
                     CREATE_BY: data.CREATE_BY,
                     UPDATE_BY: data.UPDATE_BY,
                     CREATE_DATE: data.CREATE_DATE,

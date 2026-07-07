@@ -32,23 +32,23 @@ const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
 )
 
 const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) => {
-    const contacts = (Array.isArray(data?.contacts) ? data.contacts : []).filter(Boolean)
-    const products = (Array.isArray(data?.products) ? data.products : []).filter(Boolean)
+    const contacts = (Array.isArray((data as any)?.CONTACTS) ? (data as any).CONTACTS : []).filter(Boolean)
+    const products = (Array.isArray((data as any)?.PRODUCTS) ? (data as any).PRODUCTS : []).filter(Boolean)
 
     // Shared with Re-register (not yet UPPER-migrated), so tolerate both casings.
-    const companyName = data?.company_name ?? (data as any)?.COMPANY_NAME
-    const vendorTypeName = data?.vendor_type_name ?? (data as any)?.VENDOR_TYPE_NAME
-    const vendorRegion = data?.vendor_region ?? (data as any)?.VENDOR_REGION
-    const statusCheck = data?.status_check ?? (data as any)?.STATUS_CHECK
-    const rejectReason = data?.reject_reason ?? (data as any)?.REJECT_REASON
-    const fftVendorCode = data?.fft_vendor_code ?? (data as any)?.FFT_VENDOR_CODE
-    const country = data?.country ?? (data as any)?.COUNTRY
-    const province = data?.province ?? (data as any)?.PROVINCE
-    const postalCode = data?.postal_code ?? (data as any)?.POSTAL_CODE
-    const telCenter = data?.tel_center ?? (data as any)?.TEL_CENTER
-    const website = data?.website ?? (data as any)?.WEBSITE
-    const emailmain = data?.emailmain ?? (data as any)?.EMAILMAIN
-    const address = data?.address ?? (data as any)?.ADDRESS
+    const companyName = (data as any)?.COMPANY_NAME
+    const vendorTypeName = (data as any)?.VENDOR_TYPE_NAME
+    const vendorRegion = (data as any)?.VENDOR_REGION
+    const statusCheck = (data as any)?.STATUS_CHECK
+    const rejectReason = (data as any)?.REJECT_REASON
+    const fftVendorCode = (data as any)?.FFT_VENDOR_CODE
+    const country = (data as any)?.COUNTRY
+    const province = (data as any)?.PROVINCE
+    const postalCode = (data as any)?.POSTAL_CODE
+    const telCenter = (data as any)?.TEL_CENTER
+    const website = (data as any)?.WEBSITE
+    const emailmain = (data as any)?.EMAILMAIN
+    const address = (data as any)?.ADDRESS
 
     return (
         <Dialog
@@ -160,10 +160,10 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                                 <Typography variant='body2' color='text.secondary' sx={{ px: 2, py: 1.5 }}>No contacts</Typography>
                             ) : contacts.map((c, i) => (
                                 <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
-                                    <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
+                                    <Typography variant='body2' fontWeight={600}>{c.CONTACT_NAME || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{c.TEL_PHONE || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{c.POSITION || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.EMAIL || '-'}</Typography>
                                 </Box>
                             ))}
                         </Box>
@@ -179,10 +179,10 @@ const VendorDetailsModal = ({ open, onClose, data }: VendorDetailsModalProps) =>
                                 <Typography variant='body2' color='text.secondary' sx={{ px: 2, py: 1.5 }}>No products</Typography>
                             ) : products.map((p, i) => (
                                 <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
-                                    <Typography variant='body2' fontWeight={600}>{p.group_name || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
-                                    <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
+                                    <Typography variant='body2' fontWeight={600}>{p.GROUP_NAME || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{p.MAKER_NAME || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{p.PRODUCT_NAME || '-'}</Typography>
+                                    <Typography variant='body2' color='text.secondary'>{p.MODEL_LIST || '-'}</Typography>
                                 </Box>
                             ))}
                         </Box>

@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     Box,
     Button,
+    CardContent,
     Chip,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     IconButton,
-    Menu,
-    MenuItem,
     Stack,
     TextField,
     Tooltip,
@@ -35,15 +34,15 @@ import RegisterRequestServices from '@_workspace/services/_register-request/Regi
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import type { ApprovalGprCFormData } from './validateSchema'
 import ActionRequiredDialog from './modal/ActionRequiredDialog'
+import ConfirmActionDialog from './modal/ConfirmActionDialog'
 import RequestDetailDialog from './modal/RequestDetailDialog'
 import useDxServerSideGrid, { enforceLockedLeftColumns } from '@_workspace/hooks/useDxServerSideGrid'
 
 export type GprCQueueRow = {
     REQUEST_REGISTER_VENDOR_ID?: number
-    request_id?: number
-    request_number?: string
-    request_status?: string
-    request_state?: string
+    REQUEST_NUMBER?: string
+    REQUEST_STATUS?: string
+    REQUEST_STATE?: string
     REQUEST_VENDOR_GPR_C_FLOWS_ID?: number
     REQUEST_VENDOR_GPR_C_STEPS_ID?: number
     STEP_CODE?: string
@@ -52,14 +51,15 @@ export type GprCQueueRow = {
     APPROVER_EMPCODE?: string
     APPROVER_NAME?: string
     STEP_STATUS?: string
-    company_name?: string
-    contact_name?: string
-    vendor_email?: string
-    supportProduct_Process?: string
-    purchase_frequency?: string
-    address?: string
-    vendor_region?: string
-    tel_phone?: string
+    COMPANY_NAME?: string
+    CONTACT_NAME?: string
+    VENDOR_EMAIL?: string
+    SUPPORTPRODUCT_PROCESS?: string
+    PURCHASE_FREQUENCY?: string
+    ADDRESS?: string
+    VENDOR_REGION?: string
+    TEL_PHONE?: string
+    [key: string]: unknown
 }
 
 export type GprCActionRequiredRow = {
@@ -69,10 +69,11 @@ export type GprCActionRequiredRow = {
     STAGE_CODE?: string
     REQUIRED_DETAIL?: string
     RESULT_STATUS?: string
-    request_number?: string
-    request_status?: string
-    request_state?: string
-    company_name?: string
+    REQUEST_NUMBER?: string
+    REQUEST_STATUS?: string
+    REQUEST_STATE?: string
+    COMPANY_NAME?: string
+    [key: string]: unknown
 }
 
 type DialogMode = 'APPROVE' | 'REJECT'
@@ -92,18 +93,18 @@ type AgGridFilterModelValue = {
 }
 
 const actionRequiredStepCodes = new Set([
+    'REQUESTER_APPROVER',
     'EMR_CHECKER',
     'EMR_APPROVER',
     'QMS_CHECKER',
     'QMS_APPROVER',
-    'PM_MANAGER_CHECKER',
     'PM_MANAGER_APPROVER',
 ])
 
-const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_REGISTER_VENDOR_ID || row.request_id || 0)
+const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_REGISTER_VENDOR_ID || 0)
 
 const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridFilterModelValue>): AgGridColumnFilter[] => {
-    return Object.entries(filterModel || {}).flatMap(([id, model]) => {
+    const columnFilters = Object.entries(filterModel || {}).flatMap<AgGridColumnFilter>(([id, model]): AgGridColumnFilter[] => {
         if (!model) return []
 
         if (model.filterType === 'text' || model.filterType === 'number') {
@@ -129,64 +130,10 @@ const mapAgGridFilterModelToColumnFilters = (filterModel: Record<string, AgGridF
         }
 
         return []
-    }).filter(item => Array.isArray(item.value) ? item.value.length > 0 : String(item.value || '').trim().length > 0)
+    })
+
+    return columnFilters.filter(item => Array.isArray(item.value) ? item.value.length > 0 : String(item.value || '').trim().length > 0)
 }
-
-interface RowActionMenuProps {
-    canActionRequired: boolean
-    onApprove: () => void
-    onReject: () => void
-    onActionRequired: () => void
-}
-
-const RowActionMenu = ({ canActionRequired, onApprove, onReject, onActionRequired }: RowActionMenuProps) => {
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-
-    const handleClose = () => setAnchorEl(null)
-    const handleSelect = (callback: () => void) => {
-        callback()
-        handleClose()
-    }
-
-    return (
-        <>
-            <Tooltip title='Actions'>
-                <IconButton
-                    size='small'
-                    onClick={event => setAnchorEl(event.currentTarget)}
-                    sx={{ color: 'text.secondary' }}
-                >
-                    <i className='tabler-dots-vertical' style={{ fontSize: 20 }} />
-                </IconButton>
-            </Tooltip>
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-                <MenuItem onClick={() => handleSelect(onApprove)} className='gap-2'>
-                    <i className='tabler-check text-success' style={{ fontSize: 18 }} />
-                    Approve
-                </MenuItem>
-                <MenuItem onClick={() => handleSelect(onReject)} className='gap-2'>
-                    <i className='tabler-x text-error' style={{ fontSize: 18 }} />
-                    Reject
-                </MenuItem>
-                <MenuItem
-                    disabled={!canActionRequired}
-                    onClick={() => handleSelect(onActionRequired)}
-                    className='gap-2'
-                >
-                    <i className='tabler-alert-triangle text-warning' style={{ fontSize: 18 }} />
-                    Action Required
-                </MenuItem>
-            </Menu>
-        </>
-    )
-}
-
 const SearchResult = () => {
     const { getValues, setValue } = useFormContext<ApprovalGprCFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
@@ -233,6 +180,17 @@ const SearchResult = () => {
     const actionRequiredDialogOpen = Boolean(actionRequiredRow)
     const recordDialogOpen = Boolean(selectedActionRow)
     const detailDialogOpen = Boolean(detailRow)
+    const detailCanAction = Boolean(detailRow && (
+        detailRow.REQUEST_VENDOR_GPR_C_STEPS_ID
+        || detailRow.REQUEST_VENDOR_GPR_C_FLOWS_ID
+        || detailRow.STEP_CODE
+        || detailRow.STEP_NAME
+    ))
+    const detailCanActionRequired = Boolean(
+        detailCanAction
+        && detailRow
+        && actionRequiredStepCodes.has(String(detailRow.STEP_CODE || '').toUpperCase())
+    )
 
     const buildSearchFilters = useCallback(() => {
         const searchFilters = getValues('searchFilters')
@@ -302,23 +260,7 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        request_id: row.request_id ?? row.REQUEST_REGISTER_VENDOR_ID,
-                        request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        request_status: row.request_status ?? row.REQUEST_STATUS,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                        contact_name: row.contact_name ?? row.CONTACT_NAME,
-                        vendor_email: row.vendor_email ?? row.VENDOR_EMAIL,
-                        supportProduct_Process: row.supportProduct_Process ?? row.SUPPORTPRODUCT_PROCESS,
-                        purchase_frequency: row.purchase_frequency ?? row.PURCHASE_FREQUENCY,
-                        address: row.address ?? row.ADDRESS,
-                        vendor_region: row.vendor_region ?? row.VENDOR_REGION,
-                        province: row.province ?? row.PROVINCE,
-                        postal_code: row.postal_code ?? row.POSTAL_CODE,
-                        country: row.country ?? row.COUNTRY,
-                        tel_phone: row.tel_phone ?? row.TEL_PHONE,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     params.success({
                         rowData,
                         rowCount: result.TotalCountOnDb || 0,
@@ -358,12 +300,7 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: any) => ({
-                        ...row,
-                        request_number: row.request_number ?? row.REQUEST_NUMBER,
-                        request_status: row.request_status ?? row.REQUEST_STATUS,
-                        company_name: row.company_name ?? row.COMPANY_NAME,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     setActionRequiredTotalCount(result.TotalCountOnDb || 0)
                     params.success({
                         rowData,
@@ -422,8 +359,6 @@ const SearchResult = () => {
         setDetailRow(null)
     }
 
-    const dialogTitle = useMemo(() => dialogMode === 'REJECT' ? 'Reject GPR C Step' : 'Approve GPR C Step', [dialogMode])
-
     const handleSubmit = async () => {
         if (!selectedRow || !empCode) return
 
@@ -452,6 +387,7 @@ const SearchResult = () => {
 
             ToastMessageSuccess({ title: 'GPR C Approval', message: payload.Message || 'GPR C action completed' })
             setSelectedRow(null)
+            setDetailRow(null)
             refreshAllGrids()
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'GPR C action failed'
@@ -498,9 +434,9 @@ const SearchResult = () => {
 
     const approvalColumnDefs = useMemo<ColDef<GprCQueueRow>[]>(() => [
         {
-            headerName: 'Action',
+            headerName: '',
             field: 'action',
-            width: 110,
+            width: 72,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,
@@ -510,52 +446,58 @@ const SearchResult = () => {
                 const row = params.data
                 if (!row) return null
 
-                const stepCode = String(row.STEP_CODE || '').toUpperCase()
-                const canActionRequired = actionRequiredStepCodes.has(stepCode)
-
                 return (
-                    <Stack direction='row' spacing={0.5} alignItems='center' sx={{ height: '100%' }}>
-                        <Tooltip title='View Details'>
-                            <IconButton
-                                size='small'
-                                color='primary'
-                                onClick={() => openDetailDialog(row)}
-                            >
-                                <i className='tabler-eye' style={{ fontSize: 20 }} />
-                            </IconButton>
-                        </Tooltip>
-                        <RowActionMenu
-                            canActionRequired={canActionRequired}
-                            onApprove={() => openDialog('APPROVE', row)}
-                            onReject={() => openDialog('REJECT', row)}
-                            onActionRequired={() => openActionRequiredDialog(row)}
-                        />
-                    </Stack>
+                    <Tooltip title='View Details'>
+                        <IconButton
+                            size='small'
+                            color='primary'
+                            onClick={() => openDetailDialog(row)}
+                        >
+                            <i className='tabler-eye' style={{ fontSize: 20 }} />
+                        </IconButton>
+                    </Tooltip>
                 )
             },
         },
         {
-            headerName: 'Request No.',
+            headerName: 'Request Number',
             field: 'request_number',
-            minWidth: 150,
+            width: 170,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,
             filter: 'agTextColumnFilter',
-            valueGetter: params => params.data?.request_number || `REQ-${getRequestId(params.data || {})}`,
+            valueGetter: params => params.data?.REQUEST_NUMBER || `REQ-${getRequestId(params.data || {})}`,
         },
         {
-            headerName: 'Vendor',
-            field: 'company_name',
-            minWidth: 220,
-            flex: 1,
+            headerName: 'Status',
+            field: 'request_status',
+            flex: 1.2,
+            minWidth: 230,
             filter: 'agTextColumnFilter',
-            valueGetter: params => params.data?.company_name || '-',
+            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => (
+                <Box
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        minHeight: 24,
+                        px: 1,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'transparent',
+                    }}
+                >
+                    <Typography variant='body2' color='text.secondary' fontWeight={500}>
+                        {params.data?.REQUEST_STATUS || 'In Progress'}
+                    </Typography>
+                </Box>
+            ),
         },
         {
             headerName: 'Step',
             field: 'STEP_NAME',
-            minWidth: 220,
+            width: 200,
             filter: 'agTextColumnFilter',
             cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
                 const stepValue = params.data?.STEP_NAME || params.data?.STEP_CODE || '-'
@@ -580,35 +522,42 @@ const SearchResult = () => {
             },
         },
         {
-            headerName: 'Product / Frequency',
-            minWidth: 220,
-            filter: false,
-            valueGetter: params => [params.data?.supportProduct_Process, params.data?.purchase_frequency].filter(Boolean).join(' / ') || '-',
+            headerName: 'Company Name',
+            field: 'company_name',
+            flex: 1.5,
+            minWidth: 210,
+            filter: 'agTextColumnFilter',
+            valueGetter: params => params.data?.COMPANY_NAME || '-',
         },
         {
-            headerName: 'Status',
-            field: 'request_status',
-            minWidth: 150,
-            filter: 'agTextColumnFilter',
-            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => (
-                <Box
-                    sx={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        maxWidth: '100%',
-                        px: 1.25,
-                        py: 0.35,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        bgcolor: 'transparent',
-                    }}
-                >
-                    <Typography variant='caption' fontWeight={700} color='text.secondary' noWrap>
-                        {params.data?.request_status || 'In Progress'}
-                    </Typography>
-                </Box>
-            ),
+            headerName: 'Support Product / Process',
+            field: 'SUPPORTPRODUCT_PROCESS',
+            flex: 1,
+            minWidth: 180,
+            filter: false,
+            valueGetter: params => params.data?.SUPPORTPRODUCT_PROCESS || '-',
+        },
+        {
+            headerName: 'Purchase Frequency',
+            field: 'PURCHASE_FREQUENCY',
+            width: 170,
+            filter: false,
+            valueGetter: params => params.data?.PURCHASE_FREQUENCY || '-',
+        },
+        {
+            headerName: 'Submitted By',
+            field: 'REQUEST_BY_EMPLOYEECODE',
+            flex: 1,
+            minWidth: 170,
+            filter: false,
+            valueGetter: params => params.data?.REQUEST_BY_EMPLOYEECODE || '-',
+        },
+        {
+            headerName: 'Submitted Date',
+            field: 'REQUEST_CREATE_DATE',
+            width: 150,
+            filter: false,
+            valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString('th-TH') : '-',
         },
     ], [])
 
@@ -652,7 +601,7 @@ const SearchResult = () => {
             lockPinned: true,
             suppressMovable: true,
             filter: 'agTextColumnFilter',
-            valueGetter: params => params.data?.request_number || `REQ-${params.data?.REQUEST_REGISTER_VENDOR_ID || ''}`,
+            valueGetter: params => params.data?.REQUEST_NUMBER || `REQ-${params.data?.REQUEST_REGISTER_VENDOR_ID || ''}`,
         },
         { headerName: 'Vendor', field: 'company_name', minWidth: 220, flex: 1, filter: 'agTextColumnFilter' },
         {
@@ -699,9 +648,8 @@ const SearchResult = () => {
 
     return (
         <Stack spacing={3}>
-            <SearchResultCard>
-                <Box sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+            <SearchResultCard
+                action={(
                         <Button
                             size='medium'
                             variant='contained'
@@ -731,61 +679,44 @@ const SearchResult = () => {
                         >
                             Action Required Results
                         </Button>
-                    </Box>
+                )}
+            >
+                <CardContent sx={{ p: '24px !important' }}>
                     <DxAGgridTable
                         columnDefs={approvalColumnDefs}
                         serverSideDatasource={approvalDatasource}
-                        height={560}
+                        height={600}
                         getRowId={(params: GetRowIdParams<GprCQueueRow>) => String(params.data.REQUEST_VENDOR_GPR_C_STEPS_ID || params.data.REQUEST_VENDOR_GPR_C_FLOWS_ID || getRequestId(params.data))}
-                        rowHeight={64}
                         overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No GPR C approval task found.</span>'
                         initialState={savedGridState}
                         onStateUpdated={handleStateUpdated}
                         onGridReady={handleGridReady}
                     />
-                </Box>
+                </CardContent>
             </SearchResultCard>
 
-            <Dialog open={dialogOpen} onClose={closeDialog} maxWidth='sm' fullWidth>
-                <DialogTitle>{dialogTitle}</DialogTitle>
-                <DialogContent dividers>
-                    <Stack spacing={3} sx={{ pt: 1 }}>
-                        <TextField
-                            label='Remark'
-                            value={remark}
-                            onChange={event => setRemark(event.target.value)}
-                            fullWidth
-                            multiline
-                            minRows={3}
-                            required={dialogMode !== 'APPROVE'}
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button variant='tonal' color='secondary' onClick={closeDialog} disabled={submitting}>
-                        Cancel
-                    </Button>
-                    <LoadingButton
-                        variant='contained'
-                        loading={submitting}
-                        color={dialogMode === 'REJECT' ? 'error' : 'success'}
-                        onClick={handleSubmit}
-                    >
-                        Confirm
-                    </LoadingButton>
-                </DialogActions>
-            </Dialog>
+            <ConfirmActionDialog
+                open={dialogOpen}
+                mode={dialogMode}
+                remark={remark}
+                submitting={submitting}
+                companyName={selectedRow?.COMPANY_NAME}
+                onRemarkChange={setRemark}
+                onConfirm={handleSubmit}
+                onClose={closeDialog}
+            />
 
             <ActionRequiredDialog
                 open={actionRequiredDialogOpen}
                 requestId={actionRequiredRow ? getRequestId(actionRequiredRow) : null}
-                requestNumber={actionRequiredRow?.request_number}
+                requestNumber={actionRequiredRow?.REQUEST_NUMBER}
                 stepName={actionRequiredRow?.STEP_NAME || actionRequiredRow?.STEP_CODE}
                 actionBy={empCode}
                 updateBy={empCode}
                 onClose={closeActionRequiredDialog}
                 onSuccess={async () => {
                     setActionRequiredRow(null)
+                    setDetailRow(null)
                     refreshAllGrids()
                 }}
                 onError={message => ToastMessageError({ title: 'Action Required', message })}
@@ -795,6 +726,11 @@ const SearchResult = () => {
                 open={detailDialogOpen}
                 requestId={detailRow ? Number(detailRow.REQUEST_REGISTER_VENDOR_ID || detailRow.request_id || 0) : null}
                 fallbackRow={detailRow}
+                actionDisabled={submitting}
+                onApprove={detailCanAction && detailRow ? () => openDialog('APPROVE', detailRow as GprCQueueRow) : undefined}
+                onReject={detailCanAction && detailRow ? () => openDialog('REJECT', detailRow as GprCQueueRow) : undefined}
+                onActionRequired={detailCanAction && detailRow ? () => openActionRequiredDialog(detailRow as GprCQueueRow) : undefined}
+                actionRequiredDisabled={!detailCanActionRequired}
                 onClose={closeDetailDialog}
             />
 

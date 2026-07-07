@@ -4,7 +4,7 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material'
 
-import GprFormDialog from '@_workspace/pages/_request-register/modal/GprFormDialog'
+import SelectionFormDialong from '@_workspace/pages/_request-register/modal/SelectionFormDialong'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import useRequestStatusOptions from '@_workspace/react-query/hooks/useRequestStatusOptions'
 import {
@@ -53,19 +53,16 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     )
     if (!data) return null
 
-    const files = buildFileUrls(data?.documents)
+    const files = buildFileUrls(data?.DOCUMENTS, String(data?.REQUEST_NUMBER || ''))
     const approvalSteps: any[] = (() => {
-        try { return typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || []) } catch { return [] }
+        try { return typeof data.APPROVAL_STEPS === 'string' ? JSON.parse(data.APPROVAL_STEPS) : (data.APPROVAL_STEPS || []) } catch { return [] }
     })().filter(Boolean).sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
 
     const logs: any[] = (() => {
-        try { return typeof data.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data.approval_logs || []) } catch { return [] }
+        try { return typeof data.APPROVAL_LOGS === 'string' ? JSON.parse(data.APPROVAL_LOGS) : (data.APPROVAL_LOGS || []) } catch { return [] }
     })().filter(Boolean)
 
     const currentStep = approvalSteps.find((s: any) => s.STEP_STATUS === 'in_progress')
-    const myActionedStep = approvalSteps.find((s: any) =>
-        s.APPROVER_EMPCODE === empCode && (s.STEP_STATUS === 'approved' || s.STEP_STATUS === 'rejected')
-    )
 
     const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
     const isPicOwnedNegotiationStep = !!currentStep && (
@@ -99,9 +96,9 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const isActionable = isCurrentStepMine && isCurrentStepMatchingQueue
     const isSelectionSheetLocked = isDocumentCheckApproved(approvalSteps)
     const isGprReadOnly = isSelectionSheetLocked || !isActionable
-    const vendorCodeSelector = String(data?.PROPOSED_VENDOR_CODE || data?.vendor_code_selector || data?.VENDOR_CODE_SELECTOR || '').trim()
+    const vendorCodeSelector = String(data?.PROPOSED_VENDOR_CODE || data?.VENDOR_CODE_SELECTOR || '').trim()
     const handleCompleteAccountRegistration = () => {
-        const latestVendorCode = String(data?.PROPOSED_VENDOR_CODE || data?.vendor_code_selector || data?.VENDOR_CODE_SELECTOR || '').trim()
+        const latestVendorCode = String(data?.PROPOSED_VENDOR_CODE || data?.VENDOR_CODE_SELECTOR || '').trim()
         if (!latestVendorCode) {
             ToastMessageError({
                 title: 'Complete Registration',
@@ -116,10 +113,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
         })
     }
     const hasPersistedGprData = (() => {
-        if (!data.gpr_data) return false
+        if (!data.GPR_CRITERIA) return false
         try {
-            const parsed = typeof data.gpr_data === 'string' ? JSON.parse(data.gpr_data) : data.gpr_data
-            return Boolean(parsed)
+            const parsed = typeof data.GPR_CRITERIA === 'string' ? JSON.parse(data.GPR_CRITERIA) : data.GPR_CRITERIA
+            return Array.isArray(parsed) && parsed.filter(Boolean).length > 0
         } catch {
             return false
         }
@@ -133,10 +130,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
     const renderDisagreeFirst = Boolean(disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed'))
 
     const contacts: any[] = (() => {
-        try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
+        try { return typeof data.CONTACTS === 'string' ? JSON.parse(data.CONTACTS) : (data.CONTACTS || []) } catch { return [] }
     })().filter(Boolean)
     const products: any[] = (() => {
-        try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
+        try { return typeof data.PRODUCTS === 'string' ? JSON.parse(data.PRODUCTS) : (data.PRODUCTS || []) } catch { return [] }
     })().filter(Boolean)
     const infoRow = (label: string, value: any) => (
         <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
@@ -177,14 +174,6 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
                     <Box>
                         <Typography variant='h6' fontWeight={800}>{data.COMPANY_NAME}</Typography>
-                        {myActionedStep && (
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1, px: 1.25, py: 0.4, borderRadius: 5, bgcolor: myActionedStep.STEP_STATUS === 'approved' ? '#e8f5e9' : '#ffebee', border: '1px solid', borderColor: myActionedStep.STEP_STATUS === 'approved' ? '#a5d6a7' : '#ef9a9a' }}>
-                                <i className={myActionedStep.STEP_STATUS === 'approved' ? 'tabler-circle-check-filled' : 'tabler-circle-x-filled'} style={{ fontSize: 13, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828' }} />
-                                <Typography variant='caption' sx={{ fontWeight: 700, color: myActionedStep.STEP_STATUS === 'approved' ? '#2e7d32' : '#c62828', lineHeight: 1 }}>
-                                    Your action: {myActionedStep.STEP_STATUS === 'approved' ? 'Approved' : 'Rejected'} - {myActionedStep.DESCRIPTION}
-                                </Typography>
-                            </Box>
-                        )}
                     </Box>
                     <Box
                         sx={{
@@ -204,13 +193,20 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 </Box>
             </Box>
 
-            <Box sx={{ mb: 4 }}>
-                <SectionHeader icon='tabler-clipboard-list' title='Request Info' />
+            {/* Request Info */}
+            <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <i className='tabler-clipboard-list' style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+                        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>Request Info</Typography>
+                        <Divider sx={{ flex: 1, minWidth: 650 }} />
+                    </Box>
+                </Box>
                 <Grid container spacing={2}>
                     {[
                         { label: 'Support Product / Process', value: data.SUPPORTPRODUCT_PROCESS },
                         { label: 'Purchase Frequency', value: data.PURCHASE_FREQUENCY },
-                        { label: 'Assigned PIC', value: data.ASSIGN_TO },
+                        { label: 'Assigned To (PIC)', value: data.ASSIGN_TO },
                         { label: 'Submitted Date', value: data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : '-' },
                     ].map(({ label, value }) => (
                         <Grid item xs={12} sm={6} md={3} key={label}>
@@ -225,6 +221,42 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         </Grid>
                     )}
                 </Grid>
+                <Box sx={{ mt: 2.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: files.length > 0 ? 1.25 : 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
+                            <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
+                            <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+                        </Box>
+                        <Button
+                            size='small'
+                            variant='contained'
+                            disableElevation
+                            color='primary'
+                            startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
+                            onClick={() => setFileDialogOpen(true)}
+                            disabled={files.length === 0}
+                            sx={{ minHeight: 28, fontSize: '0.72rem', px: 1.25, py: 0.35 }}
+                        >
+                            View Files
+                        </Button>
+                    </Box>
+                    {files.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {files.map((f, i) => (
+                                <Chip
+                                    key={i}
+                                    label={f.name}
+                                    size='small'
+                                    variant='outlined'
+                                    icon={<i className='tabler-file' style={{ fontSize: 14 }} />}
+                                    onClick={() => window.open(f.url, '_blank')}
+                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </Box>
             </Box>
 
             <Box sx={{ mb: 4 }}>
@@ -232,7 +264,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                 <Grid container spacing={2}>
                     {[
                         { label: 'Company Name', value: data.COMPANY_NAME },
-                        { label: 'Vendor Type', value: data.vendor_type_name },
+                        { label: 'Vendor Type', value: data.VENDOR_TYPE_NAME },
                         { label: 'Region', value: data.VENDOR_REGION },
                         { label: 'FFT Vendor Code', value: data.FFT_VENDOR_CODE },
                         { label: 'FFT Status', value: formatFftStatus(data.FFT_STATUS) },
@@ -271,10 +303,10 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         </Box>
                         {contacts.map((c, i) => (
                             <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
+                                <Typography variant='body2' fontWeight={600}>{c.CONTACT_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{c.TEL_PHONE || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{c.POSITION || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.EMAIL || '-'}</Typography>
                             </Box>
                         ))}
                     </Box>
@@ -292,22 +324,13 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
                         </Box>
                         {products.map((p, i) => (
                             <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                <Typography variant='body2' fontWeight={600}>{p.product_group || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
-                                <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
+                                <Typography variant='body2' fontWeight={600}>{p.PRODUCT_GROUP || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.MAKER_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.PRODUCT_NAME || '-'}</Typography>
+                                <Typography variant='body2' color='text.secondary'>{p.MODEL_LIST || '-'}</Typography>
                             </Box>
                         ))}
                     </Box>
-                </Box>
-            )}
-
-            {files.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                    <SectionHeader icon='tabler-paperclip' title={`Attached Files (${files.length})`} />
-                    <Button size='small' variant='tonal' startIcon={<i className='tabler-folder-open' style={{ fontSize: 16 }} />} onClick={() => setFileDialogOpen(true)}>
-                        View {files.length} File{files.length > 1 ? 's' : ''}
-                    </Button>
                 </Box>
             )}
 
@@ -525,7 +548,7 @@ const DetailPanel = ({ data, empCode, queueStepCode, showSelectionSheetReadOnly 
 
             <FileViewerDialog open={fileDialogOpen} files={files} onClose={() => setFileDialogOpen(false)} />
             {gprFormOpen && (
-                <GprFormDialog
+                <SelectionFormDialong
                     open={gprFormOpen}
                     rowData={data}
                     readOnly={isGprReadOnly}

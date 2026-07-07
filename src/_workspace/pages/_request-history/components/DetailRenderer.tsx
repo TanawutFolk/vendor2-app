@@ -13,24 +13,24 @@ import FileViewerDialog from './FileViewerDialog'
 const DetailRenderer = ({ data }: { data: any }) => {
     const [fileDialogOpen, setFileDialogOpen] = useState(false)
     const { data: statusOptions = [] } = useRequestStatusOptions()
-    const files = buildFileUrls(data?.documents)
+    const files = buildFileUrls(data?.DOCUMENTS, String(data?.REQUEST_NUMBER || ''))
     const approvalSteps = useMemo(() => {
         try {
-            return typeof data?.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data?.approval_steps || [])
+            return typeof data?.APPROVAL_STEPS === 'string' ? JSON.parse(data.APPROVAL_STEPS) : (data?.APPROVAL_STEPS || [])
         } catch {
             return []
         }
-    }, [data?.approval_steps])
+    }, [data?.APPROVAL_STEPS])
     const approvalLogs = useMemo(() => {
         try {
-            return typeof data?.approval_logs === 'string' ? JSON.parse(data.approval_logs) : (data?.approval_logs || [])
+            return typeof data?.APPROVAL_LOGS === 'string' ? JSON.parse(data.APPROVAL_LOGS) : (data?.APPROVAL_LOGS || [])
         } catch {
             return []
         }
-    }, [data?.approval_logs])
+    }, [data?.APPROVAL_LOGS])
     const workflowSteps = useMemo(() => {
         try {
-            const approvalSteps = typeof data.approval_steps === 'string' ? JSON.parse(data.approval_steps) : (data.approval_steps || [])
+            const approvalSteps = typeof data.APPROVAL_STEPS === 'string' ? JSON.parse(data.APPROVAL_STEPS) : (data.APPROVAL_STEPS || [])
             if (approvalSteps.length > 0) return []
         } catch { /* ignore */ }
 
@@ -53,16 +53,16 @@ const DetailRenderer = ({ data }: { data: any }) => {
                 return { title: s.label, status: stepState, step: idx + 1, description: '' }
             })
         return [submitted, ...s]
-    }, [statusOptions, data.REQUEST_STATUS, data.approval_steps])
+    }, [statusOptions, data.REQUEST_STATUS, data.APPROVAL_STEPS])
 
     if (!data) return null
 
     const contacts: any[] = (() => {
-        try { return typeof data.contacts === 'string' ? JSON.parse(data.contacts) : (data.contacts || []) } catch { return [] }
+        try { return typeof data.CONTACTS === 'string' ? JSON.parse(data.CONTACTS) : (data.CONTACTS || []) } catch { return [] }
     })().filter(Boolean)
 
     const products: any[] = (() => {
-        try { return typeof data.products === 'string' ? JSON.parse(data.products) : (data.products || []) } catch { return [] }
+        try { return typeof data.PRODUCTS === 'string' ? JSON.parse(data.PRODUCTS) : (data.PRODUCTS || []) } catch { return [] }
     })().filter(Boolean)
 
     const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
@@ -164,7 +164,7 @@ const DetailRenderer = ({ data }: { data: any }) => {
                         <Grid container spacing={2}>
                             {[
                                 { label: 'Company Name', value: data.COMPANY_NAME },
-                                { label: 'Vendor Type', value: data.vendor_type_name },
+                                { label: 'Vendor Type', value: data.VENDOR_TYPE_NAME },
                                 { label: 'Region', value: data.VENDOR_REGION },
                                 { label: 'FFT Vendor Code', value: data.FFT_VENDOR_CODE },
                                 { label: 'FFT Status', value: formatFftStatus(data.FFT_STATUS) },
@@ -204,10 +204,10 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 </Box>
                                 {contacts.map((c, i) => (
                                     <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                        <Typography variant='body2' fontWeight={600}>{c.contact_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{c.tel_phone || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{c.position || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.email || '-'}</Typography>
+                                        <Typography variant='body2' fontWeight={600}>{c.CONTACT_NAME || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{c.TEL_PHONE || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{c.POSITION || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>{c.EMAIL || '-'}</Typography>
                                     </Box>
                                 ))}
                             </Box>
@@ -226,10 +226,10 @@ const DetailRenderer = ({ data }: { data: any }) => {
                                 </Box>
                                 {products.map((p, i) => (
                                     <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
-                                        <Typography variant='body2' fontWeight={600}>{p.product_group || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.maker_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.product_name || '-'}</Typography>
-                                        <Typography variant='body2' color='text.secondary'>{p.model_list || '-'}</Typography>
+                                        <Typography variant='body2' fontWeight={600}>{p.PRODUCT_GROUP || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.MAKER_NAME || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.PRODUCT_NAME || '-'}</Typography>
+                                        <Typography variant='body2' color='text.secondary'>{p.MODEL_LIST || '-'}</Typography>
                                     </Box>
                                 ))}
                             </Box>

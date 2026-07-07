@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode, Ref } from 'react'
 import {
     Box,
@@ -12,21 +12,18 @@ import {
     Divider,
     Grid,
     IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
     Slide,
     Stack,
     Tooltip,
     Typography,
 } from '@mui/material'
 import type { SlideProps } from '@mui/material'
-import { toast } from 'react-toastify'
+import { ToastMessageError } from '@components/ToastMessage'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import CustomTextField from '@components/mui/TextField'
-import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
-import { buildActionLogPresentation } from '@_workspace/utils/requestWorkflow'
+import { useQuery } from '@tanstack/react-query'
+import { requestDetailQueryOptions } from '@_workspace/react-query/hooks/useRegisterRequest'
+import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
+import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
@@ -42,15 +39,16 @@ type FileItem = {
     key: string
     name: string
     path: string
-    source: string
-    criteriaNo?: string
-    criteria?: string
 }
-
 interface RequestDetailDialogProps {
     open: boolean
     requestId: number | null
     fallbackRow?: Record<string, unknown> | null
+    actionDisabled?: boolean
+    onApprove?: () => void
+    onReject?: () => void
+    onActionRequired?: () => void
+    actionRequiredDisabled?: boolean
     onClose: () => void
 }
 
@@ -67,16 +65,49 @@ const safeParseArray = <T,>(input: unknown): T[] => {
     }
 }
 
+const hasDisplayValue = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== ''
+
+const readValue = (source: Record<string, unknown> | null | undefined, key: string) => {
+    if (!source) return undefined
+
+    for (const candidate of [key, key.toUpperCase(), key.toLowerCase()]) {
+        const value = source[candidate]
+        if (hasDisplayValue(value)) return value
+    }
+
+    return undefined
+}
+
 const getValue = (data: Record<string, unknown> | null, fallback: Record<string, unknown> | null, ...keys: string[]) => {
     for (const key of keys) {
-        const value = data?.[key] ?? fallback?.[key]
-        if (value !== null && value !== undefined && String(value).trim() !== '') return String(value)
+        const value = readValue(data, key) ?? readValue(fallback, key)
+        if (hasDisplayValue(value)) return String(value)
     }
 
     return '-'
 }
 
-const buildFileUrl = (path: string) => `${API_BASE}/uploads/documents/${path}`
+const formatDate = (value: unknown, withTime = false) => {
+    if (!hasDisplayValue(value) || String(value) === '-') return '-'
+
+    const date = new Date(String(value))
+    if (Number.isNaN(date.getTime())) return '-'
+
+    return withTime ? date.toLocaleString('th-TH') : date.toLocaleDateString('th-TH')
+}
+
+// Registration documents now live in the request's 02.Request Documents network folder and are
+// streamed via the managed download route; legacy bare-filename paths still fall back to /uploads.
+const isNetworkStoredPath = (filePath: string) =>
+    filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+
+const buildFileUrl = (filePath: string, fileName = '') => {
+    if (isNetworkStoredPath(filePath)) {
+        const params = new URLSearchParams({ FILE_PATH: filePath, FILE_NAME: fileName })
+        return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
+    }
+    return `${API_BASE}/uploads/documents/${filePath}`
+}
 
 const getFileIcon = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase()
@@ -84,27 +115,17 @@ const getFileIcon = (name: string) => {
     if (ext === 'pdf') return 'tabler-file-type-pdf'
     if (['xls', 'xlsx'].includes(ext || '')) return 'tabler-file-type-xls'
     if (['doc', 'docx'].includes(ext || '')) return 'tabler-file-type-doc'
+    if (['zip', 'rar', '7z'].includes(ext || '')) return 'tabler-file-zip'
 
     return 'tabler-file'
 }
 
 const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <i className={icon} style={{ fontSize: 18, color: 'var(--mui-palette-primary-main)' }} />
-        <Typography variant='subtitle1' fontWeight={700}>{title}</Typography>
-        <Divider sx={{ flex: 1 }} />
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <i className={icon} style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
+        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>{title}</Typography>
+        <Divider sx={{ flex: 1, minWidth: 0 }} />
     </Box>
-)
-
-const ReadOnlyField = ({ label, value, multiline = false }: { label: string; value: string; multiline?: boolean }) => (
-    <CustomTextField
-        fullWidth
-        disabled
-        label={label}
-        value={value || '-'}
-        multiline={multiline}
-        minRows={multiline ? 2 : undefined}
-    />
 )
 
 const InfoItem = ({ label, value }: { label: string; value: unknown }) => (
@@ -113,104 +134,246 @@ const InfoItem = ({ label, value }: { label: string; value: unknown }) => (
             {label}
         </Typography>
         <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>
-            {String(value || '-')}
+            {hasDisplayValue(value) ? String(value) : '-'}
         </Typography>
     </Box>
 )
+
+const getStepStatusCfg = (status: unknown) => {
+    switch (String(status || '').toLowerCase()) {
+        case 'approved':
+        case 'completed':
+            return { label: 'Completed', icon: 'tabler-circle-check-filled', tone: getReadableStatusTone('completed') }
+        case 'in_progress':
+        case 'current':
+            return { label: 'In Progress', icon: 'tabler-clock-play', tone: getReadableStatusTone('in progress') }
+        case 'rejected':
+            return { label: 'Rejected', icon: 'tabler-circle-x-filled', tone: getReadableStatusTone('rejected') }
+        case 'skipped':
+            return { label: 'Skipped', icon: 'tabler-circle-minus', tone: getReadableStatusTone('skipped') }
+        case 'pending':
+        default:
+            return { label: 'Waiting', icon: 'tabler-clock', tone: getReadableStatusTone('pending') }
+    }
+}
+
+const DocumentChips = ({ files }: { files: FileItem[] }) => (
+    <Box sx={{ mt: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: files.length > 0 ? 1.25 : 0 }}>
+            <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
+            <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
+            <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+        </Box>
+        {files.length > 0 ? (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {files.map(file => (
+                    <Chip
+                        key={file.key}
+                        label={file.name}
+                        size='small'
+                        variant='outlined'
+                        icon={<i className={getFileIcon(file.name)} style={{ fontSize: 14 }} />}
+                        onClick={() => window.open(buildFileUrl(file.path, file.name), '_blank')}
+                        sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                    />
+                ))}
+            </Box>
+        ) : (
+            <Typography variant='body2' color='text.secondary'>No registration documents found.</Typography>
+        )}
+    </Box>
+)
+
+const readBlobMessage = async (blob: Blob, fallback: string) => {
+    try {
+        const text = await blob.text()
+        if (!text) return fallback
+
+        try {
+            const parsed = JSON.parse(text) as { Message?: string; message?: string }
+            return parsed.Message || parsed.message || fallback
+        } catch {
+            return text.length <= 300 ? text : fallback
+        }
+    } catch {
+        return fallback
+    }
+}
+
+const getServiceErrorMessage = async (error: unknown, fallback: string) => {
+    const responseData = (error as { response?: { data?: unknown }; message?: string })?.response?.data
+
+    if (responseData instanceof Blob) return readBlobMessage(responseData, fallback)
+
+    if (responseData && typeof responseData === 'object') {
+        const message = (responseData as { Message?: string; message?: string }).Message || (responseData as { Message?: string; message?: string }).message
+        if (message) return message
+    }
+
+    return error instanceof Error ? error.message : fallback
+}
 
 export default function RequestDetailDialog({
     open,
     requestId,
     fallbackRow,
+    actionDisabled = false,
+    onApprove,
+    onReject,
+    onActionRequired,
+    actionRequiredDisabled = false,
     onClose,
 }: RequestDetailDialogProps) {
-    const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
-    const [loading, setLoading] = useState(false)
+    const detailQuery = useQuery({
+        ...requestDetailQueryOptions(requestId ?? 0),
+        enabled: open && !!requestId,
+    })
+    const detail = (detailQuery.data ?? null) as Record<string, unknown> | null
+    const fallback = fallbackRow || null
+    const loading = detailQuery.isLoading && !detail
+
+
+    // The request detail's APPROVAL_STEPS is the main registration workflow. The GPR C sub-flow
+    // (EMR/QMS/PM/PO-Mgr checker+approver chain) lives in its own tables, fetched here separately.
+    const gprCFlowQuery = useQuery({
+        queryKey: ['REQUEST_REGISTER', 'gprCFlow', requestId ?? 0],
+        queryFn: async () => {
+            const response = await RegisterRequestServices.gprCGetFlow({ REQUEST_REGISTER_VENDOR_ID: requestId })
+            const payload = response.data
+            if (!payload?.Status) {
+                throw new Error(payload?.Message || 'Failed to load GPR C flow')
+            }
+
+            return payload.ResultOnDb as { steps?: unknown } | null
+        },
+        enabled: open && !!requestId,
+        staleTime: 30_000,
+    })
 
     useEffect(() => {
-        if (!open || !requestId) {
-            setDetail(null)
-
-            return
+        if (detailQuery.isError) {
+            ToastMessageError({ title: 'Request Details', message: detailQuery.error instanceof Error ? detailQuery.error.message : 'Failed to load request detail' })
         }
+    }, [detailQuery.isError, detailQuery.error])
 
-        let active = true
-        setLoading(true)
-
-        ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
-            .then(response => {
-                if (!active) return
-
-                const payload = response.data
-                if (!payload.Status) {
-                    toast.error(payload.Message || 'Failed to load request detail')
-                    setDetail(null)
-
-                    return
-                }
-
-                setDetail(payload.ResultOnDb && typeof payload.ResultOnDb === 'object'
-                    ? payload.ResultOnDb as Record<string, unknown>
-                    : null
-                )
-            })
-            .catch((loadError: unknown) => {
-                if (!active) return
-                toast.error(loadError instanceof Error ? loadError.message : 'Failed to load request detail')
-                setDetail(null)
-            })
-            .finally(() => {
-                if (active) setLoading(false)
-            })
-
-        return () => {
-            active = false
-        }
-    }, [open, requestId])
-
-    const contacts = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.contacts), [detail?.contacts])
-    const products = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.products), [detail?.products])
-    const approvalSteps = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.approval_steps), [detail?.approval_steps])
-    const logs = useMemo(() => safeParseArray<Record<string, unknown>>(detail?.approval_logs), [detail?.approval_logs])
-    const files = useMemo(() => {
+    const contacts = useMemo(
+        () => safeParseArray<Record<string, unknown>>(detail?.CONTACTS ?? fallback?.CONTACTS),
+        [detail?.CONTACTS, fallback?.CONTACTS]
+    )
+    const products = useMemo(
+        () => safeParseArray<Record<string, unknown>>(detail?.PRODUCTS ?? fallback?.PRODUCTS),
+        [detail?.PRODUCTS, fallback?.PRODUCTS]
+    )
+    const gprCFlowSteps = useMemo(
+        () => safeParseArray<Record<string, unknown>>((gprCFlowQuery.data as { steps?: unknown } | null)?.steps)
+            .filter(Boolean)
+            .sort((a, b) => Number(a.STEP_ORDER || 0) - Number(b.STEP_ORDER || 0)),
+        [gprCFlowQuery.data]
+    )
+    const registerDocuments = useMemo(() => {
         const fileMap = new Map<string, FileItem>()
-        const documents = safeParseArray<Record<string, unknown>>(detail?.documents)
-        const gprCriteria = safeParseArray<Record<string, unknown>>(detail?.gpr_criteria)
+        const documents = safeParseArray<Record<string, unknown>>(detail?.DOCUMENTS ?? fallback?.DOCUMENTS)
 
         documents.forEach((document, index) => {
-            const path = String(document.file_path || '').trim()
+            const path = String(document.FILE_PATH || document.file_path || '').trim()
             if (!path) return
 
-            fileMap.set(`document:${path}`, {
+            fileMap.set(path, {
                 key: `document:${path}:${index}`,
-                name: String(document.file_name || path),
+                name: String(document.FILE_NAME || document.file_name || path),
                 path,
-                source: 'Register Document',
-            })
-        })
-
-        gprCriteria.forEach((criteria, index) => {
-            const path = String(criteria.uploaded_file || criteria.uploaded_file_path || '').trim()
-            if (!path) return
-
-            fileMap.set(`gpr:${path}`, {
-                key: `gpr:${path}:${index}`,
-                name: String(criteria.uploaded_name || path),
-                path,
-                source: 'GPR B Upload',
-                criteriaNo: String(criteria.no || criteria.criteria_no || ''),
-                criteria: String(criteria.criteria || criteria.criteria_value || ''),
             })
         })
 
         return Array.from(fileMap.values())
-    }, [detail?.documents, detail?.gpr_criteria])
+    }, [detail?.DOCUMENTS, fallback?.DOCUMENTS])
 
-    const requestNumber = getValue(detail, fallbackRow || null, 'request_number', 'REQUEST_NUMBER')
+    const requestNumber = getValue(detail, fallback, 'request_number', 'REQUEST_NUMBER')
+    const requestStatus = getValue(detail, fallback, 'request_status', 'REQUEST_STATUS')
+    const companyName = getValue(detail, fallback, 'company_name', 'COMPANY_NAME')
+    const vendorRegion = getValue(detail, fallback, 'vendor_region', 'VENDOR_REGION')
+    const gprBFilePath = getValue(detail, fallback, 'gpr_b_file_path', 'GPR_B_FILE_PATH')
+    const gprBFileName = getValue(detail, fallback, 'gpr_b_file_name', 'GPR_B_FILE_NAME')
+    const hasGprBFile = gprBFilePath !== '-' && gprBFilePath.trim() !== ''
+    const gprBDisplayName = (gprBFileName !== '-' && gprBFileName) || gprBFilePath.split(/[\\/]/).pop() || 'GPR B file'
+
+    // GPR C approvers review the vendor's GPR B response, so jump straight to that section the
+    // first time the modal opens (once the detail has loaded).
+    const gprBSectionRef = useRef<HTMLDivElement | null>(null)
+    const hasScrolledToGprBRef = useRef(false)
+
+    useEffect(() => {
+        if (!open) {
+            hasScrolledToGprBRef.current = false
+            return
+        }
+        // Wait for both the detail and the GPR C flow (which renders above GPR B) to finish loading
+        // so the section positions are settled before we scroll.
+        if (loading || gprCFlowQuery.isLoading || hasScrolledToGprBRef.current) return
+
+        const timer = setTimeout(() => {
+            if (!gprBSectionRef.current) return
+            hasScrolledToGprBRef.current = true
+            gprBSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 250)
+
+        return () => clearTimeout(timer)
+    }, [open, loading, gprCFlowQuery.isLoading])
+
+    const loadGprBFileBlob = async () => {
+        const response = await RegisterRequestServices.downloadSelectionDocument({
+            FILE_PATH: gprBFilePath,
+            FILE_NAME: gprBFileName !== '-' ? gprBFileName : '',
+            REQUEST_NUMBER: requestNumber !== '-' ? requestNumber : '',
+        })
+
+        return response.data
+    }
+
+    const handleGprBDownload = async () => {
+        if (!hasGprBFile) return
+        try {
+            const blob = await loadGprBFileBlob()
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url
+            anchor.download = gprBDisplayName
+            anchor.click()
+            URL.revokeObjectURL(url)
+        } catch (loadError: unknown) {
+            const message = await getServiceErrorMessage(loadError, 'Failed to download GPR B file')
+            ToastMessageError({ title: 'Download GPR B', message })
+        }
+    }
+    const requestInfoItems = [
+        { label: 'Support Product / Process', value: getValue(detail, fallback, 'supportProduct_Process', 'SUPPORTPRODUCT_PROCESS') },
+        { label: 'Purchase Frequency', value: getValue(detail, fallback, 'purchase_frequency', 'PURCHASE_FREQUENCY') },
+        { label: 'Assigned To (PIC)', value: getValue(detail, fallback, 'assign_to', 'ASSIGN_TO') },
+        { label: 'Submitted Date', value: formatDate(getValue(detail, fallback, 'create_date', 'CREATE_DATE')) },
+        { label: 'Requester', value: getValue(detail, fallback, 'FULL_NAME', 'REQUESTER_NAME', 'Request_By_EmployeeCode', 'EMPLOYEE_CODE') },
+    ]
+
+    const vendorInfoItems = [
+        { label: 'Company Name', value: companyName },
+        { label: 'Vendor Type', value: getValue(detail, fallback, 'vendor_type_name', 'VENDOR_TYPE_NAME') },
+        { label: 'Region', value: vendorRegion },
+        { label: 'FFT Vendor Code', value: getValue(detail, fallback, 'fft_vendor_code', 'FFT_VENDOR_CODE') },
+        { label: 'FFT Status', value: formatFftStatus(getValue(detail, fallback, 'fft_status', 'FFT_STATUS')) },
+        ...(vendorRegion === 'Oversea'
+            ? [{ label: 'Country', value: getValue(detail, fallback, 'country', 'COUNTRY') }]
+            : [
+                { label: 'Province', value: getValue(detail, fallback, 'province', 'PROVINCE') },
+                { label: 'Postal Code', value: getValue(detail, fallback, 'postal_code', 'POSTAL_CODE') },
+            ]),
+        { label: 'Tel Center', value: getValue(detail, fallback, 'tel_center', 'TEL_CENTER') },
+        { label: 'Website', value: getValue(detail, fallback, 'website', 'WEBSITE') },
+        { label: 'Email (Main)', value: getValue(detail, fallback, 'emailmain', 'EMAILMAIN') },
+    ]
 
     return (
-        <Dialog
-            maxWidth='md'
+        <>
+            <Dialog
+            maxWidth='lg'
             fullWidth
             open={open}
             TransitionComponent={Transition}
@@ -218,15 +381,13 @@ export default function RequestDetailDialog({
                 if (reason !== 'backdropClick') onClose()
             }}
             sx={{
-                '& .MuiDialog-paper': { overflow: 'visible' },
+                '& .MuiDialog-paper': { overflow: 'visible', width: '100%', maxWidth: 1100 },
                 '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' },
             }}
         >
-            <DialogTitle>
+            <DialogTitle sx={{ pb: 2 }}>
                 <Stack direction='row' spacing={2} alignItems='center' justifyContent='space-between' sx={{ pr: 10 }}>
-                    <Typography variant='h5' component='span'>
-                        Request Detail
-                    </Typography>
+                    <Typography variant='h5' component='span'>Request Details</Typography>
                     <Box sx={{ textAlign: 'right' }}>
                         <Typography variant='caption' color='text.disabled' fontWeight={600}>
                             Register Selection
@@ -240,279 +401,291 @@ export default function RequestDetailDialog({
                     <i className='tabler-x' />
                 </DialogCloseButton>
             </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
                 {loading ? (
                     <Box sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
                         <CircularProgress />
                     </Box>
                 ) : (
-                    <Stack spacing={5}>
-                        <Box>
-                            <SectionHeader icon='tabler-clipboard-text' title='Registration Information' />
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} md={4}>
-                                    <ReadOnlyField label='Request No.' value={requestNumber} />
-                                </Grid>
-                                <Grid item xs={12} md={4}>
-                                    <ReadOnlyField label='Status' value={getValue(detail, fallbackRow || null, 'request_status')} />
-                                </Grid>
-                                <Grid item xs={12} md={4}>
-                                    <ReadOnlyField label='Requester' value={getValue(detail, fallbackRow || null, 'FULL_NAME', 'EMPLOYEE_CODE')} />
-                                </Grid>
-                                <Grid item xs={12} md={6}>
-                                    <ReadOnlyField label='Support Product / Process' value={getValue(detail, fallbackRow || null, 'supportProduct_Process')} />
-                                </Grid>
-                                <Grid item xs={12} md={6}>
-                                    <ReadOnlyField label='Purchase Frequency' value={getValue(detail, fallbackRow || null, 'purchase_frequency')} />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <ReadOnlyField label='Requester Remark' value={getValue(detail, fallbackRow || null, 'requester_remark')} multiline />
-                                </Grid>
-                            </Grid>
+                    <Box sx={{ p: 3 }}>
+                        <Box sx={{ p: 2.5, mb: 3, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
+                                <Box>
+                                    <Typography variant='h6' fontWeight={800} sx={{ wordBreak: 'break-word' }}>{companyName}</Typography>
+                                    <Typography variant='body2' color='text.secondary' fontWeight={600}>{requestNumber}</Typography>
+                                </Box>
+                                <Chip
+                                    size='small'
+                                    label={requestStatus}
+                                    sx={getChipSx(getReadableStatusTone(requestStatus), { height: 28, fontSize: '0.78rem' })}
+                                />
+                            </Box>
                         </Box>
 
-                        <Box>
-                            <SectionHeader icon='tabler-building-store' title='Vendor Info' />
+                        <Box sx={{ mb: 3 }}>
+                            <SectionHeader icon='tabler-clipboard-list' title='Request Info' />
                             <Grid container spacing={2}>
-                                {[
-                                    { label: 'Company Name', value: getValue(detail, fallbackRow || null, 'company_name') },
-                                    { label: 'Vendor Type', value: getValue(detail, fallbackRow || null, 'vendor_type_name') },
-                                    { label: 'Region', value: getValue(detail, fallbackRow || null, 'vendor_region') },
-                                    { label: 'FFT Vendor Code', value: getValue(detail, fallbackRow || null, 'fft_vendor_code') },
-                                    ...(getValue(detail, fallbackRow || null, 'vendor_region') === 'Oversea'
-                                        ? [{ label: 'Country', value: getValue(detail, fallbackRow || null, 'country') }]
-                                        : [
-                                            { label: 'Province', value: getValue(detail, fallbackRow || null, 'province') },
-                                            { label: 'Postal Code', value: getValue(detail, fallbackRow || null, 'postal_code') },
-                                        ]),
-                                    { label: 'Tel Center', value: getValue(detail, fallbackRow || null, 'tel_center') },
-                                    { label: 'Website', value: getValue(detail, fallbackRow || null, 'website') },
-                                    { label: 'Email (Main)', value: getValue(detail, fallbackRow || null, 'emailmain') },
-                                ].map(item => (
-                                    <Grid item xs={12} sm={6} md={4} key={item.label}>
-                                        <InfoItem label={item.label} value={item.value} />
+                                {requestInfoItems.map(({ label, value }) => (
+                                    <Grid item xs={12} sm={6} md={3} key={label}>
+                                        <InfoItem label={label} value={value} />
                                     </Grid>
                                 ))}
-                                <Grid item xs={12}>
-                                    <InfoItem label='Address' value={getValue(detail, fallbackRow || null, 'address')} />
-                                </Grid>
+                                {getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK') !== '-' && (
+                                    <Grid item xs={12}>
+                                        <InfoItem label='Requester Remark' value={getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK')} />
+                                    </Grid>
+                                )}
+                            </Grid>
+                            <DocumentChips files={registerDocuments} />
+                        </Box>
+
+                        <Box sx={{ mb: 3 }}>
+                            <SectionHeader icon='tabler-building-store' title='Vendor Info' />
+                            <Grid container spacing={2}>
+                                {vendorInfoItems.map(({ label, value }) => (
+                                    <Grid item xs={12} sm={6} md={4} key={label}>
+                                        <InfoItem label={label} value={value} />
+                                    </Grid>
+                                ))}
+                                {getValue(detail, fallback, 'address', 'ADDRESS') !== '-' && (
+                                    <Grid item xs={12}>
+                                        <InfoItem label='Address' value={getValue(detail, fallback, 'address', 'ADDRESS')} />
+                                    </Grid>
+                                )}
                             </Grid>
                         </Box>
 
-                        <Box>
-                            <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
-                            {contacts.length === 0 ? (
-                                <Typography color='text.secondary'>No contact information.</Typography>
-                            ) : (
-                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                        {['Name', 'Tel', 'Position', 'Email'].map(header => (
-                                            <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
-                                                {header}
-                                            </Typography>
-                                        ))}
-                                    </Box>
-                                    {contacts.map((contact, index) => (
-                                        <Box
-                                            key={`${contact.contact_name || 'contact'}-${index}`}
-                                            sx={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '2fr 1.5fr 1fr 2fr',
-                                                px: 2,
-                                                py: 1.25,
-                                                borderTop: '1px solid',
-                                                borderColor: 'divider',
-                                                '&:hover': { bgcolor: 'action.hover' },
-                                            }}
-                                        >
-                                            <Typography variant='body2' fontWeight={600}>{String(contact.contact_name || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary'>{String(contact.tel_phone || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary'>{String(contact.position || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>
-                                                {String(contact.email || '-')}
-                                            </Typography>
+                        {contacts.length > 0 && (
+                            <Box sx={{ mb: 3 }}>
+                                <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
+                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: 'auto', bgcolor: 'background.paper' }}>
+                                    <Box sx={{ minWidth: 720 }}>
+                                        <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                            {['Name', 'Tel', 'Position', 'Email'].map(header => (
+                                                <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
+                                                    {header}
+                                                </Typography>
+                                            ))}
                                         </Box>
-                                    ))}
-                                </Box>
-                            )}
-                        </Box>
-
-                        <Box>
-                            <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
-                            {products.length === 0 ? (
-                                <Typography color='text.secondary'>No product information.</Typography>
-                            ) : (
-                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                        {['Group', 'Maker', 'Product Name', 'Model List'].map(header => (
-                                            <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
-                                                {header}
-                                            </Typography>
-                                        ))}
-                                    </Box>
-                                    {products.map((product, index) => (
-                                        <Box
-                                            key={`${product.product_name || 'product'}-${index}`}
-                                            sx={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr',
-                                                px: 2,
-                                                py: 1.25,
-                                                borderTop: '1px solid',
-                                                borderColor: 'divider',
-                                                '&:hover': { bgcolor: 'action.hover' },
-                                            }}
-                                        >
-                                            <Typography variant='body2' fontWeight={600}>{String(product.product_group || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary'>{String(product.maker_name || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary'>{String(product.product_name || '-')}</Typography>
-                                            <Typography variant='body2' color='text.secondary'>{String(product.model_list || '-')}</Typography>
-                                        </Box>
-                                    ))}
-                                </Box>
-                            )}
-                        </Box>
-
-                        <Box>
-                            <SectionHeader icon='tabler-paperclip' title='Register / GPR B Uploaded Files' />
-                            {files.length === 0 ? (
-                                <Typography color='text.secondary'>No uploaded files found.</Typography>
-                            ) : (
-                                <List disablePadding>
-                                    {files.map(file => (
-                                        <ListItem
-                                            key={file.key}
-                                            disablePadding
-                                            sx={{
-                                                py: 1.5,
-                                                px: 2,
-                                                mb: 1,
-                                                borderRadius: 1,
-                                                border: '1px solid',
-                                                borderColor: 'divider',
-                                                '&:hover': { bgcolor: 'action.hover' },
-                                            }}
-                                            secondaryAction={
-                                                <Tooltip title='Open / Download'>
-                                                    <IconButton edge='end' size='small' onClick={() => window.open(buildFileUrl(file.path), '_blank')}>
-                                                        <i className='tabler-external-link' style={{ fontSize: 18 }} />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            }
-                                        >
-                                            <ListItemIcon sx={{ minWidth: 42 }}>
-                                                <i className={getFileIcon(file.name)} style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={
-                                                    <Stack direction='row' spacing={1} alignItems='center' flexWrap='wrap'>
-                                                        <Typography
-                                                            variant='body2'
-                                                            fontWeight={700}
-                                                            color='primary.main'
-                                                            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-                                                            onClick={() => window.open(buildFileUrl(file.path), '_blank')}
-                                                        >
-                                                            {file.name}
-                                                        </Typography>
-                                                        <Chip size='small' label={file.source} variant='tonal' color={file.source === 'GPR B Upload' ? 'info' : 'secondary'} />
-                                                        {file.criteriaNo && <Chip size='small' label={`No. ${file.criteriaNo}`} variant='tonal' color='primary' />}
-                                                    </Stack>
-                                                }
-                                                secondary={file.criteria || undefined}
-                                            />
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            )}
-                        </Box>
-
-                        {logs.length > 0 && (
-                            <Box>
-                                <SectionHeader icon='tabler-history' title='Action Logs' />
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                    {logs.map((log, index) => {
-                                        const {
-                                            parsedRemark,
-                                            actionTypeLabel,
-                                            actionColor,
-                                            detailText,
-                                            actorLabel,
-                                            stepDescription,
-                                        } = buildActionLogPresentation(log, approvalSteps)
-
-                                        return (
+                                        {contacts.map((contact, index) => (
                                             <Box
-                                                key={`approval-log-${index}`}
-                                                sx={{
-                                                    p: 1.5,
-                                                    borderRadius: 1.5,
-                                                    bgcolor: 'background.paper',
-                                                    border: '1px solid',
-                                                    borderColor: 'divider',
-                                                }}
+                                                key={`${getValue(contact, null, 'CONTACT_NAME', 'contact_name')}-${index}`}
+                                                sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
                                             >
-                                                <Stack spacing={0.75}>
-                                                    <Stack direction='row' spacing={1} alignItems='center' justifyContent='space-between' flexWrap='wrap'>
-                                                        <Stack direction='row' spacing={1} alignItems='center' flexWrap='wrap'>
-                                                            <Chip
-                                                                size='small'
-                                                                label={actionTypeLabel}
-                                                                sx={getChipSx(getReadableStatusTone(
-                                                                    actionColor === 'success' ? 'completed' :
-                                                                    actionColor === 'error' ? 'rejected' :
-                                                                    actionColor === 'warning' ? 'in progress' :
-                                                                    actionColor === 'info' ? 'skipped' : 'pending'
-                                                                ), { height: 22, fontSize: '0.68rem', fontWeight: 700 })}
-                                                            />
-                                                            {parsedRemark.isActionRequired && (
-                                                                <Chip
-                                                                    size='small'
-                                                                    label='Action Required'
-                                                                    color='warning'
-                                                                    variant='outlined'
-                                                                    sx={{ height: 22, fontSize: '0.68rem' }}
-                                                                />
-                                                            )}
-                                                        </Stack>
-                                                        <Typography variant='caption' color='text.disabled'>
-                                                            {log.CREATE_DATE ? new Date(String(log.CREATE_DATE)).toLocaleString('th-TH') : '-'}
-                                                        </Typography>
-                                                    </Stack>
-                                                    <Typography variant='body2' fontWeight={700}>
-                                                        {actorLabel}
-                                                    </Typography>
-                                                    <Stack spacing={0.35}>
-                                                        {stepDescription && (
-                                                            <Typography variant='caption' color='text.secondary'>
-                                                                <strong>Step:</strong> {stepDescription}
-                                                            </Typography>
-                                                        )}
-                                                        <Typography variant='caption' color='text.secondary'>
-                                                            <strong>Action:</strong> {actionTypeLabel}
-                                                        </Typography>
-                                                        {detailText && (
-                                                            <Typography variant='caption' color='text.secondary'>
-                                                                <strong>Detail:</strong> {detailText}
-                                                            </Typography>
-                                                        )}
-                                                    </Stack>
-                                                </Stack>
+                                                <Typography variant='body2' fontWeight={600}>{getValue(contact, null, 'CONTACT_NAME', 'contact_name')}</Typography>
+                                                <Typography variant='body2' color='text.secondary'>{getValue(contact, null, 'TEL_PHONE', 'tel_phone')}</Typography>
+                                                <Typography variant='body2' color='text.secondary'>{getValue(contact, null, 'POSITION', 'position')}</Typography>
+                                                <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>
+                                                    {getValue(contact, null, 'EMAIL', 'email')}
+                                                </Typography>
                                             </Box>
-                                        )
-                                    })}
+                                        ))}
+                                    </Box>
                                 </Box>
                             </Box>
                         )}
-                    </Stack>
+
+                        {products.length > 0 && (
+                            <Box sx={{ mb: 3 }}>
+                                <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
+                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: 'auto', bgcolor: 'background.paper' }}>
+                                    <Box sx={{ minWidth: 760 }}>
+                                        <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                            {['Group', 'Maker', 'Product Name', 'Model List'].map(header => (
+                                                <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
+                                                    {header}
+                                                </Typography>
+                                            ))}
+                                        </Box>
+                                        {products.map((product, index) => (
+                                            <Box
+                                                key={`${getValue(product, null, 'PRODUCT_NAME', 'product_name')}-${index}`}
+                                                sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
+                                            >
+                                                <Typography variant='body2' fontWeight={600}>{getValue(product, null, 'PRODUCT_GROUP', 'product_group')}</Typography>
+                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'MAKER_NAME', 'maker_name')}</Typography>
+                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'PRODUCT_NAME', 'product_name')}</Typography>
+                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'MODEL_LIST', 'model_list')}</Typography>
+                                            </Box>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            </Box>
+                        )}
+
+                        {(gprCFlowQuery.isLoading || gprCFlowSteps.length > 0) && (
+                            <Box sx={{ mb: 3 }}>
+                                <SectionHeader
+                                    icon='tabler-git-branch'
+                                    title={`GPR C Approval Flow${gprCFlowSteps.length > 0 ? ` (${gprCFlowSteps.length})` : ''}`}
+                                />
+                                {gprCFlowQuery.isLoading && gprCFlowSteps.length === 0 ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 2, px: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+                                        <CircularProgress size={18} />
+                                        <Typography variant='body2' color='text.secondary'>Loading GPR C approval flow...</Typography>
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: 'auto', bgcolor: 'background.paper' }}>
+                                        <Box sx={{ minWidth: 820 }}>
+                                            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.2fr 1.8fr 1.2fr 1.3fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                                {['#', 'Step', 'Approver', 'Status', 'Updated'].map(header => (
+                                                    <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
+                                                        {header}
+                                                    </Typography>
+                                                ))}
+                                            </Box>
+                                            {gprCFlowSteps.map((step, index) => {
+                                                const statusCfg = getStepStatusCfg(step.STEP_STATUS)
+                                                // GPR C steps are individual approvals, so surface the completed state as "Approved".
+                                                const stepStatusLabel = ['approved', 'completed'].includes(String(step.STEP_STATUS || '').toLowerCase())
+                                                    ? 'Approved'
+                                                    : statusCfg.label
+
+                                                return (
+                                                    <Box
+                                                        key={`${step.REQUEST_VENDOR_GPR_C_STEPS_ID || step.STEP_ORDER || index}`}
+                                                        sx={{ display: 'grid', gridTemplateColumns: '0.5fr 2.2fr 1.8fr 1.2fr 1.3fr', alignItems: 'center', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
+                                                    >
+                                                        <Typography variant='body2' fontWeight={600}>{getValue(step, null, 'STEP_ORDER')}</Typography>
+                                                        <Typography variant='body2' fontWeight={600}>{getValue(step, null, 'STEP_NAME', 'STEP_CODE')}</Typography>
+                                                        <Typography variant='body2' color='text.secondary'>{getValue(step, null, 'APPROVER_NAME', 'APPROVER_EMPCODE')}</Typography>
+                                                        <Chip
+                                                            icon={<i className={statusCfg.icon} style={{ fontSize: 13 }} />}
+                                                            label={stepStatusLabel}
+                                                            size='small'
+                                                            sx={getChipSx(statusCfg.tone, {
+                                                                fontWeight: 600,
+                                                                fontSize: '0.68rem',
+                                                                height: 22,
+                                                                width: 'fit-content',
+                                                                '& .MuiChip-icon': { color: statusCfg.tone.color },
+                                                            })}
+                                                        />
+                                                        <Typography variant='body2' color='text.secondary'>
+                                                            {formatDate(getValue(step, null, 'UPDATE_DATE', 'CREATE_DATE'))}
+                                                        </Typography>
+                                                    </Box>
+                                                )
+                                            })}
+                                        </Box>
+                                    </Box>
+                                )}
+                            </Box>
+                        )}
+
+                        <Box
+                            ref={gprBSectionRef}
+                            sx={{
+                                mb: 0,
+                                p: 2,
+                                borderRadius: 1,
+                                border: '2px solid',
+                                borderColor: 'warning.main',
+                                bgcolor: 'warning.lighterOpacity',
+                                scrollMarginTop: 16,
+                            }}
+                        >
+                            <SectionHeader icon='tabler-file-invoice' title='GPR B (Vendor Response)' />
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 1.5,
+                                    mb: 2,
+                                    p: 1.5,
+                                    borderRadius: 1,
+                                    bgcolor: 'warning.lighter',
+                                    border: '1px solid',
+                                    borderColor: 'warning.light',
+                                }}
+                            >
+                                <i className='tabler-alert-triangle-filled' style={{ fontSize: 20, color: 'var(--mui-palette-warning-main)', flexShrink: 0, marginTop: 2 }} />
+                                <Typography variant='body2' color='warning.dark' fontWeight={600}>
+                                    The vendor did not accept all GPR A conditions. Please review the GPR B file below, which reflects the conditions the vendor has agreed to, before approving.
+                                </Typography>
+                            </Box>
+                            {hasGprBFile ? (
+                                <Box
+                                    sx={{
+                                        py: 1.25,
+                                        px: 2,
+                                        borderRadius: 1,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        bgcolor: 'background.paper',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1.5,
+                                        '&:hover': { bgcolor: 'action.hover' },
+                                    }}
+                                >
+                                    <i className={getFileIcon(gprBDisplayName)} style={{ fontSize: 24, color: 'var(--mui-palette-primary-main)' }} />
+                                    <Typography
+                                        variant='body2'
+                                        fontWeight={700}
+                                        color='primary.main'
+                                        sx={{ cursor: 'pointer', flex: 1, minWidth: 0, '&:hover': { textDecoration: 'underline' }, wordBreak: 'break-all' }}
+                                        onClick={handleGprBDownload}
+                                    >
+                                        {gprBDisplayName}
+                                    </Typography>
+
+                                    <Tooltip title='Download'>
+                                        <IconButton size='small' onClick={handleGprBDownload}>
+                                            <i className='tabler-download' style={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                            ) : (
+                                <Typography color='text.secondary'>No GPR B file uploaded by PO PIC.</Typography>
+                            )}
+                            {(onApprove || onReject || onActionRequired) && (
+                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                    <Button
+                                        variant='contained'
+                                        color='success'
+                                        fullWidth
+                                        startIcon={<i className='tabler-circle-check' style={{ fontSize: 18 }} />}
+                                        onClick={onApprove}
+                                        disabled={actionDisabled || !onApprove}
+                                    >
+                                        Approve
+                                    </Button>
+                                    {onActionRequired && (
+                                        <Button
+                                            variant='contained'
+                                            color='info'
+                                            fullWidth
+                                            startIcon={<i className='tabler-bell-ringing' style={{ fontSize: 18 }} />}
+                                            onClick={onActionRequired}
+                                            disabled={actionDisabled || actionRequiredDisabled}
+                                        >
+                                            Action Required
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant='contained'
+                                        color='error'
+                                        fullWidth
+                                        startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                                        onClick={onReject}
+                                        disabled={actionDisabled || !onReject}
+                                    >
+                                        Reject
+                                    </Button>
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
                 )}
             </DialogContent>
-            <DialogActions sx={{ justifyContent: 'flex-start' }}>
+            <DialogActions sx={{ justifyContent: 'flex-start', bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
                 <Button variant='tonal' color='secondary' onClick={onClose}>
                     Close
                 </Button>
             </DialogActions>
-        </Dialog>
+            </Dialog>
+
+        </>
     )
 }
-

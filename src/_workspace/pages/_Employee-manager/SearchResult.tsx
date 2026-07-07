@@ -64,16 +64,7 @@ const SearchResult = () => {
                 const result = response.data
 
                 if (result?.Status) {
-                    const rowData = (result.ResultOnDb || []).map((row: AssigneeApiRow) => ({
-                        ...row,
-                        Assignees_id: row.Assignees_id ?? row.ASSIGNEES_TO_ID,
-                        empcode: row.empcode ?? row.EMPCODE,
-                        empName: row.empName ?? row.EMPNAME,
-                        empEmail: row.empEmail ?? row.EMPEMAIL,
-                        group_code: row.group_code ?? row.GROUP_CODE,
-                        group_name: row.group_name ?? row.GROUP_NAME,
-                        INUSE: row.INUSE,
-                    }))
+                    const rowData = result.ResultOnDb || []
                     params.success({
                         rowData,
                         rowCount: result.TotalCountOnDb || 0,
@@ -108,10 +99,10 @@ const SearchResult = () => {
                 )
             }
         },
-        { field: 'empcode', headerName: 'Emp. Code', flex: 1, filter: 'agTextColumnFilter' },
-        { field: 'empName', headerName: 'Name', flex: 2, filter: 'agTextColumnFilter' },
-        { field: 'empEmail', headerName: 'Email', flex: 2, filter: 'agTextColumnFilter' },
-        { field: 'group_code', headerName: 'Group Code', flex: 1.2, filter: 'agTextColumnFilter' },
+        { field: 'EMPCODE', headerName: 'Emp. Code', flex: 1, filter: 'agTextColumnFilter' },
+        { field: 'EMPNAME', headerName: 'Name', flex: 2, filter: 'agTextColumnFilter' },
+        { field: 'EMPEMAIL', headerName: 'Email', flex: 2, filter: 'agTextColumnFilter' },
+        { field: 'GROUP_CODE', headerName: 'Group Code', flex: 1.2, filter: 'agTextColumnFilter' },
         {
             field: 'INUSE',
             headerName: 'Status',
@@ -146,7 +137,7 @@ const SearchResult = () => {
                     onGridReady={handleGridReady}
                     getRowId={(params: GetRowIdParams<AssigneeRow>) => {
                         const row = params.data as AssigneeApiRow
-                        return String(row.Assignees_id || row.ASSIGNEES_TO_ID || row.empcode || row.EMPCODE || '')
+                        return String(row.ASSIGNEES_TO_ID || row.EMPCODE || '')
                     }}
                     overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assignees found.</span>'
                 />

@@ -82,14 +82,14 @@ export interface CheckDuplicateRequestI {
 
 // --- Check Duplicate Response ---
 export interface BlacklistMatchI {
-    group_code: 'US' | 'CN'
-    matched_name: string
-    match_type: 'name' | 'alias'
-    source_name: string | null
-    entity_number: string | null
-    entity_type: string | null
-    addresses: string | null
-    programs: string | null
+    GROUP_CODE: 'US' | 'CN'
+    MATCHED_NAME: string
+    MATCH_TYPE: 'name' | 'alias'
+    SOURCE_NAME: string | null
+    ENTITY_NUMBER: string | null
+    ENTITY_TYPE: string | null
+    ADDRESSES: string | null
+    PROGRAMS: string | null
 }
 
 export interface CheckDuplicateResponseI {

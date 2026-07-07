@@ -34,7 +34,7 @@ const inUseOptions = [
 
 
 const mapGroupOption = (item: GroupOptionSource): AssigneeGroupOption => {
-    const groupCode = String(item.value || item.VALUE || item.group_code || item.GROUP_CODE || item.label || item.LABEL || '').trim().toUpperCase()
+    const groupCode = String(item.value || item.GROUP_CODE || item.label || '').trim().toUpperCase()
 
     return {
         label: groupCode,

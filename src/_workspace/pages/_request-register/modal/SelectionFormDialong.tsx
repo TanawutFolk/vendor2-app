@@ -26,7 +26,6 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TextField,
     Tooltip,
     Typography,
 } from '@mui/material'
@@ -47,15 +46,16 @@ import { fetchBusinessCategories } from '@_workspace/react-select/async-promise-
 import type { BusinessCategoryOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchBusinessCategories'
 import { fetchCurrencies } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
 import type { CurrencyOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
-import { useGprForm } from './useGprForm'
-import type { GprFormData, GprFormDialogProps, SanctionsCheckState } from './useGprForm'
+import { useSelectionForm } from './useSelectionForm'
+import type { GprFormData, SelectionFormDialongProps, SanctionsCheckState } from './useSelectionForm'
 import {
     inferStepCode,
     isAccountStep,
 } from '@_workspace/utils/requestWorkflow'
+import { formatSelectionSheetSignatureName } from '@_workspace/utils/signatureName'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
-export type { GprFormData, SalesProfitYear, GprCriteria } from './useGprForm'
+export type { GprFormData, SalesProfitYear, GprCriteria } from './useSelectionForm'
 
 const Transition = forwardRef(function Transition(
     props: SlideProps & { children?: ReactElement<any, any> },
@@ -127,17 +127,17 @@ const CompanyInfoSection = React.memo(() => {
             <SectionTitle no={1} title='Company Name' />
             <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
                 <Grid container spacing={2.5}>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12}>
                         <CustomTextField fullWidth label='Company Name' placeholder='Enter company name...' {...register('company_name')} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        <CustomTextField fullWidth label='Email' placeholder='Enter email...' {...register('email')} />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <CustomTextField fullWidth label='PIC' placeholder='Enter PIC name...' {...register('pic_name')} />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <CustomTextField fullWidth label='Tel' placeholder='Enter telephone...' {...register('tel')} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <CustomTextField fullWidth label='Email' placeholder='Enter email...' {...register('email')} />
                     </Grid>
                 </Grid>
             </Paper>
@@ -251,18 +251,18 @@ const SanctionsSection = React.memo(({
                             </TableHead>
                             <TableBody>
                                 {checkState.matches.map((match, idx) => (
-                                    <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                                    <TableRow key={`${match.GROUP_CODE}-${match.MATCHED_NAME}-${idx}`}>
                                         <TableCell>
                                             <Chip
-                                                label={match.group_code}
+                                                label={match.GROUP_CODE}
                                                 size='small'
-                                                color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                                color={match.GROUP_CODE === 'US' ? 'primary' : 'warning'}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
-                                        <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
-                                        <TableCell>{match.source_name || '-'}</TableCell>
-                                        <TableCell>{match.entity_number || '-'}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.MATCHED_NAME}</TableCell>
+                                        <TableCell>{match.MATCH_TYPE === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                        <TableCell>{match.SOURCE_NAME || '-'}</TableCell>
+                                        <TableCell>{match.ENTITY_NUMBER || '-'}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -546,18 +546,16 @@ const FinancialSection = React.memo(() => {
                                     return (
                                         <TableRow key={field.id} sx={{ '&:last-child td': { borderBottom: 0 } }}>
                                             <TableCell sx={{ p: '4px' }}>
-                                                <TextField
+                                                <CustomTextField
                                                     size='small'
-                                                    variant='standard'
                                                     inputProps={{ style: { textAlign: 'center', fontWeight: 700, fontSize: '0.78rem' } }}
                                                     {...register(`sales_profit.${index}.year`)}
                                                     sx={{ width: '100%' }}
                                                 />
                                             </TableCell>
                                             <TableCell sx={{ p: '4px' }}>
-                                                <TextField
+                                                <CustomTextField
                                                     size='small'
-                                                    variant='standard'
                                                     placeholder='0'
                                                     type='number'
                                                     {...register(`sales_profit.${index}.total_revenue`)}
@@ -565,9 +563,8 @@ const FinancialSection = React.memo(() => {
                                                 />
                                             </TableCell>
                                             <TableCell sx={{ p: '4px' }}>
-                                                <TextField
+                                                <CustomTextField
                                                     size='small'
-                                                    variant='standard'
                                                     placeholder='0'
                                                     type='number'
                                                     error={isProfitExceedsRevenue}
@@ -606,7 +603,7 @@ const FinancialSection = React.memo(() => {
                                                             cacheOptions
                                                             isClearable={false}
                                                             classNamePrefix='select'
-                                                            loadOptions={inputValue => fetchCurrencies(inputValue)}
+                                                            loadOptions={fetchCurrencies}
                                                             value={value ? { value, label: value } : null}
                                                             onChange={(val) => onChange(val?.value || 'THB')}
                                                         />
@@ -668,7 +665,7 @@ const GeneralInfoSection = React.memo(() => {
                                     cacheOptions
                                     isClearable
                                     classNamePrefix='select'
-                                    loadOptions={inputValue => fetchBusinessCategories(inputValue)}
+                                    loadOptions={fetchBusinessCategories}
                                     value={value ? { value, label: value } : null}
                                     onChange={(val) => onChange(val?.value || '')}
                                 />
@@ -755,9 +752,8 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, crite
                                             </Box>
                                         </TableCell>
                                         <TableCell>
-                                            <TextField
+                                            <CustomTextField
                                                 size='small'
-                                                variant='standard'
                                                 fullWidth
                                                 placeholder='remark...'
                                                 {...register(`criteria.${index}.remark`)}
@@ -1058,9 +1054,9 @@ const SuggestionSection = React.memo(
 
 // ── Main Dialog Component ─────────────────────────────────────────────────────
 
-export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnly = false }: GprFormDialogProps) {
+export default function SelectionFormDialong({ open, rowData, onClose, onSaved, readOnly = false }: SelectionFormDialongProps) {
     const approvalSteps = useMemo(() => {
-        const rawSteps = rowData?.approval_steps
+        const rawSteps = rowData?.APPROVAL_STEPS
 
         if (Array.isArray(rawSteps)) return rawSteps
         if (typeof rawSteps === 'string') {
@@ -1072,7 +1068,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         return []
-    }, [rowData?.approval_steps])
+    }, [rowData?.APPROVAL_STEPS])
 
     const isAccountVendorCodeOnlyMode = useMemo(() => {
         const currentStep = approvalSteps.find((s: any) => s?.STEP_STATUS === 'in_progress')
@@ -1102,12 +1098,12 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         checkSanctions,
         handleDialogClose,
         handleCloseClick,
-    } = useGprForm({ open, rowData, onClose, onSaved, readOnly: isReadOnlyMode })
+    } = useSelectionForm({ open, rowData, onClose, onSaved, readOnly: isReadOnlyMode })
     const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
     const [deleteCriteriaIndex, setDeleteCriteriaIndex] = useState<number | null>(null)
 
     const approvalLogs = useMemo(() => {
-        const rawLogs = rowData?.approval_logs
+        const rawLogs = rowData?.APPROVAL_LOGS
 
         if (Array.isArray(rawLogs)) return rawLogs
         if (typeof rawLogs === 'string') {
@@ -1119,9 +1115,9 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
         }
 
         return []
-    }, [rowData?.approval_logs])
+    }, [rowData?.APPROVAL_LOGS])
 
-    const requestRef = rowData?.request_number || rowData?.REQUEST_NUMBER || rowData?.request_id || rowData?.REQUEST_REGISTER_VENDOR_ID || '-'
+    const requestRef = rowData?.REQUEST_NUMBER || rowData?.REQUEST_REGISTER_VENDOR_ID || '-'
     const handleConfirmAction = async () => {
         if (confirmAction === 'save') {
             await handleSave()
@@ -1141,18 +1137,6 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
 
     const signatureSlots = useMemo<SignatureSlot[]>(() => {
         const approvedStatuses = new Set(['approved', 'completed'])
-
-        const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
-            const source = (fullName || '').trim()
-            if (!source) return String(fallbackCode || '').trim()
-
-            const parts = source.split(/\s+/).filter(Boolean)
-            if (parts.length < 2) return source.toUpperCase()
-
-            const firstName = parts[0]
-            const lastName = parts[parts.length - 1]
-            return `${lastName.toUpperCase()} ${firstName.charAt(0).toUpperCase()}.`
-        }
 
         const formatDate = (rawDate?: string) => {
             if (!rawDate) return ''
@@ -1201,8 +1185,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             const latestLog = findLatestLogForStep(step?.REQUEST_APPROVAL_STEP_ID)
             const code = String(step?.APPROVER_EMPCODE || latestLog?.ACTION_BY || '').trim()
             const fullName = String(
-                step?.approver_name
-                || step?.APPROVER_NAME
+                step?.APPROVER_NAME
                 || latestLog?.ACTION_BY_NAME
                 || ''
             ).trim()
@@ -1210,7 +1193,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
             return {
                 role,
                 code,
-                signature: formatSignatureName(fullName, code),
+                signature: formatSelectionSheetSignatureName(fullName, code),
                 date: formatDate(step?.UPDATE_DATE || latestLog?.CREATE_DATE || step?.CREATE_DATE),
             }
         }
@@ -1249,7 +1232,7 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                     <Typography variant='h5' component='span' fontWeight={800} sx={{ letterSpacing: 0.3 }}>
                         Supplier / Outsourcing Selection Sheet
                     </Typography>
-                    <DialogSubtitle fallbackName={rowData?.company_name ?? rowData?.COMPANY_NAME} />
+                    <DialogSubtitle fallbackName={rowData?.COMPANY_NAME} />
                     <Box sx={{ position: 'absolute', top: 16, right: 56, textAlign: 'right' }}>
                         <Typography variant='body2' fontWeight={700} color='text.secondary'>
                             {requestRef}
@@ -1321,10 +1304,10 @@ export default function GprFormDialog({ open, rowData, onClose, onSaved, readOnl
                         variant='contained'
                         color='primary'
                         onClick={() => setConfirmAction('export')}
-                        disabled={isBusy || isReadOnlyMode}
+                        disabled={isBusy}
                         startIcon={generatingPdf ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-file-type-pdf' style={{ fontSize: 16 }} />}
                     >
-                        {generatingPdf ? 'Generating...' : 'Save & Export PDF'}
+                        {generatingPdf ? 'Generating...' : (isReadOnlyMode ? 'Export PDF' : 'Save & Export PDF')}
                     </Button>
                     <Button variant='tonal' color='secondary' onClick={handleCloseClick} disabled={isBusy}>
                         Cancel

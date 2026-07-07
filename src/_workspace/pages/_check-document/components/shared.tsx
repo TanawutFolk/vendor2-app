@@ -24,14 +24,51 @@ export const Transition = forwardRef(function Transition(
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 
-export const buildFileUrls = (documents: any): { name: string; url: string }[] => {
+// Request attachments live in the request's 02.Request Documents network folder (moved out
+// of uploads/documents). Those are streamed through the managed download route; only legacy rows
+// whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
+const isNetworkStoredPath = (filePath: string) =>
+    filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+
+export const buildFileUrls = (documents: any, requestNumber?: string): { name: string; url: string }[] => {
+    let docs: any[] = []
     try {
-        const docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
-        return docs.filter(Boolean).map((d: any) => ({
-            name: d.file_name || d.file_path || 'Unnamed File',
-            url: `${API_BASE}/uploads/documents/${d.file_path}`
+        docs = typeof documents === 'string' ? JSON.parse(documents) : (documents || [])
+    } catch {
+        return []
+    }
+
+    const isRequestAttachment = (doc: any) => {
+        const fileName = String(doc?.FILE_NAME || '').trim()
+        const filePath = String(doc?.FILE_PATH || '').trim()
+
+        if (!filePath) return false
+        if (fileName.startsWith('[GPR] ')) return false
+        if (filePath.includes('00.Sending') || filePath.includes('01.Receiving')) return false
+
+        return true
+    }
+
+    const buildUrl = (doc: any) => {
+        const filePath = String(doc?.FILE_PATH || '').trim()
+        const fileName = String(doc?.FILE_NAME || '').trim()
+
+        if (requestNumber || isNetworkStoredPath(filePath)) {
+            // REQUEST_NUMBER lets the API recover the file by scanning the request's network
+            // folder if FILE_PATH is stale, missing, or was corrupted on a previous save; the API also falls back to uploads/documents for legacy rows.
+            const params = new URLSearchParams({ FILE_PATH: filePath, FILE_NAME: fileName, REQUEST_NUMBER: requestNumber || '' })
+            return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
+        }
+
+        return `${API_BASE}/uploads/documents/${filePath}`
+    }
+
+    return docs
+        .filter((d: any) => Boolean(d) && isRequestAttachment(d))
+        .map((d: any) => ({
+            name: d.FILE_NAME || d.FILE_PATH || 'Unnamed File',
+            url: buildUrl(d),
         }))
-    } catch { return [] }
 }
 
 export const parseApprovalSteps = (approvalStepsRaw: any): any[] => {
@@ -44,13 +81,13 @@ export const parseApprovalSteps = (approvalStepsRaw: any): any[] => {
 }
 
 export const getMyQueueStepStatus = (row: any, empCode?: string, queueStepCode?: string): 'in_progress' | 'approved' | 'rejected' | 'pending' => {
-    const directStatus = String(row?.MY_APPROVAL_STATUS || row?.my_approval_status || '').trim().toLowerCase()
+    const directStatus = String(row?.MY_APPROVAL_STATUS || '').trim().toLowerCase()
     if (['in_progress', 'approved', 'rejected'].includes(directStatus)) {
         return directStatus as 'in_progress' | 'approved' | 'rejected'
     }
 
     const normalizedQueueStepCode = String(queueStepCode || '').trim().toUpperCase()
-    const steps = parseApprovalSteps(row?.approval_steps)
+    const steps = parseApprovalSteps(row?.APPROVAL_STEPS)
     const myQueueSteps = steps.filter((step: any) => {
         if (!step || step.APPROVER_EMPCODE !== empCode) return false
         if (!normalizedQueueStepCode) return true

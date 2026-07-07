@@ -1,9 +1,41 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import AccRegisterServices from '@_workspace/services/_Acc-register/AccRegisterServices'
 
 export const PREFIX_QUERY_KEY = 'REQUEST_REGISTER'
+
+export const REQUEST_DETAIL_QUERY_KEY = [PREFIX_QUERY_KEY, 'requestDetail'] as const
+
+export const fetchRequestDetail = async (requestId: number) => {
+    const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
+    const payload = response.data
+    if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
+        throw new Error(payload?.Message || 'Failed to load request detail')
+    }
+    return payload.ResultOnDb
+}
+
+export const requestDetailQueryOptions = (requestId: number) => ({
+    queryKey: [...REQUEST_DETAIL_QUERY_KEY, requestId],
+    queryFn: () => fetchRequestDetail(requestId),
+    staleTime: 30_000,
+})
+
+// Fetch (with react-query caching) the full detail of a request; the
+// invalidate helper is used after saving a sub-form (e.g. Selection Sheet)
+// so every open panel refetches in place.
+export const useRequestDetailFetcher = () => {
+    const queryClient = useQueryClient()
+
+    return {
+        fetchDetail: (requestId: number) => queryClient.fetchQuery(requestDetailQueryOptions(requestId)),
+        invalidateDetail: (requestId?: number) =>
+            queryClient.invalidateQueries({
+                queryKey: requestId ? [...REQUEST_DETAIL_QUERY_KEY, requestId] : [...REQUEST_DETAIL_QUERY_KEY],
+            }),
+    }
+}
 
 // Thin wrappers (prototype pattern): the caller owns toast via the onSuccess /
 // onError callbacks it passes in. These span a few services but all operate on

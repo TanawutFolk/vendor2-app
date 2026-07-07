@@ -139,19 +139,19 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 </TableHead>
                 <TableBody>
                     {blacklistMatches.map((match, idx) => (
-                        <TableRow key={`${match.group_code}-${match.matched_name}-${idx}`}>
+                        <TableRow key={`${match.GROUP_CODE}-${match.MATCHED_NAME}-${idx}`}>
                             <TableCell>
                                 <Chip
-                                    label={match.group_code}
+                                    label={match.GROUP_CODE}
                                     size='small'
-                                    color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                    color={match.GROUP_CODE === 'US' ? 'primary' : 'warning'}
                                 />
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
-                            <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
-                            <TableCell>{match.source_name || '-'}</TableCell>
-                            <TableCell>{match.entity_number || '-'}</TableCell>
-                            <TableCell>{match.programs || '-'}</TableCell>
+                            <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.MATCHED_NAME}</TableCell>
+                            <TableCell>{match.MATCH_TYPE === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                            <TableCell>{match.SOURCE_NAME || '-'}</TableCell>
+                            <TableCell>{match.ENTITY_NUMBER || '-'}</TableCell>
+                            <TableCell>{match.PROGRAMS || '-'}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -336,16 +336,16 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                             <TableRow key={idx}>
                                                 <TableCell>
                                                     <Chip
-                                                        label={match.group_code}
+                                                        label={match.GROUP_CODE}
                                                         size='small'
-                                                        color={match.group_code === 'US' ? 'primary' : 'warning'}
+                                                        color={match.GROUP_CODE === 'US' ? 'primary' : 'warning'}
                                                     />
                                                 </TableCell>
-                                                <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.matched_name}</TableCell>
-                                                <TableCell>{match.match_type === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
-                                                <TableCell>{match.source_name || '-'}</TableCell>
-                                                <TableCell>{match.entity_number || '-'}</TableCell>
-                                                <TableCell>{match.programs || '-'}</TableCell>
+                                                <TableCell sx={{ fontWeight: 600, color: 'error.main' }}>{match.MATCHED_NAME}</TableCell>
+                                                <TableCell>{match.MATCH_TYPE === 'alias' ? 'Alias' : 'Primary Name'}</TableCell>
+                                                <TableCell>{match.SOURCE_NAME || '-'}</TableCell>
+                                                <TableCell>{match.ENTITY_NUMBER || '-'}</TableCell>
+                                                <TableCell>{match.PROGRAMS || '-'}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

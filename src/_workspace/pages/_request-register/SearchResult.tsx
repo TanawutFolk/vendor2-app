@@ -1,6 +1,8 @@
 // React Imports
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useFormContext } from 'react-hook-form'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 
 // MUI Imports
 import {
@@ -21,10 +23,11 @@ import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import ActionDialog from './components/ActionDialog'
 import DetailPanel from './components/DetailPanel'
-import { Transition, buildFileUrls, normalizeRegisterRequestRow } from './components/shared'
+import { Transition, buildFileUrls } from './components/shared'
 
 // Services
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
+import { requestDetailQueryOptions, REQUEST_DETAIL_QUERY_KEY } from '@_workspace/react-query/hooks/useRegisterRequest'
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
@@ -33,18 +36,18 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 import type { RequestRegisterFormData } from './validateSchema'
 import type { RegisterRequestRow } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
-const getRequestIdFromRow = (row: any) => Number(row?.request_id ?? row?.REQUEST_REGISTER_VENDOR_ID ?? 0)
+const getRequestIdFromRow = (row: any) => Number(row?.REQUEST_REGISTER_VENDOR_ID ?? 0)
 
 const hasFullRequestDetail = (row: any) => Boolean(
-    row?.approval_steps || row?.approval_logs || row?.documents || row?.contacts || row?.products || row?.gpr_criteria
+    row?.APPROVAL_STEPS || row?.APPROVAL_LOGS || row?.DOCUMENTS || row?.CONTACTS || row?.PRODUCTS || row?.GPR_CRITERIA
 )
 
 const getDocumentCount = (row: any) => {
-    if (row?.documents_count !== undefined || row?.DOCUMENTS_COUNT !== undefined) {
-        return Number(row?.documents_count ?? row?.DOCUMENTS_COUNT) || 0
+    if (row?.DOCUMENTS_COUNT !== undefined) {
+        return Number(row?.DOCUMENTS_COUNT) || 0
     }
 
-    return buildFileUrls(row?.documents).length
+    return buildFileUrls(row?.DOCUMENTS).length
 }
 
 const DetailLoading = () => (
@@ -54,31 +57,29 @@ const DetailLoading = () => (
     </Box>
 )
 
-const loadRequestDetail = async (row: any): Promise<RegisterRequestRow | null> => {
+const loadRequestDetail = async (row: any, queryClient: QueryClient): Promise<RegisterRequestRow | null> => {
     const requestId = getRequestIdFromRow(row)
-    if (!requestId) return row ? normalizeRegisterRequestRow(row) : null
+    if (!requestId) return row ?? null
 
-    const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
-    const payload = response.data
-
-    if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
-        return row ? normalizeRegisterRequestRow(row) : null
+    try {
+        return (await queryClient.fetchQuery(requestDetailQueryOptions(requestId))) as RegisterRequestRow
+    } catch {
+        return row ?? null
     }
-
-    return normalizeRegisterRequestRow(payload.ResultOnDb)
 }
 
 // --- Detail renderer for AG Grid master/detail ---
 const DetailRenderer = (props: any) => {
+    const queryClient = useQueryClient()
     const [detailData, setDetailData] = useState<RegisterRequestRow | null>(() => {
-        const row = props.data ? normalizeRegisterRequestRow(props.data) : null
+        const row = props.data ?? null
         return row && hasFullRequestDetail(row) ? row : null
     })
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         let active = true
-        const row = props.data ? normalizeRegisterRequestRow(props.data) : null
+        const row = props.data ?? null
 
         if (!row) {
             setDetailData(null)
@@ -92,7 +93,7 @@ const DetailRenderer = (props: any) => {
 
         setDetailData(row)
         setLoading(true)
-        loadRequestDetail(row)
+        loadRequestDetail(row, queryClient)
             .then(detail => {
                 if (active) setDetailData(detail || row)
             })
@@ -125,6 +126,7 @@ const DetailRenderer = (props: any) => {
 
 
 export default function SearchResult() {
+    const queryClient = useQueryClient()
     const { getValues, setValue } = useFormContext<RequestRegisterFormData>()
     const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
@@ -138,9 +140,16 @@ export default function SearchResult() {
     })
 
     // Action dialog & Drawer state
-    const [selectedData, setSelectedData] = useState<RegisterRequestRow | null>(null)
+    // The modal subscribes to the request detail via react-query (single source of truth), so an
+    // invalidate after an action auto-refetches and re-renders it in place (grid is refreshed
+    // separately via refreshServerSide since AG Grid SSRM is not a react-query consumer).
+    const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
-    const [detailLoading, setDetailLoading] = useState(false)
+    const detailQuery = useQuery({
+        ...requestDetailQueryOptions(selectedRequestId ?? 0),
+        enabled: drawerOpen && !!selectedRequestId,
+    })
+    const selectedData = (detailQuery.data ?? null) as RegisterRequestRow | null
 
     // Approve/Reject Action Dialog state
     const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
@@ -160,15 +169,15 @@ export default function SearchResult() {
             const { startRow, endRow } = params.request
             const order = params.request.sortModel?.length > 0
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
-                : [{ id: 'request_id', desc: true }]
+                : [{ id: 'REQUEST_REGISTER_VENDOR_ID', desc: true }]
             try {
                 const res = await ApprovalQueueServices.getAll({
                     ASSIGN_TO: empCode,
                     APPROVER_EMPCODE: empCode,
                     SEARCHFILTERS: [
-                        { id: 'company_name', value: f.vendor_name || null },
-                        { id: 'Request_By_EmployeeCode', value: f.submitted_by || null },
-                        { id: 'request_status', value: f.overall_status?.value || null }
+                        { id: 'COMPANY_NAME', value: f.vendor_name || null },
+                        { id: 'REQUEST_BY_EMPLOYEECODE', value: f.submitted_by || null },
+                        { id: 'REQUEST_STATUS', value: f.overall_status?.value || null }
                     ].filter((x: any) => x.value !== null && x.value !== ''),
                     COLUMNFILTERS: [],
                     ORDER: order,
@@ -176,7 +185,7 @@ export default function SearchResult() {
                     LIMIT: (endRow ?? 50) - (startRow ?? 0)
                 })
                 if (res.data?.Status) {
-                    const rowData = (res.data.ResultOnDb || []).map(normalizeRegisterRequestRow)
+                    const rowData = res.data.ResultOnDb || []
                     params.success({ rowData, rowCount: res.data.TotalCountOnDb })
                 } else {
                     params.fail()
@@ -192,23 +201,9 @@ export default function SearchResult() {
 
     // Ã¢â€â‚¬Ã¢â€â‚¬ Column / Grid State Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-    const openDetailDialog = useCallback(async (row?: RegisterRequestRow | null) => {
-        const baseRow = row ? normalizeRegisterRequestRow(row) : null
-        setSelectedData(baseRow)
+    const openDetailDialog = useCallback((row?: RegisterRequestRow | null) => {
+        setSelectedRequestId(getRequestIdFromRow(row) || null)
         setDrawerOpen(true)
-
-        if (!baseRow) return
-
-        setDetailLoading(true)
-        try {
-            const detail = await loadRequestDetail(baseRow)
-            setSelectedData(detail || baseRow)
-        } catch (error) {
-            console.error('Open request detail failed:', error)
-            setSelectedData(baseRow)
-        } finally {
-            setDetailLoading(false)
-        }
     }, [])
     const colDefs = useMemo<ColDef[]>(() => [
         {
@@ -229,16 +224,16 @@ export default function SearchResult() {
             )
         },
         {
-            field: 'request_number',
+            field: 'REQUEST_NUMBER',
             headerName: 'Request Number',
             width: 170,
             pinned: 'left',
             lockPinned: true,
             suppressMovable: true,
-            valueGetter: (p: ValueGetterParams<RegisterRequestRow>) => p.data?.request_number || p.data?.request_id || '-'
+            valueGetter: (p: ValueGetterParams<RegisterRequestRow>) => p.data?.REQUEST_NUMBER || p.data?.REQUEST_REGISTER_VENDOR_ID || '-'
         },
         {
-            field: 'request_status',
+            field: 'REQUEST_STATUS',
             headerName: 'Status',
             flex: 1.2,
             minWidth: 230,
@@ -266,9 +261,9 @@ export default function SearchResult() {
                 }
             }
         },
-        { field: 'company_name', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
-        { field: 'supportProduct_Process', headerName: 'Support Product / Process', flex: 1, minWidth: 180 },
-        { field: 'purchase_frequency', headerName: 'Purchase Frequency', width: 170 },
+        { field: 'COMPANY_NAME', headerName: 'Company Name', flex: 1.5, minWidth: 210 },
+        { field: 'SUPPORTPRODUCT_PROCESS', headerName: 'Support Product / Process', flex: 1, minWidth: 180 },
+        { field: 'PURCHASE_FREQUENCY', headerName: 'Purchase Frequency', width: 170 },
         {
             field: 'FULL_NAME',
             headerName: 'Submitted By',
@@ -277,7 +272,7 @@ export default function SearchResult() {
             valueGetter: (p: ValueGetterParams<RegisterRequestRow>) => p.data?.FULL_NAME || p.data?.EMPLOYEE_CODE || '-'
         },
         {
-            field: 'documents',
+            field: 'DOCUMENTS_COUNT',
             headerName: 'Files',
             width: 100,
             cellRenderer: (params: ICellRendererParams<RegisterRequestRow>) => {
@@ -307,34 +302,22 @@ export default function SearchResult() {
         }
     ], [openDetailDialog])
 
-    const handleActionSuccess = () => {
+    // Refresh the grid (AG Grid SSRM — not a react-query consumer) and invalidate the request
+    // detail query so the modal, which subscribes to that query, refetches and re-renders in place.
+    const refreshCurrentDetail = useCallback((sourceRow?: RegisterRequestRow | null) => {
         refreshServerSide()
-        setDrawerOpen(false)
-        setSelectedData(null)
-    }
-
-    const refreshCurrentDetail = useCallback(async (sourceRow?: RegisterRequestRow | null) => {
-        const requestId = Number(sourceRow?.request_id || selectedData?.request_id || 0)
-
-        refreshServerSide()
-
+        const requestId = getRequestIdFromRow(sourceRow) || selectedRequestId || 0
         if (!requestId) return
+        void queryClient.invalidateQueries({ queryKey: [...REQUEST_DETAIL_QUERY_KEY, requestId] })
+    }, [queryClient, refreshServerSide, selectedRequestId])
 
-        try {
-            const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
-            const payload = response.data
-
-            if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') return
-
-            setSelectedData(normalizeRegisterRequestRow(payload.ResultOnDb))
-        } catch (error) {
-            console.error('Refresh request detail after selection sheet save failed:', error)
-        }
-    }, [refreshServerSide, selectedData?.request_id])
+    const handleActionSuccess = () => {
+        refreshCurrentDetail()
+    }
 
     const gridContext = useMemo(() => ({
         onApprove: (data: any, status: string, finalStep: boolean, actionLabel: string) => {
-            setSelectedData(data)
+            setSelectedRequestId(getRequestIdFromRow(data) || null)
             setNextStatus(status)
             setIsFinalStep(finalStep)
             setApproveActionLabel(actionLabel || 'Approve')
@@ -342,7 +325,7 @@ export default function SearchResult() {
             setActionDialogOpen(true)
         },
         onReject: (data: any, actionLabel: string, status = 'Rejected', finalStep = false) => {
-            setSelectedData(data)
+            setSelectedRequestId(getRequestIdFromRow(data) || null)
             setNextStatus(status || 'Rejected')
             setIsFinalStep(finalStep)
             setApproveActionLabel('Approve')
@@ -356,7 +339,7 @@ export default function SearchResult() {
         onCompleted: () => {
             refreshServerSide()
             setDrawerOpen(false)
-            setSelectedData(null)
+            setSelectedRequestId(null)
         }
     }), [refreshCurrentDetail, refreshServerSide])
 
@@ -374,7 +357,7 @@ export default function SearchResult() {
                             serverSideDatasource={datasource}
                             height={600}
                             overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No assigned requests found</span>'
-                            getRowId={(p: any) => String(p.data.request_id ?? p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.vendor_id ?? p.data.VENDORS_ID ?? p.rowIndex)}
+                            getRowId={(p: any) => String(p.data.REQUEST_REGISTER_VENDOR_ID ?? p.data.VENDORS_ID ?? p.rowIndex)}
                             onGridReady={(p: any) => {
                                 handleGridReady(p)
                                 gridApiRef.current = p.api
@@ -394,7 +377,7 @@ export default function SearchResult() {
             <ActionDialog
                 open={actionDialogOpen}
                 mode={actionMode}
-                requestId={selectedData?.request_id || null}
+                requestId={selectedRequestId}
                 nextStatus={nextStatus}
                 isFinalStep={isFinalStep}
                 approveActionLabel={approveActionLabel}
@@ -428,7 +411,7 @@ export default function SearchResult() {
                     <Typography variant='h5' component='span'>Request Details</Typography>
                     <Box sx={{ position: 'absolute', top: 14, right: 56, textAlign: 'right' }}>
                         <Typography variant='body2' fontWeight={700} color='text.secondary'>
-                            {String(selectedData?.request_number || selectedData?.request_id || '-')}
+                            {String(selectedData?.REQUEST_NUMBER || selectedRequestId || '-')}
                         </Typography>
                     </Box>
                     <DialogCloseButton onClick={() => setDrawerOpen(false)} disableRipple>
@@ -436,7 +419,7 @@ export default function SearchResult() {
                     </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
-                    {detailLoading ? <DetailLoading /> : selectedData && <DetailRenderer data={selectedData} context={gridContext} />}
+                    {detailQuery.isLoading ? <DetailLoading /> : selectedData && <DetailRenderer data={selectedData} context={gridContext} />}
                 </DialogContent>
             </Dialog>
         </Grid>

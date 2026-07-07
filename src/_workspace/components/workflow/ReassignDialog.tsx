@@ -1,5 +1,4 @@
-import type { Ref } from 'react'
-import { forwardRef, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
     Alert,
     Button,
@@ -8,19 +7,20 @@ import {
     DialogContent,
     DialogTitle,
     Grid,
-    MenuItem,
-    Slide,
     Typography
 } from '@mui/material'
-import type { SlideProps } from '@mui/material'
+import Transition from '@components/TransitionDialog'
 import ConfirmModal from '@components/ConfirmModal'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import CustomTextField from '@components/mui/TextField'
+import SelectCustom from '@components/react-select/SelectCustom'
 import { ToastMessageError, ToastMessageSuccess } from '@components/ToastMessage'
 import AssigneesServices from '@_workspace/services/_task-manager/AssigneesServices'
 import type { AssigneeRowI } from '@_workspace/services/_task-manager/AssigneesServices'
 import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
 import { ASSIGNEE_GROUP_LABEL_MAP } from '@_workspace/utils/requestWorkflow'
+
+type SelectOption = { value: string; label: string }
 
 interface ReassignDialogProps {
     open: boolean
@@ -41,12 +41,6 @@ type ServiceError = {
     message?: string
 }
 
-const Transition = forwardRef(function Transition(
-    props: SlideProps,
-    ref: Ref<unknown>
-) {
-    return <Slide direction='up' ref={ref} {...props} />
-})
 
 const getErrorMessage = (error: unknown, fallback: string) => {
     const normalizedError = error as ServiceError
@@ -67,7 +61,7 @@ export default function ReassignDialog({
     const [error, setError] = useState<string | null>(null)
     const [confirmModal, setConfirmModal] = useState(false)
     const [assignees, setAssignees] = useState<AssigneeRowI[]>([])
-    const [toEmpcode, setToEmpcode] = useState('')
+    const [toEmpcode, setToEmpcode] = useState<SelectOption | null>(null)
     const [reason, setReason] = useState('')
 
     useEffect(() => {
@@ -75,7 +69,7 @@ export default function ReassignDialog({
             setError(null)
             setConfirmModal(false)
             setAssignees([])
-            setToEmpcode('')
+            setToEmpcode(null)
             setReason('')
             return
         }
@@ -118,7 +112,15 @@ export default function ReassignDialog({
     }, [open, groupCode, currentEmpCode])
 
     const groupLabel = useMemo(() => ASSIGNEE_GROUP_LABEL_MAP[groupCode || ''] || groupCode || '-', [groupCode])
-    const canSubmit = Boolean(requestId && toEmpcode && reason.trim())
+
+    const assigneeOptions = useMemo<SelectOption[]>(() =>
+        assignees.map(item => ({
+            value: item.empcode || '',
+            label: `${item.empcode || ''} - ${item.empName || ''}`
+        }))
+    , [assignees])
+
+    const canSubmit = Boolean(requestId && toEmpcode?.value && reason.trim())
 
     const handleOpenConfirm = () => {
         if (!canSubmit) return
@@ -126,7 +128,7 @@ export default function ReassignDialog({
     }
 
     const handleSubmit = async () => {
-        if (!requestId || !toEmpcode || !reason.trim()) return
+        if (!requestId || !toEmpcode?.value || !reason.trim()) return
 
         setSaving(true)
         setError(null)
@@ -135,7 +137,7 @@ export default function ReassignDialog({
                 REQUEST_REGISTER_VENDOR_ID: requestId,
                 SCOPE: 'REQUEST_PIC',
                 GROUP_CODE: groupCode || undefined,
-                TO_EMPCODE: toEmpcode,
+                TO_EMPCODE: toEmpcode.value,
                 REASON: reason.trim(),
                 UPDATE_BY: updateBy || 'SYSTEM'
             })
@@ -202,24 +204,16 @@ export default function ReassignDialog({
                     </Grid>
 
                     <Grid item xs={12}>
-                        <CustomTextField
-                            select
-                            fullWidth
+                        <SelectCustom
                             label='Assign To'
+                            placeholder='Select assignee...'
+                            isClearable
+                            options={assigneeOptions}
                             value={toEmpcode}
-                            onChange={e => setToEmpcode(e.target.value)}
-                            disabled={loading || assignees.length === 0}
-                            SelectProps={{ displayEmpty: true }}
-                        >
-                            <MenuItem value='' disabled>
-                                Select assignee...
-                            </MenuItem>
-                            {assignees.map(item => (
-                                <MenuItem key={item.empcode} value={item.empcode}>
-                                    {item.empcode} - {item.empName}
-                                </MenuItem>
-                            ))}
-                        </CustomTextField>
+                            onChange={value => setToEmpcode(value as SelectOption | null)}
+                            isDisabled={loading || assignees.length === 0}
+                            classNamePrefix='select'
+                        />
                     </Grid>
 
                     <Grid item xs={12}>

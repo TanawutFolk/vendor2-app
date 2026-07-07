@@ -62,11 +62,11 @@ export default class AssigneesServices {
 
             const pageRows = (response.data.ResultOnDb || []).map(row => ({
                 ...row,
-                empcode: String(row.empcode ?? row.EMPCODE ?? '').trim(),
-                empName: String(row.empName ?? row.EMPNAME ?? '').trim(),
-                empEmail: String(row.empEmail ?? row.EMPEMAIL ?? '').trim(),
-                group_code: String(row.group_code ?? row.GROUP_CODE ?? '').trim(),
-                group_name: String(row.group_name ?? row.GROUP_NAME ?? '').trim(),
+                empcode: String(row.EMPCODE ?? '').trim(),
+                empName: String(row.EMPNAME ?? '').trim(),
+                empEmail: String(row.EMPEMAIL ?? '').trim(),
+                group_code: String(row.GROUP_CODE ?? '').trim(),
+                group_name: String(row.GROUP_NAME ?? '').trim(),
                 INUSE: Number(row.INUSE ?? row.inuse ?? 0),
             }))
             rows.push(...pageRows)

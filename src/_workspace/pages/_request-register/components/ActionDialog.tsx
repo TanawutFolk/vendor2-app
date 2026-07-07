@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
 import {
-    Dialog, DialogContent, DialogActions, Box, Typography, Button, TextField
+    Dialog, DialogContent, DialogActions, Box, Typography, Button
 } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 import { useForm } from 'react-hook-form'
+import CustomTextField from '@components/mui/TextField'
 
 import undraw_clean_up_re_504g from '@assets/images/common/undraw_clean_up_re_504g.svg'
 import undraw_notify_re_65on from '@assets/images/common/undraw_notify_re_65on.svg'
@@ -109,11 +110,11 @@ const ActionDialog = ({ open, mode, requestId, nextStatus, isFinalStep, approveA
                 <Box sx={{ mb: 4, textAlign: 'center' }}>
                     <Typography variant='h5'>Are You Sure ?</Typography>
                     <Typography variant='h5' sx={{ color: 'text.secondary' }}>
-                        {mode === 'approve' ? `Confirm action ${approveActionLabel}` : `Confirm action ${rejectActionLabel}`}
+                        {mode === 'approve' ? `Confirm ${approveActionLabel}` : `Confirm ${rejectActionLabel}`}
                     </Typography>
                 </Box>
                 {mode === 'reject' && (
-                    <TextField
+                    <CustomTextField
                         fullWidth multiline rows={3}
                         label='Remark / Comment (Required for reject)'
                         placeholder='Enter your remark here...'

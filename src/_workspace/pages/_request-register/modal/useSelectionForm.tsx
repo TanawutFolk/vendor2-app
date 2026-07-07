@@ -9,7 +9,7 @@ import AddVendorServices from '@_workspace/services/_add-vendor/AddVendorService
 import type { BlacklistMatchI } from '@_workspace/types/_add-vendor/AddVendorTypes'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import type { UseGprFormArgs } from '@_workspace/types/_request-register/RequestRegisterTypes'
+import type { UseSelectionFormArgs } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ export interface GprFormData {
     completion_date: string
 }
 
-export interface GprFormDialogProps {
+export interface SelectionFormDialongProps {
     open: boolean
     rowData: any
     onClose: () => void
@@ -132,6 +132,19 @@ const normalizeSanctionsStatus = (value: unknown): 'non-concerned' | 'concerned'
     return ''
 }
 
+// Convert any saved date (e.g. ISO "2026-07-05T17:00:00.000Z" from the DB) to
+// the local-timezone "YYYY-MM-DD" value required by <input type="date">.
+const toDateInputValue = (value: unknown): string => {
+    const raw = String(value ?? '').trim()
+    if (!raw) return ''
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+    const parsed = new Date(raw)
+    if (Number.isNaN(parsed.getTime())) return ''
+    const month = String(parsed.getMonth() + 1).padStart(2, '0')
+    const day = String(parsed.getDate()).padStart(2, '0')
+    return `${parsed.getFullYear()}-${month}-${day}`
+}
+
 const gpr43StatusToRemark = (status: unknown) => {
     const normalized = normalizeGpr43AcceptanceStatus(status)
     if (normalized === 'ACCEPT') return 'Accept'
@@ -182,52 +195,52 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
         return undefined
     }
 
-    const salesProfitRaw = Array.isArray(getSourceValue('sales_profit', 'SALES_PROFIT'))
-        ? getSourceValue('sales_profit', 'SALES_PROFIT')
+    const salesProfitRaw = Array.isArray(getSourceValue('SALES_PROFIT'))
+        ? getSourceValue('SALES_PROFIT')
         : []
     const sales_profit = (salesProfitRaw as any[]).map(item => ({
-        year: String(item?.year ?? item?.YEAR ?? ''),
-        total_revenue: String(item?.total_revenue ?? item?.TOTAL_REVENUE ?? ''),
-        net_profit: String(item?.net_profit ?? item?.NET_PROFIT ?? ''),
+        year: String(item?.YEAR ?? ''),
+        total_revenue: String(item?.TOTAL_REVENUE ?? ''),
+        net_profit: String(item?.NET_PROFIT ?? ''),
     }))
 
-    const criteriaRaw = Array.isArray(getSourceValue('criteria', 'CRITERIA'))
-        ? getSourceValue('criteria', 'CRITERIA')
+    const criteriaRaw = Array.isArray(getSourceValue('CRITERIA'))
+        ? getSourceValue('CRITERIA')
         : []
     const criteria = (criteriaRaw as any[]).map(item => ({
-        no: String(item?.no ?? item?.NO ?? ''),
-        detail: String(item?.detail ?? item?.DETAIL ?? ''),
-        criteria: (item?.criteria ?? item?.CRITERIA ?? item?.criteria_value ?? item?.CRITERIA_VALUE ?? '') as 'Need' | 'Optional',
-        remark: String(item?.remark ?? item?.REMARK ?? ''),
-        uploaded_file: String(item?.uploaded_file ?? item?.UPLOADED_FILE ?? item?.uploaded_file_path ?? item?.UPLOADED_FILE_PATH ?? ''),
-        uploaded_name: String(item?.uploaded_name ?? item?.UPLOADED_NAME ?? item?.uploaded_file_name ?? item?.UPLOADED_FILE_NAME ?? ''),
+        no: String(item?.NO ?? ''),
+        detail: String(item?.DETAIL ?? ''),
+        criteria: (item?.CRITERIA ?? item?.CRITERIA_VALUE ?? '') as 'Need' | 'Optional',
+        remark: String(item?.REMARK ?? ''),
+        uploaded_file: String(item?.UPLOADED_FILE ?? item?.UPLOADED_FILE_PATH ?? ''),
+        uploaded_name: String(item?.UPLOADED_NAME ?? item?.UPLOADED_FILE_NAME ?? ''),
     }))
 
     return {
-        company_name: getSourceValue('company_name', 'COMPANY_NAME') as string | undefined,
-        pic_name: getSourceValue('pic_name', 'PIC_NAME') as string | undefined,
-        tel: getSourceValue('tel', 'TEL') as string | undefined,
-        email: getSourceValue('email', 'EMAIL') as string | undefined,
-        address: getSourceValue('address', 'ADDRESS') as string | undefined,
-        business_category: getSourceValue('business_category', 'BUSINESS_CATEGORY') as string | undefined,
-        start_year: getSourceValue('start_year', 'START_YEAR') as string | undefined,
-        authorized_capital: getSourceValue('authorized_capital', 'AUTHORIZED_CAPITAL') as string | undefined,
-        establish: (getSourceValue('establish', 'ESTABLISH', 'establish_years', 'ESTABLISH_YEARS') as string | undefined),
-        number_of_employees: getSourceValue('number_of_employees', 'NUMBER_OF_EMPLOYEES') as string | undefined,
-        manufactured_country: getSourceValue('manufactured_country', 'MANUFACTURED_COUNTRY') as string | undefined,
-        vendor_original_country: getSourceValue('vendor_original_country', 'VENDOR_ORIGINAL_COUNTRY') as string | undefined,
-        sanctions: normalizeSanctionsStatus(getSourceValue('sanctions', 'SANCTIONS', 'sanctions_status', 'SANCTIONS_STATUS')),
-        currency: getSourceValue('currency', 'CURRENCY') as string | undefined,
-        suggestion: getSourceValue('suggestion', 'SUGGESTION') as string | undefined,
-        result: (getSourceValue('result', 'RESULT', 'result_status', 'RESULT_STATUS') as 'approval' | 'disapproval' | '' | undefined),
-        path: getSourceValue('path', 'PATH', 'document_path', 'DOCUMENT_PATH') as string | undefined,
-        gpr_c_approver_name: getSourceValue('gpr_c_approver_name', 'GPR_C_APPROVER_NAME') as string | undefined,
-        gpr_c_approver_email: getSourceValue('gpr_c_approver_email', 'GPR_C_APPROVER_EMAIL') as string | undefined,
-        gpr_c_pc_pic_name: getSourceValue('gpr_c_pc_pic_name', 'GPR_C_PC_PIC_NAME') as string | undefined,
-        gpr_c_pc_pic_email: getSourceValue('gpr_c_pc_pic_email', 'GPR_C_PC_PIC_EMAIL') as string | undefined,
+        company_name: getSourceValue('COMPANY_NAME') as string | undefined,
+        pic_name: getSourceValue('PIC_NAME') as string | undefined,
+        tel: getSourceValue('TEL') as string | undefined,
+        email: getSourceValue('EMAIL') as string | undefined,
+        address: getSourceValue('ADDRESS') as string | undefined,
+        business_category: getSourceValue('BUSINESS_CATEGORY') as string | undefined,
+        start_year: getSourceValue('START_YEAR') as string | undefined,
+        authorized_capital: getSourceValue('AUTHORIZED_CAPITAL') as string | undefined,
+        establish: (getSourceValue('ESTABLISH', 'ESTABLISH_YEARS') as string | undefined),
+        number_of_employees: getSourceValue('NUMBER_OF_EMPLOYEES') as string | undefined,
+        manufactured_country: getSourceValue('MANUFACTURED_COUNTRY') as string | undefined,
+        vendor_original_country: getSourceValue('VENDOR_ORIGINAL_COUNTRY') as string | undefined,
+        sanctions: normalizeSanctionsStatus(getSourceValue('SANCTIONS', 'SANCTIONS_STATUS')),
+        currency: getSourceValue('CURRENCY') as string | undefined,
+        suggestion: getSourceValue('SUGGESTION') as string | undefined,
+        result: (getSourceValue('RESULT', 'RESULT_STATUS') as 'approval' | 'disapproval' | '' | undefined),
+        path: getSourceValue('PATH', 'DOCUMENT_PATH') as string | undefined,
+        gpr_c_approver_name: getSourceValue('GPR_C_APPROVER_NAME') as string | undefined,
+        gpr_c_approver_email: getSourceValue('GPR_C_APPROVER_EMAIL') as string | undefined,
+        gpr_c_pc_pic_name: getSourceValue('GPR_C_PC_PIC_NAME') as string | undefined,
+        gpr_c_pc_pic_email: getSourceValue('GPR_C_PC_PIC_EMAIL') as string | undefined,
         gpr_c_circular_list: (() => {
             try {
-                const circularJson = getSourceValue('gpr_c_circular_json', 'GPR_C_CIRCULAR_JSON')
+                const circularJson = getSourceValue('GPR_C_CIRCULAR_JSON', 'GPR_C_CIRCULAR_MEMBERS')
                 const parsed = typeof circularJson === 'string'
                     ? JSON.parse(circularJson)
                     : circularJson
@@ -239,7 +252,7 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
         })(),
         action_required_setup: (() => {
             try {
-                const actionRequiredJson = getSourceValue('action_required_json', 'ACTION_REQUIRED_JSON')
+                const actionRequiredJson = getSourceValue('ACTION_REQUIRED_JSON')
                 const parsed = typeof actionRequiredJson === 'string'
                     ? JSON.parse(actionRequiredJson)
                     : actionRequiredJson
@@ -248,9 +261,9 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
                 return buildDefaultActionRequiredSetup()
             }
         })(),
-        gpr_43_acceptance_status: normalizeGpr43AcceptanceStatus(getSourceValue('gpr_43_acceptance_status', 'GPR_43_ACCEPTANCE_STATUS')),
-        vendor_code_selector: getSourceValue('vendor_code_selector', 'VENDOR_CODE_SELECTOR') as string | undefined,
-        completion_date: getSourceValue('completion_date', 'COMPLETION_DATE') as string | undefined,
+        gpr_43_acceptance_status: normalizeGpr43AcceptanceStatus(getSourceValue('GPR_43_ACCEPTANCE_STATUS')),
+        vendor_code_selector: getSourceValue('VENDOR_CODE_SELECTOR') as string | undefined,
+        completion_date: toDateInputValue(getSourceValue('COMPLETION_DATE')),
         sales_profit,
         criteria,
     }
@@ -259,7 +272,7 @@ export const normalizeSavedGpr = (raw: any): Partial<GprFormData> | undefined =>
 export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFormData => {
     const products = (() => {
         try {
-            return typeof rowData?.products === 'string' ? JSON.parse(rowData.products) : (rowData?.products || [])
+            return typeof rowData?.PRODUCTS === 'string' ? JSON.parse(rowData.PRODUCTS) : (rowData?.PRODUCTS || [])
         } catch {
             return []
         }
@@ -267,16 +280,16 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
 
     const contacts = (() => {
         try {
-            return typeof rowData?.contacts === 'string' ? JSON.parse(rowData.contacts) : (rowData?.contacts || [])
+            return typeof rowData?.CONTACTS === 'string' ? JSON.parse(rowData.CONTACTS) : (rowData?.CONTACTS || [])
         } catch {
             return []
         }
     })().filter(Boolean)
 
     const firstContact = contacts[0] || {}
-    const mainProduct = products.map((item: any) => item.product_name || item.maker_name).filter(Boolean).join(', ')
+    const mainProduct = products.map((item: any) => item.PRODUCT_NAME || item.MAKER_NAME).filter(Boolean).join(', ')
 
-    const savedGpr43Status = saved?.gpr_43_acceptance_status || normalizeGpr43AcceptanceStatus(rowData?.gpr_43_acceptance_status ?? rowData?.GPR_43_ACCEPTANCE_STATUS)
+    const savedGpr43Status = saved?.gpr_43_acceptance_status || normalizeGpr43AcceptanceStatus(rowData?.GPR_43_ACCEPTANCE_STATUS)
     const criteria = buildDefaultCriteria(saved?.criteria)
     const gpr43Criterion = criteria.find(item => item.no === '4.3')
     if (gpr43Criterion && !gpr43Criterion.remark) {
@@ -284,12 +297,12 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
     }
 
     return {
-        company_name: saved?.company_name ?? ((rowData?.company_name ?? rowData?.COMPANY_NAME) || ''),
-        pic_name: saved?.pic_name ?? (firstContact.contact_name || ''),
-        tel: saved?.tel ?? (firstContact.tel_phone || ''),
-        email: saved?.email ?? (firstContact.email || ''),
+        company_name: saved?.company_name ?? (rowData?.COMPANY_NAME || ''),
+        pic_name: saved?.pic_name ?? (firstContact.CONTACT_NAME || ''),
+        tel: saved?.tel ?? (firstContact.TEL_PHONE || ''),
+        email: saved?.email ?? (firstContact.EMAIL || ''),
         sanctions: saved?.sanctions || '',
-        address: saved?.address ?? ((rowData?.address ?? rowData?.ADDRESS) || ''),
+        address: saved?.address ?? (rowData?.ADDRESS || ''),
         business_category: saved?.business_category || '',
         start_year: saved?.start_year || '',
         authorized_capital: saved?.authorized_capital || '',
@@ -311,8 +324,8 @@ export const buildDefault = (rowData: any, saved?: Partial<GprFormData>): GprFor
         gpr_c_circular_list: Array.from({ length: 6 }, (_, index) => saved?.gpr_c_circular_list?.[index] || ''),
         action_required_setup: buildDefaultActionRequiredSetup(saved?.action_required_setup),
         gpr_43_acceptance_status: savedGpr43Status,
-        vendor_code_selector: saved?.vendor_code_selector || ((rowData?.vendor_code ?? rowData?.VENDOR_CODE) || ''),
-        completion_date: saved?.completion_date || '',
+        vendor_code_selector: saved?.vendor_code_selector || (rowData?.VENDOR_CODE || ''),
+        completion_date: toDateInputValue(saved?.completion_date),
     }
 }
 
@@ -325,17 +338,15 @@ const buildSelectionSheetPdfFileName = (requestNumber: unknown, requestId: unkno
 
 
 
-export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }: UseGprFormArgs) => {
+export const useSelectionForm = ({ open, rowData, onClose, onSaved, readOnly = false }: UseSelectionFormArgs) => {
     const user = getUserData()
     const methods = useForm<GprFormData>({ defaultValues: buildDefault(rowData) })
     const { reset, getValues, setValue } = methods
 
-    // rowData may arrive UPPER-cased (Option A pages, e.g. check-document) or
-    // lowercase (pages not yet migrated); resolve request identity for both.
-    const resolvedRequestId = rowData?.request_id ?? rowData?.REQUEST_REGISTER_VENDOR_ID
-    const resolvedRequestNumber = rowData?.request_number ?? rowData?.REQUEST_NUMBER
+    const resolvedRequestId = rowData?.REQUEST_REGISTER_VENDOR_ID
+    const resolvedRequestNumber = rowData?.REQUEST_NUMBER
 
-    const [initializing, setInitializing] = useState(false)
+    const [initializing, setInitializing] = useState(true)
     const [saving, setSaving] = useState(false)
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [sanctionsChecking, setSanctionsChecking] = useState(false)
@@ -346,6 +357,16 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
     const [pendingCriteriaFiles, setPendingCriteriaFiles] = useState<Record<number, File>>({})
     const fileInputRef = useRef<HTMLInputElement>(null)
     const uploadTargetRef = useRef<number>(-1)
+    const latestRowDataRef = useRef(rowData)
+    const readOnlyRef = useRef(readOnly)
+
+    useEffect(() => {
+        latestRowDataRef.current = rowData
+    }, [rowData])
+
+    useEffect(() => {
+        readOnlyRef.current = readOnly
+    }, [readOnly])
 
     const checkSanctions = useCallback(async (companyName?: string) => {
         const name = String(companyName ?? getValues('company_name') ?? '').trim()
@@ -392,7 +413,15 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
     }, [getValues, setValue])
 
     useEffect(() => {
-        if (!open || !resolvedRequestId) return
+        if (!open) {
+            setInitializing(true)
+            return
+        }
+
+        if (!resolvedRequestId) {
+            setInitializing(false)
+            return
+        }
 
         let active = true
         setInitializing(true)
@@ -405,10 +434,11 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
                 const response = await RegisterRequestServices.getGprForm({ REQUEST_REGISTER_VENDOR_ID: resolvedRequestId })
                 if (!active) return
 
+                const currentRowData = latestRowDataRef.current
                 const saved = response.data.Status && response.data.ResultOnDb
                     ? normalizeSavedGpr(response.data.ResultOnDb)
                     : undefined
-                const defaults = buildDefault(rowData, saved)
+                const defaults = buildDefault(currentRowData, saved)
 
                 if (response.data.Status && response.data.ResultOnDb) {
                     reset(defaults)
@@ -424,11 +454,11 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
                     })
                 }
 
-                if (!readOnly && !saved?.sanctions) {
+                if (!readOnlyRef.current && !saved?.sanctions) {
                     await checkSanctions(defaults.company_name)
                 }
             } catch {
-                if (active) reset(buildDefault(rowData))
+                if (active) reset(buildDefault(latestRowDataRef.current))
             } finally {
                 if (active) setInitializing(false)
             }
@@ -439,7 +469,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
         return () => {
             active = false
         }
-    }, [checkSanctions, open, reset, rowData, readOnly])
+    }, [checkSanctions, open, reset, resolvedRequestId])
 
     const handleCriteriaUploadClick = useCallback((index: number) => {
         if (readOnly) return
@@ -616,7 +646,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
                     throw new Error(response.data.Message || 'Upload failed')
                 }
 
-                const { file_path, file_name } = response.data.ResultOnDb
+                const { FILE_PATH: file_path, FILE_NAME: file_name } = response.data.ResultOnDb
                 nextForm.criteria[index] = {
                     ...criteria,
                     uploaded_file: file_path,
@@ -684,19 +714,14 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
 
     const handleExportPdf = useCallback(async () => {
         if (!resolvedRequestId) return
-        if (readOnly) {
-            ToastMessageError({
-                title: 'Generate PDF',
-                message: 'Selection Sheet is read-only after Document Checker approval.'
-            })
-            return
-        }
 
         setGeneratingPdf(true)
 
         try {
-            const currentForm = await uploadPendingCriteriaFiles(getValues())
-            if (!normalizeSanctionsStatus(currentForm.sanctions)) {
+            // Read-only (e.g. after completion): export the saved form as-is
+            // without uploading, re-checking blacklist, or saving.
+            const currentForm = readOnly ? getValues() : await uploadPendingCriteriaFiles(getValues())
+            if (!readOnly && !normalizeSanctionsStatus(currentForm.sanctions)) {
                 const companyName = String(currentForm.company_name || '').trim()
                 if (companyName) {
                     const blacklistResponse = await AddVendorServices.checkBlacklist({ COMPANY_NAME: companyName })
@@ -715,19 +740,21 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
                 }
             }
             currentForm.gpr_43_acceptance_status = normalizeGpr43AcceptanceStatus(currentForm.criteria.find(item => item.no === '4.3')?.remark)
-            const saveResponse = await RegisterRequestServices.saveGprForm({
-                REQUEST_REGISTER_VENDOR_ID: resolvedRequestId,
-                GPR_DATA: currentForm,
-                CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-                UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
-            })
-
-            if (!saveResponse.data.Status) {
-                ToastMessageError({
-                    title: 'Generate PDF',
-                    message: saveResponse.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
+            if (!readOnly) {
+                const saveResponse = await RegisterRequestServices.saveGprForm({
+                    REQUEST_REGISTER_VENDOR_ID: resolvedRequestId,
+                    GPR_DATA: currentForm,
+                    CREATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
+                    UPDATE_BY: user?.EMPLOYEE_CODE || 'SYSTEM',
                 })
-                return
+
+                if (!saveResponse.data.Status) {
+                    ToastMessageError({
+                        title: 'Generate PDF',
+                        message: saveResponse.data.Message || 'Failed to save Supplier / Outsourcing Selection Sheet'
+                    })
+                    return
+                }
             }
 
             let chartDataUri = ''
@@ -751,7 +778,7 @@ export const useGprForm = ({ open, rowData, onClose, onSaved, readOnly = false }
             URL.revokeObjectURL(url)
 
             ToastMessageSuccess({ title: 'Generate PDF', message: 'PDF generated and downloaded.' })
-            onSaved?.()
+            if (!readOnly) onSaved?.()
         } catch (error: any) {
             ToastMessageError({
                 title: 'Generate PDF',

@@ -5,10 +5,11 @@
 // then uncomment the Font.register block below.
 
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer'
-import type { GprFormData } from './useGprForm'
+import type { GprFormData } from './useSelectionForm'
 import { inferStepCode } from '@_workspace/utils/requestWorkflow'
+import { formatSelectionSheetSignatureName } from '@_workspace/utils/signatureName'
 import fitelLogo from '@_workspace/utils/fitelLogo.png'
-import type { GprPdfDocumentProps, SignatureSlot } from '@_workspace/types/_request-register/RequestRegisterTypes'
+import type { SignatureSlot } from '@_workspace/types/_request-register/RequestRegisterTypes'
 
 // ─── Optional Thai font registration ────────────────────────────────────────
 // import { Font } from '@react-pdf/renderer'
@@ -19,6 +20,16 @@ import type { GprPdfDocumentProps, SignatureSlot } from '@_workspace/types/_requ
 //     { src: '/fonts/Sarabun-Bold.ttf', fontWeight: 'bold' },
 //   ]
 // })
+
+// Completion date arrives either as "YYYY-MM-DD" (from the date input) or as a
+// raw ISO timestamp from the DB — render it as a Thai-locale date either way.
+const formatThaiDate = (value: unknown): string => {
+    const raw = String(value ?? '').trim()
+    if (!raw) return ''
+    const parsed = new Date(raw)
+    if (Number.isNaN(parsed.getTime())) return raw
+    return parsed.toLocaleDateString('th-TH')
+}
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
@@ -264,14 +275,14 @@ const PdfCheckbox = ({ checked, color = '#111' }: { checked: boolean; color?: st
     </View>
 )
 
-export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
+export function GprPdfDocument({ form, rowData, chartDataUri }: { form: GprFormData; rowData: any; chartDataUri?: string }) {
 
     const needUploaded = form.criteria.filter(c => ['4.1', '4.2', '4.4', '4.5', '4.11'].includes(c.no) && c.uploaded_file).length
     const optionalUploaded = form.criteria.filter(c => c.criteria === 'Optional' && c.no !== '4.14' && c.uploaded_file).length
     const sanctionsStatus = normalizeSanctionsStatus(form.sanctions)
 
     const approvalSteps = (() => {
-        const raw = rowData?.approval_steps
+        const raw = rowData?.APPROVAL_STEPS
         if (Array.isArray(raw)) return raw
         if (typeof raw === 'string') {
             try {
@@ -284,7 +295,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
     })()
 
     const approvalLogs = (() => {
-        const raw = rowData?.approval_logs
+        const raw = rowData?.APPROVAL_LOGS
         if (Array.isArray(raw)) return raw
         if (typeof raw === 'string') {
             try {
@@ -297,18 +308,6 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
     })()
 
     const approvedStatuses = new Set(['approved', 'completed'])
-
-    const formatSignatureName = (fullName?: string, fallbackCode?: string) => {
-        const source = String(fullName || '').trim()
-        if (!source) return String(fallbackCode || '').trim()
-
-        const parts = source.split(/\s+/).filter(Boolean)
-        if (parts.length < 2) return source.toUpperCase()
-
-        const firstName = parts[0]
-        const lastName = parts[parts.length - 1]
-        return `${lastName.toUpperCase()} ${firstName.charAt(0).toUpperCase()}.`
-    }
 
     const formatDate = (rawDate?: string) => {
         if (!rawDate) return '........../........../..........'
@@ -363,18 +362,16 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
         { role: 'Managing Director', step: findLatestApprovedStep('MD_APPROVAL') },
     ].map((item: any) => {
         const step = item.step
-        const latestLog = findLatestLogForStep(step?.REQUEST_APPROVAL_STEP_ID || step?.request_approval_step_id)
-        const code = String(step?.APPROVER_EMPCODE || step?.approver_empcode || latestLog?.ACTION_BY || latestLog?.action_by || '').trim()
-        const fullName = step?.approver_name
-            || step?.APPROVER_NAME
+        const latestLog = findLatestLogForStep(step?.REQUEST_APPROVAL_STEP_ID)
+        const code = String(step?.APPROVER_EMPCODE || latestLog?.ACTION_BY || '').trim()
+        const fullName = step?.APPROVER_NAME
             || latestLog?.ACTION_BY_NAME
-            || latestLog?.action_by_name
             || ''
 
         return {
             role: item.role,
             code,
-            signature: formatSignatureName(fullName, code),
+            signature: formatSelectionSheetSignatureName(fullName, code),
             date: formatDate(step?.UPDATE_DATE || step?.update_date || latestLog?.CREATE_DATE || latestLog?.create_date || step?.CREATE_DATE || step?.create_date),
         }
     })
@@ -382,7 +379,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
     return (
         <Document>
             <Page size='A4' style={s.page}>
-                <Text fixed style={s.fixedRequestNumber}>{rowData?.request_number || rowData?.REQUEST_NUMBER || rowData?.request_id || rowData?.REQUEST_REGISTER_VENDOR_ID || ''}</Text>
+                <Text fixed style={s.fixedRequestNumber}>{rowData?.REQUEST_NUMBER || rowData?.REQUEST_REGISTER_VENDOR_ID || ''}</Text>
 
                 {/* ── Header ─────────────────────────────────────────────── */}
                 <View style={s.headerRow}>
@@ -618,7 +615,7 @@ export function GprPdfDocument({ form, rowData, chartDataUri }: Props) {
                                 fontSize: 6.8, minWidth: 70,
                                 borderBottomWidth: 0.5, borderBottomColor: '#666', borderBottomStyle: 'solid',
                                 paddingBottom: 1,
-                            }}>{form.completion_date || '  /  /  '}</Text>
+                            }}>{formatThaiDate(form.completion_date) || '  /  /  '}</Text>
                         </View>
                     </View>
                 </View>

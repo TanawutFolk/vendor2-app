@@ -25,8 +25,8 @@ export interface ApprovalStepItem extends AuditFields {
     STEP_STATUS: string
     DESCRIPTION: string
     STEP_CODE?: string
-    master_status_value?: string
-    master_status_label?: string
+    MASTER_STATUS_VALUE?: string
+    MASTER_STATUS_LABEL?: string
 }
 
 export interface ApprovalLogItem extends AuditFields {
@@ -127,7 +127,7 @@ export interface GprFormData {
     action_required_json?: string
 }
 
-export interface GprFormDialogProps {
+export interface SelectionFormDialongProps {
     open: boolean
     rowData: any
     onClose: () => void
@@ -143,18 +143,20 @@ export interface SanctionsCheckState {
     others: boolean
 }
 
-export type UseGprFormArgs = Pick<GprFormDialogProps, 'open' | 'rowData' | 'onClose' | 'onSaved' | 'readOnly'>
+export type UseSelectionFormArgs = Pick<SelectionFormDialongProps, 'open' | 'rowData' | 'onClose' | 'onSaved' | 'readOnly'>
 
 export interface RegisterRequestRow {
-    request_id: number
-    request_status: string
-    company_name?: string
-    supportProduct_Process?: string
-    purchase_frequency?: string
+    REQUEST_REGISTER_VENDOR_ID: number
+    REQUEST_STATUS: string
+    COMPANY_NAME?: string
+    SUPPORTPRODUCT_PROCESS?: string
+    PURCHASE_FREQUENCY?: string
     FULL_NAME?: string
     EMPLOYEE_CODE?: string
-    documents?: unknown
-    documents_count?: number
+    DOCUMENTS?: unknown
+    DOCUMENTS_COUNT?: number
+    GPR_B_FILE_PATH?: string
+    GPR_B_FILE_NAME?: string
     CREATE_DATE?: string
     [key: string]: unknown
 }

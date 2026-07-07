@@ -1,8 +1,8 @@
+// React Imports
+import { useState } from 'react'
+
 // MUI Imports
 import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import CardHeader from '@mui/material/CardHeader'
 import Grid from '@mui/material/Grid'
 
 // React Hook Form Imports
@@ -13,6 +13,9 @@ import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import SkeletonCustom from '@components/SkeletonCustom'
+
+// Workspace Components
+import SearchFilterCard from '@_workspace/components/search/SearchFilterCard'
 
 // React Query Imports
 import { useQueryClient } from '@tanstack/react-query'
@@ -34,6 +37,9 @@ import { MENU_ID } from './env'
 import { PREFIX_QUERY_KEY } from '@_workspace/react-query/hooks/useRegisterRequest'
 
 const SearchFilter = () => {
+  // State
+  const [collapse, setCollapse] = useState(false)
+
   // Context
   const { setIsEnableFetching } = useDxContext()
 
@@ -70,14 +76,7 @@ const SearchFilter = () => {
   const { save, isError, error } = useDxSaveSearchFilters<RequestRegisterFormData>({ MENU_ID })
 
   return (
-    <Card style={{ overflow: 'visible', zIndex: 4 }}>
-      <CardHeader
-        title='Search filters'
-        titleTypographyProps={{ variant: 'h5' }}
-        sx={{ '& .MuiCardHeader-avatar': { mr: 3 } }}
-      />
-
-      <CardContent>
+    <SearchFilterCard collapse={collapse} onToggle={() => setCollapse(!collapse)}>
         {isError && <div>An error occurred: {error.message}</div>}
         {isLoading ? (
           <>
@@ -156,8 +155,7 @@ const SearchFilter = () => {
             </Grid>
           </>
         )}
-      </CardContent>
-    </Card>
+    </SearchFilterCard>
   )
 }
 

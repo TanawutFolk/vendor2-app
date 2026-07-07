@@ -1,8 +1,7 @@
-import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
-
-export type VendorRow = Partial<VendorComprehensiveI> & {
-    vendor_id: number
+export type VendorRow = {
+    VENDORS_ID?: number
     INUSE?: number
+    [key: string]: unknown
 }
 
 export type SortColumnState = {

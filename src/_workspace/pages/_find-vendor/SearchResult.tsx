@@ -18,6 +18,7 @@ import { saveAs } from 'file-saver'
 
 // React Hook Form
 import { useFormContext } from 'react-hook-form'
+import { useQueryClient } from '@tanstack/react-query'
 
 // Axios
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
@@ -27,6 +28,7 @@ import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
 // Services & Types
 import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
+import { rawVendorDetailQueryOptions } from '@_workspace/react-query/hooks/useFindVendor'
 import type { FindVendorFormData } from './validateSchema'
 
 // Context
@@ -45,6 +47,7 @@ import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 
 const SearchResult = () => {
+    const queryClient = useQueryClient()
     const { getValues, setValue } = useFormContext<FindVendorFormData>()
 
     const gridApiRef = useRef<any>(null)
@@ -83,17 +86,17 @@ const SearchResult = () => {
                 const res = await FindVendorServices.search({
                     SEARCHFILTERS: [
                         { id: 'global_search', value: currentFilters?.global_search || '' },
-                        { id: 'company_name', value: currentFilters?.company_name || '' },
-                        { id: 'country', value: currentFilters?.country || '' },
-                        { id: 'vendor_type_id', value: currentFilters?.vendor_type_id?.value || null },
-                        { id: 'province', value: currentFilters?.province?.value || '' },
-                        { id: 'product_group_id', value: currentFilters?.product_group_id?.value || null },
+                        { id: 'COMPANY_NAME', value: currentFilters?.company_name || '' },
+                        { id: 'COUNTRY', value: currentFilters?.country || '' },
+                        { id: 'MASTER_VENDOR_TYPES_ID', value: currentFilters?.vendor_type_id?.value || null },
+                        { id: 'PROVINCE', value: currentFilters?.province?.value || '' },
+                        { id: 'MASTER_PRODUCT_GROUPS_ID', value: currentFilters?.product_group_id?.value || null },
                         { id: 'status', value: currentFilters?.status?.value || '' },
-                        { id: 'product_name', value: currentFilters?.product_name || '' },
-                        { id: 'maker_name', value: currentFilters?.maker_name || '' },
-                        { id: 'model_list', value: currentFilters?.model_list || '' },
-                        { id: 'prones_code', value: currentFilters?.fft_vendor_code || '' },
-                        { id: 'inuse', value: currentFilters?.inuse?.value ?? null }
+                        { id: 'PRODUCT_NAME', value: currentFilters?.product_name || '' },
+                        { id: 'MAKER_NAME', value: currentFilters?.maker_name || '' },
+                        { id: 'MODEL_LIST', value: currentFilters?.model_list || '' },
+                        { id: 'PRONES_CODE', value: currentFilters?.fft_vendor_code || '' },
+                        { id: 'INUSE', value: currentFilters?.inuse?.value ?? null }
                     ],
                     ColumnFilters: [],
                     Order: orderParams,
@@ -127,17 +130,17 @@ const SearchResult = () => {
         const f = getValues('searchFilters')
         return [
             { id: 'global_search',   value: f?.global_search || '' },
-            { id: 'company_name',    value: f?.company_name || '' },
-            { id: 'country',         value: f?.country || '' },
-            { id: 'vendor_type_id',  value: f?.vendor_type_id?.value || null },
-            { id: 'province',        value: f?.province?.value || '' },
-            { id: 'product_group_id',value: f?.product_group_id?.value || null },
+            { id: 'COMPANY_NAME',    value: f?.company_name || '' },
+            { id: 'COUNTRY',         value: f?.country || '' },
+            { id: 'MASTER_VENDOR_TYPES_ID',  value: f?.vendor_type_id?.value || null },
+            { id: 'PROVINCE',        value: f?.province?.value || '' },
+            { id: 'MASTER_PRODUCT_GROUPS_ID',value: f?.product_group_id?.value || null },
             { id: 'status',          value: f?.status?.value || '' },
-            { id: 'product_name',    value: f?.product_name || '' },
-            { id: 'maker_name',      value: f?.maker_name || '' },
-            { id: 'model_list',      value: f?.model_list || '' },
-            { id: 'prones_code',     value: f?.fft_vendor_code || '' },
-            { id: 'inuse',           value: f?.inuse?.value ?? null }
+            { id: 'PRODUCT_NAME',    value: f?.product_name || '' },
+            { id: 'MAKER_NAME',      value: f?.maker_name || '' },
+            { id: 'MODEL_LIST',      value: f?.model_list || '' },
+            { id: 'PRONES_CODE',     value: f?.fft_vendor_code || '' },
+            { id: 'INUSE',           value: f?.inuse?.value ?? null }
         ]
     }
 
@@ -180,11 +183,39 @@ const SearchResult = () => {
     }
 
     // Ã¢â€â‚¬Ã¢â€â‚¬ Edit / Register handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    const mergeVendorDetails = useCallback((row: any, details: any) => ({
+        ...row,
+        ...details,
+        VENDORS_ID: details?.VENDORS_ID ?? row?.VENDORS_ID
+    }), [])
+
+    const loadVendorDetails = useCallback(async (row: any, fallbackVendorId?: number) => {
+        const vendorId = Number(row?.VENDORS_ID ?? fallbackVendorId ?? 0)
+        if (!vendorId) return row
+
+        try {
+            const details = await queryClient.fetchQuery(rawVendorDetailQueryOptions(vendorId))
+            return mergeVendorDetails(row, details)
+        } catch (error: any) {
+            ToastMessageError({
+                title: 'Vendor Details',
+                message: error?.message || 'Failed to load vendor details'
+            })
+            return row
+        }
+    }, [mergeVendorDetails, queryClient])
     const handleEditClick = useCallback((vendorId: number, data: any) => {
-        void vendorId
         setSelectedRowData(data)
         setDetailsModalOpen(true)
-    }, [])
+        void loadVendorDetails(data, vendorId)
+            .then(setSelectedRowData)
+            .catch((error: unknown) => {
+                ToastMessageError({
+                    title: 'Vendor Details',
+                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
+                })
+            })
+    }, [loadVendorDetails])
 
     const handleCloseSelection = useCallback(() => {
         setDetailsModalOpen(false)
@@ -197,7 +228,15 @@ const SearchResult = () => {
     const handleRegisterClick = useCallback((vendorId: number, data: any) => {
         setSelectedRegisterVendor(data)
         setRegisterModalOpen(true)
-    }, [])
+        void loadVendorDetails(data, vendorId)
+            .then(setSelectedRegisterVendor)
+            .catch((error: unknown) => {
+                ToastMessageError({
+                    title: 'Vendor Details',
+                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
+                })
+            })
+    }, [loadVendorDetails])
 
     const handleConfirmRegister = async (formData?: any) => {
         if (!selectedRegisterVendor) return
