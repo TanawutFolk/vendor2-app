@@ -516,6 +516,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                 {isRequester && (
                     <Button
                         variant='contained'
+                        color='success'
                         onClick={openConfirmSave}
                         disabled={saveMutation.isPending || loading}
                         startIcon={saveMutation.isPending ? <CircularProgress size={14} color='inherit' /> : <i className='tabler-device-floppy' />}

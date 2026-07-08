@@ -260,7 +260,7 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) 
             </DialogContent>
 
             <DialogActions sx={{ justifyContent: 'flex-start' }}>
-                <Button type='submit' variant='contained' disabled={isPending}>
+                <Button type='submit' variant='contained' color='success' disabled={isPending}>
                     {isPending ? 'Saving...' : 'Save'}
                 </Button>
                 <Button onClick={onClose} variant='tonal' color='secondary' disabled={isPending}>

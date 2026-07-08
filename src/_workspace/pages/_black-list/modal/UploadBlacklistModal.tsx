@@ -246,7 +246,7 @@ const UploadBlacklistModal = ({ open, onClose, onSubmit }: UploadBlacklistModalP
             </DialogContent>
             <DialogActions>
                 <Button variant='tonal' color='secondary' onClick={onClose}>Cancel</Button>
-                <Button variant='contained' onClick={handleSubmit(submit)} disabled={isSubmitting}>
+                <Button variant='contained' color='success' onClick={handleSubmit(submit)} disabled={isSubmitting}>
                     Update
                 </Button>
             </DialogActions>

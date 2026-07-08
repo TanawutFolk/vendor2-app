@@ -187,6 +187,14 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
     const { getRootProps, getInputProps } = useDropzone({
         onDrop: acceptedFiles => {
             const currentFiles = watch('files')
+            // Enforce a combined 10MB cap across all attached files (not just per-file).
+            const MAX_TOTAL_SIZE = 10 * 1024 * 1024
+            const currentTotal = currentFiles.reduce((total: number, file: File) => total + file.size, 0)
+            const incomingTotal = acceptedFiles.reduce((total, file) => total + file.size, 0)
+            if (currentTotal + incomingTotal > MAX_TOTAL_SIZE) {
+                setFileError('Total file size must not exceed 10MB.')
+                return
+            }
             setValue('files', [...currentFiles, ...acceptedFiles], { shouldValidate: true })
             setFileError(null)
         },
@@ -557,10 +565,13 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                                         render={({ field }) => (
                                             <CustomTextField
                                                 {...field}
+                                                value={field.value ?? ''}
+                                                onChange={event => field.onChange(event.target.value.replace(/[^0-9]/g, ''))}
                                                 fullWidth
                                                 required
-                                                label="Purchase Frequency / Year"
-                                                placeholder="e.g. Monthly, 2-3 times/year..."
+                                                label="Purchase Frequency per Year"
+                                                placeholder="e.g. 30, 40, 50..."
+                                                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
                                                 error={!!errors.purchaseFreq}
                                                 helperText={errors.purchaseFreq?.message}
                                             />
@@ -583,7 +594,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                                                     </Box>
                                                     <Typography variant='h6' sx={{ mb: 0.5 }}>Drop files here or click to upload</Typography>
                                                     <Typography variant='body2' fontWeight={600} color='primary.main'>
-                                                        Allowed: PDF, Excel, PNG, JPG (Max 10MB)
+                                                        Allowed: PDF, Excel, PNG, JPG (Total max 10MB)
                                                     </Typography>
                                                     {fileError || errors.files ? (
                                                         <Typography variant='caption' color='error' sx={{ mt: 1, fontWeight: 700 }}>
@@ -618,7 +629,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                             <Button
                                 variant="contained"
                                 onClick={skipAdditionalInfo ? handleSubmit : handleNext}
-                                color="primary"
+                                color="success"
                                 size='large'
                                 sx={{ minWidth: 120 }}
                             >
@@ -639,7 +650,7 @@ const RegisterConfirmModal = ({ open, vendorData, skipAdditionalInfo = false, co
                             <Button
                                 variant="contained"
                                 onClick={handleFormSubmit(handleSubmit)}
-                                color="primary"
+                                color="success"
                                 size='large'
                                 disabled={!isValid}
                                 sx={{ minWidth: 120 }}

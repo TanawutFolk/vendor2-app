@@ -20,6 +20,7 @@ const VendorModalFooterActions = ({
                 <Button
                     onClick={onSaveClick}
                     variant="contained"
+                    color="success"
                     disabled={loading || saving}
                     startIcon={saving ? <CircularProgress size={16} /> : <i className='tabler-device-floppy' />}
                     sx={{ fontWeight: 700 }}

@@ -288,7 +288,7 @@ export default function ActionRequiredDialog({
             <DialogActions sx={{ justifyContent: 'flex-start' }}>
                 <LoadingButton
                     variant='contained'
-                    color='warning'
+                    color='success'
                     loading={isSubmitting}
                     onClick={handleSubmit(onSubmit)}
                     disabled={!picEmpcode?.trim() || !picName?.trim() || !picEmail?.trim() || !requiredDetail?.trim()}

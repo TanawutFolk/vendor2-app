@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
 import {
     Box,
@@ -25,6 +25,7 @@ import { requestDetailQueryOptions } from '@_workspace/react-query/hooks/useRegi
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { formatFftStatus } from '@_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import FileViewerDialog from './FileViewerDialog'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
 
@@ -157,23 +158,37 @@ const getStepStatusCfg = (status: unknown) => {
     }
 }
 
-const DocumentChips = ({ files }: { files: FileItem[] }) => (
+const DocumentChips = ({ files, onPreview }: { files: FileItem[]; onPreview: (index: number) => void }) => (
     <Box sx={{ mt: 2.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: files.length > 0 ? 1.25 : 0 }}>
-            <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
-            <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
-            <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: files.length > 0 ? 1.25 : 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <i className='tabler-paperclip' style={{ fontSize: 15, color: 'var(--mui-palette-primary-main)' }} />
+                <Typography variant='body2' fontWeight={600}>Attached Files</Typography>
+                <Typography variant='caption' color='text.secondary'>Total Documents: {files.length}</Typography>
+            </Box>
+            <Button
+                size='small'
+                variant='contained'
+                disableElevation
+                color='primary'
+                startIcon={<i className='tabler-folder-open' style={{ fontSize: 14 }} />}
+                onClick={() => onPreview(0)}
+                disabled={files.length === 0}
+                sx={{ minHeight: 28, fontSize: '0.72rem', px: 1.25, py: 0.35 }}
+            >
+                View Files
+            </Button>
         </Box>
         {files.length > 0 ? (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {files.map(file => (
+                {files.map((file, index) => (
                     <Chip
                         key={file.key}
                         label={file.name}
                         size='small'
                         variant='outlined'
                         icon={<i className={getFileIcon(file.name)} style={{ fontSize: 14 }} />}
-                        onClick={() => window.open(buildFileUrl(file.path, file.name), '_blank')}
+                        onClick={() => onPreview(index)}
                         sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
                     />
                 ))}
@@ -232,6 +247,10 @@ export default function RequestDetailDialog({
     const fallback = fallbackRow || null
     const loading = detailQuery.isLoading && !detail
 
+    // Attached Files preview (PDF/image) — same viewer used on the request-register / check-document pages.
+    const [previewOpen, setPreviewOpen] = useState(false)
+    const [previewIndex, setPreviewIndex] = useState(0)
+
 
     // The request detail's APPROVAL_STEPS is the main registration workflow. The GPR C sub-flow
     // (EMR/QMS/PM/PO-Mgr checker+approver chain) lives in its own tables, fetched here separately.
@@ -287,6 +306,18 @@ export default function RequestDetailDialog({
 
         return Array.from(fileMap.values())
     }, [detail?.DOCUMENTS, fallback?.DOCUMENTS])
+
+    // Map the attached files to the { name, url } shape the file viewer expects. Memoized so the
+    // viewer's selection isn't reset while the user browses between files.
+    const previewFiles = useMemo(
+        () => registerDocuments.map(file => ({ name: file.name, url: buildFileUrl(file.path, file.name) })),
+        [registerDocuments]
+    )
+
+    const openPreview = (index: number) => {
+        setPreviewIndex(index)
+        setPreviewOpen(true)
+    }
 
     const requestNumber = getValue(detail, fallback, 'request_number', 'REQUEST_NUMBER')
     const requestStatus = getValue(detail, fallback, 'request_status', 'REQUEST_STATUS')
@@ -436,7 +467,7 @@ export default function RequestDetailDialog({
                                     </Grid>
                                 )}
                             </Grid>
-                            <DocumentChips files={registerDocuments} />
+                            <DocumentChips files={registerDocuments} onPreview={openPreview} />
                         </Box>
 
                         <Box sx={{ mb: 3 }}>
@@ -686,6 +717,12 @@ export default function RequestDetailDialog({
             </DialogActions>
             </Dialog>
 
+            <FileViewerDialog
+                open={previewOpen}
+                files={previewFiles}
+                initialIndex={previewIndex}
+                onClose={() => setPreviewOpen(false)}
+            />
         </>
     )
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode, Ref } from 'react'
 import {
     Box,
     Button,
@@ -9,12 +10,14 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
+    Slide,
     Stack,
-    TextField,
     Tooltip,
     Typography,
 } from '@mui/material'
+import type { SlideProps } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
+import DialogCloseButton from '@components/dialogs/DialogCloseButton'
 import type {
     ColDef,
     GetRowIdParams,
@@ -32,11 +35,22 @@ import SearchResultCard from '@_workspace/components/search/SearchResultCard'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipStyles'
+import CustomTextField from '@components/mui/TextField'
+import SelectCustom from '@components/react-select/SelectCustom'
 import type { ApprovalGprCFormData } from './validateSchema'
 import ActionRequiredDialog from './modal/ActionRequiredDialog'
 import ConfirmActionDialog from './modal/ConfirmActionDialog'
 import RequestDetailDialog from './modal/RequestDetailDialog'
 import useDxServerSideGrid, { enforceLockedLeftColumns } from '@_workspace/hooks/useDxServerSideGrid'
+
+// Slide-down transition shared by this page's modals so every dialog animates the same way.
+const Transition = forwardRef(function Transition(
+    props: SlideProps & { children?: ReactNode },
+    ref: Ref<unknown>
+) {
+    return <Slide direction='down' ref={ref} {...props} />
+})
 
 export type GprCQueueRow = {
     REQUEST_REGISTER_VENDOR_ID?: number
@@ -100,6 +114,13 @@ const actionRequiredStepCodes = new Set([
     'QMS_APPROVER',
     'PM_MANAGER_APPROVER',
 ])
+
+type ResultStatusOption = { value: string; label: string }
+
+const resultStatusOptions: ResultStatusOption[] = [
+    { value: 'completed', label: 'Completed' },
+    { value: 'incomplete', label: 'Incomplete' },
+]
 
 const getRequestId = (row: GprCQueueRow) => Number(row.REQUEST_REGISTER_VENDOR_ID || 0)
 
@@ -180,12 +201,17 @@ const SearchResult = () => {
     const actionRequiredDialogOpen = Boolean(actionRequiredRow)
     const recordDialogOpen = Boolean(selectedActionRow)
     const detailDialogOpen = Boolean(detailRow)
+    // Approval-queue rows carry STEP_STATUS; once a task is approved/rejected it stays in the list
+    // as history, so only 'in_progress' steps remain actionable. Action-required rows have no
+    // STEP_STATUS, so their existing behaviour is preserved.
+    const detailStepStatus = String(detailRow?.STEP_STATUS ?? '').toLowerCase()
+    const detailIsActioned = Boolean(detailRow?.STEP_STATUS) && detailStepStatus !== 'in_progress'
     const detailCanAction = Boolean(detailRow && (
         detailRow.REQUEST_VENDOR_GPR_C_STEPS_ID
         || detailRow.REQUEST_VENDOR_GPR_C_FLOWS_ID
         || detailRow.STEP_CODE
         || detailRow.STEP_NAME
-    ))
+    )) && !detailIsActioned
     const detailCanActionRequired = Boolean(
         detailCanAction
         && detailRow
@@ -495,6 +521,36 @@ const SearchResult = () => {
             ),
         },
         {
+            headerName: 'My Action',
+            field: 'STEP_STATUS',
+            width: 170,
+            filter: false,
+            sortable: false,
+            cellRenderer: (params: ICellRendererParams<GprCQueueRow>) => {
+                const status = String(params.data?.STEP_STATUS || 'in_progress').toLowerCase()
+                const cfg = status === 'approved'
+                    ? { label: 'Approved', icon: 'tabler-circle-check', tone: getReadableStatusTone('completed') }
+                    : status === 'rejected'
+                        ? { label: 'Rejected', icon: 'tabler-circle-x', tone: getReadableStatusTone('rejected') }
+                        : { label: 'Awaiting You', icon: 'tabler-clock', tone: getReadableStatusTone('in progress') }
+
+                return (
+                    <Chip
+                        size='small'
+                        icon={<i className={cfg.icon} style={{ fontSize: 13 }} />}
+                        label={cfg.label}
+                        sx={getChipSx(cfg.tone, {
+                            height: 24,
+                            fontWeight: 600,
+                            fontSize: '0.72rem',
+                            width: 'fit-content',
+                            '& .MuiChip-icon': { color: cfg.tone.color },
+                        })}
+                    />
+                )
+            },
+        },
+        {
             headerName: 'Step',
             field: 'STEP_NAME',
             width: 200,
@@ -573,15 +629,6 @@ const SearchResult = () => {
             filter: false,
             cellRenderer: (params: ICellRendererParams<GprCActionRequiredRow>) => params.data ? (
                 <Stack direction='row' spacing={1} alignItems='center' sx={{ height: '100%' }}>
-                    <Button
-                        size='small'
-                        variant='tonal'
-                        color='info'
-                        startIcon={<i className='tabler-eye' style={{ fontSize: 16 }} />}
-                        onClick={() => openDetailDialog(params.data as GprCActionRequiredRow)}
-                    >
-                        Details
-                    </Button>
                     <Button
                         size='small'
                         variant='contained'
@@ -736,15 +783,25 @@ const SearchResult = () => {
 
             <Dialog
                 open={actionResultDialogOpen}
-                onClose={() => setActionResultDialogOpen(false)}
+                onClose={(_event, reason) => {
+                    if (reason !== 'backdropClick') setActionResultDialogOpen(false)
+                }}
                 maxWidth='lg'
                 fullWidth
+                TransitionComponent={Transition}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' },
+                }}
             >
                 <DialogTitle>
                     <Stack direction='row' spacing={2} alignItems='center'>
                         <Typography variant='h5' component='span'>Action Required Results</Typography>
                         <Chip size='small' label={actionRequiredTotalCount} color='warning' variant='tonal' />
                     </Stack>
+                    <DialogCloseButton onClick={() => setActionResultDialogOpen(false)} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
                 </DialogTitle>
                 <DialogContent dividers>
                     <DxAGgridTable
@@ -758,45 +815,59 @@ const SearchResult = () => {
                         onGridReady={handleActionRequiredGridReady}
                     />
                 </DialogContent>
-                <DialogActions>
+                <DialogActions sx={{ justifyContent: 'flex-start' }}>
                     <Button variant='tonal' color='secondary' onClick={() => setActionResultDialogOpen(false)}>
                         Close
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={recordDialogOpen} onClose={closeRecordDialog} maxWidth='sm' fullWidth>
-                <DialogTitle>Record Action Required Result</DialogTitle>
+            <Dialog
+                open={recordDialogOpen}
+                onClose={(_event, reason) => {
+                    if (reason !== 'backdropClick') closeRecordDialog()
+                }}
+                maxWidth='sm'
+                fullWidth
+                TransitionComponent={Transition}
+                sx={{
+                    '& .MuiDialog-paper': { overflow: 'visible' },
+                    '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' },
+                }}
+            >
+                <DialogTitle>
+                    <Typography variant='h5'>Record Action Required Result</Typography>
+                    <DialogCloseButton onClick={closeRecordDialog} disableRipple>
+                        <i className='tabler-x' />
+                    </DialogCloseButton>
+                </DialogTitle>
                 <DialogContent dividers>
                     <Stack spacing={3} sx={{ pt: 1 }}>
-                        <TextField
+                        <SelectCustom
                             label='Result Status'
-                            select
-                            SelectProps={{ native: true }}
-                            value={resultStatus}
-                            onChange={event => setResultStatus(event.target.value)}
-                            fullWidth
-                        >
-                            <option value='completed'>Completed</option>
-                            <option value='incomplete'>Incomplete</option>
-                        </TextField>
-                        <TextField
-                            label='Result Remark'
-                            value={remark}
-                            onChange={event => setRemark(event.target.value)}
+                            classNamePrefix='select'
+                            options={resultStatusOptions}
+                            value={resultStatusOptions.find(option => option.value === resultStatus) || null}
+                            onChange={value => setResultStatus((value as ResultStatusOption | null)?.value || 'completed')}
+                        />
+                        <CustomTextField
                             fullWidth
                             multiline
                             minRows={3}
+                            label='Result Remark'
+                            placeholder='Enter your remark here...'
+                            value={remark}
+                            onChange={event => setRemark(event.target.value)}
                         />
                     </Stack>
                 </DialogContent>
-                <DialogActions>
+                <DialogActions sx={{ justifyContent: 'flex-start' }}>
+                    <LoadingButton variant='contained' color='success' loading={submitting} onClick={handleRecordResult}>
+                        Save Result
+                    </LoadingButton>
                     <Button variant='tonal' color='secondary' onClick={closeRecordDialog} disabled={submitting}>
                         Cancel
                     </Button>
-                    <LoadingButton variant='contained' loading={submitting} onClick={handleRecordResult}>
-                        Save Result
-                    </LoadingButton>
                 </DialogActions>
             </Dialog>
         </Stack>

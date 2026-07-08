@@ -153,7 +153,7 @@ const AddProductGroupModal = ({ open, onClose, onSuccess }: AddProductGroupModal
             <DialogActions sx={{ justifyContent: 'flex-start' }}>
                 <Button
                     variant='contained'
-                    color='primary'
+                    color='success'
                     onClick={handleSubmit(onSubmit)}
                     disabled={isPending}
                     startIcon={isPending ? <CircularProgress size={16} color='inherit' /> : null}
