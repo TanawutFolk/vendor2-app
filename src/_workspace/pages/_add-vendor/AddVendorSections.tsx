@@ -19,6 +19,7 @@ import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-o
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 import { fetchVendorRegions } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorRegions'
 import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
+import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 
 // Types
 import type { AddVendorFormData } from './validateSchema'
@@ -221,13 +222,17 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                             name='country'
                             control={control}
                             render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
+                                <AsyncSelectCustom
                                     label='Country'
-                                    placeholder='Enter country...'
-                                    autoComplete='off'
-                                    disabled={isVerified}
+                                    loadOptions={(inputValue: string) => fetchCountries(inputValue)}
+                                    value={field.value ? { label: field.value, value: field.value } : null}
+                                    onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    isDisabled={isVerified}
+                                    placeholder='Select country...'
+                                    classNamePrefix='select'
                                     {...(errors.country && { error: true, helperText: errors.country.message })}
                                 />
                             )}
@@ -286,7 +291,7 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                                 disabled={isLoading || isVerified}
                                 startIcon={isLoading ? <CircularProgress size={16} color='inherit' /> : null}
                             >
-                                {isLoading ? 'Checking...' : isVerified ? 'Verified ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ' : 'Check Duplicate and Blacklist'}
+                                {isLoading ? 'Checking...' : isVerified ? 'Verified ' : 'Check Duplicate and Blacklist'}
                             </Button>
                         </Grid>
                         {existingVendorId && (
@@ -540,13 +545,17 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                             name='country'
                             control={control}
                             render={({ field }) => (
-                                <CustomTextField
-                                    {...field}
-                                    fullWidth
+                                <AsyncSelectCustom
                                     label='Country'
-                                    placeholder='Enter country...'
-                                    autoComplete='off'
-                                    disabled={true}
+                                    loadOptions={(inputValue: string) => fetchCountries(inputValue)}
+                                    value={field.value ? { label: field.value, value: field.value } : null}
+                                    onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    isDisabled={true}
+                                    placeholder='Select country...'
+                                    classNamePrefix='select'
                                     {...(errors.country && { error: true, helperText: errors.country.message })}
                                 />
                             )}

@@ -95,6 +95,13 @@ export default class FindVendorServices {
             method: 'POST'
         })
     }
+    // Get countries for dropdown
+    static getCountries(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
+        return axiosRequest<FindVendorApiResponseI<DropdownItemI[]>>({
+            url: `${FindVendorAPI.API_ROOT_URL}/dropdown/countries`,
+            method: 'POST'
+        })
+    }
 
     // Get product groups for dropdown
     static getProductGroups(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {

@@ -3,6 +3,7 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form'
 
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
+import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 
 import type { VendorComprehensiveI } from '@_workspace/types/_find-vendor/FindVendorTypes'
 import type { EditVendorSchemaType } from '../validateSchema'
@@ -158,16 +159,19 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes }: V
                                 name='country'
                                 control={control}
                                 render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
+                                    <AsyncSelectCustom
                                         label='Country'
-                                        value={field.value || ''}
-                                        size='small'
+                                        loadOptions={(inputValue: string) => fetchCountries(inputValue)}
+                                        value={field.value ? { label: field.value, value: field.value } : null}
+                                        onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        isDisabled={editingMode === 'view'}
+                                        placeholder='Select country...'
+                                        classNamePrefix='select'
                                         error={!!errors.country}
                                         helperText={errors.country?.message}
-                                        disabled={editingMode === 'view'}
-                                        InputProps={{ readOnly: editingMode === 'view' }}
                                     />
                                 )}
                             />

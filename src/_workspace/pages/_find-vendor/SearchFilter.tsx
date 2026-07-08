@@ -19,6 +19,7 @@ import { useDxContext } from '@/_template/DxContextProvider'
 // Fetch functions
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
+import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 
 // Types
@@ -109,12 +110,16 @@ const SearchFilter = () => {
                                 name='searchFilters.country'
                                 control={control}
                                 render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
+                                    <AsyncSelectCustom
                                         label='Country'
-                                        placeholder='Enter ...'
-                                        autoComplete='off'
+                                        placeholder='Select ...'
+                                        defaultOptions
+                                        cacheOptions
+                                        isClearable
+                                        loadOptions={inputValue => fetchCountries(inputValue)}
+                                        value={field.value ? { label: field.value, value: field.value } : null}
+                                        onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                                        classNamePrefix='select'
                                     />
                                 )}
                             />

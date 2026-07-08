@@ -1221,7 +1221,11 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                     UPDATE_DATE: data.UPDATE_DATE,
                     INUSE: data.INUSE
                 }}
-                onSuccess={() => { setEditVendorOpen(false); onEmailSent() }}
+                onSuccess={() => {
+                    ToastMessageSuccess({ title: 'Edit Vendor', message: 'Vendor updated successfully' })
+                    setEditVendorOpen(false)
+                    onEmailSent()
+                }}
             />
 
             {/* Edit Request Dialog */}

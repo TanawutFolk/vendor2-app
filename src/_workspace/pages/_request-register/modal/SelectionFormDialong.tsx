@@ -45,7 +45,9 @@ import {
 import { fetchBusinessCategories } from '@_workspace/react-select/async-promise-load-options/request-register/fetchBusinessCategories'
 import type { BusinessCategoryOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchBusinessCategories'
 import { fetchCurrencies } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
+import { fetchCountries } from '@_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import type { CurrencyOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
+import type { CountryOption } from '@_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import { useSelectionForm } from './useSelectionForm'
 import type { GprFormData, SelectionFormDialongProps, SanctionsCheckState } from './useSelectionForm'
 import {
@@ -685,14 +687,48 @@ const GeneralInfoSection = React.memo(() => {
                         <CustomTextField fullWidth label='Number of Employees' placeholder='e.g. 150' {...register('number_of_employees')} />
                     </Grid>
                     <Grid item xs={12} sm={4}>
-                        <CustomTextField fullWidth label='Manufactured Country' placeholder='e.g. Thailand' {...register('manufactured_country')} />
+                        <Controller
+                            name='manufactured_country'
+                            control={control}
+                            render={({ field: { value, onChange, ...field } }) => (
+                                <AsyncSelectCustom<CountryOption>
+                                    {...field}
+                                    label='Manufactured Country'
+                                    placeholder='Select ...'
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    classNamePrefix='select'
+                                    loadOptions={fetchCountries}
+                                    value={value ? { value, label: value } : null}
+                                    onChange={(val) => onChange(val?.value || '')}
+                                />
+                            )}
+                        />
                     </Grid>
                     <Grid item xs={12}>
                         <CustomTextField fullWidth label='Main Product' multiline rows={2} placeholder='e.g. Cables, Connectors' {...register('main_product')} />
                     </Grid>
                     <FinancialSection />
                     <Grid item xs={12} sm={6}>
-                        <CustomTextField fullWidth label="Vendor's Original Country" placeholder='e.g. Japan' {...register('vendor_original_country')} />
+                        <Controller
+                            name='vendor_original_country'
+                            control={control}
+                            render={({ field: { value, onChange, ...field } }) => (
+                                <AsyncSelectCustom<CountryOption>
+                                    {...field}
+                                    label="Vendor's Original Country"
+                                    placeholder='Select ...'
+                                    defaultOptions
+                                    cacheOptions
+                                    isClearable
+                                    classNamePrefix='select'
+                                    loadOptions={fetchCountries}
+                                    value={value ? { value, label: value } : null}
+                                    onChange={(val) => onChange(val?.value || '')}
+                                />
+                            )}
+                        />
                     </Grid>
                 </Grid>
             </Paper>

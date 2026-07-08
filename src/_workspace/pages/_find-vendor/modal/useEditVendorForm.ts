@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import {
     PREFIX_QUERY_KEY,
     getVendorDetailQueryConfig,
@@ -146,6 +147,8 @@ export const useEditVendorForm = ({
 
     const updateVendor = useUpdateVendor(
         (_data: unknown, variables: UpdateVendorParamsI) => {
+            ToastMessageSuccess({ title: 'Edit Vendor', message: 'Vendor updated successfully' })
+
             const hasCollectionStructureChange =
                 variables.data.contacts?.some((contact: { vendor_contact_id?: number }) => !contact.vendor_contact_id) ||
                 variables.data.products?.some((product: { vendor_product_id?: number }) => !product.vendor_product_id) ||
@@ -177,7 +180,9 @@ export const useEditVendorForm = ({
             onSaveSuccess?.()
             setEditingMode(initialMode)
         },
-        (_err: Error) => {}
+        (err: Error) => {
+            ToastMessageError({ title: 'Edit Vendor', message: err?.message || 'Failed to update vendor' })
+        }
     )
 
     const loading = editingMode === 'edit' && (
