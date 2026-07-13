@@ -24,11 +24,12 @@ export const ContactSchema = z.object({
         .or(z.literal('')),
     email: z
         .string({
+            required_error: requiredFieldMessage({ fieldName: 'Email' }),
             invalid_type_error: typeFieldMessage({ fieldName: 'Email', typeName: 'String' })
         })
-        .max(100, maxLengthFieldMessage({ fieldName: 'Email', maxLength: 100 }))
-        .optional()
-        .or(z.literal('')),
+        .min(1, requiredFieldMessage({ fieldName: 'Email' }))
+        .email('Invalid email format')
+        .max(100, maxLengthFieldMessage({ fieldName: 'Email', maxLength: 100 })),
     position: z
         .string({
             invalid_type_error: typeFieldMessage({ fieldName: 'Position', typeName: 'String' })
@@ -96,10 +97,18 @@ export const AddVendorSchema = z.object({
         .optional()
         .or(z.literal('')),
     // Profile Section
-    vendor_type: z.object({
-        value: z.number(),
-        label: z.string()
-    }).nullable().optional(),
+    // Required: the UI shows 'Vendor Type is required' and the DB stores it as
+    // BUSINESS_CATEGORY_ID — leaving it empty would insert a dangling 0.
+    vendor_type: z.object(
+        {
+            value: z.number(),
+            label: z.string()
+        },
+        {
+            required_error: requiredFieldMessage({ fieldName: 'Vendor Type' }),
+            invalid_type_error: requiredFieldMessage({ fieldName: 'Vendor Type' })
+        }
+    ),
     vendor_type_name: z.string().optional(), // For display only
     vendor_region: z.enum(['Local', 'Oversea']).default('Local'),
     website: z

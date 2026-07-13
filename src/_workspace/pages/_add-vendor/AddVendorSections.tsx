@@ -686,7 +686,7 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                             <CustomTextField
                                 {...field}
                                 fullWidth
-                                label='Email (Main)'
+                                label='Email (Main) (Optional)'
                                 placeholder='vendor@company.com'
                                 autoComplete='off'
                                 type='email'
@@ -723,7 +723,7 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                             <CustomTextField
                                 {...field}
                                 fullWidth
-                                label='Note (optional)'
+                                label='Note (Optional)'
                                 placeholder='Additional notes...'
                                 autoComplete='off'
                                 multiline
@@ -810,7 +810,7 @@ export const SectionContacts = ({ isDisabled }: SectionDisabledProps) => {
                                     <CustomTextField
                                         {...field}
                                         fullWidth
-                                        label='Tel.'
+                                        label='Tel. (Optional)'
                                         placeholder='Enter tel.'
                                         autoComplete='off'
                                         disabled={isDisabled}
@@ -1012,7 +1012,7 @@ export const SectionProducts = ({ isDisabled }: SectionDisabledProps) => {
                                         {...field}
                                         fullWidth
                                         multiline
-                                        label='Model List'
+                                        label='Model List (Optional)'
                                         placeholder='Enter each model...'
                                         autoComplete='off'
                                         disabled={isDisabled}

@@ -49,9 +49,7 @@ const AddEditForm = ({ open, onClose, onSaved, initialData }: AddEditFormProps) 
     const user = getUserData()
 
     const onMutateSuccess = (resData: any) => {
-        if (resData?.Status) {
-            ToastMessageSuccess({ title: 'Save Assignee', message: resData.Message || 'Saved successfully' })
-        }
+        ToastMessageSuccess({ title: 'Save Assignee', message: resData?.Message || 'Saved successfully' })
         queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY] })
         onSaved?.()
         onClose()

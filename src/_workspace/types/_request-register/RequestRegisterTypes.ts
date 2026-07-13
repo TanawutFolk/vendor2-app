@@ -82,6 +82,7 @@ export interface CriteriaSectionProps {
     onUploadClick: (idx: number) => void
     onRemoveUpload: (idx: number) => void
     onDownloadUpload: (filePath?: string, fileName?: string) => void
+    onPreviewUpload: (filePath?: string, fileName?: string) => void
 }
 
 export interface SalesProfitYear {

@@ -70,8 +70,10 @@ export const DxAGgridTable = ({
     // If serverSideDatasource is provided → automatically use server-side mode
     const isServerMode = Boolean(serverSideDatasource)
 
-    // Track the active page size so cacheBlockSize exactly matches it (1 call = 1 exact page)
-    const [pageSize, setPageSize] = useState(paginationPageSize)
+    // Track the active page size so cacheBlockSize exactly matches it (1 call = 1 exact page).
+    // Seed from initialState: AG Grid restores that page size while initialising, and a
+    // mismatch makes one page span several cache blocks — one server call per block.
+    const [pageSize, setPageSize] = useState(initialState?.pagination?.pageSize ?? paginationPageSize)
 
     const handlePaginationChanged = useCallback((e: any) => {
         if (e.newPageSize) {

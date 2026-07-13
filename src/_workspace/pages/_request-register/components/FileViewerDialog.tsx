@@ -11,6 +11,18 @@ const isImage = (name: string) => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', '
 const isPdf = (name: string) => getExt(name) === 'pdf'
 const canPreview = (name: string) => isImage(name) || isPdf(name)
 
+// Force a save-as instead of letting the browser render the file in a tab.
+const downloadFile = (file: { name: string; url: string }) => {
+    const anchor = document.createElement('a')
+
+    anchor.href = file.url
+    anchor.download = file.name
+    anchor.rel = 'noopener'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+}
+
 const getFileIcon = (name: string) => {
     const ext = getExt(name)
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'tabler-photo'
@@ -65,10 +77,10 @@ const FileViewerDialog = ({ open, files, onClose }: {
                     variant='tonal'
                     size='small'
                     sx={{ mt: 1.5 }}
-                    startIcon={<i className='tabler-external-link' style={{ fontSize: 16 }} />}
-                    onClick={() => window.open(selected.url, '_blank')}
+                    startIcon={<i className='tabler-download' style={{ fontSize: 16 }} />}
+                    onClick={() => downloadFile(selected)}
                 >
-                    Open in new tab
+                    Download file
                 </Button>
             </Box>
         )
@@ -115,7 +127,7 @@ const FileViewerDialog = ({ open, files, onClose }: {
                                                     {file.name}
                                                 </Typography>
                                             }
-                                            secondary={canPreview(file.name) ? 'Preview' : 'Open in new tab'}
+                                            secondary={canPreview(file.name) ? 'Preview' : 'Download file'}
                                         />
                                     </ListItemButton>
                                 ))}
@@ -129,9 +141,9 @@ const FileViewerDialog = ({ open, files, onClose }: {
                                     {selected?.name || '-'}
                                 </Typography>
                                 {selected && (
-                                    <Tooltip title='Open in new tab'>
-                                        <IconButton size='small' onClick={() => window.open(selected.url, '_blank')} sx={{ color: 'primary.main' }}>
-                                            <i className='tabler-external-link' style={{ fontSize: 18 }} />
+                                    <Tooltip title='Download file'>
+                                        <IconButton size='small' onClick={() => downloadFile(selected)} sx={{ color: 'primary.main' }}>
+                                            <i className='tabler-download' style={{ fontSize: 18 }} />
                                         </IconButton>
                                     </Tooltip>
                                 )}

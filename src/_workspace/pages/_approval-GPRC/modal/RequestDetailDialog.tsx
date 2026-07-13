@@ -1,5 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode, Ref } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
     Box,
     Button,
@@ -9,17 +8,16 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
     Grid,
     IconButton,
-    Slide,
     Stack,
     Tooltip,
     Typography,
 } from '@mui/material'
-import type { SlideProps } from '@mui/material'
 import { ToastMessageError } from '@components/ToastMessage'
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
+import Transition from '@components/TransitionDialog'
+import { DetailCard, ReadOnlyField, RecordCard, SectionHeader } from '@components/detail-view'
 import { useQuery } from '@tanstack/react-query'
 import { requestDetailQueryOptions } from '@_workspace/react-query/hooks/useRegisterRequest'
 import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
@@ -28,13 +26,6 @@ import { getChipSx, getReadableStatusTone } from '@_workspace/utils/statusChipSt
 import FileViewerDialog from './FileViewerDialog'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
-
-const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactNode },
-    ref: Ref<unknown>
-) {
-    return <Slide direction='down' ref={ref} {...props} />
-})
 
 type FileItem = {
     key: string
@@ -120,25 +111,6 @@ const getFileIcon = (name: string) => {
 
     return 'tabler-file'
 }
-
-const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <i className={icon} style={{ fontSize: 16, color: 'var(--mui-palette-primary-main)' }} />
-        <Typography variant='subtitle2' fontWeight={700} color='text.secondary'>{title}</Typography>
-        <Divider sx={{ flex: 1, minWidth: 0 }} />
-    </Box>
-)
-
-const InfoItem = ({ label, value }: { label: string; value: unknown }) => (
-    <Box>
-        <Typography variant='caption' color='text.disabled' fontWeight={600}>
-            {label}
-        </Typography>
-        <Typography variant='body2' fontWeight={600} sx={{ wordBreak: 'break-word' }}>
-            {hasDisplayValue(value) ? String(value) : '-'}
-        </Typography>
-    </Box>
-)
 
 const getStepStatusCfg = (status: unknown) => {
     switch (String(status || '').toLowerCase()) {
@@ -455,63 +427,71 @@ export default function RequestDetailDialog({
 
                         <Box sx={{ mb: 3 }}>
                             <SectionHeader icon='tabler-clipboard-list' title='Request Info' />
-                            <Grid container spacing={2}>
-                                {requestInfoItems.map(({ label, value }) => (
-                                    <Grid item xs={12} sm={6} md={3} key={label}>
-                                        <InfoItem label={label} value={value} />
-                                    </Grid>
-                                ))}
-                                {getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK') !== '-' && (
+                            <DetailCard>
+                                <Grid container spacing={4}>
+                                    {requestInfoItems.map(({ label, value }) => (
+                                        <Grid item xs={12} sm={6} md={3} key={label}>
+                                            <ReadOnlyField label={label} value={value} />
+                                        </Grid>
+                                    ))}
+                                    {getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK') !== '-' && (
+                                        <Grid item xs={12}>
+                                            <ReadOnlyField
+                                                label='Requester Remark'
+                                                value={getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK')}
+                                                multiline
+                                            />
+                                        </Grid>
+                                    )}
                                     <Grid item xs={12}>
-                                        <InfoItem label='Requester Remark' value={getValue(detail, fallback, 'requester_remark', 'REQUESTER_REMARK')} />
+                                        <DocumentChips files={registerDocuments} onPreview={openPreview} />
                                     </Grid>
-                                )}
-                            </Grid>
-                            <DocumentChips files={registerDocuments} onPreview={openPreview} />
+                                </Grid>
+                            </DetailCard>
                         </Box>
 
                         <Box sx={{ mb: 3 }}>
                             <SectionHeader icon='tabler-building-store' title='Vendor Info' />
-                            <Grid container spacing={2}>
-                                {vendorInfoItems.map(({ label, value }) => (
-                                    <Grid item xs={12} sm={6} md={4} key={label}>
-                                        <InfoItem label={label} value={value} />
-                                    </Grid>
-                                ))}
-                                {getValue(detail, fallback, 'address', 'ADDRESS') !== '-' && (
-                                    <Grid item xs={12}>
-                                        <InfoItem label='Address' value={getValue(detail, fallback, 'address', 'ADDRESS')} />
-                                    </Grid>
-                                )}
-                            </Grid>
+                            <DetailCard>
+                                <Grid container spacing={4}>
+                                    {vendorInfoItems.map(({ label, value }) => (
+                                        <Grid item xs={12} sm={6} md={4} key={label}>
+                                            <ReadOnlyField label={label} value={value} />
+                                        </Grid>
+                                    ))}
+                                    {getValue(detail, fallback, 'address', 'ADDRESS') !== '-' && (
+                                        <Grid item xs={12}>
+                                            <ReadOnlyField label='Address' value={getValue(detail, fallback, 'address', 'ADDRESS')} multiline />
+                                        </Grid>
+                                    )}
+                                </Grid>
+                            </DetailCard>
                         </Box>
 
                         {contacts.length > 0 && (
                             <Box sx={{ mb: 3 }}>
                                 <SectionHeader icon='tabler-users' title={`Contacts (${contacts.length})`} />
-                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: 'auto', bgcolor: 'background.paper' }}>
-                                    <Box sx={{ minWidth: 720 }}>
-                                        <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                            {['Name', 'Tel', 'Position', 'Email'].map(header => (
-                                                <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
-                                                    {header}
-                                                </Typography>
-                                            ))}
-                                        </Box>
-                                        {contacts.map((contact, index) => (
-                                            <Box
-                                                key={`${getValue(contact, null, 'CONTACT_NAME', 'contact_name')}-${index}`}
-                                                sx={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
-                                            >
-                                                <Typography variant='body2' fontWeight={600}>{getValue(contact, null, 'CONTACT_NAME', 'contact_name')}</Typography>
-                                                <Typography variant='body2' color='text.secondary'>{getValue(contact, null, 'TEL_PHONE', 'tel_phone')}</Typography>
-                                                <Typography variant='body2' color='text.secondary'>{getValue(contact, null, 'POSITION', 'position')}</Typography>
-                                                <Typography variant='body2' color='text.secondary' sx={{ wordBreak: 'break-all' }}>
-                                                    {getValue(contact, null, 'EMAIL', 'email')}
-                                                </Typography>
-                                            </Box>
-                                        ))}
-                                    </Box>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {contacts.map((contact, index) => (
+                                        <RecordCard
+                                            key={`${getValue(contact, null, 'CONTACT_NAME', 'contact_name')}-${index}`}
+                                            index={index}
+                                            title='Contact Info'
+                                        >
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Name' value={getValue(contact, null, 'CONTACT_NAME', 'contact_name')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Phone' value={getValue(contact, null, 'TEL_PHONE', 'tel_phone')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Email' value={getValue(contact, null, 'EMAIL', 'email')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Position' value={getValue(contact, null, 'POSITION', 'position')} />
+                                            </Grid>
+                                        </RecordCard>
+                                    ))}
                                 </Box>
                             </Box>
                         )}
@@ -519,27 +499,27 @@ export default function RequestDetailDialog({
                         {products.length > 0 && (
                             <Box sx={{ mb: 3 }}>
                                 <SectionHeader icon='tabler-package' title={`Products (${products.length})`} />
-                                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: 'auto', bgcolor: 'background.paper' }}>
-                                    <Box sx={{ minWidth: 760 }}>
-                                        <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                            {['Group', 'Maker', 'Product Name', 'Model List'].map(header => (
-                                                <Typography key={header} variant='caption' fontWeight={700} color='text.secondary'>
-                                                    {header}
-                                                </Typography>
-                                            ))}
-                                        </Box>
-                                        {products.map((product, index) => (
-                                            <Box
-                                                key={`${getValue(product, null, 'PRODUCT_NAME', 'product_name')}-${index}`}
-                                                sx={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 2fr 2fr', px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
-                                            >
-                                                <Typography variant='body2' fontWeight={600}>{getValue(product, null, 'PRODUCT_GROUP', 'product_group')}</Typography>
-                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'MAKER_NAME', 'maker_name')}</Typography>
-                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'PRODUCT_NAME', 'product_name')}</Typography>
-                                                <Typography variant='body2' color='text.secondary'>{getValue(product, null, 'MODEL_LIST', 'model_list')}</Typography>
-                                            </Box>
-                                        ))}
-                                    </Box>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {products.map((product, index) => (
+                                        <RecordCard
+                                            key={`${getValue(product, null, 'PRODUCT_NAME', 'product_name')}-${index}`}
+                                            index={index}
+                                            title='Product'
+                                        >
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Product Group' value={getValue(product, null, 'PRODUCT_GROUP', 'product_group')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Maker' value={getValue(product, null, 'MAKER_NAME', 'maker_name')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Product Name' value={getValue(product, null, 'PRODUCT_NAME', 'product_name')} />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <ReadOnlyField label='Model List' value={getValue(product, null, 'MODEL_LIST', 'model_list')} multiline />
+                                            </Grid>
+                                        </RecordCard>
+                                    ))}
                                 </Box>
                             </Box>
                         )}

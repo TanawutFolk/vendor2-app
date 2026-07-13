@@ -1,17 +1,7 @@
-// Shared helpers + Transition for the request-history screen.
+// Shared helpers for the request-history screen.
 // Extracted from SearchResult.tsx so the modal/panel components can import them
 // without creating a circular dependency back to the page.
-import { forwardRef } from 'react'
-import type { ReactElement, Ref } from 'react'
-import { Slide } from '@mui/material'
-import type { SlideProps } from '@mui/material'
-
-export const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactElement<any, any> },
-    ref: Ref<unknown>
-) {
-    return <Slide direction='down' ref={ref} {...props} />
-})
+export { default as Transition } from '@components/TransitionDialog'
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 

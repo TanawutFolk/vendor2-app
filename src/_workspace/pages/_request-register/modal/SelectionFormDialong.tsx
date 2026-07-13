@@ -48,8 +48,11 @@ import { fetchCurrencies } from '@_workspace/react-select/async-promise-load-opt
 import { fetchCountries } from '@_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import type { CurrencyOption } from '@_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
 import type { CountryOption } from '@_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
-import { useSelectionForm } from './useSelectionForm'
+import { useSelectionForm, PENDING_UPLOAD_PREFIX } from './useSelectionForm'
 import type { GprFormData, SelectionFormDialongProps, SanctionsCheckState } from './useSelectionForm'
+import FileViewerDialog from '../components/FileViewerDialog'
+import { buildSelectionFileUrl } from '../components/shared'
+import { ToastMessageError } from '@/components/ToastMessage'
 import {
     inferStepCode,
     isAccountStep,
@@ -738,7 +741,7 @@ const GeneralInfoSection = React.memo(() => {
 
 
 
-const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload }: CriteriaSectionProps) => {
+const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, criteriaError, onUploadClick, onRemoveUpload, onDownloadUpload, onPreviewUpload }: CriteriaSectionProps) => {
     const { control, register } = useFormContext<GprFormData>()
     const { fields } = useFieldArray({ control, name: 'criteria' })
     const criteria = useWatch({ control, name: 'criteria' }) || []
@@ -834,9 +837,9 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, crite
 
                                                 {row.uploaded_file ? (
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <Tooltip title='Open / Download'>
+                                                        <Tooltip title='Preview file'>
                                                             <Box
-                                                                onClick={() => onDownloadUpload(row.uploaded_file, row.uploaded_name)}
+                                                                onClick={() => onPreviewUpload(row.uploaded_file, row.uploaded_name)}
                                                                 sx={{ display: 'inline-flex', cursor: 'pointer' }}
                                                             >
                                                                 <Chip
@@ -848,6 +851,24 @@ const CriteriaSection = React.memo(({ criteriaUploading, criteriaDeleting, crite
                                                                     sx={{ fontSize: '0.65rem', maxWidth: 155, '&:hover': { bgcolor: 'action.hover' } }}
                                                                 />
                                                             </Box>
+                                                        </Tooltip>
+                                                        <Tooltip title='Preview'>
+                                                            <IconButton
+                                                                size='small'
+                                                                onClick={() => onPreviewUpload(row.uploaded_file, row.uploaded_name)}
+                                                                sx={{ p: 0.3 }}
+                                                            >
+                                                                <i className='tabler-eye' style={{ fontSize: 13 }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        <Tooltip title='Download'>
+                                                            <IconButton
+                                                                size='small'
+                                                                onClick={() => onDownloadUpload(row.uploaded_file, row.uploaded_name)}
+                                                                sx={{ p: 0.3 }}
+                                                            >
+                                                                <i className='tabler-download' style={{ fontSize: 13 }} />
+                                                            </IconButton>
                                                         </Tooltip>
                                                         <Tooltip title='Remove'>
                                                             <IconButton
@@ -1137,6 +1158,31 @@ export default function SelectionFormDialong({ open, rowData, onClose, onSaved, 
     } = useSelectionForm({ open, rowData, onClose, onSaved, readOnly: isReadOnlyMode })
     const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
     const [deleteCriteriaIndex, setDeleteCriteriaIndex] = useState<number | null>(null)
+    const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null)
+
+    // Preview a criteria attachment in the same viewer the request's Attached Files use.
+    const handlePreviewCriteriaFile = (filePath?: string, fileName?: string) => {
+        const normalizedFilePath = String(filePath || '').trim()
+        const normalizedFileName = String(fileName || '').trim()
+
+        if (!normalizedFilePath) {
+            ToastMessageError({ title: 'Preview File', message: 'File path is missing.' })
+            return
+        }
+
+        if (normalizedFilePath.startsWith(PENDING_UPLOAD_PREFIX)) {
+            ToastMessageError({
+                title: 'Preview File',
+                message: 'Please save the selection sheet before previewing this file.'
+            })
+            return
+        }
+
+        setPreviewFile({
+            name: normalizedFileName || normalizedFilePath.split(/[/\\]/).pop() || 'Attachment',
+            url: buildSelectionFileUrl(normalizedFilePath, normalizedFileName, String(rowData?.REQUEST_NUMBER || ''))
+        })
+    }
 
     const approvalLogs = useMemo(() => {
         const rawLogs = rowData?.APPROVAL_LOGS
@@ -1315,6 +1361,7 @@ export default function SelectionFormDialong({ open, rowData, onClose, onSaved, 
                                     onUploadClick={handleCriteriaUploadClick}
                                     onRemoveUpload={setDeleteCriteriaIndex}
                                     onDownloadUpload={downloadCriteriaFile}
+                                    onPreviewUpload={handlePreviewCriteriaFile}
                                 />
                             </DisabledBlock>
                             <SuggestionSection
@@ -1350,6 +1397,11 @@ export default function SelectionFormDialong({ open, rowData, onClose, onSaved, 
                     </Button>
                 </DialogActions>
             </Dialog>
+            <FileViewerDialog
+                open={Boolean(previewFile)}
+                files={previewFile ? [previewFile] : []}
+                onClose={() => setPreviewFile(null)}
+            />
             <ConfirmModal
                 show={Boolean(confirmAction)}
                 onConfirmClick={handleConfirmAction}

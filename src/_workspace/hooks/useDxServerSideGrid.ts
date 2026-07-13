@@ -58,15 +58,26 @@ export const useDxServerSideGrid = <TFieldValues extends FieldValues>({
 }: UseDxServerSideGridArgs<TFieldValues>) => {
   const gridApiRef = useRef<GridApi | null>(null)
 
+  // AG Grid fires its own first getRows as soon as the datasource is attached, so the
+  // fetch every page requests on mount would repeat it. Swallow that one request only.
+  const initialFetchHandled = useRef(false)
+
   const refreshServerSide = useCallback(() => {
     gridApiRef.current?.refreshServerSide?.({ purge: true })
   }, [])
 
   useEffect(() => {
-    if (isEnableFetching && gridApiRef.current) {
-      setIsEnableFetching(false)
-      refreshServerSide()
+    if (!isEnableFetching) return
+
+    setIsEnableFetching(false)
+
+    if (!initialFetchHandled.current) {
+      initialFetchHandled.current = true
+
+      return
     }
+
+    refreshServerSide()
   }, [isEnableFetching, refreshServerSide, setIsEnableFetching])
 
   const savedGridState = useMemo(

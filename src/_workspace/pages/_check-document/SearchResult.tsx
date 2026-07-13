@@ -210,6 +210,7 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, showSele
                 return
             }
             const { startRow, endRow } = params.request
+            const limit = (endRow ?? 50) - (startRow ?? 0)
             const order = params.request.sortModel?.length > 0
                 ? params.request.sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
                 : [{ id: 'REQUEST_REGISTER_VENDOR_ID', desc: true }]
@@ -225,13 +226,17 @@ export default function ApprovalPageContent({ pageTitle, queueStepCode, showSele
                     COLUMNFILTERS: [],
                     ORDER: order,
                     START: startRow ?? 0,
-                    LIMIT: (endRow ?? 50) - (startRow ?? 0)
+                    LIMIT: limit
                 })
                 if (res.data?.Status) {
                     // Option A: backend returns UPPER-cased column keys directly;
                     // the grid/detail/action-dialog read those keys as-is (no re-lowercasing).
                     const rowData = res.data.ResultOnDb || []
-                    params.success({ rowData, rowCount: res.data.TotalCountOnDb })
+                    // A block shorter than requested means the data ran out; clamp rowCount
+                    // to what actually exists so the grid never re-requests missing rows.
+                    const totalCount = Number(res.data.TotalCountOnDb) || 0
+                    const rowCount = rowData.length < limit ? (startRow ?? 0) + rowData.length : totalCount
+                    params.success({ rowData, rowCount })
                 } else {
                     params.fail()
                 }

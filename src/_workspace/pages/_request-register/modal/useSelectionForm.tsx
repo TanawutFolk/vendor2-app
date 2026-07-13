@@ -116,7 +116,7 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
     { no: '4.14', detail: 'Other', criteria: 'Optional' },
 ]
 
-const PENDING_UPLOAD_PREFIX = '__pending__/'
+export const PENDING_UPLOAD_PREFIX = '__pending__/'
 
 const normalizeGpr43AcceptanceStatus = (value: unknown): 'ACCEPT' | 'NOT_ACCEPT' | '' => {
     const normalized = String(value || '').trim().replace(/[_-]+/g, ' ').toUpperCase()

@@ -1,19 +1,9 @@
-// Shared helpers + Transition for the request-register screen.
+// Shared helpers for the request-register screen.
 // Extracted from SearchResult.tsx so the modal/panel components can import them
 // without creating a circular dependency back to the page.
-import { forwardRef } from 'react'
-import type { ReactElement, Ref } from 'react'
-import { Slide } from '@mui/material'
-import type { SlideProps } from '@mui/material'
-
 import { parseActionRequiredRemark } from '@_workspace/utils/requestWorkflow'
 
-export const Transition = forwardRef(function Transition(
-    props: SlideProps & { children?: ReactElement<any, any> },
-    ref: Ref<unknown>
-) {
-    return <Slide direction='down' ref={ref} {...props} />
-})
+export { default as Transition } from '@components/TransitionDialog'
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
 export const REJECT_REMARK_MAX_LENGTH = 500
@@ -97,6 +87,18 @@ export const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
 // whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
 const isNetworkStoredPath = (filePath: string) =>
     filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+
+// Streaming URL for one selection-sheet criteria file — same managed download route the
+// request attachments use, so FileViewerDialog can preview it inline.
+export const buildSelectionFileUrl = (filePath: string, fileName: string, requestNumber?: string) => {
+    const params = new URLSearchParams({
+        FILE_PATH: filePath,
+        FILE_NAME: fileName,
+        REQUEST_NUMBER: requestNumber || ''
+    })
+
+    return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
+}
 
 export const buildFileUrls = (documents: any, requestNumber?: string): { name: string; url: string }[] => {
     const docs = safeParseJSON<any[]>(documents, [])

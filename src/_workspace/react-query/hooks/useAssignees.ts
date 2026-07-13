@@ -13,6 +13,9 @@ export const useAssignees = (filters: AssigneesSearchFiltersFormData, isEnabled:
                 GROUP_CODE: filters.group_code?.value,
                 IN_USE: filters.in_use,
             })
+            if (!res.data?.Status) {
+                throw new Error(res.data?.Message || 'Failed to load assignees')
+            }
             return res.data?.ResultOnDb || []
         },
         enabled: isEnabled
@@ -23,6 +26,9 @@ export const useAssignees = (filters: AssigneesSearchFiltersFormData, isEnabled:
 // via the onSuccess / onError callbacks it passes in.
 const save = async (data: any) => {
     const res = await AssigneesServices.save(data)
+    if (!res.data?.Status) {
+        throw new Error(res.data?.Message || 'Failed to save assignee')
+    }
     return res.data
 }
 

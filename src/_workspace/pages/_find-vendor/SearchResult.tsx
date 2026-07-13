@@ -8,7 +8,7 @@ import { Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, C
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
-import type { ColDef, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community'
+import type { ColDef, Column, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community'
 
 // Common AG Grid Table
 import DxAGgridTable from '@/_template/DxAGgridTable'
@@ -109,7 +109,11 @@ const SearchResult = () => {
                     // Option A: backend returns UPPER-cased column keys directly;
                     // the grid/detail/register modals read those keys as-is.
                     const rowData = result.ResultOnDb || []
-                    params.success({ rowData, rowCount: result.TotalCountOnDb })
+                    // A block shorter than requested means the data ran out; clamp rowCount
+                    // to what actually exists so the grid never re-requests missing rows.
+                    const totalCount = Number(result.TotalCountOnDb) || 0
+                    const rowCount = rowData.length < limit ? (startRow ?? 0) + rowData.length : totalCount
+                    params.success({ rowData, rowCount })
                 } else {
                     params.fail()
                 }
@@ -150,25 +154,97 @@ const SearchResult = () => {
         return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
     }
 
-    const handleExportCurrentPage = () => {
-        setAnchorEl(null)
-        gridApiRef.current?.exportDataAsExcel({
-            fileName: `Vendor_List_${buildTimestamp()}.xlsx`,
-            sheetName: 'Vendor List',
-            // Keep columnKeys undefined to export currently visible columns from grid state.
+    const buildSortModel = () => gridApiRef.current?.getColumnState()
+        ?.filter((c: any) => c.sort)
+        ?.map((c: any) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
+
+    // The grid's own visible columns, in display order (respects hide / reorder / pin), so the
+    // exported sheet matches the screen. `empty` is whatever the column's valueFormatter renders
+    // for a blank cell (e.g. '-'), asked of the formatter itself rather than duplicated here.
+    const buildExportColumns = () => (gridApiRef.current?.getAllDisplayedColumns() || [])
+        .map((column: Column) => column.getColDef())
+        .filter((colDef: ColDef) => Boolean(colDef.field) && colDef.field !== 'actions')
+        .map((colDef: ColDef) => {
+            let empty = ''
+
+            if (typeof colDef.valueFormatter === 'function') {
+                try {
+                    empty = String(colDef.valueFormatter({ value: null } as any) ?? '')
+                } catch {
+                    empty = ''
+                }
+            }
+
+            return {
+                id: colDef.field as string,
+                header: colDef.headerName || (colDef.field as string),
+                empty,
+                width: colDef.width ?? 140
+            }
         })
+
+    // Vendor ids of the rows on the page the user is looking at, in display order.
+    const getCurrentPageVendorIds = () => {
+        const api = gridApiRef.current
+        if (!api) return []
+
+        const pageSize = api.paginationGetPageSize()
+        const firstRow = api.paginationGetCurrentPage() * pageSize
+        const ids: number[] = []
+
+        for (let i = firstRow; i < firstRow + pageSize; i++) {
+            const vendorId = Number((api.getDisplayedRowAtIndex(i)?.data as any)?.VENDORS_ID || 0)
+            if (vendorId && !ids.includes(vendorId)) ids.push(vendorId)
+        }
+
+        return ids
+    }
+
+    // Both exports go through the same API endpoint so the workbook layout (title row,
+    // headers, column order) is identical — only the row scope differs.
+    const handleExportCurrentPage = async () => {
+        setAnchorEl(null)
+        const vendorIds = getCurrentPageVendorIds()
+
+        if (vendorIds.length === 0) {
+            ToastMessageError({ title: 'Export Vendor', message: 'No rows on this page to export.' })
+            return
+        }
+
+        setIsExporting(true)
+        try {
+            const file = await FindVendorServices.downloadFileForExport({
+                DATAFORFETCH: {
+                    SEARCHFILTERS: buildSearchFilters(),
+                    COLUMNFILTERS: [],
+                    ORDER: buildSortModel(),
+                    COLUMNS: buildExportColumns(),
+                    VENDOR_IDS: vendorIds
+                },
+                TYPE: 'currentPage'
+            })
+            saveAs(file.data, `Vendor_List_${buildTimestamp()}.xlsx`)
+        } catch {
+            ToastMessageError({
+                title: 'Export Vendor',
+                message: 'Export failed. Please try again.'
+            })
+        } finally {
+            setIsExporting(false)
+        }
     }
 
     const handleExportAllData = async () => {
         setIsExporting(true)
         setAnchorEl(null)
         try {
-            const sortModel = gridApiRef.current?.getColumnState()
-                ?.filter((c: any) => c.sort)
-                ?.map((c: any) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
-
             const file = await FindVendorServices.downloadFileForExport({
-                DATAFORFETCH: { SEARCHFILTERS: buildSearchFilters(), COLUMNFILTERS: [], ORDER: sortModel },
+                DATAFORFETCH: {
+                    SEARCHFILTERS: buildSearchFilters(),
+                    COLUMNFILTERS: [],
+                    ORDER: buildSortModel(),
+                    COLUMNS: buildExportColumns()
+                },
                 TYPE: 'AllPage'
             })
             saveAs(file.data, `Vendor_List_All_${buildTimestamp()}.xlsx`)

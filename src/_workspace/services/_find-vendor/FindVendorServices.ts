@@ -13,7 +13,7 @@ export default class FindVendorServices {
     // Search vendors
     static search(data: Record<string, unknown>): Promise<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>> {
         return axiosRequest<FindVendorApiResponseI<VendorResultI[]>>({
-            url: `${FindVendorAPI.API_ROOT_URL}/search`,
+            url: `${FindVendorAPI.API_ROOT_URL}/SearchVendor`,
             data,
             method: 'POST'
         })

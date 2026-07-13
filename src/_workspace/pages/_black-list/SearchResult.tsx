@@ -122,10 +122,11 @@ const SearchResult = ({ uploading, uploadProgress, onUpload }: SearchResultProps
 
                 if (result?.Status) {
                     const rowData = result.ResultOnDb || []
-                    params.success({
-                        rowData,
-                        rowCount: result.TotalCountOnDb || 0,
-                    })
+                    // A block shorter than requested means the data ran out; clamp rowCount
+                    // to what actually exists so the grid never re-requests missing rows.
+                    const totalCount = Number(result.TotalCountOnDb) || 0
+                    const rowCount = rowData.length < limit ? (startRow ?? 0) + rowData.length : totalCount
+                    params.success({ rowData, rowCount })
                     return
                 }
 

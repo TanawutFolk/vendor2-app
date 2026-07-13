@@ -10,14 +10,6 @@ export interface BlacklistResponseI<T = unknown> {
     Message: string
 }
 
-export interface BlacklistSearchRequestI {
-    SearchFilters: Array<{ id: string; value: unknown }>
-    ColumnFilters?: Array<{ column: string; value: unknown; columnFns?: string }>
-    Order: Array<{ id: string; desc: boolean }>
-    Start: number
-    Limit: number
-}
-
 export default class BlacklistServices {
     static search(data: Record<string, unknown>): Promise<AxiosResponse<BlacklistResponseI<Record<string, unknown>[]>>> {
         return axiosRequest<BlacklistResponseI<Record<string, unknown>[]>>({
