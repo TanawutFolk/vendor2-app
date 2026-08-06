@@ -47,7 +47,17 @@ const MenuItemWrapper = ({ children, option }: { children: ReactNode; option: Op
 
 const OptionMenu = (props: OptionsMenuType) => {
   // Props
-  const { tooltipProps, icon, iconClassName, options, leftAlignMenu, iconButtonProps } = props
+  const {
+    tooltipProps,
+    icon,
+    iconClassName,
+    options,
+    leftAlignMenu,
+    iconButtonProps,
+    usePortal = false,
+    popperProps,
+    paperProps
+  } = props
 
   // States
   const [open, setOpen] = useState(false)
@@ -88,12 +98,21 @@ const OptionMenu = (props: OptionsMenuType) => {
         anchorEl={anchorRef.current}
         placement={leftAlignMenu ? 'bottom-start' : 'bottom-end'}
         transition
-        disablePortal
-        sx={{ zIndex: 1 }}
+        disablePortal={!usePortal}
+        // A portaled menu leaves the app's stacking context, so it needs to sit above
+        // MUI's modal layer (1300) to stay clickable over dialogs and grid overlays.
+        sx={{ zIndex: usePortal ? 1500 : 1 }}
+        {...popperProps}
       >
         {({ TransitionProps }) => (
           <Fade {...TransitionProps}>
-            <Paper className={settings.skin === 'bordered' ? 'border shadow-none' : 'shadow-lg'}>
+            <Paper
+              {...paperProps}
+              className={classnames(
+                settings.skin === 'bordered' ? 'border shadow-none' : 'shadow-lg',
+                paperProps?.className
+              )}
+            >
               <ClickAwayListener onClickAway={handleClose}>
                 <MenuList autoFocusItem={open}>
                   {options.map((option: OptionType, index: number) => {

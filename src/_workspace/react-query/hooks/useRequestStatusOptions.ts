@@ -10,13 +10,13 @@ export const PREFIX_QUERY_KEY = 'REQUEST_STATUS_OPTIONS'
  * Data is stable (rarely changes), so cache is held for 10 minutes.
  */
 const useRequestStatusOptions = () =>
-    useQuery<StatusOption[], Error>({
-        queryKey: [PREFIX_QUERY_KEY],
-        queryFn: async () => {
-            const res = await ApprovalQueueServices.getStatusOptions()
-            return (res.data.ResultOnDb ?? []).map(applyRequestStatusPresentation)
-        },
-        staleTime: 10 * 60 * 1000, // 10 minutes
-    })
+  useQuery<StatusOption[], Error>({
+    queryKey: [PREFIX_QUERY_KEY],
+    queryFn: async () => {
+      const res = await ApprovalQueueServices.getStatusOptions()
+      return (res.data.ResultOnDb ?? []).map(applyRequestStatusPresentation)
+    },
+    staleTime: 10 * 60 * 1000 // 10 minutes
+  })
 
 export default useRequestStatusOptions

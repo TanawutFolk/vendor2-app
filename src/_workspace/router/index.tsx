@@ -10,8 +10,11 @@ const FindVendorPage = lazy(() => import('@/_workspace/pages/_find-vendor/page')
 /* Re-register */
 const ReRegisterPage = lazy(() => import('@/_workspace/pages/_Re-register/page'))
 
-/* Request Register History */
-const RequestRegisterHistoryPage = lazy(() => import('@/_workspace/pages/_request-history/page'))
+/* My Request History */
+const MyRequestHistoryPage = lazy(() => import('@/_workspace/pages/_request-history/page'))
+
+/* ALL Request History */
+const AllRequestHistoryPage = lazy(() => import('@/_workspace/pages/_all-request-history/page'))
 
 /* Approval GPR C */
 const ApprovalGprCPage = lazy(() => import('@/_workspace/pages/_approval-GPRC/page'))
@@ -54,8 +57,11 @@ export default (
     {/* Re-register */}
     <Route path='/en/re-register' element={<ReRegisterPage />} />
 
-    {/* Request Register History */}
-    <Route path='/en/request-register-history' element={<RequestRegisterHistoryPage />} />
+    {/* My Request History */}
+    <Route path='/en/request-register-history' element={<MyRequestHistoryPage />} />
+
+    {/* ALL Request History */}
+    <Route path='/en/all-request-history' element={<AllRequestHistoryPage />} />
 
     {/* Approval GPR C */}
     <Route path='/en/approval-gpr-c' element={<ApprovalGprCPage />} />

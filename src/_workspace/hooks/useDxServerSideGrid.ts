@@ -58,10 +58,6 @@ export const useDxServerSideGrid = <TFieldValues extends FieldValues>({
 }: UseDxServerSideGridArgs<TFieldValues>) => {
   const gridApiRef = useRef<GridApi | null>(null)
 
-  // AG Grid fires its own first getRows as soon as the datasource is attached, so the
-  // fetch every page requests on mount would repeat it. Swallow that one request only.
-  const initialFetchHandled = useRef(false)
-
   const refreshServerSide = useCallback(() => {
     gridApiRef.current?.refreshServerSide?.({ purge: true })
   }, [])
@@ -71,25 +67,19 @@ export const useDxServerSideGrid = <TFieldValues extends FieldValues>({
 
     setIsEnableFetching(false)
 
-    if (!initialFetchHandled.current) {
-      initialFetchHandled.current = true
-
-      return
-    }
-
     refreshServerSide()
   }, [isEnableFetching, refreshServerSide, setIsEnableFetching])
 
-  const savedGridState = useMemo(
-    () => enforceLockedLeftColumns(getValues(statePath), lockedLeftColIds),
-    []
-  ) // eslint-disable-line react-hooks/exhaustive-deps
+  const savedGridState = useMemo(() => enforceLockedLeftColumns(getValues(statePath), lockedLeftColIds), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStateUpdated = useCallback(
     (event: StateUpdatedEvent) => {
       setValue(
         statePath,
-        enforceLockedLeftColumns(event.state, lockedLeftColIds) as FieldPathValue<TFieldValues, FieldPath<TFieldValues>>,
+        enforceLockedLeftColumns(event.state, lockedLeftColIds) as FieldPathValue<
+          TFieldValues,
+          FieldPath<TFieldValues>
+        >,
         { shouldDirty: false }
       )
     },

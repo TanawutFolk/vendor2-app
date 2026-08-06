@@ -1,111 +1,83 @@
+// MUI Imports
 import Grid from '@mui/material/Grid'
-import { AxiosError, type AxiosProgressEvent } from 'axios'
-import { FormProvider, useForm } from 'react-hook-form'
+
+// React-Hook-Form Imports
+import { FormProvider, useForm, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState } from 'react'
+
+// Components Imports
+import SkeletonCustom from '@components/SkeletonCustom'
+
+// My Validate Schema Imports
+import type { FormDataPage } from './validationSchema'
+import { fetchDefaultValues, validationSchemaPage } from './validationSchema'
+
+// _template Imports
+import { DxProvider } from '@/_template/DxContextProvider'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
-import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import { useUploadBlacklist } from '@_workspace/react-query/hooks/useBlacklist'
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
-import SearchFilter from './SearchFilter'
+
+// My Components Imports
+import { breadcrumbNavigation, MENU_ID, MENU_NAME } from './env'
+import SearchFilters from './SearchFilters'
 import SearchResult from './SearchResult'
-import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
-import type { UploadBlacklistPayload } from '@_workspace/types/_black-list/BlacklistTypes'
-import type { BlacklistFormData } from './validateSchema'
-import { BlacklistSchema, defaultBlacklistValues } from './validateSchema'
 
 function Page() {
-    return (
-        <DxProvider>
-            <InnerApp />
-        </DxProvider>
-    )
+  return (
+    <DxProvider>
+      <InnerApp />
+    </DxProvider>
+  )
 }
 
 const InnerApp = () => {
-    const { setIsEnableFetching } = useDxContext()
-    const [uploadProgress, setUploadProgress] = useState(0)
+  // #region react-hook-form
+  const reactHookFormMethods = useForm<FormDataPage>({
+    resolver: zodResolver(validationSchemaPage),
+    defaultValues: async () => fetchDefaultValues(MENU_ID)
+  })
 
-    const reactHookFormMethods = useForm<BlacklistFormData>({
-        resolver: zodResolver(BlacklistSchema),
-        defaultValues: defaultBlacklistValues,
-    })
+  const { control, getValues } = reactHookFormMethods
 
-    useEffect(() => {
-        setIsEnableFetching(true)
-    }, [setIsEnableFetching])
+  const { isLoading: isLoadingReactHookForm } = useFormState({
+    control: control
+  })
 
-    const uploadMutation = useUploadBlacklist(
-        (data: any) => {
-            ToastMessageSuccess({ title: 'Blacklist', message: data?.Message || 'Blacklist updated successfully' })
-            setUploadProgress(100)
-            setIsEnableFetching(true)
-            setTimeout(() => setUploadProgress(0), 200)
-        },
-        (error: unknown) => {
-            const errorMessage = error instanceof AxiosError
-                ? (error.response?.data as { Message?: string } | undefined)?.Message || error.message
-                : error instanceof Error
-                    ? error.message
-                    : 'Blacklist update failed'
-            ToastMessageError({ title: 'Blacklist', message: errorMessage })
-        }
-    )
+  // #endregion react-hook-form
 
-    const handleUpload = (payload: UploadBlacklistPayload) => {
-        const user = getUserData()
-        const formData = new FormData()
-        const dataItem = {
-            CREATE_BY: String(user?.EMPLOYEE_CODE || 'SYSTEM'),
-            UPDATE_BY: String(user?.EMPLOYEE_CODE || 'SYSTEM'),
-        }
-
-        formData.append('file', payload.file)
-        formData.append('DATAITEM', JSON.stringify(dataItem))
-
-        setUploadProgress(0)
-        uploadMutation.mutate({
-            payload: {
-                format: payload.format,
-                formData,
-            },
-            onProgress: (progressEvent: AxiosProgressEvent) => {
-                const total = Number(progressEvent.total || 0)
-                if (!total) return
-                const nextProgress = Math.min(100, Math.round((progressEvent.loaded * 100) / total))
-                setUploadProgress(nextProgress)
-            }
-        }, {
-            onError: () => {
-                setTimeout(() => setUploadProgress(0), 200)
-            }
-        })
-    }
-
-    return (
-        <Grid container spacing={6}>
-            <FormProvider {...reactHookFormMethods}>
-                <DxWatchSearchFilters MENU_ID={MENU_ID} />
-                <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
-                    <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
-                </Grid>
-
-                <Grid item xs={12}>
-                    <SearchFilter />
-                </Grid>
-
-                <Grid item xs={12}>
-                    <SearchResult
-                        uploading={uploadMutation.isPending}
-                        uploadProgress={uploadProgress}
-                        onUpload={handleUpload}
-                    />
-                </Grid>
-            </FormProvider>
-        </Grid>
-    )
+  return (
+    <>
+      <Grid container spacing={6}>
+        <FormProvider {...reactHookFormMethods}>
+          <Grid
+            item
+            xs={12}
+            sx={{
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+            {isLoadingReactHookForm === false && (
+              <DxWatchSearchFilters
+                MENU_ID={MENU_ID}
+                searchFiltersData={{
+                  vendorName: getValues('searchFilters.vendorName'),
+                  group: getValues('searchFilters.group')
+                }}
+              />
+            )}
+          </Grid>
+          <Grid item xs={12}>
+            <SearchFilters />
+          </Grid>
+          <Grid item xs={12}>
+            {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
+          </Grid>
+        </FormProvider>
+      </Grid>
+    </>
+  )
 }
 
 export default Page

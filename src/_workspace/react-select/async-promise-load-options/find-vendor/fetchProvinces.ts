@@ -2,8 +2,8 @@ import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorSer
 
 // Types
 export interface ProvinceOption {
-    value: string
-    label: string
+  value: string
+  label: string
 }
 
 /**
@@ -12,20 +12,21 @@ export interface ProvinceOption {
  * @returns Promise<ProvinceOption[]>
  */
 export const fetchProvinces = (inputValue: string) =>
-    new Promise<ProvinceOption[]>(resolve => {
-        FindVendorServices.getProvinces()
-            .then(response => {
-                if (response.data.Status) {
-                    const filtered = response.data.ResultOnDb.filter(item =>
-                        item.label.toLowerCase().includes(inputValue.toLowerCase())
-                    )
-                    resolve(filtered)
-                } else {
-                    resolve([])
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching provinces:', error)
-                resolve([])
-            })
-    })
+  new Promise<ProvinceOption[]>(resolve => {
+    FindVendorServices.getProvinces()
+      .then(response => {
+        if (response.data.Status) {
+          const filtered = response.data.ResultOnDb.map(item => ({
+            label: item.label,
+            value: String(item.value)
+          })).filter(item => item.label.toLowerCase().includes(inputValue.toLowerCase()))
+          resolve(filtered)
+        } else {
+          resolve([])
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching provinces:', error)
+        resolve([])
+      })
+  })

@@ -1,6 +1,5 @@
-import Downloader from './downloader.tsx'
-import React, { useEffect, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import Downloader from './downloader'
+import { useState } from 'react'
 
 interface File {
   name: string
@@ -10,11 +9,11 @@ interface File {
 }
 
 const useFileDownloader = (): [(file: File) => void, JSX.Element | null] => {
-  const [files, setFiles] = useState<File & { downloadId: string }[]>([])
+  const [files, setFiles] = useState<Array<File & { downloadId: string }>>([])
 
   const download = (file: File) => {
     setFiles(fileList => {
-      return [...fileList, { ...file, downloadId: uuid() }]
+      return [...fileList, { ...file, downloadId: crypto.randomUUID() }]
     })
   }
 

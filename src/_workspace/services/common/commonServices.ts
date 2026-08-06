@@ -9,7 +9,7 @@ export default class CommonServices {
       method: 'POST'
     })
   }
-  static getImageFromUrl(URL) {
+  static getImageFromUrl(URL: object) {
     return AxiosRequest({
       url: `${CommonAPI.API_ROOT_URL}/getImageFromUrl`,
       data: URL,
@@ -25,7 +25,7 @@ export default class CommonServices {
       // responseType: 'blob'
     })
   }
-  static getImageEmployeeFromUrl(URL) {
+  static getImageEmployeeFromUrl(URL: object) {
     return AxiosRequest({
       url: `${CommonAPI.API_ROOT_URL}/getImageEmployeeFromUrl`,
       data: URL,

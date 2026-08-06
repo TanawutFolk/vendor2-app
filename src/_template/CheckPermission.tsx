@@ -28,7 +28,8 @@ export function useCheckPermission() {
 
     if (data.length === 0) return null
 
-    const rawData: MenuPermission[] = data?.[0]?.state?.data?.data?.ResultOnDbRawData ?? []
+    const menuData = data[0]?.state.data as { data?: { ResultOnDbRawData?: MenuPermission[] } } | undefined
+    const rawData = menuData?.data?.ResultOnDbRawData ?? []
 
     const matchedItem = rawData.find(item => item.APPLICATION_ID === app_id && item.MENU_ID === menu_id)
 

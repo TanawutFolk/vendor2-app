@@ -42,7 +42,7 @@ export const handleMutateSuccess = (data: any, options: MutateSuccessOptions) =>
     const isDuplicate = data?.data?.Message?.startsWith('1062')
     const message = {
       title: title,
-      message: isDuplicate ? `Duplicate ${title}` : (data?.data?.Message || 'An error occurred')
+      message: isDuplicate ? `Duplicate ${title}` : data?.data?.Message || 'An error occurred'
     }
 
     ToastMessageError(message)

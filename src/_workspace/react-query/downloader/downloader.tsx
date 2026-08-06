@@ -3,6 +3,7 @@ import '../downloader/downloader.css'
 import LinearProgress from '@mui/material/LinearProgress'
 import { Icon } from '@iconify/react'
 import Axios from 'axios'
+import type { AxiosProgressEvent } from 'axios'
 import { useEffectOnce, useUpdateEffect } from 'react-use'
 
 interface File {
@@ -50,10 +51,12 @@ const DownloadItem: React.FC<File & { removeFile: () => void }> = ({ name, file,
 
   useEffect(() => {
     const options = {
-      onDownloadProgress: (progressEvent: ProgressEvent) => {
-        const { loaded, total } = progressEvent
+      onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
+        const loaded = progressEvent.loaded
+        const total = progressEvent.total ?? 0
+
         setDownloadInfo({
-          progress: Math.floor((loaded * 100) / total),
+          progress: total > 0 ? Math.floor((loaded * 100) / total) : 0,
           loaded,
           total,
           completed: false

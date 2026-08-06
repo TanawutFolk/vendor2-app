@@ -9,7 +9,11 @@ import { Grid, Card, CardContent, Button, Typography, Divider, Box, CircularProg
 // Third-party Imports
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// Template Imports
+// My Validate Schema Imports
+import type { FormDataPage } from './validationSchema'
+import { defaultAddVendorValues, validationSchemaPage } from './validationSchema'
+
+// _template Imports
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 
 // Section Components
@@ -19,179 +23,206 @@ import { SectionCheck, SectionProfile, SectionContacts, SectionProducts } from '
 import ConfirmModal from '@components/ConfirmModal'
 
 // React Query Imports
-import { useCreateVendor } from '@_workspace/react-query/hooks/useAddVendor'
+import { useCreateVendor } from '@/_workspace/react-query/hooks/useAddVendor'
 import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
-
-// Schema & Types
-import { AddVendorSchema, defaultAddVendorValues } from './validateSchema'
-import type { AddVendorFormData } from './validateSchema'
 
 // Utils Imports
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
 
-// Env Imports
-import { MENU_NAME, breadcrumbNavigation } from './env'
+// My Components Imports
+import { breadcrumbNavigation, MENU_NAME } from './env'
 
-const AddVendorPage = () => {
-    // States
-    const [isVerified, setIsVerified] = useState(false)
-    const [confirmModal, setConfirmModal] = useState(false)
+function Page() {
+  // States
+  const [isVerified, setIsVerified] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(false)
 
-    // Hooks : react-hook-form
-    const methods = useForm<AddVendorFormData>({
-        resolver: zodResolver(AddVendorSchema),
-        defaultValues: {
-            ...defaultAddVendorValues,
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
-        },
-        mode: 'onChange'
+  // #region react-hook-form
+  const reactHookFormMethods = useForm<FormDataPage>({
+    resolver: zodResolver(validationSchemaPage),
+    defaultValues: {
+      ...defaultAddVendorValues,
+      CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
+    },
+    mode: 'onChange'
+  })
+
+  const { handleSubmit, reset, getValues } = reactHookFormMethods
+
+  // #endregion react-hook-form
+
+  // react-query
+  const { mutate: saveVendor, isPending: isSaving } = useCreateVendor(
+    (data: any) => {
+      setConfirmModal(false)
+
+      if (data?.Status) {
+        ToastMessageSuccess({ title: 'Add Vendor', message: 'Vendor added successfully' })
+        handleReset()
+      } else {
+        ToastMessageError({ title: 'Add Vendor', message: data?.Message || 'Failed to create vendor' })
+      }
+    },
+    (error: any) => {
+      ToastMessageError({ title: 'Add Vendor', message: error?.message || 'Failed to create vendor' })
+      setConfirmModal(false)
+    }
+  )
+
+  // Function
+  const handleVerifyChange = (verified: boolean) => {
+    setIsVerified(verified)
+  }
+
+  const handleReset = () => {
+    reset({
+      ...defaultAddVendorValues,
+      CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
     })
+    setIsVerified(false)
+    setConfirmModal(false)
+  }
 
-    const { handleSubmit, reset, getValues } = methods
+  const onSubmit: SubmitHandler<FormDataPage> = () => {
+    setConfirmModal(true)
+  }
 
-    // Hooks : React Query - Create Vendor
-    const { mutate: saveVendor, isPending: isSaving } = useCreateVendor(
-        (data: any) => {
-            setConfirmModal(false)
-            if (data?.Status) {
-                ToastMessageSuccess({ title: 'Add Vendor', message: 'Vendor added successfully' })
-                handleReset()
-            } else {
-                ToastMessageError({ title: 'Add Vendor', message: data?.Message || 'Failed to create vendor' })
-            }
-        },
-        (error: any) => {
-            ToastMessageError({ title: 'Add Vendor', message: error?.message || 'Failed to create vendor' })
-            setConfirmModal(false)
-        }
-    )
+  const handleAdd = () => {
+    setConfirmModal(false)
 
-    // Functions
-    const handleVerifyChange = (verified: boolean) => {
-        setIsVerified(verified)
+    const dataItem = {
+      company_name: getValues('company_name'),
+      province: getValues('province'),
+      postal_code: getValues('postal_code'),
+      country: getValues('country'),
+      vendor_type_id: getValues('vendor_type')?.value || 0,
+      vendor_region: getValues('vendor_region'),
+      website: getValues('website'),
+      tel_center: getValues('tel_center'),
+      emailmain: getValues('emailmain'),
+      address: getValues('address'),
+      note: getValues('note'),
+      CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'SYSTEM',
+      contacts: getValues('contacts').map(c => ({
+        contact_name: c.contact_name,
+        tel_phone: c.tel_phone,
+        email: c.email,
+        position: c.position
+      })),
+      // Every product field is optional, so a row the user never touched is valid but
+      // meaningless — drop it instead of inserting a blank vendor_products row.
+      products: getValues('products')
+        .filter(p =>
+          Boolean(p.product_group?.value || p.maker_name?.trim() || p.product_name?.trim() || p.model_list?.trim())
+        )
+        .map(p => ({
+          product_group_id: p.product_group?.value,
+          maker_name: p.maker_name,
+          product_name: p.product_name,
+          model_list: p.model_list
+            ? p.model_list
+                .split('\n')
+                .map(m => m.trim())
+                .filter(m => m)
+                .join(', ')
+            : ''
+        }))
     }
 
-    const handleReset = () => {
-        reset({
-            ...defaultAddVendorValues,
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'ADMIN'
-        })
-        setIsVerified(false)
-        setConfirmModal(false)
-    }
+    saveVendor(dataItem)
+  }
 
-    const onSubmit: SubmitHandler<AddVendorFormData> = () => {
-        setConfirmModal(true)
-    }
+  const isSectionsDisabled = !isVerified
 
-    const handleConfirmSave = () => {
-        setConfirmModal(false)
-        const dataItem = {
-            company_name: getValues('company_name'),
-            province: getValues('province'),
-            postal_code: getValues('postal_code'),
-            country: getValues('country'),
-            vendor_type_id: getValues('vendor_type')?.value || 0,
-            vendor_region: getValues('vendor_region'),
-            website: getValues('website'),
-            tel_center: getValues('tel_center'),
-            emailmain: getValues('emailmain'),
-            address: getValues('address'),
-            note: getValues('note'),
-            CREATE_BY: getUserData()?.EMPLOYEE_CODE || 'à¸–à¹‰à¸²à¹€à¸«à¹‡à¸™à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸™à¸µà¹‰à¸•à¸´à¸”à¸•à¹ˆà¸­à¸žà¸µà¹ˆà¸¡à¸­à¸ª',
-            contacts: getValues('contacts').map(c => ({
-                contact_name: c.contact_name,
-                tel_phone: c.tel_phone,
-                email: c.email,
-                position: c.position
-            })),
-            products: getValues('products').map(p => ({
-                product_group_id: p.product_group?.value,
-                maker_name: p.maker_name,
-                product_name: p.product_name,
-                model_list: p.model_list ? p.model_list.split('\n').map(m => m.trim()).filter(m => m).join(', ') : ''
-            }))
-        }
-        saveVendor(dataItem)
-    }
+  return (
+    <>
+      <Grid container spacing={6}>
+        <FormProvider {...reactHookFormMethods}>
+          <Grid
+            item
+            xs={12}
+            sx={{
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+          </Grid>
 
-    const isSectionsDisabled = !isVerified
+          {/* All Sections in Single Card */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                {/* Section 1: Check */}
+                <Typography variant='h5' sx={{ mb: 3 }}>
+                  1. Check Vendor Duplicate
+                </Typography>
+                <SectionCheck onVerifyChange={handleVerifyChange} isVerified={isVerified} />
 
-    return (
-        <>
-            <Grid container spacing={6}>
-                <FormProvider {...methods}>
-                    {/* Header */}
-                    <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
-                        <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
-                    </Grid>
+                <Divider sx={{ my: 4 }} />
 
-                    {/* All Sections in Single Card */}
-                    <Grid item xs={12}>
-                        <Card>
-                            <CardContent>
-                                {/* Section 1: Check */}
-                                <Typography variant='h5' sx={{ mb: 3 }}>1. Check Vendor Duplicate</Typography>
-                                <SectionCheck onVerifyChange={handleVerifyChange} isVerified={isVerified} />
+                {/* Section 2: Profile */}
+                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                  <Typography variant='h5' sx={{ mb: 3 }}>
+                    2. Vendor Profile
+                  </Typography>
+                  <SectionProfile isDisabled={isSectionsDisabled} />
+                </Box>
 
-                                <Divider sx={{ my: 4 }} />
+                <Divider sx={{ my: 4 }} />
 
-                                {/* Section 2: Profile */}
-                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                                    <Typography variant='h5' sx={{ mb: 3 }}>2. Vendor Profile</Typography>
-                                    <SectionProfile isDisabled={isSectionsDisabled} />
-                                </Box>
+                {/* Section 3: Contacts */}
+                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                  <Typography variant='h5' sx={{ mb: 3 }}>
+                    3. Contacts
+                  </Typography>
+                  <SectionContacts isDisabled={isSectionsDisabled} />
+                </Box>
 
-                                <Divider sx={{ my: 4 }} />
+                <Divider sx={{ my: 4 }} />
 
-                                {/* Section 3: Contacts */}
-                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                                    <Typography variant='h5' sx={{ mb: 3 }}>3. Contacts</Typography>
-                                    <SectionContacts isDisabled={isSectionsDisabled} />
-                                </Box>
+                {/* Section 4: Products */}
+                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
+                  <Typography variant='h5' sx={{ mb: 3 }}>
+                    4. Products
+                  </Typography>
+                  <SectionProducts isDisabled={isSectionsDisabled} />
+                </Box>
 
-                                <Divider sx={{ my: 4 }} />
+                <Divider sx={{ my: 4 }} />
 
-                                {/* Section 4: Products */}
-                                <Box sx={{ opacity: isSectionsDisabled ? 0.6 : 1 }}>
-                                    <Typography variant='h5' sx={{ mb: 3 }}>4. Products</Typography>
-                                    <SectionProducts isDisabled={isSectionsDisabled} />
-                                </Box>
+                {/* Actions */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    variant='contained'
+                    color='primary'
+                    size='large'
+                    disabled={isSaving || isSectionsDisabled}
+                    startIcon={isSaving ? <CircularProgress size={16} /> : null}
+                    onClick={handleSubmit(onSubmit)}
+                  >
+                    {isSaving ? 'Saving...' : 'Add Vendor Information'}
+                  </Button>
+                  <Button variant='tonal' color='secondary' onClick={handleReset} disabled={isSaving}>
+                    Cancel / Reset
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </FormProvider>
 
-                                <Divider sx={{ my: 4 }} />
-
-                                {/* Actions */}
-                                <Box sx={{ display: 'flex', gap: 2 }}>
-                                    <Button
-                                        variant='contained'
-                                        color='primary'
-                                        size='large'
-                                        disabled={isSaving || isSectionsDisabled}
-                                        startIcon={isSaving ? <CircularProgress size={16} /> : null}
-                                        onClick={handleSubmit(onSubmit)}
-                                    >
-                                        {isSaving ? 'Saving...' : 'Add Vendor Information'}
-                                    </Button>
-                                    <Button variant='tonal' color='secondary' onClick={handleReset} disabled={isSaving}>
-                                        Cancel / Reset
-                                    </Button>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </FormProvider>
-
-                {/* Modals */}
-                <ConfirmModal
-                    show={confirmModal}
-                    onConfirmClick={handleConfirmSave}
-                    onCloseClick={() => setConfirmModal(false)}
-                    isDelete={false}
-                    isLoading={isSaving}
-                />
-            </Grid>
-        </>
-    )
+        {/* Modals */}
+        <ConfirmModal
+          show={confirmModal}
+          onConfirmClick={handleAdd}
+          onCloseClick={() => setConfirmModal(false)}
+          isDelete={false}
+          isLoading={isSaving}
+        />
+      </Grid>
+    </>
+  )
 }
 
-export default AddVendorPage
+export default Page

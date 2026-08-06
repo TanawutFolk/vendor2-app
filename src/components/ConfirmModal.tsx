@@ -44,10 +44,11 @@ const ConfirmModal = ({ show, onConfirmClick, onCloseClick, isLoading, isDelete 
         TransitionComponent={Transition}
         onClose={(event, reason) => {
           if (reason !== 'backdropClick') {
-            onCloseClick
+            onCloseClick()
           }
         }}
         sx={{
+          zIndex: theme => theme.zIndex.modal + 10,
           '& .MuiDialog-paper': { overflow: 'visible' },
           '& .MuiDialog-container': { justifyContent: 'center', alignItems: 'flex-start' }
         }}

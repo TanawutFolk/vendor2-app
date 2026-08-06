@@ -1,153 +1,137 @@
 import { useMemo } from 'react'
-import { isIssueGprBStep, isIssueGprCStep, isPendingAgreementStep, isPicStep } from '@_workspace/utils/requestWorkflow'
-
-interface StatusOptionLike {
-    value?: string
-    label?: string
-}
+import { isIssueGprBStep, isIssueGprCStep, isPoPicInProgressStep, isPicStep } from '@/_workspace/utils/requestWorkflow'
+import type {
+  ApprovalStepStatusMasterIds,
+  WorkflowStepMasterIds
+} from '@/_workspace/utils/workflowIdentity'
+import { isApprovalStepStatusMaster } from '@/_workspace/utils/workflowIdentity'
 
 interface UseGprWorkflowLogicParams {
-    currentStep: any
-    approvalSteps: any[]
-    hasSentGprCInSession?: boolean
-    isActionable: boolean
-    isAssignedPicUser: boolean
-    isPicOwnedNegotiationStep: boolean
-    everRequestedVendor: boolean
-    gprFormFilled: boolean
-    gprEvalPassed: boolean
-    isGprBRequired: boolean
-    allowApproveBypass: boolean
-    statusOptions?: StatusOptionLike[]
-}
-
-const resolveStatusValueByKeyword = (
-    statusOptions: StatusOptionLike[] = [],
-    keyword: string,
-    fallback: string
-) => {
-    const normalizedKeyword = keyword.trim().toLowerCase()
-    const matched = statusOptions.find((so: StatusOptionLike) => {
-        const value = String(so?.value || '').trim().toLowerCase()
-        const label = String(so?.label || '').trim().toLowerCase()
-        return value.includes(normalizedKeyword) || label.includes(normalizedKeyword)
-    })
-
-    return matched?.value || fallback
+  currentStep: any
+  approvalSteps: any[]
+  hasSentGprCInSession?: boolean
+  isActionable: boolean
+  isAssignedPicUser: boolean
+  isPicOwnedNegotiationStep: boolean
+  everRequestedVendor: boolean
+  selectionFormFilled: boolean
+  gprEvalPassed: boolean
+  isGprBRequired: boolean
+  allowApproveBypass: boolean
+  workflowStepIds: WorkflowStepMasterIds
+  approvalStepStatusIds: ApprovalStepStatusMasterIds
 }
 
 const useGprWorkflowLogic = ({
-    currentStep,
+  currentStep,
+  approvalSteps,
+  hasSentGprCInSession = false,
+  isActionable,
+  isAssignedPicUser,
+  isPicOwnedNegotiationStep,
+  everRequestedVendor,
+  selectionFormFilled,
+  gprEvalPassed,
+  isGprBRequired,
+  allowApproveBypass,
+  workflowStepIds,
+  approvalStepStatusIds
+}: UseGprWorkflowLogicParams) => {
+  return useMemo(() => {
+    const isPicPostVendorStep =
+      isActionable &&
+      !!currentStep &&
+      isAssignedPicUser &&
+      (isPicStep(currentStep) || isPicOwnedNegotiationStep) &&
+      everRequestedVendor &&
+      !isPoPicInProgressStep(currentStep, workflowStepIds)
+
+    const isCurrentIssueGprBStep = !!currentStep && isIssueGprBStep(currentStep, workflowStepIds)
+    const isCurrentIssueGprCStep = !!currentStep && isIssueGprCStep(currentStep, workflowStepIds)
+    const isApproveBypassEnabled = isCurrentIssueGprBStep || allowApproveBypass
+    const isPostSendGprBFlow =
+      isCurrentIssueGprBStep || isCurrentIssueGprCStep || allowApproveBypass || hasSentGprCInSession
+
+    const gprCSteps = (approvalSteps || []).filter((step: any) => isIssueGprCStep(step, workflowStepIds))
+    const hasGprCApproved = gprCSteps.some((step: any) =>
+      isApprovalStepStatusMaster(step, approvalStepStatusIds.APPROVED)
+    )
+    const hasGprCRejected = gprCSteps.some((step: any) =>
+      isApprovalStepStatusMaster(step, approvalStepStatusIds.REJECTED)
+    )
+    const hasGprCInProgress = gprCSteps.some((step: any) =>
+      isApprovalStepStatusMaster(step, approvalStepStatusIds.IN_PROGRESS)
+    )
+    const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
+
+    const showSendToCheckerBtn = isPicPostVendorStep && isCurrentIssueGprCStep && hasGprCApproved
+    const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
+    const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
+    // Once GPR C has been sent for approval (Issue GPR C phase), the GPR C sub-workflow owns the
+    // reject decision — a GPR C rejection auto-cancels the request — so the PIC no longer needs a
+    // manual Reject button here.
+    const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow && !isCurrentIssueGprCStep
+
+    const showMissingSheetWarning = isPicPostVendorStep && !selectionFormFilled
+    const shouldEnforceGprACriteria = !isPostSendGprBFlow && !isApproveBypassEnabled
+    const showCriteriaWarning = isPicPostVendorStep && selectionFormFilled && !gprEvalPassed && shouldEnforceGprACriteria
+    const showGprCDecisionStatus = isPicPostVendorStep && isPostSendGprBFlow
+
+    const disableSendToCheckerBtn =
+      !selectionFormFilled ||
+      (!gprEvalPassed && shouldEnforceGprACriteria) ||
+      (isPostSendGprBFlow && !isCurrentIssueGprBStep && !hasGprCApproved)
+    const disableSendToVendorBtn = !selectionFormFilled || !isGprBRequired
+    const disableSendToRequesterBtn = !selectionFormFilled
+    const disableRejectBtn = false
+
+    return {
+      isPicPostVendorStep,
+      isCurrentIssueGprBStep,
+      isCurrentIssueGprCStep,
+      isPostSendGprBFlow,
+      isApproveBypassEnabled,
+      showSendToCheckerBtn,
+      showSendToVendorBtn,
+      showSendToRequesterBtn,
+      showRejectBtn,
+      showMissingSheetWarning,
+      showCriteriaWarning,
+      showGprCDecisionStatus,
+      hasGprCApproved,
+      hasGprCRejected,
+      hasGprCInProgress,
+      hasGprCSent,
+      disableSendToCheckerBtn,
+      disableSendToVendorBtn,
+      disableSendToRequesterBtn,
+      disableRejectBtn,
+      approveLabel: isCurrentIssueGprCStep
+        ? hasGprCApproved
+          ? 'Approve and Send to Doc Checker'
+          : 'Approve GPR C'
+        : isPostSendGprBFlow
+          ? 'Approve and Send to Doc Checker'
+          : 'Approve and Send to Doc Checker',
+      sendToVendorLabel: 'Send GPR B to Vendor',
+      sendToRequesterLabel: 'Send GPR C to Requester Approval',
+      rejectLabel: 'Reject'
+    }
+  }, [
     approvalSteps,
-    hasSentGprCInSession = false,
+    allowApproveBypass,
+    currentStep,
+    everRequestedVendor,
+    gprEvalPassed,
+    selectionFormFilled,
+    isGprBRequired,
+    hasSentGprCInSession,
     isActionable,
     isAssignedPicUser,
     isPicOwnedNegotiationStep,
-    everRequestedVendor,
-    gprFormFilled,
-    gprEvalPassed,
-    isGprBRequired,
-    allowApproveBypass,
-    statusOptions = [],
-}: UseGprWorkflowLogicParams) => {
-    return useMemo(() => {
-        const completedStatuses = new Set(['approved', 'completed'])
-        const rejectedStatuses = new Set(['rejected'])
-
-        const isPicPostVendorStep =
-            isActionable
-            && !!currentStep
-            && isAssignedPicUser
-            && (isPicStep(currentStep) || isPicOwnedNegotiationStep)
-            && everRequestedVendor
-            && !isPendingAgreementStep(currentStep)
-
-        const isCurrentIssueGprBStep = !!currentStep && isIssueGprBStep(currentStep)
-        const isCurrentIssueGprCStep = !!currentStep && isIssueGprCStep(currentStep)
-        const isApproveBypassEnabled = isCurrentIssueGprBStep || allowApproveBypass
-        const isPostSendGprBFlow = isCurrentIssueGprBStep || isCurrentIssueGprCStep || allowApproveBypass || hasSentGprCInSession
-
-        const issueGprBStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr b', 'Issue GPR B')
-        const issueGprCStatusValue = resolveStatusValueByKeyword(statusOptions, 'issue gpr c', 'Issue GPR C')
-        const vendorDisagreedStatusValue = resolveStatusValueByKeyword(statusOptions, 'vendor disagreed', 'Vendor Disagreed')
-        const documentCheckStatusValue =
-            resolveStatusValueByKeyword(statusOptions, 'po & scm check all document', '')
-            || resolveStatusValueByKeyword(statusOptions, 'po & scm checker', '')
-            || resolveStatusValueByKeyword(statusOptions, 'check all document', '')
-            || resolveStatusValueByKeyword(statusOptions, 'document checker', '')
-
-        const gprCSteps = (approvalSteps || []).filter((step: any) => isIssueGprCStep(step))
-        const hasGprCApproved = gprCSteps.some((step: any) => completedStatuses.has(String(step?.STEP_STATUS || '').toLowerCase()))
-        const hasGprCRejected = gprCSteps.some((step: any) => rejectedStatuses.has(String(step?.STEP_STATUS || '').toLowerCase()))
-        const hasGprCInProgress = gprCSteps.some((step: any) => ['in_progress', 'current'].includes(String(step?.STEP_STATUS || '').toLowerCase()))
-        const hasGprCSent = hasGprCApproved || hasGprCRejected || hasGprCInProgress || hasSentGprCInSession
-
-        const showSendToCheckerBtn = isPicPostVendorStep && isCurrentIssueGprCStep && hasGprCApproved
-        const showSendToVendorBtn = isPicPostVendorStep && !isPostSendGprBFlow && isGprBRequired
-        const showSendToRequesterBtn = isPicPostVendorStep && isCurrentIssueGprBStep && !hasGprCSent
-        // Once GPR C has been sent for approval (Issue GPR C phase), the GPR C sub-workflow owns the
-        // reject decision — a GPR C rejection auto-cancels the request — so the PIC no longer needs a
-        // manual Reject button here.
-        const showRejectBtn = isPicPostVendorStep && isPostSendGprBFlow && !isCurrentIssueGprCStep
-
-        const showMissingSheetWarning = isPicPostVendorStep && !gprFormFilled
-        const shouldEnforceGprACriteria = !isPostSendGprBFlow && !isApproveBypassEnabled
-        const showCriteriaWarning = isPicPostVendorStep && gprFormFilled && !gprEvalPassed && shouldEnforceGprACriteria
-        const showGprCDecisionStatus = isPicPostVendorStep && isPostSendGprBFlow
-
-        const disableSendToCheckerBtn = !gprFormFilled
-            || (!gprEvalPassed && shouldEnforceGprACriteria)
-            || (isPostSendGprBFlow && !isCurrentIssueGprBStep && !hasGprCApproved)
-        const disableSendToVendorBtn = !gprFormFilled || !isGprBRequired
-        const disableSendToRequesterBtn = !gprFormFilled
-        const disableRejectBtn = false
-
-        return {
-            isPicPostVendorStep,
-            isCurrentIssueGprBStep,
-            isCurrentIssueGprCStep,
-            isPostSendGprBFlow,
-            isApproveBypassEnabled,
-            showSendToCheckerBtn,
-            showSendToVendorBtn,
-            showSendToRequesterBtn,
-            showRejectBtn,
-            showMissingSheetWarning,
-            showCriteriaWarning,
-            showGprCDecisionStatus,
-            hasGprCApproved,
-            hasGprCRejected,
-            hasGprCInProgress,
-            hasGprCSent,
-            disableSendToCheckerBtn,
-            disableSendToVendorBtn,
-            disableSendToRequesterBtn,
-            disableRejectBtn,
-            issueGprBStatusValue,
-            issueGprCStatusValue,
-            vendorDisagreedStatusValue,
-            documentCheckStatusValue,
-            approveLabel: isCurrentIssueGprCStep
-                ? (hasGprCApproved ? 'Approve and Send to Doc Checker' : 'Approve GPR C')
-                : (isPostSendGprBFlow ? 'Approve and Send to Doc Checker' : 'Approve and Send to Doc Checker'),
-            sendToVendorLabel: 'Send GPR B to Vendor',
-            sendToRequesterLabel: 'Send GPR C to Requester Approval',
-            rejectLabel: 'Reject',
-        }
-    }, [
-        approvalSteps,
-        allowApproveBypass,
-        currentStep,
-        everRequestedVendor,
-        gprEvalPassed,
-        gprFormFilled,
-        isGprBRequired,
-        hasSentGprCInSession,
-        isActionable,
-        isAssignedPicUser,
-        isPicOwnedNegotiationStep,
-        statusOptions,
-    ])
+    workflowStepIds,
+    approvalStepStatusIds
+  ])
 }
 
 export default useGprWorkflowLogic

@@ -1,56 +1,92 @@
+// MUI Imports
 import Grid from '@mui/material/Grid'
+
+// React-Hook-Form Imports
 import { FormProvider, useForm, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useUpdateEffect } from 'react-use'
 
+// Components Imports
 import SkeletonCustom from '@components/SkeletonCustom'
+
+// My Validate Schema Imports
+import type { FormDataPage } from './validationSchema'
+import { fetchDefaultValues, validationSchemaPage } from './validationSchema'
+
+// _template Imports
+import { DxProvider } from '@/_template/DxContextProvider'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
-import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
 import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
-import type { ReRegisterFormData } from './validateSchema'
-import { ReRegisterSchema, fetchDefaultValues } from './validateSchema'
-import { MENU_ID, breadcrumbNavigation, MENU_NAME } from './env'
-import SearchFilter from './SearchFilter'
+
+// My Components Imports
+import { breadcrumbNavigation, MENU_ID, MENU_NAME } from './env'
+import SearchFilters from './SearchFilters'
 import SearchResult from './SearchResult'
 
 function Page() {
-    return (
-        <DxProvider>
-            <InnerApp />
-        </DxProvider>
-    )
+  return (
+    <DxProvider>
+      <InnerApp />
+    </DxProvider>
+  )
 }
 
 const InnerApp = () => {
-    const { setIsEnableFetching } = useDxContext()
-    const reactHookFormMethods = useForm<ReRegisterFormData>({
-        resolver: zodResolver(ReRegisterSchema),
-        defaultValues: fetchDefaultValues
-    })
+  // #region react-hook-form
+  const reactHookFormMethods = useForm<FormDataPage>({
+    resolver: zodResolver(validationSchemaPage),
+    defaultValues: async () => fetchDefaultValues(MENU_ID)
+  })
 
-    const { control } = reactHookFormMethods
-    const { isLoading: isLoadingReactHookForm } = useFormState({ control })
+  const { control, getValues } = reactHookFormMethods
 
-    useUpdateEffect(() => {
-        setIsEnableFetching(true)
-    }, [isLoadingReactHookForm])
+  const { isLoading: isLoadingReactHookForm } = useFormState({
+    control: control
+  })
 
-    return (
-        <Grid container spacing={6}>
-            <FormProvider {...reactHookFormMethods}>
-                <DxWatchSearchFilters MENU_ID={MENU_ID} />
-                <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
-                    <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
-                </Grid>
-                <Grid item xs={12}>
-                    <SearchFilter />
-                </Grid>
-                <Grid item xs={12}>
-                    {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
-                </Grid>
-            </FormProvider>
-        </Grid>
-    )
+  // #endregion react-hook-form
+
+  return (
+    <>
+      <Grid container spacing={6}>
+        <FormProvider {...reactHookFormMethods}>
+          <Grid
+            item
+            xs={12}
+            sx={{
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+            {isLoadingReactHookForm === false && (
+              <DxWatchSearchFilters
+                MENU_ID={MENU_ID}
+                searchFiltersData={{
+                  globalSearch: getValues('searchFilters.globalSearch'),
+                  companyName: getValues('searchFilters.companyName'),
+                  vendorTypeId: getValues('searchFilters.vendorTypeId'),
+                  province: getValues('searchFilters.province'),
+                  productGroupId: getValues('searchFilters.productGroupId'),
+                  status: getValues('searchFilters.status'),
+                  inuse: getValues('searchFilters.inuse'),
+                  productName: getValues('searchFilters.productName'),
+                  makerName: getValues('searchFilters.makerName'),
+                  modelList: getValues('searchFilters.modelList'),
+                  fftVendorCode: getValues('searchFilters.fftVendorCode')
+                }}
+              />
+            )}
+          </Grid>
+          <Grid item xs={12}>
+            <SearchFilters />
+          </Grid>
+          <Grid item xs={12}>
+            {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
+          </Grid>
+        </FormProvider>
+      </Grid>
+    </>
+  )
 }
 
 export default Page

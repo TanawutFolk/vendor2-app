@@ -1,5 +1,5 @@
 const AssigneesAPI = {
-    API_ROOT_URL: 'assignees'
+  API_ROOT_URL: 'assignees'
 }
 
 export default AssigneesAPI

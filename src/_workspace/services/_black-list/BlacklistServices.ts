@@ -1,47 +1,34 @@
-import { AxiosProgressEvent, AxiosResponse } from 'axios'
-import axiosRequest from '@/libs/axios/axiosRequest'
-import BlacklistAPI from '@_workspace/api/_black-list/BlacklistAPI'
+import type { AxiosProgressEvent } from 'axios'
 
-export interface BlacklistResponseI<T = unknown> {
-    Status: boolean
-    ResultOnDb: T
-    TotalCountOnDb: number
-    MethodOnDb: string
-    Message: string
-}
+import BlacklistAPI from '@/_workspace/api/_black-list/BlacklistAPI'
+import axiosRequest from '@/libs/axios/axiosRequest'
 
 export default class BlacklistServices {
-    static search(data: Record<string, unknown>): Promise<AxiosResponse<BlacklistResponseI<Record<string, unknown>[]>>> {
-        return axiosRequest<BlacklistResponseI<Record<string, unknown>[]>>({
-            url: `${BlacklistAPI.API_ROOT_URL}/search`,
-            data,
-            method: 'POST',
-        })
-    }
+  static search(BlacklistProperty: object) {
+    return axiosRequest({
+      url: `${BlacklistAPI.API_ROOT_URL}/search`,
+      method: 'POST',
+      data: BlacklistProperty
+    })
+  }
 
-    static importFileUS(
-        formData: FormData,
-        onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-    ): Promise<AxiosResponse<BlacklistResponseI<Record<string, unknown>>>> {
-        return axiosRequest<BlacklistResponseI<Record<string, unknown>>>({
-            url: `${BlacklistAPI.API_ROOT_URL}/us/import`,
-            data: formData,
-            method: 'POST',
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress,
-        })
-    }
+  static importFileUS(formData: FormData, onUploadProgress?: (progressEvent: AxiosProgressEvent) => void) {
+    return axiosRequest({
+      url: `${BlacklistAPI.API_ROOT_URL}/us/import`,
+      method: 'POST',
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress
+    })
+  }
 
-    static importFileCN(
-        formData: FormData,
-        onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-    ): Promise<AxiosResponse<BlacklistResponseI<Record<string, unknown>>>> {
-        return axiosRequest<BlacklistResponseI<Record<string, unknown>>>({
-            url: `${BlacklistAPI.API_ROOT_URL}/cn/import`,
-            data: formData,
-            method: 'POST',
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress,
-        })
-    }
+  static importFileCN(formData: FormData, onUploadProgress?: (progressEvent: AxiosProgressEvent) => void) {
+    return axiosRequest({
+      url: `${BlacklistAPI.API_ROOT_URL}/cn/import`,
+      method: 'POST',
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress
+    })
+  }
 }

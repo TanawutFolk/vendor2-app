@@ -1,40 +1,62 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
-import ApprovalQueueServices from '@_workspace/services/_approval-queue/ApprovalQueueServices'
-import AccRegisterServices from '@_workspace/services/_Acc-register/AccRegisterServices'
+import RegisterRequestServices from '@/_workspace/services/_register-request/RegisterRequestServices'
+import ApprovalQueueServices from '@/_workspace/services/_approval-queue/ApprovalQueueServices'
+import AccRegisterServices from '@/_workspace/services/_Acc-register/AccRegisterServices'
 
 export const PREFIX_QUERY_KEY = 'REQUEST_REGISTER'
 
 export const REQUEST_DETAIL_QUERY_KEY = [PREFIX_QUERY_KEY, 'requestDetail'] as const
 
 export const fetchRequestDetail = async (requestId: number) => {
-    const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
-    const payload = response.data
-    if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
-        throw new Error(payload?.Message || 'Failed to load request detail')
-    }
-    return payload.ResultOnDb
+  const response = await ApprovalQueueServices.getById({ REQUEST_REGISTER_VENDOR_ID: requestId })
+  const payload = response.data
+  if (!payload?.Status || !payload.ResultOnDb || typeof payload.ResultOnDb !== 'object') {
+    throw new Error(payload?.Message || 'Failed to load request detail')
+  }
+  return payload.ResultOnDb
 }
 
 export const requestDetailQueryOptions = (requestId: number) => ({
-    queryKey: [...REQUEST_DETAIL_QUERY_KEY, requestId],
-    queryFn: () => fetchRequestDetail(requestId),
-    staleTime: 30_000,
+  queryKey: [...REQUEST_DETAIL_QUERY_KEY, requestId],
+  queryFn: () => fetchRequestDetail(requestId),
+  staleTime: 30_000
 })
+
+const createRegisterRequest = async (payload: FormData) => {
+  const response = await RegisterRequestServices.create(payload)
+
+  if (!response.data?.Status) {
+    throw new Error(response.data?.Message || 'Failed to create registration request')
+  }
+
+  return response.data
+}
+
+type CreateRegisterRequestResult = Awaited<ReturnType<typeof createRegisterRequest>>
+
+export const useCreateRegisterRequest = (
+  onSuccess?: (data: CreateRegisterRequestResult, variables: FormData) => unknown,
+  onError?: (error: Error, variables: FormData) => unknown
+) =>
+  useMutation({
+    mutationFn: createRegisterRequest,
+    onSuccess,
+    onError
+  })
 
 // Fetch (with react-query caching) the full detail of a request; the
 // invalidate helper is used after saving a sub-form (e.g. Selection Sheet)
 // so every open panel refetches in place.
 export const useRequestDetailFetcher = () => {
-    const queryClient = useQueryClient()
+  const queryClient = useQueryClient()
 
-    return {
-        fetchDetail: (requestId: number) => queryClient.fetchQuery(requestDetailQueryOptions(requestId)),
-        invalidateDetail: (requestId?: number) =>
-            queryClient.invalidateQueries({
-                queryKey: requestId ? [...REQUEST_DETAIL_QUERY_KEY, requestId] : [...REQUEST_DETAIL_QUERY_KEY],
-            }),
-    }
+  return {
+    fetchDetail: (requestId: number) => queryClient.fetchQuery(requestDetailQueryOptions(requestId)),
+    invalidateDetail: (requestId?: number) =>
+      queryClient.invalidateQueries({
+        queryKey: requestId ? [...REQUEST_DETAIL_QUERY_KEY, requestId] : [...REQUEST_DETAIL_QUERY_KEY]
+      })
+  }
 }
 
 // Thin wrappers (prototype pattern): the caller owns toast via the onSuccess /
@@ -42,80 +64,113 @@ export const useRequestDetailFetcher = () => {
 // a vendor-registration request's lifecycle.
 
 export const useSaveGprCNotification = (onSuccess?: any, onError?: any) => {
-    return useMutation({
-        mutationFn: async (payload: any) => {
-            const response = await RegisterRequestServices.saveGprCNotification({
-                REQUEST_REGISTER_VENDOR_ID: payload.request_id,
-                GPR_C_DATA: payload.gpr_c_data,
-                CREATE_BY: payload.CREATE_BY,
-                UPDATE_BY: payload.UPDATE_BY
-            })
-            if (!response.data?.Status) {
-                throw new Error(response.data?.Message || 'Save failed')
-            }
-            return response.data
-        },
-        onSuccess,
-        onError
-    })
+  return useMutation({
+    mutationFn: async (payload: any) => {
+      const response = await RegisterRequestServices.saveGprCNotification({
+        REQUEST_REGISTER_VENDOR_ID: payload.request_id,
+        GPR_C_DATA: payload.gpr_c_data,
+        CREATE_BY: payload.CREATE_BY,
+        UPDATE_BY: payload.UPDATE_BY
+      })
+      if (!response.data?.Status) {
+        throw new Error(response.data?.Message || 'Save failed')
+      }
+      return response.data
+    },
+    onSuccess,
+    onError
+  })
 }
 
-export const useSaveGprFormMutation = (onSuccess?: any, onError?: any) => {
-    return useMutation({
-        mutationFn: async (payload: any) => {
-            const response = await RegisterRequestServices.saveGprForm({
-                REQUEST_REGISTER_VENDOR_ID: payload.request_id,
-                GPR_DATA: payload.gpr_data,
-                CREATE_BY: payload.CREATE_BY,
-                UPDATE_BY: payload.UPDATE_BY
-            })
-            if (!response.data?.Status) {
-                throw new Error(response.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet')
-            }
-            return response.data
-        },
-        onSuccess,
-        onError
-    })
+export const useSaveSelectionFormMutation = (onSuccess?: any, onError?: any) => {
+  return useMutation({
+    mutationFn: async (payload: any) => {
+      const response = await RegisterRequestServices.saveSelectionForm({
+        REQUEST_REGISTER_VENDOR_ID: payload.request_id,
+        SELECTION_FORM_DATA: payload.selection_form_data,
+        CREATE_BY: payload.CREATE_BY,
+        UPDATE_BY: payload.UPDATE_BY
+      })
+      if (!response.data?.Status) {
+        throw new Error(response.data?.Message || 'Failed to save Supplier / Outsourcing Selection Sheet')
+      }
+      return response.data
+    },
+    onSuccess,
+    onError
+  })
+}
+
+export const useSaveAccountVendorCodeMutation = (onSuccess?: any, onError?: any) => {
+  return useMutation({
+    mutationFn: async (payload: any) => {
+      const response = await RegisterRequestServices.saveAccountVendorCode({
+        REQUEST_REGISTER_VENDOR_ID: payload.request_id,
+        VENDOR_CODE: payload.vendor_code,
+        UPDATE_BY: payload.UPDATE_BY
+      })
+      if (!response.data?.Status) {
+        throw new Error(response.data?.Message || 'Failed to save Vendor Code')
+      }
+      return response.data
+    },
+    onSuccess,
+    onError
+  })
 }
 
 export const useAddDocumentMutation = (onSuccess?: any, onError?: any) => {
-    return useMutation({
-        mutationFn: async (payload: FormData) => {
-            const response = await RegisterRequestServices.addDocument(payload)
-            if (!response.data.Status) {
-                throw new Error(response.data.Message || 'Upload failed')
-            }
-            return response.data
-        },
-        onSuccess,
-        onError
-    })
+  return useMutation({
+    mutationFn: async (payload: FormData) => {
+      const response = await RegisterRequestServices.addDocument(payload)
+      if (!response.data.Status) {
+        throw new Error(response.data.Message || 'Upload failed')
+      }
+      return response.data
+    },
+    onSuccess,
+    onError
+  })
 }
 
+export const useDeleteSelectionDocumentMutation = (onSuccess?: any, onError?: any) =>
+  useMutation({
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const response = await RegisterRequestServices.deleteSelectionDocument(payload)
+
+      if (!response.data?.Status) {
+        throw new Error(response.data?.Message || 'Failed to delete file')
+      }
+
+      return response.data
+    },
+    onSuccess,
+    onError
+  })
+
 const updateRequest = async (payload: any) => {
-    const res = await RegisterRequestServices.updateRequest(payload)
-    return res.data
+  const res = await RegisterRequestServices.updateRequest(payload)
+  return res.data
 }
 
 export const useUpdateRequest = (onSuccess: any, onError: any) => {
-    return useMutation({ mutationFn: updateRequest, onSuccess, onError })
+  return useMutation({ mutationFn: updateRequest, onSuccess, onError })
 }
 
 const updateStatus = async (payload: any) => {
-    const res = await ApprovalQueueServices.updateStatus(payload)
-    return res.data
+  const res = await ApprovalQueueServices.updateStatus(payload)
+  return res.data
 }
 
 export const useUpdateRequestStatus = (onSuccess: any, onError: any) => {
-    return useMutation({ mutationFn: updateStatus, onSuccess, onError })
+  return useMutation({ mutationFn: updateStatus, onSuccess, onError })
 }
 
 const completeRegistration = async (payload: any) => {
-    const res = await AccRegisterServices.completeRegistration(payload)
-    return res.data
+  const res = await AccRegisterServices.completeRegistration(payload)
+  return res.data
 }
 
 export const useCompleteRegistration = (onSuccess: any, onError: any) => {
-    return useMutation({ mutationFn: completeRegistration, onSuccess, onError })
+  return useMutation({ mutationFn: completeRegistration, onSuccess, onError })
 }

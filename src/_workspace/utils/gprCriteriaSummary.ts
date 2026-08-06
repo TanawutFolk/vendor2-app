@@ -4,6 +4,7 @@ type RawCriterion = {
   criteria?: string
   remark?: string
   uploaded_file?: string
+  files?: unknown[]
 }
 
 export type GprCriteriaIssue = {
@@ -40,12 +41,12 @@ const DETAIL_BY_NO: Record<string, string> = {
   '4.11': 'Advised by Customer, Parent Company or Manager up',
   '4.12': 'Low Price',
   '4.13': 'Document to request for Automatic Account Transfer',
-  '4.14': 'Other',
+  '4.14': 'Other'
 }
 
 const DECISION_CRITERIA = new Set(['4.3'])
-const NEED_UPLOAD_CRITERIA = new Set(['4.1', '4.2', '4.4', '4.5', '4.11'])
-const OPTIONAL_CRITERIA = new Set(['4.6', '4.7', '4.8', '4.9', '4.10', '4.12', '4.13'])
+const NEED_UPLOAD_CRITERIA = new Set(['4.1', '4.2', '4.4', '4.5'])
+const OPTIONAL_CRITERIA = new Set(['4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13'])
 const OPTIONAL_REQUIRED_COUNT = 3
 
 const normalizeText = (value: unknown) => String(value || '').trim()
@@ -60,7 +61,13 @@ const isExplicitAccept = (remark: string) =>
 const isUploaded = (value: unknown) => normalizeText(value).length > 0
 
 const buildReason = (
-  row: { no: string; remark: string; uploadedFile: boolean; explicitNotAccept: boolean; criteriaType: 'Need' | 'Optional' },
+  row: {
+    no: string
+    remark: string
+    uploadedFile: boolean
+    explicitNotAccept: boolean
+    criteriaType: 'Need' | 'Optional'
+  },
   optionalUploadedCount: number
 ) => {
   if (row.explicitNotAccept) {
@@ -82,17 +89,19 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
   const normalizedRows = (Array.isArray(rows) ? rows : []).map(row => {
     const no = normalizeText(row?.no)
     const remark = normalizeText(row?.remark)
-    const uploadedFile = isUploaded(row?.uploaded_file)
+    const uploadedFile = isUploaded(row?.uploaded_file) || Boolean(Array.isArray(row?.files) && row.files.length)
     const normalizedRemark = normalizeRemark(remark)
 
     return {
       no,
       detail: normalizeText(row?.detail) || DETAIL_BY_NO[no] || '-',
-      criteriaType: (DECISION_CRITERIA.has(no) || NEED_UPLOAD_CRITERIA.has(no) ? 'Need' : 'Optional') as 'Need' | 'Optional',
+      criteriaType: (DECISION_CRITERIA.has(no) || NEED_UPLOAD_CRITERIA.has(no) ? 'Need' : 'Optional') as
+        | 'Need'
+        | 'Optional',
       remark,
       uploadedFile,
       explicitNotAccept: isExplicitNotAccept(normalizedRemark),
-      explicitAccept: isExplicitAccept(normalizedRemark),
+      explicitAccept: isExplicitAccept(normalizedRemark)
     }
   })
 
@@ -113,22 +122,23 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
       reason: buildReason(row, optionalUploadedCount),
       remark: row.remark,
       uploadedFile: row.uploadedFile,
-      explicitNotAccept: row.explicitNotAccept,
+      explicitNotAccept: row.explicitNotAccept
     }))
 
-  const unresolvedOptional = optionalShortfall > 0
-    ? optionalRows
-      .filter(row => !row.uploadedFile || row.explicitNotAccept)
-      .map(row => ({
-        no: row.no,
-        detail: row.detail,
-        criteriaType: 'Optional' as const,
-        reason: buildReason(row, optionalUploadedCount),
-        remark: row.remark,
-        uploadedFile: row.uploadedFile,
-        explicitNotAccept: row.explicitNotAccept,
-      }))
-    : []
+  const unresolvedOptional =
+    optionalShortfall > 0
+      ? optionalRows
+          .filter(row => !row.uploadedFile || row.explicitNotAccept)
+          .map(row => ({
+            no: row.no,
+            detail: row.detail,
+            criteriaType: 'Optional' as const,
+            reason: buildReason(row, optionalUploadedCount),
+            remark: row.remark,
+            uploadedFile: row.uploadedFile,
+            explicitNotAccept: row.explicitNotAccept
+          }))
+      : []
 
   const items = [...unresolvedRequired, ...unresolvedOptional]
   const hasIssues = items.length > 0
@@ -147,7 +157,7 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
     unresolvedOptional,
     items,
     optionalUploadedCount,
-    optionalShortfall,
+    optionalShortfall
   }
 }
 

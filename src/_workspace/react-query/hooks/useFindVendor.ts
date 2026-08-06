@@ -1,85 +1,27 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
-import type { AxiosResponse } from 'axios'
+import { useQuery } from '@tanstack/react-query'
 
-import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import { EditVendorUtils } from '@_workspace/services/_find-vendor/utils/EditVendorUtils'
-import type {
-    FindVendorSearchRequestI,
-    FindVendorApiResponseI,
-    VendorResultI,
-    VendorComprehensiveI,
-    UpdateVendorParamsI,
-    VendorContactI,
-    VendorProductI
-} from '@_workspace/types/_find-vendor/FindVendorTypes'
+import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
+import type { VendorComprehensiveI } from '@/_workspace/types/vendor/VendorTypes'
 
 export const PREFIX_QUERY_KEY = 'FIND_VENDOR'
 
-export const useSearch = (params: FindVendorSearchRequestI, enabled: boolean = true) => {
-    return useQuery<AxiosResponse<FindVendorApiResponseI<VendorResultI[]>>, Error>({
-        queryKey: [PREFIX_QUERY_KEY, params],
-        queryFn: () => FindVendorServices.search({
-            SEARCHFILTERS: params.SearchFilters,
-            COLUMNFILTERS: params.ColumnFilters,
-            ORDER: params.Order,
-            START: params.Start,
-            LIMIT: params.Limit
-        }),
-        placeholderData: keepPreviousData,
-        enabled: enabled
-    })
-}
+export const useFindVendorDetail = (vendorId: number | null, enabled: boolean) =>
+  useQuery({
+    queryKey: [PREFIX_QUERY_KEY, 'DETAIL', vendorId],
+    queryFn: async (): Promise<VendorComprehensiveI> => {
+      if (!vendorId) throw new Error('Vendor ID is required')
 
-// Raw /getVendorDetails row (UPPER keys + CONTACTS/PRODUCTS arrays), cached per vendor.
-export const rawVendorDetailQueryOptions = (vendorId: number) => ({
-    queryKey: [PREFIX_QUERY_KEY, 'RAW_DETAIL', vendorId],
-    queryFn: async () => {
-        const response = await FindVendorServices.getVendorDetails({ VENDORS_ID: vendorId })
-        if (!response.data?.Status || !response.data?.ResultOnDb) {
-            throw new Error(response.data?.Message || 'Failed to load vendor details')
-        }
-        return response.data.ResultOnDb
+      const response = await FindVendorServices.getVendorDetail({ VENDORS_ID: vendorId })
+      if (!response.data?.Status || !response.data?.ResultOnDb) {
+        throw new Error(response.data?.Message || 'Failed to load vendor details')
+      }
+
+      return response.data.ResultOnDb
     },
     staleTime: 30_000,
-})
-
-export const getVendorDetailQueryConfig = (vendorId: number | null) => ({
-    queryKey: [PREFIX_QUERY_KEY, 'DETAIL', vendorId],
-    queryFn: async () => {
-        if (!vendorId) return null
-        return await EditVendorUtils.getComprehensiveByVendorId(vendorId)
-    },
-    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
-})
-
-export const useGetVendor = (vendorId: number | null, enabled?: boolean) => {
-    return useQuery<
-        {
-            vendor: VendorResultI,
-            contacts: VendorContactI[],
-            products: VendorProductI[],
-            comprehensive: VendorComprehensiveI
-        } | null,
-        Error
-    >({
-        ...getVendorDetailQueryConfig(vendorId),
-        enabled: enabled !== undefined ? enabled : !!vendorId,
-    })
-}
-
-const updateVendorBatch = async (dataItem: UpdateVendorParamsI) => {
-    return EditVendorUtils.updateComprehensive(dataItem)
-}
-
-// Thin wrapper (prototype pattern): the caller owns toast via onSuccess / onError.
-export const useUpdateVendor = (onSuccess?: any, onError?: any) => {
-    return useMutation({
-        mutationFn: updateVendorBatch,
-        onSuccess,
-        onError
-    })
-}
+    enabled: enabled && !!vendorId
+  })

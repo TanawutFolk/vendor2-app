@@ -1,60 +1,85 @@
-import { Grid } from '@mui/material'
+// MUI Imports
+import Grid from '@mui/material/Grid'
+
+// React-Hook-Form Imports
 import { FormProvider, useForm, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useUpdateEffect } from 'react-use'
+
+// Components Imports
 import SkeletonCustom from '@components/SkeletonCustom'
+
+// My Validate Schema Imports
+import type { FormDataPage } from './validationSchema'
+import { fetchDefaultValues, validationSchemaPage } from './validationSchema'
+
+// _template Imports
+import { DxProvider } from '@/_template/DxContextProvider'
 import DxBreadCrumbs from '@/_template/DxBreadCrumbs'
 import DxWatchSearchFilters from '@/_template/DxWatchSearchFilters'
-import { DxProvider, useDxContext } from '@/_template/DxContextProvider'
-import { MENU_ID, MENU_NAME, breadcrumbNavigation } from './env'
-import SearchFilter from './SearchFilter'
+
+// My Components Imports
+import { breadcrumbNavigation, MENU_ID, MENU_NAME } from './env'
+import SearchFilters from './SearchFilters'
 import SearchResult from './SearchResult'
-import { ApprovalGprCSchema, fetchDefaultValues, type ApprovalGprCFormData } from './validateSchema'
 
 function Page() {
-    return (
-        <DxProvider>
-            <InnerApp />
-        </DxProvider>
-    )
+  return (
+    <DxProvider>
+      <InnerApp />
+    </DxProvider>
+  )
 }
 
 const InnerApp = () => {
-    const { setIsEnableFetching } = useDxContext()
+  // #region react-hook-form
+  const reactHookFormMethods = useForm<FormDataPage>({
+    resolver: zodResolver(validationSchemaPage),
+    defaultValues: async () => fetchDefaultValues(MENU_ID)
+  })
 
-    const reactHookFormMethods = useForm<ApprovalGprCFormData>({
-        resolver: zodResolver(ApprovalGprCSchema),
-        defaultValues: fetchDefaultValues,
-    })
+  const { control, getValues } = reactHookFormMethods
 
-    const { control } = reactHookFormMethods
-    const { isLoading: isLoadingReactHookForm } = useFormState({ control })
+  const { isLoading: isLoadingReactHookForm } = useFormState({
+    control: control
+  })
 
-    useUpdateEffect(() => {
-        setIsEnableFetching(true)
-    }, [isLoadingReactHookForm, setIsEnableFetching])
+  // #endregion react-hook-form
 
-    return (
+  return (
+    <>
+      <Grid container spacing={6}>
         <FormProvider {...reactHookFormMethods}>
-            <DxWatchSearchFilters
+          <Grid
+            item
+            xs={12}
+            sx={{
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
+            {isLoadingReactHookForm === false && (
+              <DxWatchSearchFilters
                 MENU_ID={MENU_ID}
-                watchPaths={['searchResults.approvalGridState', 'searchResults.actionRequiredGridState']}
-            />
-            <Grid container spacing={6}>
-                <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
-                    <DxBreadCrumbs menuName={MENU_NAME} breadcrumbNavigation={breadcrumbNavigation} />
-                </Grid>
-
-                <Grid item xs={12}>
-                    <SearchFilter />
-                </Grid>
-
-                <Grid item xs={12}>
-                    {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
-                </Grid>
-            </Grid>
+                searchFiltersData={{
+                  requestNumber: getValues('searchFilters.requestNumber'),
+                  vendorName: getValues('searchFilters.vendorName'),
+                  stepKeyword: getValues('searchFilters.stepKeyword'),
+                  overallStatus: getValues('searchFilters.overallStatus')
+                }}
+              />
+            )}
+          </Grid>
+          <Grid item xs={12}>
+            <SearchFilters />
+          </Grid>
+          <Grid item xs={12}>
+            {isLoadingReactHookForm ? <SkeletonCustom /> : <SearchResult />}
+          </Grid>
         </FormProvider>
-    )
+      </Grid>
+    </>
+  )
 }
 
 export default Page

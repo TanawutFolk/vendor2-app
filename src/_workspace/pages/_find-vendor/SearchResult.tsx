@@ -1,481 +1,527 @@
-'use client'
-
 // React Imports
-import { useCallback, useRef, useState, useMemo } from 'react'
+import { useCallback, useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 // MUI Imports
-import { Button, Menu, MenuItem, ListItemIcon, ListItemText, CircularProgress, Chip } from '@mui/material'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  Chip
+} from '@mui/material'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 
 // AG Grid Imports
-import type { ColDef, Column, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community'
+import type { ColDef, Column, IServerSideDatasource, IServerSideGetRowsRequest } from 'ag-grid-community'
 
 // Common AG Grid Table
 import DxAGgridTable from '@/_template/DxAGgridTable'
+import { useDxContext } from '@/_template/DxContextProvider'
 
 // File Saver
 import { saveAs } from 'file-saver'
 
 // React Hook Form
 import { useFormContext } from 'react-hook-form'
-import { useQueryClient } from '@tanstack/react-query'
-
-// Axios
-import RegisterRequestServices from '@_workspace/services/_register-request/RegisterRequestServices'
 
 // Utils
-import { getUserData } from '@/utils/user-profile/userLoginProfile'
-
 // Services & Types
-import FindVendorServices from '@_workspace/services/_find-vendor/FindVendorServices'
-import { rawVendorDetailQueryOptions } from '@_workspace/react-query/hooks/useFindVendor'
-import type { FindVendorFormData } from './validateSchema'
+import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
+import { PREFIX_QUERY_KEY, useFindVendorDetail } from '@/_workspace/react-query/hooks/useFindVendor'
+import type { FormDataPage } from './validationSchema'
 
-// Context
-import { useDxContext } from '@/_template/DxContextProvider'
-import useDxServerSideGrid from '@_workspace/hooks/useDxServerSideGrid'
+// Components Imports
+import useDxServerSideGrid from '@/_workspace/hooks/useDxServerSideGrid'
 
 // Custom Cell Renderers
-import ActionCellRenderer from './components/ActionCellRenderer'
-import { StatusCheckCellRenderer } from './components/fftStatus'
+import ActionCellRenderer from '@/_workspace/components/vendor/components/ActionCellRenderer'
+import { VendorStatusCellRenderer } from '@/_workspace/components/vendor/components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer'
-import VendorDetailsModal from './modal/VendorDetailsModal'
-import RegisterConfirmModal from './register-request/RegisterConfirmModal'
-import SearchResultCard from '@_workspace/components/search/SearchResultCard'
-import { getChipSx, getRegionTone } from '@_workspace/utils/statusChipStyles'
+import VendorDetailsModal from '@/_workspace/components/vendor/modal/VendorDetailsModal'
+import EditVendorModal from '@/_workspace/components/vendor/modal/EditVendorModal'
+import RegisterConfirmModal from '@/_workspace/components/vendor/modal/register-request/RegisterConfirmModal'
+import RegistrationQueueDialog from './modal/RegistrationQueueDialog'
+import { getChipSx, getRegionTone } from '@/_workspace/utils/statusChipStyles'
+import useVendorStatusIdentity from '@/_workspace/hooks/useVendorStatusIdentity'
+import { isVendorStatusMaster } from '@/_workspace/utils/vendorStatusIdentity'
 
-import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
+import { ToastMessageError } from '@/components/ToastMessage'
 
-const SearchResult = () => {
-    const queryClient = useQueryClient()
-    const { getValues, setValue } = useFormContext<FindVendorFormData>()
+const buildVendorSearchFilters = (filters: FormDataPage['searchFilters']) => [
+  { id: 'global_search', value: filters?.globalSearch || '' },
+  { id: 'COMPANY_NAME', value: filters?.companyName || '' },
+  { id: 'COUNTRY', value: filters?.country || '' },
+  { id: 'MASTER_VENDOR_TYPES_ID', value: filters?.vendorTypeId?.value || null },
+  { id: 'PROVINCE', value: filters?.province?.value || '' },
+  { id: 'MASTER_PRODUCT_GROUPS_ID', value: filters?.productGroupId?.value || null },
+  { id: 'M_VENDOR_STATUS_ID', value: filters?.status?.value ?? null },
+  { id: 'PRODUCT_NAME', value: filters?.productName || '' },
+  { id: 'MAKER_NAME', value: filters?.makerName || '' },
+  { id: 'MODEL_LIST', value: filters?.modelList || '' },
+  { id: 'FFT_VENDOR_CODE', value: filters?.fftVendorCode || '' },
+  { id: 'INUSE', value: filters?.inuse?.value ?? null }
+]
 
-    const gridApiRef = useRef<any>(null)
-    const [detailsModalOpen, setDetailsModalOpen] = useState(false)
-    const [selectedRowData, setSelectedRowData] = useState<any>(null)
+const buildParamForSearch = (
+  filters: FormDataPage['searchFilters'],
+  request: IServerSideGetRowsRequest
+) => {
+  const { startRow, endRow, sortModel } = request
+  const limit = (endRow ?? 20) - (startRow ?? 0)
 
-    // Export Excel states
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-    const [isExporting, setIsExporting] = useState(false)
-    const openExportMenu = Boolean(anchorEl)
+  return {
+    SEARCHFILTERS: buildVendorSearchFilters(filters),
+    ColumnFilters: [],
+    Order: sortModel?.length
+      ? sortModel.map(item => ({ id: item.colId, desc: item.sort === 'desc' }))
+      : [{ id: 'COMPANY_NAME', desc: false }],
+    Start: startRow ?? 0,
+    Limit: limit
+  }
+}
 
-    // DxContext: set true by Search/Clear button
-    const { isEnableFetching, setIsEnableFetching } = useDxContext()
-    const { savedGridState, handleGridReady, handleStateUpdated } = useDxServerSideGrid({
-        getValues,
-        setValue,
-        isEnableFetching,
-        setIsEnableFetching
-    })
+function SearchResult() {
+  // Context
+  const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Server-Side Datasource Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-    const datasource = useMemo<IServerSideDatasource>(() => ({
-        getRows: async (params) => {
-            try {
-                const { startRow, endRow } = params.request
-                const limit = (endRow ?? 20) - (startRow ?? 0)
+  const { getValues, setValue } = useFormContext<FormDataPage>()
+  const queryClient = useQueryClient()
+  const { vendorStatusIds } = useVendorStatusIdentity()
 
-                const currentFilters = getValues('searchFilters')
+  // States : Modal
+  // Edit Vendor (menu action) — restricted to "Not Registered" vendors, see canEditVendor below.
+  const [openModalEdit, setOpenModalEdit] = useState<boolean>(false)
+  const [openModalView, setOpenModalView] = useState<boolean>(false)
+  const [openModalRegister, setOpenModalRegister] = useState<boolean>(false)
+  const [openModalQueue, setOpenModalQueue] = useState<boolean>(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+  const [requestsAhead, setRequestsAhead] = useState<number | null>(null)
+  const shouldLoadDetail = openModalView || openModalEdit || openModalRegister
+  const vendorDetailQuery = useFindVendorDetail(selectedVendorId, shouldLoadDetail)
 
-                // Build Order from AG Grid sort model
-                const sortModel = params.request.sortModel
-                const orderParams = sortModel && sortModel.length > 0
-                    ? sortModel.map((s: any) => ({ id: s.colId, desc: s.sort === 'desc' }))
-                    : [{ id: 'COMPANY_NAME', desc: false }]
+  // Export Excel states
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const openExportMenu = Boolean(anchorEl)
 
-                const res = await FindVendorServices.search({
-                    SEARCHFILTERS: [
-                        { id: 'global_search', value: currentFilters?.global_search || '' },
-                        { id: 'COMPANY_NAME', value: currentFilters?.company_name || '' },
-                        { id: 'COUNTRY', value: currentFilters?.country || '' },
-                        { id: 'MASTER_VENDOR_TYPES_ID', value: currentFilters?.vendor_type_id?.value || null },
-                        { id: 'PROVINCE', value: currentFilters?.province?.value || '' },
-                        { id: 'MASTER_PRODUCT_GROUPS_ID', value: currentFilters?.product_group_id?.value || null },
-                        { id: 'status', value: currentFilters?.status?.value || '' },
-                        { id: 'PRODUCT_NAME', value: currentFilters?.product_name || '' },
-                        { id: 'MAKER_NAME', value: currentFilters?.maker_name || '' },
-                        { id: 'MODEL_LIST', value: currentFilters?.model_list || '' },
-                        { id: 'PRONES_CODE', value: currentFilters?.fft_vendor_code || '' },
-                        { id: 'INUSE', value: currentFilters?.inuse?.value ?? null }
-                    ],
-                    ColumnFilters: [],
-                    Order: orderParams,
-                    Start: startRow ?? 0,
-                    Limit: limit
-                })
+  const { gridApiRef, savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
+    getValues,
+    setValue,
+    isEnableFetching,
+    setIsEnableFetching
+  })
 
-                const result = res?.data
-                if (result?.Status) {
-                    // Option A: backend returns UPPER-cased column keys directly;
-                    // the grid/detail/register modals read those keys as-is.
-                    const rowData = result.ResultOnDb || []
-                    // A block shorter than requested means the data ran out; clamp rowCount
-                    // to what actually exists so the grid never re-requests missing rows.
-                    const totalCount = Number(result.TotalCountOnDb) || 0
-                    const rowCount = rowData.length < limit ? (startRow ?? 0) + rowData.length : totalCount
-                    params.success({ rowData, rowCount })
-                } else {
-                    params.fail()
-                }
-            } catch {
-                params.fail()
-            }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), []) // getValues is a stable ref Ã¢â‚¬â€ no need to re-create datasource
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Column State Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-    // Read saved state once on mount Ã¢â‚¬â€ AG Grid restores it via initialState prop
-
-    // Persist to RHF whenever AG Grid state changes (sort, pin, reorder, hide)
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Export helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-    const buildSearchFilters = () => {
-        const f = getValues('searchFilters')
-        return [
-            { id: 'global_search',   value: f?.global_search || '' },
-            { id: 'COMPANY_NAME',    value: f?.company_name || '' },
-            { id: 'COUNTRY',         value: f?.country || '' },
-            { id: 'MASTER_VENDOR_TYPES_ID',  value: f?.vendor_type_id?.value || null },
-            { id: 'PROVINCE',        value: f?.province?.value || '' },
-            { id: 'MASTER_PRODUCT_GROUPS_ID',value: f?.product_group_id?.value || null },
-            { id: 'status',          value: f?.status?.value || '' },
-            { id: 'PRODUCT_NAME',    value: f?.product_name || '' },
-            { id: 'MAKER_NAME',      value: f?.maker_name || '' },
-            { id: 'MODEL_LIST',      value: f?.model_list || '' },
-            { id: 'PRONES_CODE',     value: f?.fft_vendor_code || '' },
-            { id: 'INUSE',           value: f?.inuse?.value ?? null }
-        ]
-    }
-
-    const buildTimestamp = () => {
-        const now = new Date()
-        const pad = (n: number) => n.toString().padStart(2, '0')
-        return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-    }
-
-    const buildSortModel = () => gridApiRef.current?.getColumnState()
-        ?.filter((c: any) => c.sort)
-        ?.map((c: any) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
-
-    // The grid's own visible columns, in display order (respects hide / reorder / pin), so the
-    // exported sheet matches the screen. `empty` is whatever the column's valueFormatter renders
-    // for a blank cell (e.g. '-'), asked of the formatter itself rather than duplicated here.
-    const buildExportColumns = () => (gridApiRef.current?.getAllDisplayedColumns() || [])
-        .map((column: Column) => column.getColDef())
-        .filter((colDef: ColDef) => Boolean(colDef.field) && colDef.field !== 'actions')
-        .map((colDef: ColDef) => {
-            let empty = ''
-
-            if (typeof colDef.valueFormatter === 'function') {
-                try {
-                    empty = String(colDef.valueFormatter({ value: null } as any) ?? '')
-                } catch {
-                    empty = ''
-                }
-            }
-
-            return {
-                id: colDef.field as string,
-                header: colDef.headerName || (colDef.field as string),
-                empty,
-                width: colDef.width ?? 140
-            }
-        })
-
-    // Vendor ids of the rows on the page the user is looking at, in display order.
-    const getCurrentPageVendorIds = () => {
-        const api = gridApiRef.current
-        if (!api) return []
-
-        const pageSize = api.paginationGetPageSize()
-        const firstRow = api.paginationGetCurrentPage() * pageSize
-        const ids: number[] = []
-
-        for (let i = firstRow; i < firstRow + pageSize; i++) {
-            const vendorId = Number((api.getDisplayedRowAtIndex(i)?.data as any)?.VENDORS_ID || 0)
-            if (vendorId && !ids.includes(vendorId)) ids.push(vendorId)
-        }
-
-        return ids
-    }
-
-    // Both exports go through the same API endpoint so the workbook layout (title row,
-    // headers, column order) is identical — only the row scope differs.
-    const handleExportCurrentPage = async () => {
-        setAnchorEl(null)
-        const vendorIds = getCurrentPageVendorIds()
-
-        if (vendorIds.length === 0) {
-            ToastMessageError({ title: 'Export Vendor', message: 'No rows on this page to export.' })
-            return
-        }
-
-        setIsExporting(true)
+  // ── Server-Side Datasource ────────────────────────────────────────────────
+  const datasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async params => {
         try {
-            const file = await FindVendorServices.downloadFileForExport({
-                DATAFORFETCH: {
-                    SEARCHFILTERS: buildSearchFilters(),
-                    COLUMNFILTERS: [],
-                    ORDER: buildSortModel(),
-                    COLUMNS: buildExportColumns(),
-                    VENDOR_IDS: vendorIds
-                },
-                TYPE: 'currentPage'
-            })
-            saveAs(file.data, `Vendor_List_${buildTimestamp()}.xlsx`)
+          const payload = buildParamForSearch(getValues('searchFilters'), params.request)
+          const res = await FindVendorServices.search(payload)
+
+          const result = res?.data
+          if (result?.Status) {
+            // Option A: backend returns UPPER-cased column keys directly;
+            // the grid/detail/register modals read those keys as-is.
+            const rowData = result.ResultOnDb || []
+            // A block shorter than requested means the data ran out; clamp rowCount
+            // to what actually exists so the grid never re-requests missing rows.
+            const totalCount = Number(result.TotalCountOnDb) || 0
+            const rowCount = rowData.length < payload.Limit ? payload.Start + rowData.length : totalCount
+            params.success({ rowData, rowCount })
+          } else {
+            params.fail()
+          }
         } catch {
-            ToastMessageError({
-                title: 'Export Vendor',
-                message: 'Export failed. Please try again.'
-            })
-        } finally {
-            setIsExporting(false)
+          params.fail()
         }
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }),
+    [getValues]
+  ) // getValues is a stable ref — no need to re-create datasource
+
+  // ── Column State Persistence ──────────────────────────────────────────────
+  // Read saved state once on mount — AG Grid restores it via initialState prop
+
+  // Persist to RHF whenever AG Grid state changes (sort, pin, reorder, hide)
+
+  // ── Export helpers ────────────────────────────────────────────────────────
+  const buildTimestamp = () => {
+    const now = new Date()
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  }
+
+  const buildSortModel = () =>
+    gridApiRef.current
+      ?.getColumnState()
+      ?.filter((c: any) => c.sort)
+      ?.map((c: any) => ({ id: c.colId, desc: c.sort === 'desc' })) || []
+
+  // The grid's own visible columns, in display order (respects hide / reorder / pin), so the
+  // exported sheet matches the screen. `empty` is whatever the column's valueFormatter renders
+  // for a blank cell (e.g. '-'), asked of the formatter itself rather than duplicated here.
+  const buildExportColumns = () =>
+    (gridApiRef.current?.getAllDisplayedColumns() || [])
+      .map((column: Column) => column.getColDef())
+      .filter((colDef: ColDef) => Boolean(colDef.field) && colDef.field !== 'actions')
+      .map((colDef: ColDef) => {
+        let empty = ''
+
+        if (typeof colDef.valueFormatter === 'function') {
+          try {
+            empty = String(colDef.valueFormatter({ value: null } as any) ?? '')
+          } catch {
+            empty = ''
+          }
+        }
+
+        return {
+          id: colDef.field as string,
+          header: colDef.headerName || (colDef.field as string),
+          empty,
+          width: colDef.width ?? 140
+        }
+      })
+
+  // Vendor ids of the rows on the page the user is looking at, in display order.
+  const getCurrentPageVendorIds = () => {
+    const api = gridApiRef.current
+    if (!api) return []
+
+    const pageSize = api.paginationGetPageSize()
+    const firstRow = api.paginationGetCurrentPage() * pageSize
+    const ids: number[] = []
+
+    for (let i = firstRow; i < firstRow + pageSize; i++) {
+      const vendorId = Number((api.getDisplayedRowAtIndex(i)?.data as any)?.VENDORS_ID || 0)
+      if (vendorId && !ids.includes(vendorId)) ids.push(vendorId)
     }
 
-    const handleExportAllData = async () => {
-        setIsExporting(true)
-        setAnchorEl(null)
-        try {
-            const file = await FindVendorServices.downloadFileForExport({
-                DATAFORFETCH: {
-                    SEARCHFILTERS: buildSearchFilters(),
-                    COLUMNFILTERS: [],
-                    ORDER: buildSortModel(),
-                    COLUMNS: buildExportColumns()
-                },
-                TYPE: 'AllPage'
-            })
-            saveAs(file.data, `Vendor_List_All_${buildTimestamp()}.xlsx`)
-        } catch {
-            ToastMessageError({
-                title: 'Export Vendor',
-                message: 'Export failed. Please try again.'
-            })
-        } finally {
-            setIsExporting(false)
-        }
+    return ids
+  }
+
+  // Both exports go through the same API endpoint so the workbook layout (title row,
+  // headers, column order) is identical — only the row scope differs.
+  const handleExportCurrentPage = async () => {
+    setAnchorEl(null)
+    const vendorIds = getCurrentPageVendorIds()
+
+    if (vendorIds.length === 0) {
+      ToastMessageError({ title: 'Export Vendor', message: 'No rows on this page to export.' })
+      return
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Edit / Register handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-    const mergeVendorDetails = useCallback((row: any, details: any) => ({
-        ...row,
-        ...details,
-        VENDORS_ID: details?.VENDORS_ID ?? row?.VENDORS_ID
-    }), [])
+    setIsExporting(true)
+    try {
+      const file = await FindVendorServices.downloadFileForExport({
+        DATAFORFETCH: {
+          SEARCHFILTERS: buildVendorSearchFilters(getValues('searchFilters')),
+          COLUMNFILTERS: [],
+          ORDER: buildSortModel(),
+          COLUMNS: buildExportColumns(),
+          VENDOR_IDS: vendorIds
+        },
+        TYPE: 'currentPage'
+      })
+      saveAs(file.data, `Vendor_List_${buildTimestamp()}.xlsx`)
+    } catch {
+      ToastMessageError({
+        title: 'Export Vendor',
+        message: 'Export failed. Please try again.'
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
-    const loadVendorDetails = useCallback(async (row: any, fallbackVendorId?: number) => {
-        const vendorId = Number(row?.VENDORS_ID ?? fallbackVendorId ?? 0)
-        if (!vendorId) return row
+  const handleExportAllData = async () => {
+    setIsExporting(true)
+    setAnchorEl(null)
+    try {
+      const file = await FindVendorServices.downloadFileForExport({
+        DATAFORFETCH: {
+          SEARCHFILTERS: buildVendorSearchFilters(getValues('searchFilters')),
+          COLUMNFILTERS: [],
+          ORDER: buildSortModel(),
+          COLUMNS: buildExportColumns()
+        },
+        TYPE: 'AllPage'
+      })
+      saveAs(file.data, `Vendor_List_All_${buildTimestamp()}.xlsx`)
+    } catch {
+      ToastMessageError({
+        title: 'Export Vendor',
+        message: 'Export failed. Please try again.'
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
-        try {
-            const details = await queryClient.fetchQuery(rawVendorDetailQueryOptions(vendorId))
-            return mergeVendorDetails(row, details)
-        } catch (error: any) {
-            ToastMessageError({
-                title: 'Vendor Details',
-                message: error?.message || 'Failed to load vendor details'
-            })
-            return row
-        }
-    }, [mergeVendorDetails, queryClient])
-    const handleEditClick = useCallback((vendorId: number, data: any) => {
-        setSelectedRowData(data)
-        setDetailsModalOpen(true)
-        void loadVendorDetails(data, vendorId)
-            .then(setSelectedRowData)
-            .catch((error: unknown) => {
-                ToastMessageError({
-                    title: 'Vendor Details',
-                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
-                })
-            })
-    }, [loadVendorDetails])
+  // ── Edit / Register handlers ──────────────────────────────────────────────
 
-    const handleCloseSelection = useCallback(() => {
-        setDetailsModalOpen(false)
-        setSelectedRowData(null)
-    }, [])
+  const handleEditClick = useCallback((vendorId: number) => {
+    setSelectedVendorId(vendorId)
+    setOpenModalView(true)
+  }, [])
 
-    const [registerModalOpen, setRegisterModalOpen] = useState(false)
-    const [selectedRegisterVendor, setSelectedRegisterVendor] = useState<any>(null)
+  const handleCloseSelection = useCallback(() => {
+    setOpenModalView(false)
+    setOpenModalEdit(false)
+    setSelectedVendorId(null)
+  }, [])
 
-    const handleRegisterClick = useCallback((vendorId: number, data: any) => {
-        setSelectedRegisterVendor(data)
-        setRegisterModalOpen(true)
-        void loadVendorDetails(data, vendorId)
-            .then(setSelectedRegisterVendor)
-            .catch((error: unknown) => {
-                ToastMessageError({
-                    title: 'Vendor Details',
-                    message: error instanceof Error ? error.message : 'Failed to load vendor details'
-                })
-            })
-    }, [loadVendorDetails])
+  // Only vendors whose current system status is Not Registered may be edited.
+  const canEditVendor = useCallback(
+    (data: any) => isVendorStatusMaster(data, vendorStatusIds.NOT_REGISTERED),
+    [vendorStatusIds.NOT_REGISTERED]
+  )
 
-    const handleConfirmRegister = async (formData?: any) => {
-        if (!selectedRegisterVendor) return
-        try {
-            const payload = new FormData()
-            const selectedContactIds = Array.isArray(formData?.vendorContactIds) ? formData.vendorContactIds : []
-
-            payload.append('VENDORS_ID', String(selectedRegisterVendor.VENDORS_ID))
-            payload.append('VENDOR_CONTACTS_ID', selectedContactIds[0] || '')
-            selectedContactIds.forEach((contactId: string) => {
-                payload.append('VENDOR_CONTACT_IDS[]', contactId)
-            })
-            payload.append('SUPPORT_TYPE', formData?.supportType || '')
-            payload.append('PURCHASE_FREQUENCY', formData?.purchaseFreq || '')
-            payload.append('REQUEST_BY_EMPLOYEECODE', getUserData()?.EMPLOYEE_CODE || '')
-            payload.append('REQUEST_BY_EMAIL', getUserData()?.EMAIL || '')
-            payload.append('CREATE_BY', getUserData()?.EMPLOYEE_CODE || 'UNEXPECTED_MISSING_USER_CODE_CONTACT_S524')
-            if (formData?.files && Array.isArray(formData.files)) {
-                formData.files.forEach((file: File) => payload.append('files', file))
-            }
-            const response = await RegisterRequestServices.create(payload)
-            if (response.data?.Status) {
-                ToastMessageSuccess({ 
-                    title: 'Registration Request',
-                    message: response.data?.Message || 'Registration request created successfully' 
-                })
-                setRegisterModalOpen(false)
-                setSelectedRegisterVendor(null)
-            } else {
-                ToastMessageError({ 
-                    title: 'Registration Request',
-                    message: response.data?.Message || 'Failed to create registration request' 
-                })
-            }
-        } catch (error: any) {
-            ToastMessageError({ 
-                title: 'Registration Request',
-                message: error?.message || 'Failed to create registration request' 
-            })
-            console.error('Failed to create registration request:', error)
-        }
+  const handleVendorEditClick = useCallback((vendorId: number, data: any) => {
+    if (!vendorId || !data) {
+      ToastMessageError({ title: 'Edit Vendor', message: 'Cannot open Edit. Vendor data is not ready.' })
+      return
     }
 
-    // â”€â”€ Column Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const columnDefs = useMemo<ColDef[]>(() => [
-        {
-            headerName: 'Actions',
-            field: 'actions',
-            width: 94,
-            pinned: 'left',
-            cellRenderer: ActionCellRenderer,
-            cellRendererParams: {
-                onEditClick: handleEditClick,
-                onRegisterClick: handleRegisterClick,
-                showMoreActions: false
-            },
-            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
-            sortable: false,
-            filter: false,
-            floatingFilter: false,
-            suppressMovable: true
+    setSelectedVendorId(vendorId)
+    setOpenModalEdit(true)
+  }, [])
+
+  const handleEditSuccess = useCallback(() => {
+    refreshServerSide()
+    if (selectedVendorId) {
+      void queryClient.invalidateQueries({ queryKey: [PREFIX_QUERY_KEY, 'DETAIL', selectedVendorId] })
+    }
+    handleCloseSelection()
+  }, [handleCloseSelection, queryClient, refreshServerSide, selectedVendorId])
+
+  const handleCloseRegisterModal = useCallback(() => {
+    setOpenModalRegister(false)
+    setSelectedVendorId(null)
+  }, [])
+
+  const handleCloseQueueModal = useCallback(() => {
+    setOpenModalQueue(false)
+    setRequestsAhead(null)
+  }, [])
+
+  const handleRegisterClick = useCallback((vendorId: number) => {
+    setSelectedVendorId(vendorId)
+    setOpenModalRegister(true)
+  }, [])
+
+  // ── Column Definitions ──────────────────────────────────────────────────────────────────
+  const columnDefs = useMemo<ColDef[]>(
+    () => [
+      {
+        headerName: 'Actions',
+        field: 'actions',
+        width: 126,
+        pinned: 'left',
+        cellRenderer: ActionCellRenderer,
+        cellRendererParams: {
+          onEditClick: handleEditClick,
+          onRegisterClick: handleRegisterClick,
+          onVendorEditClick: handleVendorEditClick,
+          vendorStatusIds,
+          canEdit: canEditVendor,
+          editDisabledReason: 'Only "Not Registered" vendors can be edited'
         },
-        { field: 'COMPANY_NAME',    headerName: 'Company Name',  width: 290, filter: 'agTextColumnFilter', pinned: 'left' },
-        {
-            field: 'STATUS_CHECK',   headerName: 'Prones Status', width: 140, filter: 'agTextColumnFilter', pinned: 'left',
-            cellRenderer: StatusCheckCellRenderer,
-            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
-        },
-        { field: 'PRONES_CODE',     headerName: 'Prones Code',   width: 105, filter: 'agTextColumnFilter', pinned: 'left', valueFormatter: (p) => p.value || '-' },
-        { field: 'VENDOR_TYPE_NAME',headerName: 'Vendor Type',   width: 150, filter: 'agTextColumnFilter' },
-        {
-            field: 'VENDOR_REGION', headerName: 'Region', width: 110, filter: 'agTextColumnFilter',
-            cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
-            cellRenderer: (params: any) => {
-                const val = params.value
-                if (!val) return <span style={{ color: '#9e9e9e' }}>â€”</span>
-                const tone = getRegionTone(val)
-                return (
-                    <Chip
-                        size="small"
-                        label={val === 'Oversea' ? 'Oversea' : 'Local'}
-                        color={val === 'Oversea' ? 'info' : 'success'}
-                        sx={getChipSx(tone, { height: 22 })}
-                    />
-                )
-            }
-        },
-        { field: 'COUNTRY',      headerName: 'Country',       width: 150, filter: 'agTextColumnFilter', valueFormatter: (p) => p.value || '-' },
-        { field: 'PROVINCE',     headerName: 'Province',      width: 150, filter: 'agTextColumnFilter' },
-        { field: 'EMAILMAIN',    headerName: 'Email (Main)',   width: 220, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer },
-        { field: 'GROUP_NAME',   headerName: 'Product group', width: 165, filter: 'agTextColumnFilter' },
-        { field: 'MAKER_NAME',   headerName: 'Maker Name',    width: 150, filter: 'agTextColumnFilter' },
-        { field: 'PRODUCT_NAME', headerName: 'Product Name',  width: 180, filter: 'agTextColumnFilter' },
-        { field: 'MODEL_LIST',   headerName: 'Model List',    width: 180, filter: 'agTextColumnFilter', valueFormatter: (p) => p.value ? p.value.replace(/\n/g, ', ') : '' },
-        { field: 'CONTACT_NAME', headerName: 'Contact Name',  width: 180, filter: 'agTextColumnFilter' },
-        { field: 'TEL_PHONE',    headerName: 'Tel. Contact',  width: 125, filter: 'agTextColumnFilter' },
-        { field: 'EMAIL',        headerName: 'Email Contact', width: 250, filter: 'agTextColumnFilter', cellRenderer: EmailCellRenderer }
-    ], [handleEditClick, handleRegisterClick])
-
-    return (
-        <SearchResultCard action={
-            <>
-                <Button
-                    variant='outlined'
-                    color='primary'
-                    startIcon={isExporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
-                    onClick={(e) => setAnchorEl(e.currentTarget)}
-                    disabled={isExporting}
-                    sx={{ borderRadius: '20px' }}
-                >
-                    {isExporting ? 'Exporting...' : 'Export to Excel'}
-                </Button>
-                <Menu anchorEl={anchorEl} open={openExportMenu} onClose={() => setAnchorEl(null)}>
-                    <MenuItem onClick={handleExportCurrentPage} disabled={isExporting}>
-                        <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
-                        <ListItemText>Export Current Page</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={handleExportAllData} disabled={isExporting}>
-                        <ListItemIcon><FileDownloadIcon fontSize='small' /></ListItemIcon>
-                        <ListItemText>Export All</ListItemText>
-                    </MenuItem>
-                </Menu>
-            </>
-        }>
-            <DxAGgridTable
-                columnDefs={columnDefs}
-                serverSideDatasource={datasource}
-                height={600}
-                boxSx={{ p: 2 }}
-                context={{
-                    onEditClick: handleEditClick,
-                    onRegisterClick: handleRegisterClick
-                }}
-                initialState={savedGridState}
-                onStateUpdated={handleStateUpdated}
-                onGridReady={(params: GridReadyEvent) => {
-                    handleGridReady(params)
-                    gridApiRef.current = params.api
-                }}
-                overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
-                getRowId={(params: any) => {
-                    const vendorId   = params.data.VENDORS_ID || 0
-                    const productId  = params.data.VENDOR_PRODUCTS_ID || 0
-                    const contactId  = params.data.VENDOR_CONTACTS_ID || 0
-                    return `${vendorId}_${productId}_${contactId}`
-                }}
+        cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
+        sortable: false,
+        filter: false,
+        floatingFilter: false,
+        suppressMovable: true
+      },
+      { field: 'COMPANY_NAME', headerName: 'Company Name', width: 290, pinned: 'left' },
+      {
+        field: 'VENDOR_STATUS_LABEL',
+        headerName: 'Vendor Status',
+        width: 140,
+        pinned: 'left',
+        cellRenderer: VendorStatusCellRenderer,
+        cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
+      },
+      {
+        field: 'FFT_VENDOR_CODE',
+        headerName: 'Vendor Code',
+        width: 105,
+        pinned: 'left',
+        valueFormatter: p => p.value || '-'
+      },
+      { field: 'VENDOR_TYPE_NAME', headerName: 'Vendor Type', width: 150 },
+      {
+        field: 'VENDOR_REGION',
+        headerName: 'Trade Term',
+        width: 120,
+        cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
+        cellRenderer: (params: any) => {
+          const val = params.value
+          if (!val) return <span style={{ color: '#9e9e9e' }}>—</span>
+          const tone = getRegionTone(val)
+          return (
+            <Chip
+              size='small'
+              label={val === 'Oversea' ? 'Oversea' : 'Local'}
+              color={val === 'Oversea' ? 'info' : 'success'}
+              sx={getChipSx(tone, { height: 22 })}
             />
+          )
+        }
+      },
+      {
+        field: 'COUNTRY',
+        headerName: 'Country',
+        width: 150,
+        valueFormatter: p => p.value || '-'
+      },
+      { field: 'PROVINCE', headerName: 'Province', width: 150 },
+      {
+        field: 'EMAILMAIN',
+        headerName: 'Email (Main)',
+        width: 220,
+        cellRenderer: EmailCellRenderer
+      },
+      { field: 'GROUP_NAME', headerName: 'Product group', width: 165 },
+      { field: 'MAKER_NAME', headerName: 'Maker Name', width: 150 },
+      { field: 'PRODUCT_NAME', headerName: 'Product Name', width: 180 },
+      {
+        field: 'MODEL_LIST',
+        headerName: 'Model List',
+        width: 180,
+        valueFormatter: p => (p.value ? p.value.replace(/\n/g, ', ') : '')
+      },
+      { field: 'CONTACT_NAME', headerName: 'Contact Name', width: 180 },
+      { field: 'TEL_PHONE', headerName: 'Tel. Contact', width: 125 },
+      {
+        field: 'EMAIL',
+        headerName: 'Email Contact',
+        width: 250,
+        cellRenderer: EmailCellRenderer
+      }
+    ],
+    [handleEditClick, handleRegisterClick, handleVendorEditClick, canEditVendor, vendorStatusIds]
+  )
 
-            <VendorDetailsModal
-                open={detailsModalOpen}
-                onClose={handleCloseSelection}
-                data={selectedRowData}
-            />
+  return (
+    <Card>
+      <CardHeader
+        title='Search Result'
+        titleTypographyProps={{ variant: 'h5' }}
+        action={
+          <>
+            <Button
+              variant='outlined'
+              color='primary'
+              startIcon={isExporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+              onClick={e => setAnchorEl(e.currentTarget)}
+              disabled={isExporting}
+              sx={{ borderRadius: '20px' }}
+            >
+              {isExporting ? 'Exporting...' : 'Export to Excel'}
+            </Button>
+            <Menu anchorEl={anchorEl} open={openExportMenu} onClose={() => setAnchorEl(null)}>
+              <MenuItem onClick={handleExportCurrentPage} disabled={isExporting}>
+                <ListItemIcon>
+                  <FileDownloadIcon fontSize='small' />
+                </ListItemIcon>
+                <ListItemText>Export Current Page</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleExportAllData} disabled={isExporting}>
+                <ListItemIcon>
+                  <FileDownloadIcon fontSize='small' />
+                </ListItemIcon>
+                <ListItemText>Export All</ListItemText>
+              </MenuItem>
+            </Menu>
+          </>
+        }
+      />
+      <CardContent>
+        <DxAGgridTable
+          columnDefs={columnDefs}
+          serverSideDatasource={datasource}
+          height={600}
+          boxSx={{ p: 2 }}
+          context={{
+            onEditClick: handleEditClick,
+            onRegisterClick: handleRegisterClick,
+            onVendorEditClick: handleVendorEditClick,
+            vendorStatusIds
+          }}
+          initialState={savedGridState}
+          onStateUpdated={handleStateUpdated}
+          onGridReady={handleGridReady}
+          overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">No vendors found</span>'
+          getRowId={(params: any) => {
+            const vendorId = params.data.VENDORS_ID || 0
+            const productId = params.data.VENDOR_PRODUCTS_ID || 0
+            const contactId = params.data.VENDOR_CONTACTS_ID || 0
+            return `${vendorId}_${productId}_${contactId}`
+          }}
+        />
 
-            <RegisterConfirmModal
-                open={registerModalOpen}
-                vendorData={selectedRegisterVendor}
-                onClose={() => { setRegisterModalOpen(false); setSelectedRegisterVendor(null) }}
-                onConfirm={handleConfirmRegister}
-            />
+        {openModalView ? (
+          <VendorDetailsModal
+            open={openModalView}
+            onClose={handleCloseSelection}
+            data={vendorDetailQuery.data}
+            loading={vendorDetailQuery.isFetching && !vendorDetailQuery.data}
+            errorMessage={vendorDetailQuery.error?.message}
+          />
+        ) : null}
 
-        </SearchResultCard>
-    )
+        {openModalEdit ? (
+          <EditVendorModal
+            open={openModalEdit}
+            onClose={handleCloseSelection}
+            vendorId={selectedVendorId}
+            rowData={vendorDetailQuery.data}
+            loading={vendorDetailQuery.isFetching && !vendorDetailQuery.data}
+            errorMessage={vendorDetailQuery.error?.message}
+            updateRequest={FindVendorServices.updateComprehensive}
+            vendorTypesRequest={FindVendorServices.getVendorTypes}
+            countriesRequest={FindVendorServices.getCountries}
+            productGroupsRequest={FindVendorServices.getProductGroups}
+            onSuccess={handleEditSuccess}
+          />
+        ) : null}
+
+        {openModalRegister ? (
+          <RegisterConfirmModal
+            open={openModalRegister}
+            vendorData={vendorDetailQuery.data}
+            loading={vendorDetailQuery.isFetching && !vendorDetailQuery.data}
+            errorMessage={vendorDetailQuery.error?.message}
+            onClose={handleCloseRegisterModal}
+            onSuccess={data => {
+              setRequestsAhead(Number(data.ResultOnDb?.REQUESTS_AHEAD || 0))
+              setOpenModalQueue(true)
+              setOpenModalRegister(false)
+              setSelectedVendorId(null)
+              refreshServerSide()
+            }}
+          />
+        ) : null}
+
+        {openModalQueue ? (
+          <RegistrationQueueDialog
+            open={openModalQueue}
+            requestsAhead={requestsAhead}
+            onClose={handleCloseQueueModal}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  )
 }
 
 export default SearchResult

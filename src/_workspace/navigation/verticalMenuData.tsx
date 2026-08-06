@@ -25,10 +25,16 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
     href: '/add-vendor'
   },
   {
-    label: dictionary['navigation'].requestHistory,
+    label: dictionary['navigation'].myrequestHistory,
     icon: 'tabler-history',
     id: 534,
     href: '/request-register-history'
+  },
+  {
+    label: dictionary['navigation'].allRequestHistory,
+    icon: 'tabler-list-details',
+    id: 547,
+    href: '/all-request-history'
   },
   {
     label: dictionary['navigation'].reRegister,

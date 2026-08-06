@@ -16,6 +16,8 @@ import type { IconButtonProps } from '@mui/material/IconButton'
 import type { MenuItemProps } from '@mui/material/MenuItem'
 import type { DividerProps } from '@mui/material/Divider'
 import type { BoxProps } from '@mui/material/Box'
+import type { PaperProps } from '@mui/material/Paper'
+import type { PopperProps } from '@mui/material/Popper'
 import type { TooltipProps } from '@mui/material/Tooltip'
 
 export type OptionDividerType = {
@@ -46,4 +48,13 @@ export type OptionsMenuType = {
   options: OptionType[]
   leftAlignMenu?: boolean
   iconButtonProps?: IconButtonProps
+  /**
+   * Escape a clipping ancestor by rendering the popper in a portal. Required inside an
+   * AG Grid cell, which sets `overflow: hidden` and would otherwise cut the menu off.
+   */
+  usePortal?: boolean
+  /** Escape hatch for the underlying Popper (placement, zIndex, modifiers, ...). */
+  popperProps?: Partial<Omit<PopperProps, 'open' | 'anchorEl' | 'children'>>
+  /** Style the menu surface (min width, radius, ...). */
+  paperProps?: PaperProps
 }
