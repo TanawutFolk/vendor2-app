@@ -1,4 +1,4 @@
-import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
+import ReRegisterServices from '@/_workspace/services/_Re-register/ReRegisterServices'
 import type { CountryI } from '@/_workspace/types/vendor/VendorTypes'
 
 export interface CountryOption extends CountryI {}
@@ -9,7 +9,7 @@ const fetchCountries = (inputValue: string) =>
       INFO_COUNTRY_NAME: inputValue
     }
 
-    FindVendorServices.getCountries(param)
+    ReRegisterServices.getCountries(param)
       .then(responseJson => {
         resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
       })

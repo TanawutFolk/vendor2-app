@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import React, { useCallback, useRef } from 'react'
+import React from 'react'
 
 // MUI Imports
 import {
@@ -37,7 +37,6 @@ import VendorModalHeaderBar from './components/VendorModalHeaderBar'
 import VendorModalFooterActions from './components/VendorModalFooterActions'
 import ConfirmModal from '@/components/ConfirmModal'
 
-import type { DropdownItemI } from '@/_workspace/types/vendor/VendorTypes'
 import { useEditVendorForm } from './useEditVendorForm'
 import type { EditVendorModalProps } from '@/_workspace/types/vendor/VendorTypes'
 import useVendorStatusIdentity from '@/_workspace/hooks/useVendorStatusIdentity'
@@ -51,12 +50,11 @@ const EditVendorModal = ({
   loading: detailLoading = false,
   errorMessage,
   updateRequest,
-  vendorTypesRequest,
-  countriesRequest,
-  productGroupsRequest,
+  fetchVendorTypes,
+  fetchCountries,
+  fetchProductGroups,
   onSuccess: onSaveSuccess
 }: EditVendorModalProps) => {
-  const vendorTypesCacheRef = useRef<DropdownItemI[] | null>(null)
   const { vendorStatusIds } = useVendorStatusIdentity()
 
   const {
@@ -95,56 +93,6 @@ const EditVendorModal = ({
   })
 
   const loading = detailLoading || formLoading
-
-  const fetchVendorTypes = useCallback(async (inputValue: string) => {
-    try {
-      if (!vendorTypesCacheRef.current) {
-        const response = await vendorTypesRequest()
-        vendorTypesCacheRef.current = response.data.Status ? response.data.ResultOnDb : []
-      }
-
-      const keyword = inputValue.toLowerCase()
-      return vendorTypesCacheRef.current.filter(item => item.label.toLowerCase().includes(keyword))
-    } catch (error) {
-      console.error('Error fetching vendor types:', error)
-      return []
-    }
-  }, [vendorTypesRequest])
-
-
-  const fetchCountries = useCallback(
-    async (inputValue: string) => {
-      try {
-        const response = await countriesRequest()
-        if (!response.data.Status) return []
-
-        const keyword = inputValue.trim().toLowerCase()
-        return response.data.ResultOnDb.map(item => ({ ...item, value: String(item.value) })).filter(
-          item => !keyword || item.label.toLowerCase().includes(keyword)
-        )
-      } catch {
-        return []
-      }
-    },
-    [countriesRequest]
-  )
-
-  const fetchProductGroups = useCallback(
-    async (inputValue: string) => {
-      try {
-        const response = await productGroupsRequest()
-        if (!response.data.Status) return []
-
-        const keyword = inputValue.trim().toLowerCase()
-        return response.data.ResultOnDb.map(item => ({ label: item.label, value: Number(item.value) })).filter(
-          item => Number.isFinite(item.value) && (!keyword || item.label.toLowerCase().includes(keyword))
-        )
-      } catch {
-        return []
-      }
-    },
-    [productGroupsRequest]
-  )
 
   return (
     <>

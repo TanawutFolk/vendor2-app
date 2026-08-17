@@ -95,7 +95,7 @@ function Page() {
       province: getValues('province'),
       postal_code: getValues('postal_code'),
       country: getValues('country'),
-      vendor_type_id: getValues('vendor_type')?.value || 0,
+      vendor_type_id: getValues('vendor_type')?.BUSINESS_CATEGORY_ID || 0,
       vendor_region: getValues('vendor_region'),
       website: getValues('website'),
       tel_center: getValues('tel_center'),
@@ -113,10 +113,15 @@ function Page() {
       // meaningless — drop it instead of inserting a blank vendor_products row.
       products: getValues('products')
         .filter(p =>
-          Boolean(p.product_group?.value || p.maker_name?.trim() || p.product_name?.trim() || p.model_list?.trim())
+          Boolean(
+            p.product_group?.MASTER_PRODUCT_GROUPS_ID ||
+              p.maker_name?.trim() ||
+              p.product_name?.trim() ||
+              p.model_list?.trim()
+          )
         )
         .map(p => ({
-          product_group_id: p.product_group?.value,
+          product_group_id: p.product_group?.MASTER_PRODUCT_GROUPS_ID,
           maker_name: p.maker_name,
           product_name: p.product_name,
           model_list: p.model_list

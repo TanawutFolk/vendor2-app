@@ -7,6 +7,7 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
 import type { ProductsSectionProps } from '@/_workspace/types/vendor/VendorTypes'
+import type { ProductGroupI } from '@/_workspace/types/vendor/VendorTypes'
 
 const ProductsSection = ({
   editingMode,
@@ -87,18 +88,21 @@ const ProductsSection = ({
                     name={`products.${index}.product_group_id`}
                     control={control}
                     render={({ field }) => (
-                      <AsyncSelectCustom
+                      <AsyncSelectCustom<ProductGroupI>
                         key={`product-group-${index}-${productGroupRefreshKey}`}
                         label='Product Group'
                         {...field}
                         value={
                           field.value
-                            ? { value: field.value, label: getValues(`products.${index}.group_name`) || 'Unknown' }
+                            ? {
+                                MASTER_PRODUCT_GROUPS_ID: field.value,
+                                GROUP_NAME: getValues(`products.${index}.group_name`) || 'Unknown'
+                              }
                             : null
                         }
-                        onChange={(val: any) => {
-                          field.onChange(val?.value)
-                          setValue(`products.${index}.group_name`, val?.label)
+                        onChange={val => {
+                          field.onChange(val?.MASTER_PRODUCT_GROUPS_ID)
+                          setValue(`products.${index}.group_name`, val?.GROUP_NAME)
                         }}
                         loadOptions={(inputValue, callback) => {
                           fetchProductGroups(inputValue).then(options => callback(options as any))
@@ -109,6 +113,8 @@ const ProductsSection = ({
                         isDisabled={editingMode === 'view'}
                         placeholder='Select group...'
                         classNamePrefix='select'
+                        getOptionLabel={option => option.GROUP_NAME}
+                        getOptionValue={option => option.MASTER_PRODUCT_GROUPS_ID.toString()}
                       />
                     )}
                   />

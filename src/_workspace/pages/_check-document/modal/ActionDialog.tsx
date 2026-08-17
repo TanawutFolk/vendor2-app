@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogActions, Box, Typography, Alert, Button } from '@mui/material'
+import { Dialog, DialogContent, DialogActions, Box, Typography, Button } from '@mui/material'
 import LoadingButton from '@mui/lab/LoadingButton'
 
 import undraw_clean_up_re_504g from '@assets/images/common/undraw_clean_up_re_504g.svg'
@@ -57,15 +57,16 @@ const ActionDialog = ({
   onSuccess
 }: ActionDialogProps) => {
   const [remark, setRemark] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const user = getUserData()
   const actionCount = actions.length
   const statusMutation = useMutation({
     mutationFn: updateStatusBatch,
     onSuccess: result => {
       if (result.failedRequestIds.length > 0) {
-        setError(`${result.failedMessage} (Request: ${result.failedRequestIds.join(', ')})`)
-        ToastMessageError({ title: 'Update Request Status', message: result.failedMessage })
+        ToastMessageError({
+          title: 'Update Request Status',
+          message: `${result.failedMessage} (Request: ${result.failedRequestIds.join(', ')})`
+        })
         onSuccess()
         return
       }
@@ -78,7 +79,6 @@ const ActionDialog = ({
       const normalizedError = caughtError as { response?: { data?: { Message?: string } }; message?: string }
       const message =
         normalizedError?.response?.data?.Message || normalizedError?.message || 'Failed to update status'
-      setError(message)
       ToastMessageError({ title: 'Update Request Status', message })
     }
   })
@@ -87,18 +87,17 @@ const ActionDialog = ({
   useEffect(() => {
     if (!open) {
       setRemark('')
-      setError(null)
     }
   }, [open])
 
   const handleSubmit = () => {
     if (actions.length === 0) return
-    setError(null)
     statusMutation.mutate({ actions, remark, empCode: user?.EMPLOYEE_CODE || '' })
   }
 
   const imageConfirm = mode === 'reject' ? undraw_clean_up_re_504g : undraw_notify_re_65on
   const actionLabel = mode === 'approve' ? approveActionLabel : rejectActionLabel
+  const requiresRemark = mode === 'reject' || mode === 'recheck'
 
   return (
     <Dialog
@@ -132,18 +131,12 @@ const ActionDialog = ({
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity='error' sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {mode === 'reject' && (
+        {requiresRemark && (
           <CustomTextField
             fullWidth
             multiline
             rows={3}
-            label='Remark / Comment (Required for reject)'
+            label={`Remark / Comment (Required for ${mode === 'recheck' ? 're-check' : 'reject'})`}
             placeholder='Enter your remark here...'
             value={remark}
             onChange={e => setRemark(e.target.value)}
@@ -158,9 +151,9 @@ const ActionDialog = ({
           loading={loading}
           loadingIndicator={mode === 'approve' ? `${approveActionLabel}...` : `${rejectActionLabel}...`}
           variant='contained'
-          color={mode === 'approve' ? 'success' : 'error'}
+          color={mode === 'approve' ? 'success' : mode === 'recheck' ? 'warning' : 'error'}
           sx={{ mr: 4 }}
-          disabled={mode === 'reject' && !remark.trim()}
+          disabled={requiresRemark && !remark.trim()}
         >
           <span>Yes, {actionLabel} !</span>
         </LoadingButton>

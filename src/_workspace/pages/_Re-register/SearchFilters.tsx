@@ -23,9 +23,18 @@ import { STATUS_MASTER_TYPE } from '@/_workspace/types/StatusMasterTypes'
 import { useDxContext } from '@/_template/DxContextProvider'
 
 // Workspace Imports
-import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchVendorTypes'
-import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProvinces'
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProductGroups'
+import {
+  fetchVendorTypes,
+  type VendorTypeOption
+} from '@/_workspace/react-select/async-promise-load-options/re-register/fetchVendorTypes'
+import {
+  fetchProvinces,
+  type ProvinceOption
+} from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProvinces'
+import {
+  fetchProductGroups,
+  type ProductGroupOption
+} from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProductGroups'
 
 // My Components Imports
 import { MENU_ID } from './env'
@@ -175,7 +184,7 @@ function SearchFilters() {
                   name='searchFilters.vendorTypeId'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<VendorTypeOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -184,6 +193,8 @@ function SearchFilters() {
                       label='Vendor Type'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
+                      getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
                     />
                   )}
                 />
@@ -193,7 +204,7 @@ function SearchFilters() {
                   name='searchFilters.province'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<ProvinceOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -202,6 +213,8 @@ function SearchFilters() {
                       label='Province'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.PROVINCE}
+                      getOptionValue={option => option.PROVINCE}
                     />
                   )}
                 />
@@ -211,7 +224,7 @@ function SearchFilters() {
                   name='searchFilters.productGroupId'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<ProductGroupOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -220,6 +233,8 @@ function SearchFilters() {
                       label='Product Group'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.GROUP_NAME}
+                      getOptionValue={option => option.MASTER_PRODUCT_GROUPS_ID.toString()}
                     />
                   )}
                 />

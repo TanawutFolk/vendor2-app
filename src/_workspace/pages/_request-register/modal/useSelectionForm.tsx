@@ -133,6 +133,20 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
 
 export const PENDING_UPLOAD_PREFIX = '__pending__/'
 export const MAX_CRITERIA_FILES = 3
+export const CRITERIA_41_REPLACEMENT_MESSAGE =
+  'Document 4.1 "Compliant of the law" is missing. Document 4.11 "Advised by Customer, Parent Company or Manager up" is required as a substitute before sending the request to the next step. You may save the form now.'
+
+const hasCriteriaDocument = (criteria: GprCriteria[], criteriaNo: string) =>
+  criteria
+    .find(item => String(item?.no || '').trim() === criteriaNo)
+    ?.files?.some(file => Boolean(String(file?.file_path || '').trim())) ?? false
+
+export const getCriteria41ReplacementMessage = (criteria: GprCriteria[] = []) => {
+  const hasDocument41 = hasCriteriaDocument(criteria, '4.1')
+  const hasReplacementDocument411 = hasCriteriaDocument(criteria, '4.11')
+
+  return !hasDocument41 && !hasReplacementDocument411 ? CRITERIA_41_REPLACEMENT_MESSAGE : ''
+}
 
 const normalizeGpr43AcceptanceStatus = (value: unknown): 'ACCEPT' | 'NOT_ACCEPT' | '' => {
   const normalized = String(value || '')

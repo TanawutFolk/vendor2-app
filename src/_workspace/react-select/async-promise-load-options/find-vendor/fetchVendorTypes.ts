@@ -1,32 +1,22 @@
 import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
+import type { BusinessCategoryI } from '@/_workspace/types/vendor/VendorTypes'
 
-// Types
-export interface VendorTypeOption {
-  value: number
-  label: string
-}
+export interface VendorTypeOption extends BusinessCategoryI {}
 
-/**
- * Fetch vendor business category names for AsyncSelect
- * @param inputValue - Search input value for filtering
- * @returns Promise<VendorTypeOption[]>
- */
-export const fetchVendorTypes = (inputValue: string) =>
+const fetchVendorTypes = (inputValue: string) =>
   new Promise<VendorTypeOption[]>(resolve => {
-    FindVendorServices.getVendorBusinessCategoryName()
-      .then(response => {
-        if (response.data.Status) {
-          const filtered = response.data.ResultOnDb.map(item => ({
-            label: item.label,
-            value: Number(item.value)
-          })).filter(item => Number.isFinite(item.value) && item.label.toLowerCase().includes(inputValue.toLowerCase()))
-          resolve(filtered)
-        } else {
-          resolve([])
-        }
+    const param = {
+      BUSINESS_CATEGORY_NAME: inputValue
+    }
+
+    FindVendorServices.getVendorBusinessCategoryName(param)
+      .then(responseJson => {
+        resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
       })
       .catch(error => {
-        console.error('Error fetching vendor business category names:', error)
+        console.log(error)
         resolve([])
       })
   })
+
+export { fetchVendorTypes }

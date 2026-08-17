@@ -107,19 +107,25 @@ export interface FindVendorApiResponseI<T> {
   MethodOnDb: string
   Message: string
 }
-// Dropdown item interface
-export interface DropdownItemI {
-  value: number | string
-  label: string
+export interface BusinessCategoryI {
+  BUSINESS_CATEGORY_ID: number
+  BUSINESS_CATEGORY_NAME: string
+  DESCRIPTION?: string | null
 }
 
-// Dropdown Response interface
-export interface DropdownResponseI {
-  Status: boolean
-  ResultOnDb: DropdownItemI[]
-  TotalCountOnDb: number
-  MethodOnDb: string
-  Message: string
+export interface ProvinceI {
+  PROVINCE: string
+}
+
+export interface CountryI {
+  INFO_COUNTRY_ID: number
+  INFO_COUNTRY_NAME: string
+  DESCRIPTION?: string | null
+}
+
+export interface ProductGroupI {
+  MASTER_PRODUCT_GROUPS_ID: number
+  GROUP_NAME: string
 }
 
 // Contact information interface
@@ -165,10 +171,6 @@ export interface VendorComprehensiveI extends AuditFields {
   contacts: VendorContactI[]
   products: VendorProductI[]
 }
-
-export type VendorDropdownRequest = () => Promise<{
-  data: FindVendorApiResponseI<DropdownItemI[]>
-}>
 
 export type VendorUpdateRequest = (
   data: Record<string, unknown>
@@ -249,7 +251,7 @@ export type ProductsSectionProps = {
   appendProduct: (value: any) => void
   productGroupRefreshKey: number
   onOpenAddProductGroup: () => void
-  fetchProductGroups: (inputValue: string) => Promise<DropdownItemI[]>
+  fetchProductGroups: (inputValue: string) => Promise<ProductGroupI[]>
 }
 
 export type SectionHeaderProps = {
@@ -280,8 +282,8 @@ export type VendorModalHeaderBarProps = {
 export type VendorProfileSectionProps = {
   editingMode: 'view' | 'edit'
   originalData: VendorComprehensiveI | null
-  fetchVendorTypes: (inputValue: string) => Promise<any[]>
-  fetchCountries: (inputValue: string) => Promise<Array<{ value: string; label: string }>>
+  fetchVendorTypes: (inputValue: string) => Promise<BusinessCategoryI[]>
+  fetchCountries: (inputValue: string) => Promise<CountryI[]>
 }
 
 export interface EditVendorModalProps {
@@ -292,9 +294,9 @@ export interface EditVendorModalProps {
   loading?: boolean
   errorMessage?: string
   updateRequest: VendorUpdateRequest
-  vendorTypesRequest: VendorDropdownRequest
-  countriesRequest: VendorDropdownRequest
-  productGroupsRequest: VendorDropdownRequest
+  fetchVendorTypes: (inputValue: string) => Promise<BusinessCategoryI[]>
+  fetchCountries: (inputValue: string) => Promise<CountryI[]>
+  fetchProductGroups: (inputValue: string) => Promise<ProductGroupI[]>
   onSuccess?: () => void
 }
 

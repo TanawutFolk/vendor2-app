@@ -1,15 +1,15 @@
 import RegisterRequestServices from '@/_workspace/services/_register-request/RegisterRequestServices'
-import type { GprCProductMainI } from '@/_workspace/types/_request-history/RequestHistoryTypes'
+import type { GprCSectionI } from '@/_workspace/types/_request-history/RequestHistoryTypes'
 
-export interface GprCProductOption extends GprCProductMainI {}
+export interface GprCSectionOption extends GprCSectionI {}
 
-const fetchGprCProducts = (inputValue: string) =>
-  new Promise<GprCProductOption[]>(resolve => {
+const fetchGprCSections = (inputValue: string) =>
+  new Promise<GprCSectionOption[]>(resolve => {
     const param = {
       SEARCH_TEXT: inputValue
     }
 
-    RegisterRequestServices.getGprCProducts(param)
+    RegisterRequestServices.getGprCSections(param)
       .then(responseJson => {
         resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
       })
@@ -19,4 +19,4 @@ const fetchGprCProducts = (inputValue: string) =>
       })
   })
 
-export { fetchGprCProducts }
+export { fetchGprCSections }

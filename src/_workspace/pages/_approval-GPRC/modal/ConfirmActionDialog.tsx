@@ -17,7 +17,7 @@ const Transition = forwardRef(function Transition(props: SlideProps & { children
   return <Slide direction='down' ref={ref} {...props} />
 })
 
-const REJECT_REMARK_MAX_LENGTH = 500
+const ACTION_REMARK_MAX_LENGTH = 500
 
 interface ConfirmActionDialogProps {
   open: boolean
@@ -28,7 +28,7 @@ interface ConfirmActionDialogProps {
   onClose: () => void
 }
 
-// Confirmation modal for the GPR C Approve / Reject actions. Mirrors the request-register
+// Confirmation modal for the GPR C Approve / Re-check / Reject actions. Mirrors the request-register
 // ActionDialog so both approval flows share the same "Are You Sure?" confirmation UX.
 export default function ConfirmActionDialog({
   open,
@@ -40,9 +40,11 @@ export default function ConfirmActionDialog({
 }: ConfirmActionDialogProps) {
   const [remark, setRemark] = useState('')
   const isReject = mode === 'REJECT'
+  const isRecheck = mode === 'RECHECK'
+  const requiresRemark = isReject || isRecheck
   const imageConfirm = isReject ? undraw_clean_up_re_504g : undraw_notify_re_65on
-  const actionLabel = isReject ? 'Reject GPR C Step' : 'Approve GPR C Step'
-  const confirmDisabled = isReject && !remark.trim()
+  const actionLabel = isReject ? 'Reject GPR C Step' : isRecheck ? 'Re-check with PO PIC' : 'Approve GPR C Step'
+  const confirmDisabled = requiresRemark && !remark.trim()
 
   useEffect(() => {
     if (open) setRemark('')
@@ -60,9 +62,10 @@ export default function ConfirmActionDialog({
         UPDATE_BY: actionBy,
         REMARK: remark
       }
-      const response =
-        mode === 'REJECT'
-          ? await RegisterRequestServices.gprCRejectStep(payload)
+      const response = isReject
+        ? await RegisterRequestServices.gprCRejectStep(payload)
+        : isRecheck
+          ? await RegisterRequestServices.gprCRecheckStep(payload)
           : await RegisterRequestServices.gprCApproveStep(payload)
 
       if (!response.data?.Status) throw new Error(response.data?.Message || 'GPR C action failed')
@@ -119,14 +122,14 @@ export default function ConfirmActionDialog({
             </Typography>
           )}
         </Box>
-        {isReject && (
+        {requiresRemark && (
           <CustomTextField
             fullWidth
             multiline
             rows={3}
-            label='Remark / Comment (Required for reject)'
+            label={`Remark / Comment (Required for ${isRecheck ? 're-check' : 'reject'})`}
             placeholder='Enter your remark here...'
-            inputProps={{ maxLength: REJECT_REMARK_MAX_LENGTH }}
+            inputProps={{ maxLength: ACTION_REMARK_MAX_LENGTH }}
             value={remark}
             onChange={event => setRemark(event.target.value)}
           />
@@ -137,9 +140,9 @@ export default function ConfirmActionDialog({
         <LoadingButton
           onClick={() => approvalMutation.mutate()}
           loading={approvalMutation.isPending}
-          loadingIndicator={isReject ? 'Rejecting...' : 'Approving...'}
+          loadingIndicator={isReject ? 'Rejecting...' : isRecheck ? 'Sending to PO PIC...' : 'Approving...'}
           variant='contained'
-          color={isReject ? 'error' : 'success'}
+          color={isReject ? 'error' : isRecheck ? 'warning' : 'success'}
           sx={{ mr: 4 }}
           disabled={confirmDisabled}
         >

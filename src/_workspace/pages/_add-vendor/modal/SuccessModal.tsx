@@ -149,7 +149,7 @@ const SuccessModal = ({
                         </Grid>
                         <Grid item xs={12} sm={8}>
                           <Typography variant='body2' fontWeight={500}>
-                            {vendorData?.vendor_type?.label || '-'}
+                            {vendorData?.vendor_type?.BUSINESS_CATEGORY_NAME || '-'}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -344,7 +344,7 @@ const SuccessModal = ({
                                   </Grid>
                                   <Grid item xs={12} sm={8}>
                                     <Typography variant='body2' fontWeight={500}>
-                                      {product.product_group?.label || '-'}
+                                      {product.product_group?.GROUP_NAME || '-'}
                                     </Typography>
                                   </Grid>
                                 </Grid>

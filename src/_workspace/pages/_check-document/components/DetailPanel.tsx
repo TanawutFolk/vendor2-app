@@ -26,10 +26,7 @@ import type { DetailPanelProps } from '@/_workspace/types/_check-document/CheckD
 import { buildFileUrls, getNegotiationWorkflowState } from './shared'
 import FileViewerDialog from '../modal/FileViewerDialog'
 import ActionRequiredDetailDialog from '../modal/ActionRequiredDetailDialog'
-import {
-  isApprovalStepStatusMaster,
-  isWorkflowStepMaster
-} from '@/_workspace/utils/workflowIdentity'
+import { isApprovalStepStatusMaster, isWorkflowStepMaster } from '@/_workspace/utils/workflowIdentity'
 
 const DetailPanel = ({
   data,
@@ -80,7 +77,8 @@ const DetailPanel = ({
   })().filter(Boolean)
   const isWorkflowActionAllowed = (actionCode: string) =>
     getAllowedWorkflowTransitionId(allowedActions, actionCode) !== null
-  const handleReturnToDocumentCheck = () => onReject('Return to PO & SCM Check All Document', 'RETURN')
+  const recheckActionLabel = 'Re-check PO PIC'
+  const handleRecheck = () => onReject(recheckActionLabel, 'RECHECK')
 
   const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
   const isPicOwnedNegotiationStep =
@@ -135,10 +133,7 @@ const DetailPanel = ({
       return false
     }
   })()
-  const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(
-    currentStep,
-    workflowStepIds
-  )
+  const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(currentStep, workflowStepIds)
   const agreeAction = negotiationActions.find(action => action.key === 'agree')
   const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
   const renderDisagreeFirst = Boolean(
@@ -439,10 +434,10 @@ const DetailPanel = ({
                 {isAccountRegisterQueue && selectionFormMode === 'Edit'
                   ? 'Enter the Vendor Code to complete registration'
                   : selectionFormMode === 'View'
-                  ? 'Selection Sheet - View mode'
-                  : hasPersistedSelectionFormData || selectionFormSavedInSession
-                    ? 'Selection Sheet filled - click to edit'
-                    : 'Fill in Selection Sheet'}
+                    ? 'Selection Sheet - View mode'
+                    : hasPersistedSelectionFormData || selectionFormSavedInSession
+                      ? 'Selection Sheet filled - click to edit'
+                      : 'Fill in Selection Sheet'}
               </Typography>
             </Box>
           </Box>
@@ -457,10 +452,10 @@ const DetailPanel = ({
                     isAccountRegisterQueue && selectionFormMode === 'Edit'
                       ? 'tabler-pencil'
                       : selectionFormMode === 'View'
-                      ? 'tabler-eye'
-                      : hasPersistedSelectionFormData || selectionFormSavedInSession
-                        ? 'tabler-pencil'
-                        : 'tabler-plus'
+                        ? 'tabler-eye'
+                        : hasPersistedSelectionFormData || selectionFormSavedInSession
+                          ? 'tabler-pencil'
+                          : 'tabler-plus'
                   }
                   style={{ fontSize: 14 }}
                 />
@@ -470,10 +465,10 @@ const DetailPanel = ({
               {isAccountRegisterQueue && selectionFormMode === 'Edit'
                 ? 'Enter Vendor Code'
                 : selectionFormMode === 'View'
-                ? 'View Selection Sheet'
-                : hasPersistedSelectionFormData || selectionFormSavedInSession
-                  ? 'Edit Selection Sheet'
-                  : 'Fill Selection Sheet'}
+                  ? 'View Selection Sheet'
+                  : hasPersistedSelectionFormData || selectionFormSavedInSession
+                    ? 'Edit Selection Sheet'
+                    : 'Fill Selection Sheet'}
             </Button>
           </Box>
         </Box>
@@ -627,27 +622,28 @@ const DetailPanel = ({
               >
                 {approveButtonLabel}
               </Button>
-              {isWorkflowActionAllowed('RETURN') && (
+              {isWorkflowActionAllowed('RECHECK') && (
                 <Button
                   variant='contained'
                   color='warning'
                   fullWidth
                   startIcon={<i className='tabler-arrow-back-up' style={{ fontSize: 18 }} />}
-                  onClick={handleReturnToDocumentCheck}
+                  onClick={handleRecheck}
                 >
-                  Return to PO &amp; SCM Check All Document
+                  {recheckActionLabel}
                 </Button>
               )}
-              <Button
-                variant='contained'
-                color='error'
-                fullWidth
-                startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
-                disabled={!isWorkflowActionAllowed('REJECT')}
-                onClick={() => onReject(rejectButtonLabel, 'REJECT')}
-              >
-                {rejectButtonLabel}
-              </Button>
+              {isWorkflowActionAllowed('REJECT') && (
+                <Button
+                  variant='contained'
+                  color='error'
+                  fullWidth
+                  startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                  onClick={() => onReject(rejectButtonLabel, 'REJECT')}
+                >
+                  {rejectButtonLabel}
+                </Button>
+              )}
             </>
           )}
         </Box>

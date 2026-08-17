@@ -26,6 +26,10 @@ import {
   fetchGprCProducts,
   type GprCProductOption
 } from '@/_workspace/react-select/async-promise-load-options/request-history/fetchGprCProducts'
+import {
+  fetchGprCSections,
+  type GprCSectionOption
+} from '@/_workspace/react-select/async-promise-load-options/request-history/fetchGprCSections'
 import type {
   GprCNotificationDialogProps,
   GprCFormState,
@@ -38,6 +42,7 @@ const buildEmptyForm = (): GprCFormState => ({
     {
       product_main_id: null,
       product_main_name: '',
+      section_name: '',
       checker_empcode: '',
       checker_name: '',
       checker_email: ''
@@ -63,16 +68,29 @@ const normalizeProductCheckers = (raw: any): GprCProductCheckerInfo[] => {
     return parsed
       .map(item => ({
         product_main_id:
-          Number(item?.product_main_id || item?.PRODUCT_MAIN_ID || item?.product_group_id || item?.MASTER_PRODUCT_GROUPS_ID || 0) ||
-          null,
+          Number(
+            item?.product_main_id ||
+              item?.PRODUCT_MAIN_ID ||
+              item?.product_group_id ||
+              item?.MASTER_PRODUCT_GROUPS_ID ||
+              0
+          ) || null,
         product_main_name: String(
-          item?.product_main_name || item?.PRODUCT_MAIN_NAME || item?.product_group_name || item?.PRODUCT_GROUP_NAME || ''
+          item?.product_main_name ||
+            item?.PRODUCT_MAIN_NAME ||
+            item?.product_group_name ||
+            item?.PRODUCT_GROUP_NAME ||
+            ''
         ).trim(),
+        section_name: String(item?.section_name || item?.SECTION_NAME || '').trim(),
         checker_empcode: String(item?.checker_empcode || item?.CHECKER_EMPCODE || '').trim(),
         checker_name: String(item?.checker_name || item?.CHECKER_NAME || '').trim(),
         checker_email: String(item?.checker_email || item?.CHECKER_EMAIL || '').trim()
       }))
-      .filter(item => item.product_main_id || item.checker_empcode || item.checker_name || item.checker_email)
+      .filter(
+        item =>
+          item.product_main_id || item.section_name || item.checker_empcode || item.checker_name || item.checker_email
+      )
   } catch {
     return []
   }
@@ -399,8 +417,24 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
       const next = [...prev.gpr_c_product_checkers]
       next[index] = {
         ...next[index],
-        product_main_id: option?.value || null,
-        product_main_name: option?.label || ''
+        product_main_id: option?.PRODUCT_MAIN_ID || null,
+        product_main_name: option
+          ? `${option.PRODUCT_MAIN_NAME.trim()} (${option.PRODUCT_MAIN_ALPHABET.trim()})`
+          : '',
+        section_name: option ? '' : next[index].section_name
+      }
+      return { ...prev, gpr_c_product_checkers: next }
+    })
+  }
+
+  const handleSectionChange = (index: number, option: GprCSectionOption | null) => {
+    setForm(prev => {
+      const next = [...prev.gpr_c_product_checkers]
+      next[index] = {
+        ...next[index],
+        product_main_id: option ? null : next[index].product_main_id,
+        product_main_name: option ? '' : next[index].product_main_name,
+        section_name: option?.SECT_NAME || ''
       }
       return { ...prev, gpr_c_product_checkers: next }
     })
@@ -431,6 +465,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         {
           product_main_id: null,
           product_main_name: '',
+          section_name: '',
           checker_empcode: '',
           checker_name: '',
           checker_email: ''
@@ -445,9 +480,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
       ...prev,
       gpr_c_product_checkers: prev.gpr_c_product_checkers.filter((_, itemIndex) => itemIndex !== index)
     }))
-    productCheckerLookupSeq.current = productCheckerLookupSeq.current.filter(
-      (_, itemIndex) => itemIndex !== index
-    )
+    productCheckerLookupSeq.current = productCheckerLookupSeq.current.filter((_, itemIndex) => itemIndex !== index)
   }
 
   const handleApproverChange = (value: string) => {
@@ -503,14 +536,26 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
 
   const getValidationMessage = () => {
     if (form.gpr_c_product_checkers.length === 0) {
-      return 'Please add at least one Product and Checker.'
+      return 'Please add at least one Product Main or Section and Checker.'
     }
 
     const selectedProductIds = new Set<number>()
+    const selectedSections = new Set<string>()
     for (const [index, item] of form.gpr_c_product_checkers.entries()) {
-      if (!item.product_main_id) return `Please select Product for row ${index + 1}.`
-      if (selectedProductIds.has(item.product_main_id)) return 'Product cannot be selected more than once.'
-      selectedProductIds.add(item.product_main_id)
+      const hasProduct = Boolean(item.product_main_id)
+      const sectionName = String(item.section_name || '').trim()
+      const hasSection = Boolean(sectionName)
+      if (Number(hasProduct) + Number(hasSection) !== 1) {
+        return `Please select either Product Main or Section for row ${index + 1}.`
+      }
+      if (item.product_main_id) {
+        if (selectedProductIds.has(item.product_main_id)) return 'Product Main cannot be selected more than once.'
+        selectedProductIds.add(item.product_main_id)
+      } else {
+        const sectionKey = sectionName.toUpperCase()
+        if (selectedSections.has(sectionKey)) return 'Section cannot be selected more than once.'
+        selectedSections.add(sectionKey)
+      }
       if (!String(item.checker_empcode || '').trim()) return `Please enter Checker Employee Code for row ${index + 1}.`
       if (!item.checker_name || !item.checker_email) return `Checker Employee Code is invalid for row ${index + 1}.`
     }
@@ -579,6 +624,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
         gpr_c_product_checkers: form.gpr_c_product_checkers.map(item => ({
           product_main_id: item.product_main_id,
           product_main_name: item.product_main_name,
+          section_name: String(item.section_name || '').trim(),
           checker_empcode: String(item.checker_empcode || '').trim()
         })),
         gpr_c_approver_empcode: form.gpr_c_approver_empcode,
@@ -638,28 +684,52 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
               <Grid item xs={12} md={14}>
                 <Divider textAlign='left'>
                   <Typography variant='body2' color='primary'>
-                    Product Checker
+                    Product Main / Section Checker
                   </Typography>
                 </Divider>
               </Grid>
               {form.gpr_c_product_checkers.map((item, index) => (
                 <Grid key={`product-checker-${index}`} item xs={12} md={14} sx={{ position: 'relative' }}>
                   <Grid container spacing={2} alignItems='center'>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={6}>
                       <AsyncSelectCustom<GprCProductOption>
-                        label={`Product ${index + 1} *`}
-                        placeholder='Select Product...'
+                        label={`Product Main ${index + 1}`}
+                        placeholder='Select Product Main...'
                         defaultOptions
                         cacheOptions
                         isClearable
-                        isDisabled={!isRequester}
+                        isDisabled={!isRequester || Boolean(item.section_name)}
                         loadOptions={inputValue => fetchGprCProducts(inputValue)}
                         value={
                           item.product_main_id
-                            ? { value: item.product_main_id, label: item.product_main_name }
+                            ? {
+                                PRODUCT_MAIN_ID: item.product_main_id,
+                                PRODUCT_MAIN_NAME: item.product_main_name.replace(/\s*\([^()]*\)\s*$/, ''),
+                                PRODUCT_MAIN_ALPHABET: item.product_main_name.match(/\(([^()]*)\)\s*$/)?.[1] || ''
+                              }
                             : null
                         }
                         onChange={option => handleProductChange(index, option)}
+                        getOptionLabel={option =>
+                          `${option.PRODUCT_MAIN_NAME.trim()} (${option.PRODUCT_MAIN_ALPHABET.trim()})`
+                        }
+                        getOptionValue={option => option.PRODUCT_MAIN_ID.toString()}
+                        classNamePrefix='select'
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <AsyncSelectCustom<GprCSectionOption>
+                        label={`Section Checker ${index + 1}`}
+                        placeholder='Select Section...'
+                        defaultOptions
+                        cacheOptions
+                        isClearable
+                        isDisabled={!isRequester || Boolean(item.product_main_id)}
+                        loadOptions={inputValue => fetchGprCSections(inputValue)}
+                        value={item.section_name ? { SECT_NAME: item.section_name } : null}
+                        onChange={option => handleSectionChange(index, option)}
+                        getOptionLabel={option => option.SECT_NAME}
+                        getOptionValue={option => option.SECT_NAME}
                         classNamePrefix='select'
                       />
                     </Grid>
@@ -728,7 +798,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
                   disabled={!isRequester}
                   sx={{ borderStyle: 'dashed' }}
                 >
-                  Add Product & Checker
+                  Add Product Main / Section & Checker
                 </Button>
               </Grid>
               <Grid item xs={12} md={14}>

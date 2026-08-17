@@ -1,12 +1,22 @@
 import ReRegisterServices from '@/_workspace/services/_Re-register/ReRegisterServices'
+import type { ProvinceI } from '@/_workspace/types/vendor/VendorTypes'
 
-type ProvinceOption = { value: string; label: string }
+export interface ProvinceOption extends ProvinceI {}
 
-export const fetchProvinces = async (inputValue: string): Promise<ProvinceOption[]> => {
-  const response = await ReRegisterServices.getProvinces()
-  const options = response.data?.Status
-    ? (response.data.ResultOnDb || []).map(option => ({ label: option.label, value: String(option.value) }))
-    : []
-  const keyword = inputValue.trim().toLowerCase()
-  return keyword ? options.filter(option => option.label.toLowerCase().includes(keyword)) : options
-}
+const fetchProvinces = (inputValue: string) =>
+  new Promise<ProvinceOption[]>(resolve => {
+    const param = {
+      PROVINCE: inputValue
+    }
+
+    ReRegisterServices.getProvinces(param)
+      .then(responseJson => {
+        resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
+      })
+      .catch(error => {
+        console.log(error)
+        resolve([])
+      })
+  })
+
+export { fetchProvinces }

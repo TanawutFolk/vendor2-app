@@ -183,7 +183,7 @@ const DetailRenderer = (props: any) => {
       onApprove={(actionCode: WorkflowActionCode, actionLabel: string) =>
         props.context.onApprove(detailData, actionCode, actionLabel)
       }
-      onReject={(rejectActionLabel: string, actionCode?: 'DISAGREE' | 'REJECT' | 'RETURN') =>
+      onReject={(rejectActionLabel: string, actionCode?: 'DISAGREE' | 'REJECT' | 'RECHECK') =>
         props.context.onReject(detailData, rejectActionLabel, actionCode)
       }
       onRefresh={() => props.context.onRefresh()}
@@ -246,7 +246,7 @@ export default function ApprovalPageContent({
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const [actionMode, setActionMode] = useState<'approve' | 'reject'>('approve')
+  const [actionMode, setActionMode] = useState<'approve' | 'reject' | 'recheck'>('approve')
   const [actionDialogOpen, setActionDialogOpen] = useState(false)
   const [pendingActions, setPendingActions] = useState<ActionDialogProps['actions']>([])
   const [approveActionLabel, setApproveActionLabel] = useState('Approve')
@@ -461,7 +461,7 @@ export default function ApprovalPageContent({
       onReject: (
         data: any,
         actionLabel: string,
-        actionCode: 'DISAGREE' | 'REJECT' | 'RETURN' = 'REJECT'
+        actionCode: 'DISAGREE' | 'REJECT' | 'RECHECK' = 'REJECT'
       ) => {
         const workflowTransitionId = getAllowedWorkflowTransitionId(data?.ALLOWED_ACTIONS, actionCode)
         if (!workflowTransitionId) {
@@ -480,7 +480,7 @@ export default function ApprovalPageContent({
         ])
         setApproveActionLabel('Approve')
         setRejectActionLabel(actionLabel || 'Reject')
-        setActionMode('reject')
+        setActionMode(actionCode === 'RECHECK' ? 'recheck' : 'reject')
         setActionDialogOpen(true)
       },
       onRefresh: handleActionSuccess

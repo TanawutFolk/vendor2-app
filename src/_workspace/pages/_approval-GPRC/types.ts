@@ -44,4 +44,4 @@ export type GprCActionRequiredRow = {
   [key: string]: unknown
 }
 
-export type GprCDialogMode = 'APPROVE' | 'REJECT'
+export type GprCDialogMode = 'APPROVE' | 'RECHECK' | 'REJECT'

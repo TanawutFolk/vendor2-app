@@ -1,12 +1,22 @@
 import ReRegisterServices from '@/_workspace/services/_Re-register/ReRegisterServices'
+import type { ProductGroupI } from '@/_workspace/types/vendor/VendorTypes'
 
-type ProductGroupOption = { value: number; label: string }
+export interface ProductGroupOption extends ProductGroupI {}
 
-export const fetchProductGroups = async (inputValue: string): Promise<ProductGroupOption[]> => {
-  const response = await ReRegisterServices.getProductGroups()
-  const options = response.data?.Status
-    ? (response.data.ResultOnDb || []).map(option => ({ label: option.label, value: Number(option.value) }))
-    : []
-  const keyword = inputValue.trim().toLowerCase()
-  return keyword ? options.filter(option => option.label.toLowerCase().includes(keyword)) : options
-}
+const fetchProductGroups = (inputValue: string) =>
+  new Promise<ProductGroupOption[]>(resolve => {
+    const param = {
+      GROUP_NAME: inputValue
+    }
+
+    ReRegisterServices.getProductGroups(param)
+      .then(responseJson => {
+        resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
+      })
+      .catch(error => {
+        console.log(error)
+        resolve([])
+      })
+  })
+
+export { fetchProductGroups }

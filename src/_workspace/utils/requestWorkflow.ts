@@ -1,11 +1,5 @@
-import type {
-  ApprovalStepStatusMasterIds,
-  WorkflowStepMasterIds
-} from '@/_workspace/utils/workflowIdentity'
-import {
-  isApprovalStepStatusMaster,
-  isWorkflowStepMaster
-} from '@/_workspace/utils/workflowIdentity'
+import type { ApprovalStepStatusMasterIds, WorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
+import { isApprovalStepStatusMaster, isWorkflowStepMaster } from '@/_workspace/utils/workflowIdentity'
 
 export const VENDOR_CODE_PREFIX = {
   LOCAL: '20030',
@@ -46,9 +40,14 @@ export const getAllowedWorkflowTransitionId = (allowedActionsValue: unknown, act
     }
   }
 
-  const normalizedActionCode = String(actionCode || '').trim().toUpperCase()
+  const normalizedActionCode = String(actionCode || '')
+    .trim()
+    .toUpperCase()
   const matched = allowedActions.find(
-    action => String(action?.ACTION_CODE || '').trim().toUpperCase() === normalizedActionCode
+    action =>
+      String(action?.ACTION_CODE || '')
+        .trim()
+        .toUpperCase() === normalizedActionCode
   )
   const transitionId = Number(matched?.WORKFLOW_TRANSITION_ID)
   return Number.isInteger(transitionId) && transitionId > 0 ? transitionId : null
@@ -94,11 +93,9 @@ export const isAccountStep = (step: any) =>
 export const isPoPicInProgressStep = (step: any, ids: WorkflowStepMasterIds) =>
   isWorkflowStepMaster(step, ids.PO_PIC_IN_PROGRESS)
 
-export const isIssueGprBStep = (step: any, ids: WorkflowStepMasterIds) =>
-  isWorkflowStepMaster(step, ids.ISSUE_GPR_B)
+export const isIssueGprBStep = (step: any, ids: WorkflowStepMasterIds) => isWorkflowStepMaster(step, ids.ISSUE_GPR_B)
 
-export const isIssueGprCStep = (step: any, ids: WorkflowStepMasterIds) =>
-  isWorkflowStepMaster(step, ids.ISSUE_GPR_C)
+export const isIssueGprCStep = (step: any, ids: WorkflowStepMasterIds) => isWorkflowStepMaster(step, ids.ISSUE_GPR_C)
 
 export const isVendorDisagreedStep = (step: any, ids: WorkflowStepMasterIds) =>
   isWorkflowStepMaster(step, ids.VENDOR_DISAGREED)
@@ -186,7 +183,6 @@ export const getApproveActionLabel = (
 
 export const getRejectActionLabel = (currentStep: any, workflowIds: WorkflowStepMasterIds) => {
   if (!currentStep) return 'Reject'
-  if (isWorkflowStepMaster(currentStep, workflowIds.DOC_CHECK)) return 'Return to PO PIC'
   if (isIssueGprBStep(currentStep, workflowIds)) return 'Reject'
   if (isPoPicInProgressStep(currentStep, workflowIds) || isIssueGprCStep(currentStep, workflowIds)) {
     return 'Vendor Disagreed'
@@ -194,11 +190,7 @@ export const getRejectActionLabel = (currentStep: any, workflowIds: WorkflowStep
   return 'Reject'
 }
 // ทำทำไม โฟค 22/04/2026
-export const getGprStageLabel = (
-  currentStep: any,
-  hasVendorRequested: boolean,
-  workflowIds: WorkflowStepMasterIds
-) => {
+export const getGprStageLabel = (currentStep: any, hasVendorRequested: boolean, workflowIds: WorkflowStepMasterIds) => {
   if (!currentStep) return 'Supplier / Outsourcing Selection Sheet'
   if (isIssueGprBStep(currentStep, workflowIds)) return 'Supplier / Outsourcing Selection Sheet'
   if (isIssueGprCStep(currentStep, workflowIds)) return 'Supplier / Outsourcing Selection Sheet'
@@ -281,10 +273,12 @@ export const formatActionTypeLabel = (value: unknown) => {
       return 'Approved'
     case 'rejected':
       return 'Rejected'
+    case 'recheck':
+      return 'Re-check Requested'
     case 'returned_to_pic':
       return 'Returned to PO PIC'
-    case 'returned_to_document_check':
-      return 'Returned to Document Check'
+    case 'recheck_to_pic':
+      return 'Re-check Requested to PO PIC'
     case 'vendor_requested':
       return 'Sent to Vendor'
     case 'submitted_to_requester_head':
@@ -309,7 +303,12 @@ export const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warni
 
   if (action === 'approved') return 'success'
   if (action === 'rejected' || action === 'vendor_disagreed') return 'error'
-  if (action === 'action_required' || action === 'returned_to_pic' || action === 'returned_to_document_check') {
+  if (
+    action === 'action_required' ||
+    action === 'recheck' ||
+    action === 'returned_to_pic' ||
+    action === 'recheck_to_pic'
+  ) {
     return 'warning'
   }
   if (action === 'vendor_requested' || action === 'submitted_to_requester_head' || action === 'reassigned_pic')
@@ -318,7 +317,16 @@ export const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warni
 }
 
 export const buildActionLogPresentation = (log: any, approvalSteps: any[] = []) => {
-  const parsedRemark = parseActionRequiredRemark(log?.DESCRIPTION)
+  const normalizedActionType = String(log?.ACTION_TYPE || '')
+    .trim()
+    .toLowerCase()
+  const storedRemark =
+    normalizedActionType === 'recheck' || normalizedActionType === 'recheck_to_pic'
+      ? log?.RECHECK_REASON
+      : normalizedActionType === 'rejected' || normalizedActionType === 'vendor_disagreed'
+        ? log?.REJECT_REASON
+        : log?.DESCRIPTION
+  const parsedRemark = parseActionRequiredRemark(storedRemark)
   const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.ACTION_TYPE
   const detailParts = [
     parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',

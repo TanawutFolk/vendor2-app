@@ -12,20 +12,19 @@ const searchFiltersSchema = z.object({
   companyName: z.string(),
   vendorTypeId: z
     .object({
-      value: z.number(),
-      label: z.string()
+      BUSINESS_CATEGORY_ID: z.number(),
+      BUSINESS_CATEGORY_NAME: z.string()
     })
     .nullable(),
   province: z
     .object({
-      value: z.string(),
-      label: z.string()
+      PROVINCE: z.string()
     })
     .nullable(),
   productGroupId: z
     .object({
-      value: z.number(),
-      label: z.string()
+      MASTER_PRODUCT_GROUPS_ID: z.number(),
+      GROUP_NAME: z.string()
     })
     .nullable(),
   status: z
@@ -97,10 +96,18 @@ export const fetchDefaultValues = async (MENU_ID: number): Promise<FormDataPage>
           companyName:
             result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.companyName || '',
           vendorTypeId:
-            result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.vendorTypeId || null,
-          province: result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.province || null,
+            result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.vendorTypeId
+              ?.BUSINESS_CATEGORY_ID
+              ? result.data.ResultOnDb[0].USER_PROFILE_SETTING_PROGRAM_DATA.searchFilters.vendorTypeId
+              : null,
+          province: result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.province?.PROVINCE
+            ? result.data.ResultOnDb[0].USER_PROFILE_SETTING_PROGRAM_DATA.searchFilters.province
+            : null,
           productGroupId:
-            result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.productGroupId || null,
+            result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.productGroupId
+              ?.MASTER_PRODUCT_GROUPS_ID
+              ? result.data.ResultOnDb[0].USER_PROFILE_SETTING_PROGRAM_DATA.searchFilters.productGroupId
+              : null,
           status: normalizeStatusMasterOption(
             result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.status
           ),

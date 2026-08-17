@@ -27,7 +27,7 @@ export interface ApprovalDetailDialogContext {
   onReject: (
     data: Record<string, unknown>,
     actionLabel: string,
-    actionCode?: 'DISAGREE' | 'REJECT' | 'RETURN'
+    actionCode?: 'DISAGREE' | 'REJECT' | 'RECHECK'
   ) => void
   onRefresh: () => void
 }

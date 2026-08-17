@@ -25,6 +25,7 @@ import { formatFftStatus } from '@/_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import type { ApprovalStepStatusMasterIds } from '@/_workspace/utils/workflowIdentity'
+import SelectionFormDialong from '@/_workspace/pages/_request-register/modal/SelectionFormDialong'
 import FileViewerDialog from './FileViewerDialog'
 
 const API_BASE = import.meta.env?.VITE_API_URL || ''
@@ -40,6 +41,7 @@ interface RequestDetailDialogProps {
   fallbackRow?: Record<string, unknown> | null
   actionDisabled?: boolean
   onApprove?: () => void
+  onRecheck?: () => void
   onReject?: () => void
   onActionRequired?: () => void
   actionRequiredDisabled?: boolean
@@ -225,6 +227,7 @@ export default function RequestDetailDialog({
   fallbackRow,
   actionDisabled = false,
   onApprove,
+  onRecheck,
   onReject,
   onActionRequired,
   actionRequiredDisabled = false,
@@ -242,6 +245,7 @@ export default function RequestDetailDialog({
   // Attached Files preview (PDF/image) — same viewer used on the request-register / check-document pages.
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [selectionFormOpen, setSelectionFormOpen] = useState(false)
 
   // The request detail's APPROVAL_STEPS is the main registration workflow. The GPR C sub-flow
   // (EMR/QMS/PM/PO-Mgr checker+approver chain) lives in its own tables, fetched here separately.
@@ -322,6 +326,23 @@ export default function RequestDetailDialog({
   const gprBFileName = getValue(detail, fallback, 'gpr_b_file_name', 'GPR_B_FILE_NAME')
   const hasGprBFile = gprBFilePath !== '-' && gprBFilePath.trim() !== ''
   const gprBDisplayName = (gprBFileName !== '-' && gprBFileName) || gprBFilePath.split(/[\\/]/).pop() || 'GPR B file'
+  const selectionRowData = useMemo(
+    () => ({
+      ...(fallback ?? {}),
+      ...(detail ?? {}),
+      REQUEST_REGISTER_VENDOR_ID: Number(
+        readValue(detail, 'REQUEST_REGISTER_VENDOR_ID') ??
+          readValue(fallback, 'REQUEST_REGISTER_VENDOR_ID') ??
+          requestId ??
+          0
+      )
+    }),
+    [detail, fallback, requestId]
+  )
+
+  useEffect(() => {
+    if (!open) setSelectionFormOpen(false)
+  }, [open])
 
   // GPR C approvers review the vendor's GPR B response, so jump straight to that section the
   // first time the modal opens (once the detail has loaded).
@@ -698,6 +719,47 @@ export default function RequestDetailDialog({
               )}
 
               <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1.5
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <i
+                    className='tabler-clipboard-text'
+                    style={{ fontSize: 20, color: 'var(--mui-palette-primary-main)' }}
+                  />
+                  <Box>
+                    <Typography variant='subtitle2' fontWeight={700}>
+                      Supplier / Outsourcing Selection Sheet
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      Selection Sheet - View mode
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  size='small'
+                  variant='contained'
+                  color='primary'
+                  startIcon={<i className='tabler-eye' style={{ fontSize: 14 }} />}
+                  onClick={() => setSelectionFormOpen(true)}
+                  disabled={!selectionRowData.REQUEST_REGISTER_VENDOR_ID}
+                >
+                  View Selection Sheet
+                </Button>
+              </Box>
+
+              <Box
                 ref={gprBSectionRef}
                 sx={{
                   mb: 0,
@@ -776,7 +838,7 @@ export default function RequestDetailDialog({
                 ) : (
                   <Typography color='text.secondary'>No GPR B file uploaded by PO PIC.</Typography>
                 )}
-                {(onApprove || onReject || onActionRequired) && (
+                {(onApprove || onRecheck || onReject || onActionRequired) && (
                   <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     <Button
                       variant='contained'
@@ -798,6 +860,18 @@ export default function RequestDetailDialog({
                         disabled={actionDisabled || actionRequiredDisabled}
                       >
                         Action Required
+                      </Button>
+                    )}
+                    {onRecheck && (
+                      <Button
+                        variant='contained'
+                        color='warning'
+                        fullWidth
+                        startIcon={<i className='tabler-arrow-back-up' style={{ fontSize: 18 }} />}
+                        onClick={onRecheck}
+                        disabled={actionDisabled}
+                      >
+                        Re-check with PO PIC
                       </Button>
                     )}
                     <Button
@@ -836,6 +910,14 @@ export default function RequestDetailDialog({
         initialIndex={previewIndex}
         onClose={() => setPreviewOpen(false)}
       />
+      {selectionFormOpen && (
+        <SelectionFormDialong
+          open={selectionFormOpen}
+          rowData={selectionRowData}
+          mode='View'
+          onClose={() => setSelectionFormOpen(false)}
+        />
+      )}
     </>
   )
 }

@@ -51,13 +51,16 @@ import type { FormDataPage } from './validationSchema'
 import useVendorStatusIdentity from '@/_workspace/hooks/useVendorStatusIdentity'
 import { isVendorStatusMaster } from '@/_workspace/utils/vendorStatusIdentity'
 import type { VendorRow, SortColumnState } from '@/_workspace/types/_Re-register/ReRegisterTypes'
+import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchVendorTypes'
+import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchCountries'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProductGroups'
 
 const buildVendorSearchFilters = (filters: FormDataPage['searchFilters']) => [
   { id: 'global_search', value: filters?.globalSearch || '' },
   { id: 'COMPANY_NAME', value: filters?.companyName || '' },
-  { id: 'MASTER_VENDOR_TYPES_ID', value: filters?.vendorTypeId?.value || null },
-  { id: 'PROVINCE', value: filters?.province?.value || '' },
-  { id: 'MASTER_PRODUCT_GROUPS_ID', value: filters?.productGroupId?.value || null },
+  { id: 'MASTER_VENDOR_TYPES_ID', value: filters?.vendorTypeId?.BUSINESS_CATEGORY_ID || null },
+  { id: 'PROVINCE', value: filters?.province?.PROVINCE || '' },
+  { id: 'MASTER_PRODUCT_GROUPS_ID', value: filters?.productGroupId?.MASTER_PRODUCT_GROUPS_ID || null },
   { id: 'M_VENDOR_STATUS_ID', value: filters?.status?.value ?? null },
   { id: 'PRODUCT_NAME', value: filters?.productName || '' },
   { id: 'MAKER_NAME', value: filters?.makerName || '' },
@@ -474,9 +477,9 @@ function SearchResult() {
             loading={vendorDetailQuery.isFetching && !vendorDetailQuery.data}
             errorMessage={vendorDetailQuery.error?.message}
             updateRequest={ReRegisterServices.updateComprehensive}
-            vendorTypesRequest={ReRegisterServices.getVendorTypes}
-            countriesRequest={ReRegisterServices.getCountries}
-            productGroupsRequest={ReRegisterServices.getProductGroups}
+            fetchVendorTypes={fetchVendorTypes}
+            fetchCountries={fetchCountries}
+            fetchProductGroups={fetchProductGroups}
             onSuccess={handleEditSuccess}
           />
         ) : null}

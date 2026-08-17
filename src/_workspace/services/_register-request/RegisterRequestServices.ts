@@ -2,6 +2,8 @@ import RegisterRequestAPI from '@/_workspace/api/_register-request/RegisterReque
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import type { AuditFields } from '@/_workspace/types/AuditFields'
+import type { CurrencyI, SelectionBusinessCategoryI } from '@/_workspace/types/_request-register/RequestRegisterTypes'
+import type { GprCProductMainI, GprCSectionI } from '@/_workspace/types/_request-history/RequestHistoryTypes'
 
 const APPROVAL_QUEUE_ROOT_URL = 'approval-queue'
 
@@ -12,9 +14,6 @@ export interface RegisterRequestResponseI<T = any> {
   MethodOnDb: string
   Message: string
 }
-
-type DropdownOption = { value: string; label: string; BUSINESS_CATEGORY_ID?: number; DESCRIPTION?: string | null }
-type CurrencyDropdownOption = { value: string; label: string; INFO_CURRENCY_ID?: number }
 
 // Pass-through transport layer (company pattern): callers build the UPPER_CASE
 // DB payload; the service only owns endpoint + method.
@@ -96,16 +95,20 @@ export default class RegisterRequestServices {
     })
   }
 
-  static getBusinessCategories(): Promise<AxiosResponse<RegisterRequestResponseI<DropdownOption[]>>> {
-    return axiosRequest<RegisterRequestResponseI<DropdownOption[]>>({
+  static getBusinessCategories(
+    data: Record<string, unknown> = {}
+  ): Promise<AxiosResponse<RegisterRequestResponseI<SelectionBusinessCategoryI[]>>> {
+    return axiosRequest<RegisterRequestResponseI<SelectionBusinessCategoryI[]>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/dropdown/business-categories`,
+      data,
       method: 'POST'
     })
   }
 
-  static getCurrencies(): Promise<AxiosResponse<RegisterRequestResponseI<CurrencyDropdownOption[]>>> {
-    return axiosRequest<RegisterRequestResponseI<CurrencyDropdownOption[]>>({
+  static getCurrencies(data: Record<string, unknown> = {}): Promise<AxiosResponse<RegisterRequestResponseI<CurrencyI[]>>> {
+    return axiosRequest<RegisterRequestResponseI<CurrencyI[]>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/dropdown/currencies`,
+      data,
       method: 'POST'
     })
   }
@@ -237,6 +240,14 @@ export default class RegisterRequestServices {
     })
   }
 
+  static gprCRecheckStep(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
+    return axiosRequest<RegisterRequestResponseI<unknown>>({
+      url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/recheck-step`,
+      data,
+      method: 'POST'
+    })
+  }
+
   static gprCRejectStep(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<unknown>>> {
     return axiosRequest<RegisterRequestResponseI<unknown>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/gpr-c/reject-step`,
@@ -297,9 +308,19 @@ export default class RegisterRequestServices {
 
   static getGprCProducts(
     data: Record<string, unknown> = {}
-  ): Promise<AxiosResponse<RegisterRequestResponseI<Array<{ value: number; label: string }>>>> {
-    return axiosRequest<RegisterRequestResponseI<Array<{ value: number; label: string }>>>({
+  ): Promise<AxiosResponse<RegisterRequestResponseI<GprCProductMainI[]>>> {
+    return axiosRequest<RegisterRequestResponseI<GprCProductMainI[]>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/getGprCProducts`,
+      data,
+      method: 'POST'
+    })
+  }
+
+  static getGprCSections(
+    data: Record<string, unknown> = {}
+  ): Promise<AxiosResponse<RegisterRequestResponseI<GprCSectionI[]>>> {
+    return axiosRequest<RegisterRequestResponseI<GprCSectionI[]>>({
+      url: `${RegisterRequestAPI.API_ROOT_URL}/getGprCSections`,
       data,
       method: 'POST'
     })
@@ -410,6 +431,8 @@ export interface ApprovalLog extends AuditFields {
   REQUEST_APPROVAL_STEP_ID: number
   ACTION_BY: string
   ACTION_TYPE: string
+  REJECT_REASON?: string | null
+  RECHECK_REASON?: string | null
   DESCRIPTION: string
   CREATE_DATE: string
   ACTION_BY_NAME?: string

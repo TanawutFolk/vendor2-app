@@ -110,6 +110,8 @@ function SearchResult() {
           detailRow.STEP_CODE ||
           detailRow.STEP_NAME)
     ) && !detailIsActioned
+  const detailStepCode = String(detailRow?.STEP_CODE || '').trim().toUpperCase()
+  const detailCanRecheck = detailCanAction && detailStepCode === 'REQUESTER_APPROVER'
   const detailCanActionRequired = detailCanAction
 
   const loadActionRequiredCount = useCallback(async () => {
@@ -430,6 +432,7 @@ function SearchResult() {
         fallbackRow={detailRow}
         actionDisabled={false}
         onApprove={detailCanAction && detailRow ? () => openDialog('APPROVE', detailRow as GprCQueueRow) : undefined}
+        onRecheck={detailCanRecheck && detailRow ? () => openDialog('RECHECK', detailRow as GprCQueueRow) : undefined}
         onReject={detailCanAction && detailRow ? () => openDialog('REJECT', detailRow as GprCQueueRow) : undefined}
         onActionRequired={
           detailCanAction && detailRow ? () => openActionRequiredDialog(detailRow as GprCQueueRow) : undefined

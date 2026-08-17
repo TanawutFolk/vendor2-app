@@ -42,7 +42,12 @@ import { fetchCurrencies } from '@/_workspace/react-select/async-promise-load-op
 import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import type { CurrencyOption } from '@/_workspace/react-select/async-promise-load-options/request-register/fetchCurrencies'
 import type { CountryOption } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
-import { useSelectionForm, MAX_CRITERIA_FILES, PENDING_UPLOAD_PREFIX } from './useSelectionForm'
+import {
+  useSelectionForm,
+  MAX_CRITERIA_FILES,
+  PENDING_UPLOAD_PREFIX,
+  getCriteria41ReplacementMessage
+} from './useSelectionForm'
 import type {
   SelectionFormData,
   SelectionFormDialongProps,
@@ -648,8 +653,10 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
                               isClearable={false}
                               classNamePrefix='select'
                               loadOptions={fetchCurrencies}
-                              value={value ? { value, label: value } : null}
-                              onChange={val => onChange(val?.value || 'THB')}
+                              value={value ? { INFO_CURRENCY_ID: 0, CURRENCY_NAME: value } : null}
+                              onChange={val => onChange(val?.CURRENCY_NAME || 'THB')}
+                              getOptionLabel={option => option.CURRENCY_NAME}
+                              getOptionValue={option => option.CURRENCY_NAME}
                             />
                           </Box>
                         )}
@@ -711,8 +718,10 @@ const GeneralInfoSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionForm
                   isClearable
                   classNamePrefix='select'
                   loadOptions={fetchBusinessCategories}
-                  value={value ? { value, label: value } : null}
-                  onChange={val => onChange(val?.value || '')}
+                  value={value ? { BUSINESS_CATEGORY_ID: 0, BUSINESS_CATEGORY_NAME: value } : null}
+                  onChange={val => onChange(val?.BUSINESS_CATEGORY_NAME || '')}
+                  getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
+                  getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
                 />
               )}
             />
@@ -754,8 +763,10 @@ const GeneralInfoSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionForm
                   isClearable
                   classNamePrefix='select'
                   loadOptions={fetchCountries}
-                  value={value ? { value, label: value } : null}
-                  onChange={val => onChange(val?.value || '')}
+                  value={value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: value } : null}
+                  onChange={val => onChange(val?.INFO_COUNTRY_NAME || '')}
+                  getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                  getOptionValue={option => option.INFO_COUNTRY_NAME}
                 />
               )}
             />
@@ -786,8 +797,10 @@ const GeneralInfoSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionForm
                   isClearable
                   classNamePrefix='select'
                   loadOptions={fetchCountries}
-                  value={value ? { value, label: value } : null}
-                  onChange={val => onChange(val?.value || '')}
+                  value={value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: value } : null}
+                  onChange={val => onChange(val?.INFO_COUNTRY_NAME || '')}
+                  getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                  getOptionValue={option => option.INFO_COUNTRY_NAME}
                 />
               )}
             />
@@ -1057,9 +1070,10 @@ const CriteriaSection = React.memo(
 const CriteriaStats = React.memo(() => {
   const { control } = useFormContext<SelectionFormData>()
   const criteria = useWatch({ control, name: 'criteria' }) || []
-  const needUploaded = criteria.filter(
-    item => ['4.1', '4.2', '4.4', '4.5'].includes(String(item?.no || '')) && item?.files?.length
-  ).length
+  const hasDocument = (criteriaNo: string) =>
+    criteria.some(item => String(item?.no || '') === criteriaNo && item?.files?.length)
+  const needUploaded =
+    ['4.2', '4.4', '4.5'].filter(hasDocument).length + (hasDocument('4.1') || hasDocument('4.11') ? 1 : 0)
   const isNeedPassed = needUploaded >= 4
   const optionalUploaded = criteria.filter(
     item => item?.criteria === 'Optional' && item?.no !== '4.14' && item?.files?.length
@@ -1081,7 +1095,7 @@ const CriteriaStats = React.memo(() => {
           }}
         />
         <Typography variant='caption'>
-          {'1. Criteria for evaluation criteria item 4.1, 4.2, 4.4 and 4.5, Which are all selected = '}
+          {'1. Criteria for evaluation items 4.1 (or 4.11 as a substitute), 4.2, 4.4 and 4.5, selected = '}
           <Box component='span' sx={{ fontWeight: 700, color: isNeedPassed ? 'success.main' : 'error.main' }}>
             {needUploaded}
           </Box>
@@ -1396,6 +1410,7 @@ export default function SelectionFormDialong({
     accountVendorCodeOnly: isAccountVendorCodeOnlyMode
   })
   const [confirmAction, setConfirmAction] = useState<'save' | 'export' | null>(null)
+  const [confirmWarning, setConfirmWarning] = useState('')
   const [deleteCriteriaFile, setDeleteCriteriaFile] = useState<{ criteriaIndex: number; fileIndex: number } | null>(
     null
   )
@@ -1441,6 +1456,14 @@ export default function SelectionFormDialong({
   }, [rowData?.APPROVAL_LOGS])
 
   const requestRef = rowData?.REQUEST_NUMBER || rowData?.REQUEST_REGISTER_VENDOR_ID || '-'
+  const handleOpenConfirmAction = (action: 'save' | 'export') => {
+    const actionSavesForm = action === 'save' || !isViewMode
+    const criteriaReplacementMessage = getCriteria41ReplacementMessage(methods.getValues('criteria'))
+
+    setConfirmWarning(actionSavesForm && !isAccountVendorCodeOnlyMode ? criteriaReplacementMessage : '')
+    setConfirmAction(action)
+  }
+
   const handleConfirmAction = async () => {
     if (confirmAction === 'save') {
       await handleSave()
@@ -1449,6 +1472,7 @@ export default function SelectionFormDialong({
     }
 
     setConfirmAction(null)
+    setConfirmWarning('')
   }
 
   const handleConfirmDeleteCriteriaFile = async () => {
@@ -1560,7 +1584,7 @@ export default function SelectionFormDialong({
           <Button
             variant='tonal'
             color='primary'
-            onClick={() => setConfirmAction('save')}
+            onClick={() => handleOpenConfirmAction('save')}
             disabled={isBusy || isViewMode}
             startIcon={
               saving ? <CircularProgress size={14} /> : <i className='tabler-device-floppy' style={{ fontSize: 16 }} />
@@ -1571,7 +1595,7 @@ export default function SelectionFormDialong({
           <Button
             variant='contained'
             color='primary'
-            onClick={() => setConfirmAction('export')}
+            onClick={() => handleOpenConfirmAction('export')}
             disabled={isBusy}
             startIcon={
               generatingPdf ? (
@@ -1596,9 +1620,13 @@ export default function SelectionFormDialong({
       <ConfirmModal
         show={Boolean(confirmAction)}
         onConfirmClick={handleConfirmAction}
-        onCloseClick={() => setConfirmAction(null)}
+        onCloseClick={() => {
+          setConfirmAction(null)
+          setConfirmWarning('')
+        }}
         isDelete={false}
         isLoading={isBusy}
+        message={confirmWarning}
       />
       <ConfirmModal
         show={Boolean(deleteCriteriaFile)}

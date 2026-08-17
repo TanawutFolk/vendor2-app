@@ -7,6 +7,7 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
 import type { VendorProfileSectionProps } from '@/_workspace/types/vendor/VendorTypes'
+import type { BusinessCategoryI, CountryI } from '@/_workspace/types/vendor/VendorTypes'
 
 const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fetchCountries }: VendorProfileSectionProps) => {
   const {
@@ -76,30 +77,38 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                     InputProps={{ readOnly: true }}
                   />
                 ) : (
-                  <AsyncSelectCustom
+                  <AsyncSelectCustom<BusinessCategoryI>
                     key={`${currentVendorTypeId ?? 'empty'}-${currentVendorTypeLabel || 'unknown'}`}
                     label='Vendor Type'
                     {...field}
                     value={
                       currentVendorTypeId
-                        ? { value: currentVendorTypeId, label: currentVendorTypeLabel || 'Unknown' }
+                        ? {
+                            BUSINESS_CATEGORY_ID: currentVendorTypeId,
+                            BUSINESS_CATEGORY_NAME: currentVendorTypeLabel || 'Unknown'
+                          }
                         : null
                     }
                     defaultValue={
                       currentVendorTypeId
-                        ? { value: currentVendorTypeId, label: currentVendorTypeLabel || 'Unknown' }
+                        ? {
+                            BUSINESS_CATEGORY_ID: currentVendorTypeId,
+                            BUSINESS_CATEGORY_NAME: currentVendorTypeLabel || 'Unknown'
+                          }
                         : null
                     }
-                    onChange={(val: any) => {
-                      const newValue = val && val.value !== undefined ? val.value : null
+                    onChange={val => {
+                      const newValue = val?.BUSINESS_CATEGORY_ID ?? null
                       field.onChange(newValue)
-                      setValue('vendor_type_name', val?.label || null)
+                      setValue('vendor_type_name', val?.BUSINESS_CATEGORY_NAME || null)
                     }}
                     placeholder='Select Type...'
                     defaultOptions
                     cacheOptions
                     isClearable
                     loadOptions={fetchVendorTypes}
+                    getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
+                    getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
                     classNamePrefix='select'
                     isDisabled={false}
                   />
@@ -161,11 +170,13 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                 name='country'
                 control={control}
                 render={({ field }) => (
-                  <AsyncSelectCustom
+                  <AsyncSelectCustom<CountryI>
                     label='Country'
                     loadOptions={(inputValue: string) => fetchCountries(inputValue)}
-                    value={field.value ? { label: field.value, value: field.value } : null}
-                    onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                    value={field.value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: field.value } : null}
+                    onChange={val => field.onChange(val?.INFO_COUNTRY_NAME || '')}
+                    getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                    getOptionValue={option => option.INFO_COUNTRY_NAME}
                     defaultOptions
                     cacheOptions
                     isClearable

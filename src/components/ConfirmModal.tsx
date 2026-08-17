@@ -23,7 +23,7 @@ const Transition = forwardRef(function Transition(
   return <Slide direction='down' ref={ref} {...props} />
 })
 
-const ConfirmModal = ({ show, onConfirmClick, onCloseClick, isLoading, isDelete }: any) => {
+const ConfirmModal = ({ show, onConfirmClick, onCloseClick, isLoading, isDelete, message }: any) => {
   let imageConfirm
 
   if (isDelete) {
@@ -62,6 +62,14 @@ const ConfirmModal = ({ show, onConfirmClick, onCloseClick, isLoading, isDelete 
             <Typography variant='h5' sx={{ color: 'text.secondary' }}>
               ยืนยัน การ{isDelete ? 'ลบ' : 'บันทึก'}ข้อมูลหรือไม่ ?
             </Typography>
+            {message && (
+              <Typography
+                variant='body2'
+                sx={{ mt: 3, px: 2, color: 'warning.dark', fontWeight: 600, lineHeight: 1.6 }}
+              >
+                {message}
+              </Typography>
+            )}
           </Box>
         </DialogContent>
 

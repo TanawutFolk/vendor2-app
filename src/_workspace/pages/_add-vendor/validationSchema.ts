@@ -43,8 +43,8 @@ export const ContactSchema = z.object({
 // --- Product Schema (for vendor_products table) ---
 // Option object type for AsyncSelectCustom
 const ProductGroupOptionSchema = z.object({
-  value: z.number(),
-  label: z.string()
+  MASTER_PRODUCT_GROUPS_ID: z.number(),
+  GROUP_NAME: z.string()
 })
 
 // Every product field is optional. When one is filled in it still has to satisfy the
@@ -107,8 +107,8 @@ export const validationSchemaPage = z
     // BUSINESS_CATEGORY_ID — leaving it empty would insert a dangling 0.
     vendor_type: z.object(
       {
-        value: z.number(),
-        label: z.string()
+        BUSINESS_CATEGORY_ID: z.number(),
+        BUSINESS_CATEGORY_NAME: z.string()
       },
       {
         required_error: requiredFieldMessage({ fieldName: 'Vendor Type' }),

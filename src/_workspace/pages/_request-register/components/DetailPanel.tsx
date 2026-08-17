@@ -46,6 +46,9 @@ import RegisterRequestServices from '@/_workspace/services/_register-request/Reg
 import { useFindVendorDetail } from '@/_workspace/react-query/hooks/useFindVendor'
 import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
 import { isApprovalStepStatusMaster } from '@/_workspace/utils/workflowIdentity'
+import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
+import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
+import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 
 // Styled dropzone — same look as the Requester's "Quotation, Concerned documents"
 // upload in /find-vendor (RegisterConfirmModal).
@@ -226,12 +229,13 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
   const gpr43Decision = String(gprCriteria.find((c: any) => String(c?.NO || '') === '4.3')?.REMARK || '').trim()
   const isGpr43Accepted = gpr43Status ? gpr43Status === 'ACCEPT' : gpr43Decision === 'Accept'
   const isGprBRequired = gpr43Status ? gpr43Status === 'NOT ACCEPT' : gpr43Decision === 'Not Accept'
+  const hasCriteriaFile = (criteriaNo: string) =>
+    gprCriteria.some((c: any) => String(c?.NO || '') === criteriaNo && !!c?.UPLOADED_FILE)
   const gprPassNeed =
     selectionFormFilled &&
     isGpr43Accepted &&
-    ['4.1', '4.2', '4.4', '4.5'].every(no =>
-      gprCriteria.some((c: any) => String(c?.NO || '') === no && !!c?.UPLOADED_FILE)
-    )
+    (hasCriteriaFile('4.1') || hasCriteriaFile('4.11')) &&
+    ['4.2', '4.4', '4.5'].every(hasCriteriaFile)
   // Optional criteria require at least 3 documents.
   const gprPassOptional =
     selectionFormFilled &&
@@ -763,7 +767,9 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                     }}
                   >
                     {(() => {
-                      const parsedRemark = parseActionRequiredRemark(l.DESCRIPTION)
+                      const parsedRemark = parseActionRequiredRemark(
+                        l.RECHECK_REASON || l.REJECT_REASON || l.DESCRIPTION
+                      )
                       const actionType = parsedRemark.isActionRequired ? 'action_required' : l.ACTION_TYPE
                       const actionTypeLabel = formatActionTypeLabel(actionType)
                       const actionColor = getActionTypeColor(actionType)
@@ -1487,9 +1493,9 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
         loading={editVendorDetailQuery.isFetching && !editVendorDetailQuery.data}
         errorMessage={editVendorDetailQuery.error?.message}
         updateRequest={FindVendorServices.updateComprehensive}
-        vendorTypesRequest={FindVendorServices.getVendorTypes}
-        countriesRequest={FindVendorServices.getCountries}
-        productGroupsRequest={FindVendorServices.getProductGroups}
+        fetchVendorTypes={fetchVendorTypes}
+        fetchCountries={fetchCountries}
+        fetchProductGroups={fetchProductGroups}
         onSuccess={() => {
           void editVendorDetailQuery.refetch()
           ToastMessageSuccess({ title: 'Edit Vendor', message: 'Vendor updated successfully' })

@@ -1,13 +1,13 @@
 // --- Vendor Types (master_vendor_types) ---
 export interface VendorTypeI {
-  vendor_type_id: number
-  name: string
+  BUSINESS_CATEGORY_ID: number
+  BUSINESS_CATEGORY_NAME: string
 }
 
 // --- Product Groups (master_product_groups) ---
 export interface ProductGroupI {
-  product_group_id: number
-  group_name: string
+  MASTER_PRODUCT_GROUPS_ID: number
+  GROUP_NAME: string
 }
 
 // --- Vendor Contacts (vendor_contacts) ---

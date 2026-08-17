@@ -108,10 +108,12 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
   const optionalRows = normalizedRows.filter(row => OPTIONAL_CRITERIA.has(row.no))
   const optionalUploadedCount = optionalRows.filter(row => row.uploadedFile).length
   const optionalShortfall = Math.max(0, OPTIONAL_REQUIRED_COUNT - optionalUploadedCount)
+  const hasLawDocumentSubstitute = normalizedRows.some(row => row.no === '4.11' && row.uploadedFile)
 
   const unresolvedRequired = normalizedRows
     .filter(row => DECISION_CRITERIA.has(row.no) || NEED_UPLOAD_CRITERIA.has(row.no))
     .filter(row => {
+      if (row.no === '4.1') return !row.uploadedFile && !hasLawDocumentSubstitute
       if (NEED_UPLOAD_CRITERIA.has(row.no)) return !row.uploadedFile || row.explicitNotAccept
       return !row.explicitAccept || row.explicitNotAccept
     })
@@ -119,7 +121,10 @@ export const buildGprCriteriaSummary = (rows: RawCriterion[]): GprCriteriaSummar
       no: row.no,
       detail: row.detail,
       criteriaType: 'Need' as const,
-      reason: buildReason(row, optionalUploadedCount),
+      reason:
+        row.no === '4.1'
+          ? 'Need supporting document 4.1 or substitute document 4.11 is still missing.'
+          : buildReason(row, optionalUploadedCount),
       remark: row.remark,
       uploadedFile: row.uploadedFile,
       explicitNotAccept: row.explicitNotAccept

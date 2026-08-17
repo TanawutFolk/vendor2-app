@@ -6,7 +6,7 @@ import { Button, Card, CardContent, CardHeader, Grid } from '@mui/material'
 
 // react-hook-from Imports
 import type { SubmitErrorHandler, SubmitHandler } from 'react-hook-form'
-import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form'
+import { Controller, useFormContext, useFormState } from 'react-hook-form'
 
 import { useQuery } from '@tanstack/react-query'
 
@@ -58,9 +58,6 @@ function SearchFilters() {
 
   const { isLoading } = useFormState()
 
-  const selectedSection = useWatch({ control, name: 'searchFilters.section' })
-  const selectedYear = useWatch({ control, name: 'searchFilters.year' })
-
   // Hooks : react-query
   const filterOptionsQuery = useQuery({
     queryKey: [PREFIX_QUERY_KEY, 'FILTER_OPTIONS'],
@@ -76,25 +73,23 @@ function SearchFilters() {
 
   const sectionOptions = useMemo<SectionOptionI[]>(() => {
     const values = (filterOptionsQuery.data || [])
-      .filter(row => !selectedYear?.value || Number(row.REQUEST_YEAR) === selectedYear.value)
       .map(row => String(row.REQUESTER_SECTION || '').trim())
       .filter(Boolean)
 
     return Array.from(new Set(values))
       .sort((a, b) => a.localeCompare(b))
       .map(value => ({ value, label: value }))
-  }, [filterOptionsQuery.data, selectedYear?.value])
+  }, [filterOptionsQuery.data])
 
   const yearOptions = useMemo<YearOptionI[]>(() => {
     const values = (filterOptionsQuery.data || [])
-      .filter(row => !selectedSection?.value || row.REQUESTER_SECTION === selectedSection.value)
       .map(row => Number(row.REQUEST_YEAR))
-      .filter(value => Number.isInteger(value))
+      .filter(value => Number.isInteger(value) && value > 0)
 
     return Array.from(new Set(values))
       .sort((a, b) => b - a)
       .map(value => ({ value, label: String(value) }))
-  }, [filterOptionsQuery.data, selectedSection?.value])
+  }, [filterOptionsQuery.data])
 
   // Function
   const onHandleClearSearchFilters = () => {

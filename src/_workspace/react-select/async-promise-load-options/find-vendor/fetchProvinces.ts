@@ -1,32 +1,22 @@
 import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
+import type { ProvinceI } from '@/_workspace/types/vendor/VendorTypes'
 
-// Types
-export interface ProvinceOption {
-  value: string
-  label: string
-}
+export interface ProvinceOption extends ProvinceI {}
 
-/**
- * Fetch provinces for AsyncSelect
- * @param inputValue - Search input value for filtering
- * @returns Promise<ProvinceOption[]>
- */
-export const fetchProvinces = (inputValue: string) =>
+const fetchProvinces = (inputValue: string) =>
   new Promise<ProvinceOption[]>(resolve => {
-    FindVendorServices.getProvinces()
-      .then(response => {
-        if (response.data.Status) {
-          const filtered = response.data.ResultOnDb.map(item => ({
-            label: item.label,
-            value: String(item.value)
-          })).filter(item => item.label.toLowerCase().includes(inputValue.toLowerCase()))
-          resolve(filtered)
-        } else {
-          resolve([])
-        }
+    const param = {
+      PROVINCE: inputValue
+    }
+
+    FindVendorServices.getProvinces(param)
+      .then(responseJson => {
+        resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
       })
       .catch(error => {
-        console.error('Error fetching provinces:', error)
+        console.log(error)
         resolve([])
       })
   })
+
+export { fetchProvinces }

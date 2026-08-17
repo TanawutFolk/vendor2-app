@@ -2,8 +2,11 @@ import FindVendorAPI from '@/_workspace/api/_find-vendor/FindVendorAPI'
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import type {
-  DropdownItemI,
+  BusinessCategoryI,
+  CountryI,
   FindVendorApiResponseI,
+  ProductGroupI,
+  ProvinceI,
   VendorComprehensiveI,
   VendorResultI
 } from '@/_workspace/types/vendor/VendorTypes'
@@ -56,36 +59,46 @@ export default class FindVendorServices {
   }
 
   // Get vendor business category names for dropdown
-  static getVendorBusinessCategoryName(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
-    return axiosRequest<FindVendorApiResponseI<DropdownItemI[]>>({
+  static getVendorBusinessCategoryName(
+    data: Record<string, unknown> = {}
+  ): Promise<AxiosResponse<FindVendorApiResponseI<BusinessCategoryI[]>>> {
+    return axiosRequest<FindVendorApiResponseI<BusinessCategoryI[]>>({
       url: `${FindVendorAPI.API_ROOT_URL}/dropdown/vendor-business-category-name`,
+      data,
       method: 'POST'
     })
   }
 
-  static getVendorTypes(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
-    return FindVendorServices.getVendorBusinessCategoryName()
+  static getVendorTypes(
+    data: Record<string, unknown> = {}
+  ): Promise<AxiosResponse<FindVendorApiResponseI<BusinessCategoryI[]>>> {
+    return FindVendorServices.getVendorBusinessCategoryName(data)
   }
 
   // Get provinces for dropdown
-  static getProvinces(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
-    return axiosRequest<FindVendorApiResponseI<DropdownItemI[]>>({
+  static getProvinces(data: Record<string, unknown> = {}): Promise<AxiosResponse<FindVendorApiResponseI<ProvinceI[]>>> {
+    return axiosRequest<FindVendorApiResponseI<ProvinceI[]>>({
       url: `${FindVendorAPI.API_ROOT_URL}/dropdown/provinces`,
+      data,
       method: 'POST'
     })
   }
   // Get countries for dropdown
-  static getCountries(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
-    return axiosRequest<FindVendorApiResponseI<DropdownItemI[]>>({
+  static getCountries(data: Record<string, unknown> = {}): Promise<AxiosResponse<FindVendorApiResponseI<CountryI[]>>> {
+    return axiosRequest<FindVendorApiResponseI<CountryI[]>>({
       url: `${FindVendorAPI.API_ROOT_URL}/dropdown/countries`,
+      data,
       method: 'POST'
     })
   }
 
   // Get product groups for dropdown
-  static getProductGroups(): Promise<AxiosResponse<FindVendorApiResponseI<DropdownItemI[]>>> {
-    return axiosRequest<FindVendorApiResponseI<DropdownItemI[]>>({
+  static getProductGroups(
+    data: Record<string, unknown> = {}
+  ): Promise<AxiosResponse<FindVendorApiResponseI<ProductGroupI[]>>> {
+    return axiosRequest<FindVendorApiResponseI<ProductGroupI[]>>({
       url: `${FindVendorAPI.API_ROOT_URL}/dropdown/product-groups`,
+      data,
       method: 'POST'
     })
   }

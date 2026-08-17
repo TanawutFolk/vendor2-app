@@ -22,11 +22,11 @@ export interface NegotiationAction {
   isFinalStep: boolean
 }
 
-export type WorkflowActionCode = 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' | 'RETURN'
+export type WorkflowActionCode = 'APPROVE' | 'DISAGREE' | 'ACTION_REQUIRED' | 'REJECT' | 'RECHECK'
 
 export interface ActionDialogProps {
   open: boolean
-  mode: 'approve' | 'reject'
+  mode: 'approve' | 'reject' | 'recheck'
   actions: Array<{
     requestId: number
     currentTaskId: number
@@ -49,7 +49,7 @@ export interface DetailPanelProps {
   onApprove: (actionCode: WorkflowActionCode, approveActionLabel: string) => void
   onReject: (
     rejectActionLabel: string,
-    actionCode?: Extract<WorkflowActionCode, 'DISAGREE' | 'REJECT' | 'RETURN'>
+    actionCode?: Extract<WorkflowActionCode, 'DISAGREE' | 'REJECT' | 'RECHECK'>
   ) => void
   onRefresh: () => void
   // Silent refresh after saving a sub-form (e.g. Selection Sheet): re-fetches

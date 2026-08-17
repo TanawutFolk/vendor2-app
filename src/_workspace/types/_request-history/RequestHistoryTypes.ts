@@ -3,6 +3,16 @@ import type { AuditFields } from '@/_workspace/types/AuditFields'
 export type RegisterStatus = string
 export type RequestStateId = number
 
+export interface GprCProductMainI {
+  PRODUCT_MAIN_ID: number
+  PRODUCT_MAIN_NAME: string
+  PRODUCT_MAIN_ALPHABET: string
+}
+
+export interface GprCSectionI {
+  SECT_NAME: string
+}
+
 export interface RegisterStep {
   step: number
   workflowStepMasterId?: number
@@ -39,6 +49,8 @@ export interface ApprovalLogRecord extends AuditFields {
   REQUEST_APPROVAL_STEP_ID: number
   ACTION_BY: string
   ACTION_TYPE: string
+  REJECT_REASON?: string | null
+  RECHECK_REASON?: string | null
   DESCRIPTION: string
   CREATE_DATE: string
 }
@@ -81,6 +93,7 @@ export interface GprCFormState {
 export interface GprCProductCheckerInfo {
   product_main_id: number | null
   product_main_name: string
+  section_name: string
   checker_empcode: string
   checker_name: string
   checker_email: string

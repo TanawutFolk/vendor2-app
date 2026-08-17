@@ -1,12 +1,22 @@
 import ReRegisterServices from '@/_workspace/services/_Re-register/ReRegisterServices'
+import type { BusinessCategoryI } from '@/_workspace/types/vendor/VendorTypes'
 
-type VendorTypeOption = { value: number; label: string }
+export interface VendorTypeOption extends BusinessCategoryI {}
 
-export const fetchVendorTypes = async (inputValue: string): Promise<VendorTypeOption[]> => {
-  const response = await ReRegisterServices.getVendorTypes()
-  const options = response.data?.Status
-    ? (response.data.ResultOnDb || []).map(option => ({ label: option.label, value: Number(option.value) }))
-    : []
-  const keyword = inputValue.trim().toLowerCase()
-  return keyword ? options.filter(option => option.label.toLowerCase().includes(keyword)) : options
-}
+const fetchVendorTypes = (inputValue: string) =>
+  new Promise<VendorTypeOption[]>(resolve => {
+    const param = {
+      BUSINESS_CATEGORY_NAME: inputValue
+    }
+
+    ReRegisterServices.getVendorTypes(param)
+      .then(responseJson => {
+        resolve(responseJson.data.Status ? responseJson.data.ResultOnDb : [])
+      })
+      .catch(error => {
+        console.log(error)
+        resolve([])
+      })
+  })
+
+export { fetchVendorTypes }

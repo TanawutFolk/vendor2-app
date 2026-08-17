@@ -23,10 +23,22 @@ import { STATUS_MASTER_TYPE } from '@/_workspace/types/StatusMasterTypes'
 import { useDxContext } from '@/_template/DxContextProvider'
 
 // Workspace Imports
-import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
-import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
-import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
+import {
+  fetchVendorTypes,
+  type VendorTypeOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
+import {
+  fetchCountries,
+  type CountryOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
+import {
+  fetchProvinces,
+  type ProvinceOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
+import {
+  fetchProductGroups,
+  type ProductGroupOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
 
 // My Components Imports
 import { MENU_ID } from './env'
@@ -178,7 +190,7 @@ function SearchFilters() {
                   name='searchFilters.country'
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<CountryOption>
                       defaultOptions
                       cacheOptions
                       loadOptions={(inputValue: string) => fetchCountries(inputValue)}
@@ -186,8 +198,10 @@ function SearchFilters() {
                       label='Country'
                       placeholder='Select ...'
                       classNamePrefix='select'
-                      value={field.value ? { label: field.value, value: field.value } : null}
-                      onChange={(value: { label: string; value: string } | null) => field.onChange(value?.value || '')}
+                      value={field.value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: field.value } : null}
+                      onChange={value => field.onChange(value?.INFO_COUNTRY_NAME || '')}
+                      getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                      getOptionValue={option => option.INFO_COUNTRY_NAME}
                     />
                   )}
                 />
@@ -197,7 +211,7 @@ function SearchFilters() {
                   name='searchFilters.vendorTypeId'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<VendorTypeOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -206,6 +220,8 @@ function SearchFilters() {
                       label='Vendor Type'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
+                      getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
                     />
                   )}
                 />
@@ -215,7 +231,7 @@ function SearchFilters() {
                   name='searchFilters.province'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<ProvinceOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -224,6 +240,8 @@ function SearchFilters() {
                       label='Province'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.PROVINCE}
+                      getOptionValue={option => option.PROVINCE}
                     />
                   )}
                 />
@@ -233,7 +251,7 @@ function SearchFilters() {
                   name='searchFilters.productGroupId'
                   control={control}
                   render={({ field: { ...fieldProps } }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<ProductGroupOption>
                       {...fieldProps}
                       defaultOptions
                       cacheOptions
@@ -242,6 +260,8 @@ function SearchFilters() {
                       label='Product Group'
                       placeholder='Select ...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.GROUP_NAME}
+                      getOptionValue={option => option.MASTER_PRODUCT_GROUPS_ID.toString()}
                     />
                   )}
                 />

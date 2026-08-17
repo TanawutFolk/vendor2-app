@@ -3,6 +3,17 @@ import type { AuditFields } from '@/_workspace/types/AuditFields'
 export type RequestStatus = 'new' | 'in_progress' | 'pending_docs' | 'approved' | 'rejected'
 export type RequestStateId = number
 
+export interface SelectionBusinessCategoryI {
+  BUSINESS_CATEGORY_ID: number
+  BUSINESS_CATEGORY_NAME: string
+  DESCRIPTION?: string | null
+}
+
+export interface CurrencyI {
+  INFO_CURRENCY_ID: number
+  CURRENCY_NAME: string
+}
+
 export interface VendorContact {
   contact_name: string
   tel_phone: string
@@ -39,6 +50,8 @@ export interface ApprovalLogItem extends AuditFields {
   REQUEST_APPROVAL_STEP_ID: number
   ACTION_BY: string
   ACTION_TYPE: string
+  REJECT_REASON?: string | null
+  RECHECK_REASON?: string | null
   DESCRIPTION: string
   CREATE_DATE: string
 }

@@ -306,7 +306,11 @@ export function GprPdfDocument({
   workflowStepIds: WorkflowStepMasterIds
   approvalStepStatusIds: ApprovalStepStatusMasterIds
 }) {
-  const needUploaded = form.criteria.filter(c => ['4.1', '4.2', '4.4', '4.5'].includes(c.no) && c.files?.length).length
+  const hasCriteriaDocument = (criteriaNo: string) =>
+    form.criteria.some(c => c.no === criteriaNo && c.files?.length)
+  const needUploaded =
+    ['4.2', '4.4', '4.5'].filter(hasCriteriaDocument).length +
+    (hasCriteriaDocument('4.1') || hasCriteriaDocument('4.11') ? 1 : 0)
   const optionalUploaded = form.criteria.filter(
     c => c.criteria === 'Optional' && c.no !== '4.14' && c.files?.length
   ).length
@@ -518,7 +522,7 @@ export function GprPdfDocument({
         <View style={{ marginBottom: 3 }}>
           <Text style={{ fontSize: 7.2, fontFamily: 'Helvetica-Bold', marginBottom: 2 }}>Remark :</Text>
           <Text style={s.rmkLine}>
-            {`1. Criteria for evaluation criteria item 4.1, 4.2, 4.4 and 4.5, Which are all selected = ${needUploaded} items`}
+            {`1. Criteria for evaluation items 4.1 (or 4.11 as a substitute), 4.2, 4.4 and 4.5, selected = ${needUploaded} items`}
           </Text>
           <Text style={s.rmkLine}>
             {`2. Item 4.6 to 4.13 as a criterion independent, Which must choose at least three items, Which are all selected = ${optionalUploaded} items`}

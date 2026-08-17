@@ -25,6 +25,7 @@ import {
 // Components Imports
 import CustomTextField from '@components/mui/TextField'
 import AsyncSelectCustom from '@/components/react-select/AsyncSelectCustom'
+import SelectCustom from '@/components/react-select/SelectCustom'
 import EditVendorModal from '@/_workspace/components/vendor/modal/EditVendorModal'
 import AddProductGroupModal from './modal/AddProductGroupModal'
 import DuplicateCheckResultDialog from './modal/DuplicateCheckResultDialog'
@@ -35,12 +36,23 @@ import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorSer
 // Fetch functions & React Query
 import { useCheckDuplicate } from '@/_workspace/react-query/hooks/useAddVendor'
 import type { CheckDuplicateResponseI, BlacklistMatchI } from '@/_workspace/types/_add-vendor/AddVendorTypes'
-import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
-import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
-import { fetchVendorRegions } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorRegions'
-import type { VendorRegionOption } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorRegions'
-import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
-import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
+import {
+  fetchVendorTypes,
+  type VendorTypeOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
+import {
+  fetchProductGroups,
+  type ProductGroupOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
+import VendorRegionOption from '@/_workspace/react-select/option/VendorRegionOption'
+import {
+  fetchProvinces,
+  type ProvinceOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProvinces'
+import {
+  fetchCountries,
+  type CountryOption
+} from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 
 // Types
 import type { FormDataPage } from './validationSchema'
@@ -154,9 +166,9 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
             name='vendor_region'
             control={control}
             render={({ field }) => (
-              <AsyncSelectCustom<VendorRegionOption>
+              <SelectCustom
                 label='Trade Term'
-                loadOptions={(inputValue: string) => fetchVendorRegions(inputValue)}
+                options={VendorRegionOption}
                 value={field.value ? { label: field.value, value: field.value } : { label: 'Local', value: 'Local' }}
                 onChange={val => {
                   const nextRegion = val?.value || 'Local'
@@ -168,8 +180,6 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                     setValue('country', '')
                   }
                 }}
-                defaultOptions
-                cacheOptions
                 isClearable={false}
                 isDisabled={isVerified}
                 placeholder='Select vendor region...'
@@ -202,11 +212,13 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
               name='country'
               control={control}
               render={({ field }) => (
-                <AsyncSelectCustom
+                <AsyncSelectCustom<CountryOption>
                   label='Country'
                   loadOptions={(inputValue: string) => fetchCountries(inputValue)}
-                  value={field.value ? { label: field.value, value: field.value } : null}
-                  onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                  value={field.value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: field.value } : null}
+                  onChange={val => field.onChange(val?.INFO_COUNTRY_NAME || '')}
+                  getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                  getOptionValue={option => option.INFO_COUNTRY_NAME}
                   defaultOptions
                   cacheOptions
                   isClearable
@@ -225,11 +237,13 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
                 name='province'
                 control={control}
                 render={({ field }) => (
-                  <AsyncSelectCustom
+                  <AsyncSelectCustom<ProvinceOption>
                     label='Province'
                     loadOptions={(inputValue: string) => fetchProvinces(inputValue)}
-                    value={field.value ? { label: field.value, value: field.value } : null}
-                    onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                    value={field.value ? { PROVINCE: field.value } : null}
+                    onChange={val => field.onChange(val?.PROVINCE || '')}
+                    getOptionLabel={option => option.PROVINCE}
+                    getOptionValue={option => option.PROVINCE}
                     defaultOptions
                     cacheOptions
                     isClearable
@@ -349,9 +363,9 @@ export const SectionCheck = ({ onVerifyChange, isVerified }: SectionCheckProps) 
           loading={existingVendorDetailQuery.isFetching && !existingVendorDetailQuery.data}
           errorMessage={existingVendorDetailQuery.error?.message}
           updateRequest={FindVendorServices.updateComprehensive}
-          vendorTypesRequest={FindVendorServices.getVendorTypes}
-          countriesRequest={FindVendorServices.getCountries}
-          productGroupsRequest={FindVendorServices.getProductGroups}
+          fetchVendorTypes={fetchVendorTypes}
+          fetchCountries={fetchCountries}
+          fetchProductGroups={fetchProductGroups}
           onSuccess={() => {
             void existingVendorDetailQuery.refetch()
             setEditModalOpen(false)
@@ -475,11 +489,13 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
               name='country'
               control={control}
               render={({ field }) => (
-                <AsyncSelectCustom
+                <AsyncSelectCustom<CountryOption>
                   label='Country'
                   loadOptions={(inputValue: string) => fetchCountries(inputValue)}
-                  value={field.value ? { label: field.value, value: field.value } : null}
-                  onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                  value={field.value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: field.value } : null}
+                  onChange={val => field.onChange(val?.INFO_COUNTRY_NAME || '')}
+                  getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                  getOptionValue={option => option.INFO_COUNTRY_NAME}
                   defaultOptions
                   cacheOptions
                   isClearable
@@ -498,11 +514,13 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                 name='province'
                 control={control}
                 render={({ field }) => (
-                  <AsyncSelectCustom
+                  <AsyncSelectCustom<ProvinceOption>
                     label='Province'
                     loadOptions={(inputValue: string) => fetchProvinces(inputValue)}
-                    value={field.value ? { label: field.value, value: field.value } : null}
-                    onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
+                    value={field.value ? { PROVINCE: field.value } : null}
+                    onChange={val => field.onChange(val?.PROVINCE || '')}
+                    getOptionLabel={option => option.PROVINCE}
+                    getOptionValue={option => option.PROVINCE}
                     defaultOptions
                     cacheOptions
                     isClearable
@@ -538,16 +556,16 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
             name='vendor_type'
             control={control}
             render={({ field }) => (
-              <AsyncSelectCustom
+              <AsyncSelectCustom<VendorTypeOption>
                 {...field}
                 label='Vendor Type'
                 loadOptions={inputValue => fetchVendorTypes(inputValue)}
-                defaultOptions
-                cacheOptions
                 isClearable
                 isDisabled={isDisabled}
                 placeholder='Select vendor type...'
                 classNamePrefix='select'
+                getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
+                getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
                 {...(errors.vendor_type && { error: true, helperText: 'Vendor Type is required' })}
               />
             )}
@@ -558,13 +576,11 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
             name='vendor_region'
             control={control}
             render={({ field }) => (
-              <AsyncSelectCustom
+              <SelectCustom
                 label='Trade Term'
-                loadOptions={(inputValue: string) => fetchVendorRegions(inputValue)}
+                options={VendorRegionOption}
                 value={field.value ? { label: field.value, value: field.value } : null}
-                onChange={(val: { label: string; value: string } | null) => field.onChange(val?.value || '')}
-                defaultOptions
-                cacheOptions
+                onChange={val => field.onChange(val?.value || '')}
                 isClearable={false}
                 isDisabled={true}
                 placeholder='Select vendor region...'
@@ -896,7 +912,7 @@ export const SectionProducts = ({ isDisabled }: SectionDisabledProps) => {
                   name={`products.${index}.product_group`}
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelectCustom
+                    <AsyncSelectCustom<ProductGroupOption>
                       {...field}
                       key={`product-group-${index}-${productGroupRefreshKey}`}
                       label='Product Group (Optional)'
@@ -907,6 +923,8 @@ export const SectionProducts = ({ isDisabled }: SectionDisabledProps) => {
                       isDisabled={isDisabled}
                       placeholder='Select group...'
                       classNamePrefix='select'
+                      getOptionLabel={option => option.GROUP_NAME}
+                      getOptionValue={option => option.MASTER_PRODUCT_GROUPS_ID.toString()}
                     />
                   )}
                 />

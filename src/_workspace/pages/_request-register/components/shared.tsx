@@ -38,6 +38,8 @@ export const formatActionTypeLabel = (value: unknown) => {
       return 'Approved'
     case 'rejected':
       return 'Rejected'
+    case 'recheck':
+      return 'Re-check Requested'
     case 'returned_to_pic':
       return 'Returned to PO PIC'
     case 'vendor_requested':
@@ -64,14 +66,23 @@ export const getActionTypeColor = (value: unknown): 'success' | 'error' | 'warni
 
   if (action === 'approved') return 'success'
   if (action === 'rejected' || action === 'vendor_disagreed') return 'error'
-  if (action === 'action_required' || action === 'returned_to_pic') return 'warning'
+  if (action === 'action_required' || action === 'recheck' || action === 'returned_to_pic') return 'warning'
   if (action === 'vendor_requested' || action === 'submitted_to_requester_head' || action === 'reassigned_pic')
     return 'info'
   return 'secondary'
 }
 
 export const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
-  const parsedRemark = parseActionRequiredRemark(log?.DESCRIPTION)
+  const normalizedActionType = String(log?.ACTION_TYPE || '')
+    .trim()
+    .toLowerCase()
+  const storedRemark =
+    normalizedActionType === 'recheck' || normalizedActionType === 'recheck_to_pic'
+      ? log?.RECHECK_REASON
+      : normalizedActionType === 'rejected' || normalizedActionType === 'vendor_disagreed'
+        ? log?.REJECT_REASON
+        : log?.DESCRIPTION
+  const parsedRemark = parseActionRequiredRemark(storedRemark)
   const actionType = parsedRemark.isActionRequired ? 'action_required' : log?.ACTION_TYPE
   const detailParts = [
     parsedRemark.owner ? `owner: ${parsedRemark.owner}` : '',

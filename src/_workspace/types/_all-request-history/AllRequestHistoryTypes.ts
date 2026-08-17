@@ -12,8 +12,8 @@ export interface AllRequestHistorySearchRequest {
 }
 
 export interface AllRequestHistoryFilterOptionRow {
-  REQUESTER_SECTION: string
-  REQUEST_YEAR: number
+  REQUESTER_SECTION: string | null
+  REQUEST_YEAR: number | null
 }
 
 export interface AllRequestHistoryRow extends Record<string, unknown> {
