@@ -293,7 +293,7 @@ function SearchResult() {
                 fontWeight: 600,
                 fontSize: '0.72rem',
                 width: 'fit-content',
-                '& .MuiChip-icon': { color: cfg.tone.color }
+                '& .MuiChip-icon': { color: 'inherit' }
               })}
             />
           )

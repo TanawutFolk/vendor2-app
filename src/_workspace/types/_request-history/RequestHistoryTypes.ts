@@ -30,6 +30,7 @@ export interface RegisterStep {
 export interface ApprovalStepRecord extends AuditFields {
   REQUEST_APPROVAL_STEP_ID: number
   WORKFLOW_STEP_MASTER_ID?: number
+  WORKFLOW_STEP_TYPE_ID?: number
   M_REQUEST_STATUS_ID?: number
   M_APPROVAL_STEP_STATUS_ID: number
   APPROVAL_GROUP_ID?: number | null

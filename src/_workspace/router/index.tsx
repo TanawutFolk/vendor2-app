@@ -46,6 +46,9 @@ const PoGmApprovalPage = lazy(() => import('@/_workspace/pages/_poGm-approval/pa
 /* Check Document */
 const CheckDocumentPage = lazy(() => import('@/_workspace/pages/_check-document/page'))
 
+/* Approval Flow Setting */
+const ApprovalFlowSettingPage = lazy(() => import('@/_workspace/pages/_approval-flow-setting/page'))
+
 export default (
   <>
     {/* Add Vendor */}
@@ -92,5 +95,8 @@ export default (
 
     {/* Check Document */}
     <Route path='/en/check-document' element={<CheckDocumentPage />} />
+
+    {/* Approval Flow Setting */}
+    <Route path='/en/approval-flow' element={<ApprovalFlowSettingPage />} />
   </>
 )

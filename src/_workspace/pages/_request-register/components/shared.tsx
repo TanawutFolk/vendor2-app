@@ -105,12 +105,6 @@ export const buildActionLogPresentation = (log: any, approvalSteps: any[]) => {
   }
 }
 
-// Request attachments now live in the request's 02.Request Documents network folder (moved out
-// of uploads/documents). Those are streamed through the managed download route; only legacy rows
-// whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
-const isNetworkStoredPath = (filePath: string) =>
-  filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
-
 // Streaming URL for one selection-sheet criteria file — same managed download route the
 // request attachments use, so FileViewerDialog can preview it inline.
 export const buildSelectionFileUrl = (filePath: string, fileName: string, requestNumber?: string) => {
@@ -141,18 +135,13 @@ export const buildFileUrls = (documents: any, requestNumber?: string): { name: s
     const filePath = String(doc?.FILE_PATH || '').trim()
     const fileName = String(doc?.FILE_NAME || '').trim()
 
-    if (requestNumber || isNetworkStoredPath(filePath)) {
-      // REQUEST_NUMBER lets the API recover the file by scanning the request's network
-      // folder if FILE_PATH is stale, missing, or was corrupted on a previous save; the API also falls back to uploads/documents for legacy rows.
-      const params = new URLSearchParams({
-        FILE_PATH: filePath,
-        FILE_NAME: fileName,
-        REQUEST_NUMBER: requestNumber || ''
-      })
-      return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
-    }
+    const params = new URLSearchParams({
+      FILE_PATH: filePath,
+      FILE_NAME: fileName,
+      REQUEST_NUMBER: requestNumber || ''
+    })
 
-    return `${API_BASE}/uploads/documents/${filePath}`
+    return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
   }
 
   return docs

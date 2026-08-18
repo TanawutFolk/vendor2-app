@@ -35,9 +35,10 @@ import ApprovalQueueServices from '@/_workspace/services/_approval-queue/Approva
 
 // Utils
 import { getUserData } from '@/utils/user-profile/userLoginProfile'
-import { isIssueGprCStep } from '@/_workspace/utils/requestWorkflow'
+import { isWorkflowStepType } from '@/_workspace/utils/workflowIdentity'
 import { buildRequestStatusFilter } from '@/_workspace/utils/requestStatusFilter'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
+import useWorkflowStepTypeIdentity from '@/_workspace/hooks/useWorkflowStepTypeIdentity'
 
 // React Query
 import { useQueryClient } from '@tanstack/react-query'
@@ -62,10 +63,7 @@ const getDocumentCount = (row: any) => {
   return buildFileUrls(row?.DOCUMENTS).length
 }
 
-const buildParamForSearch = (
-  filters: FormDataPage['searchFilters'],
-  request: IServerSideGetRowsRequest
-) => {
+const buildParamForSearch = (filters: FormDataPage['searchFilters'], request: IServerSideGetRowsRequest) => {
   const { startRow, endRow, sortModel } = request
   const limit = (endRow ?? 50) - (startRow ?? 0)
 
@@ -151,7 +149,8 @@ export default function SearchResult() {
   const { isEnableFetching, setIsEnableFetching } = useDxContext()
 
   const { getValues, setValue } = useFormContext<FormDataPage>()
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
+  const { workflowStepTypeIds } = useWorkflowStepTypeIdentity()
 
   const { savedGridState, handleGridReady, handleStateUpdated, refreshServerSide } = useDxServerSideGrid({
     getValues,
@@ -252,9 +251,10 @@ export default function SearchResult() {
           const isRequester = !!rowRequesterCode && rowRequesterCode === currentUserCode
 
           // The list and detail responses both expose master IDs. Labels/codes are display only.
-          let inGprCStep = isIssueGprCStep({
-            WORKFLOW_STEP_MASTER_ID: params.data?.CURRENT_WORKFLOW_STEP_MASTER_ID
-          }, workflowStepIds)
+          let inGprCStep = isWorkflowStepType(
+            { WORKFLOW_STEP_TYPE_ID: params.data?.CURRENT_WORKFLOW_STEP_TYPE_ID },
+            workflowStepTypeIds.ISSUE_GPR_C
+          )
           try {
             const approvalSteps =
               typeof params.data?.APPROVAL_STEPS === 'string'
@@ -264,7 +264,7 @@ export default function SearchResult() {
               (s: any) => Number(s.M_APPROVAL_STEP_STATUS_ID) === approvalStepStatusIds.IN_PROGRESS
             )
             if (!inGprCStep && currentStep) {
-              inGprCStep = isIssueGprCStep(currentStep, workflowStepIds)
+              inGprCStep = isWorkflowStepType(currentStep, workflowStepTypeIds.ISSUE_GPR_C)
             }
           } catch {}
 
@@ -289,20 +289,17 @@ export default function SearchResult() {
               <Chip
                 label='GPR C Setup'
                 size='small'
+                color='warning'
+                variant='tonal'
                 onClick={() => {
                   setGprCRowData(params.data)
                   setGprCOpen(true)
                 }}
                 sx={{
                   cursor: 'pointer',
-                  bgcolor: '#fff3e0',
-                  color: '#e65100',
-                  border: '1px solid #ffcc80',
                   fontWeight: 700,
                   fontSize: '0.72rem',
-                  height: 24,
-                  '& .MuiChip-icon': { color: '#e65100' },
-                  '&:hover': { bgcolor: '#ffe0b2' }
+                  height: 24
                 }}
               />
             </Tooltip>
@@ -381,15 +378,14 @@ export default function SearchResult() {
             <Chip
               label={`${count} file${count > 1 ? 's' : ''}`}
               size='small'
-              icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
+              color='info'
+              variant='tonal'
+              icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
               sx={{
-                bgcolor: '#1976d220',
-                color: '#1976d2',
-                border: '1px solid #1976d240',
                 fontWeight: 700,
                 fontSize: '0.72rem',
                 height: 24,
-                '& .MuiChip-icon': { color: '#1976d2' }
+                '& .MuiChip-icon': { color: 'inherit' }
               }}
             />
           )
@@ -403,7 +399,7 @@ export default function SearchResult() {
         valueFormatter: p => (p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-')
       }
     ],
-    [approvalStepStatusIds.IN_PROGRESS, currentUserCode, openDetailDialog, workflowStepIds]
+    [approvalStepStatusIds.IN_PROGRESS, currentUserCode, openDetailDialog, workflowStepTypeIds.ISSUE_GPR_C]
   )
 
   return (
@@ -436,11 +432,7 @@ export default function SearchResult() {
         </Card>
       </Grid>
 
-      <RequestDetailDialog
-        open={drawerOpen}
-        requestId={selectedRequestId}
-        onClose={() => setDrawerOpen(false)}
-      />
+      <RequestDetailDialog open={drawerOpen} requestId={selectedRequestId} onClose={() => setDrawerOpen(false)} />
 
       {/* GPR C Notification Dialog — Requester Action only */}
       <GprCNotificationDialog

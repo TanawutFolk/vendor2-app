@@ -1,14 +1,14 @@
 // Components Imports
 import ApprovalPageContent from '@/_workspace/pages/_check-document/components/ApprovalPageContent'
-import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
+import useWorkflowStepTypeIdentity from '@/_workspace/hooks/useWorkflowStepTypeIdentity'
 
 function SearchResult() {
-  const { workflowStepIds } = useWorkflowIdentity()
+  const { workflowStepTypeIds } = useWorkflowStepTypeIdentity()
 
   return (
     <ApprovalPageContent
       pageTitle='Account Register Vendor'
-      queueWorkflowStepMasterId={workflowStepIds.ACCOUNT_REGISTERED}
+      queueWorkflowStepTypeId={workflowStepTypeIds.ACCOUNT_REGISTERED}
       accentColor='#28C76F'
       showSelectionSheetReadOnly
     />

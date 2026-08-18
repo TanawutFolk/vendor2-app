@@ -1,14 +1,14 @@
 // Components Imports
 import ApprovalPageContent from './components/ApprovalPageContent'
-import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
+import useWorkflowStepTypeIdentity from '@/_workspace/hooks/useWorkflowStepTypeIdentity'
 
 function SearchResult() {
-  const { workflowStepIds } = useWorkflowIdentity()
+  const { workflowStepTypeIds } = useWorkflowStepTypeIdentity()
 
   return (
     <ApprovalPageContent
       pageTitle='Check Document Queue'
-      queueWorkflowStepMasterId={workflowStepIds.DOC_CHECK}
+      queueWorkflowStepTypeId={workflowStepTypeIds.DOC_CHECK}
       accentColor='#00BAD1'
       showSelectionSheetReadOnly
     />

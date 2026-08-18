@@ -1,31 +1,18 @@
 // Shared helpers for the check-document approval screen.
 // Extracted from SearchResult.tsx so the modal/panel components can import them
 // without creating a circular dependency back to the page.
-import {
-  isIssueGprBStep,
-  isIssueGprCStep,
-  isPoPicInProgressStep
-} from '@/_workspace/utils/requestWorkflow'
+import { isIssueGprBStep, isIssueGprCStep, isPoPicInProgressStep } from '@/_workspace/utils/requestWorkflow'
 import type { NegotiationAction } from '@/_workspace/types/_check-document/CheckDocumentTypes'
-import type {
-  ApprovalStepStatusMasterIds,
-  WorkflowStepMasterIds
-} from '@/_workspace/utils/workflowIdentity'
+import type { ApprovalStepStatusMasterIds, WorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
 import {
   getApprovalStepStatusMasterId,
   isApprovalStepStatusMaster,
-  isWorkflowStepMaster
+  isWorkflowStepType
 } from '@/_workspace/utils/workflowIdentity'
 
 export { default as Transition } from '@components/TransitionDialog'
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || ''
-
-// Request attachments live in the request's 02.Request Documents network folder (moved out
-// of uploads/documents). Those are streamed through the managed download route; only legacy rows
-// whose FILE_PATH is still a bare uploads filename fall back to /uploads/documents.
-const isNetworkStoredPath = (filePath: string) =>
-  filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
 
 export const buildFileUrls = (documents: any, requestNumber?: string): { name: string; url: string }[] => {
   let docs: any[] = []
@@ -50,18 +37,13 @@ export const buildFileUrls = (documents: any, requestNumber?: string): { name: s
     const filePath = String(doc?.FILE_PATH || '').trim()
     const fileName = String(doc?.FILE_NAME || '').trim()
 
-    if (requestNumber || isNetworkStoredPath(filePath)) {
-      // REQUEST_NUMBER lets the API recover the file by scanning the request's network
-      // folder if FILE_PATH is stale, missing, or was corrupted on a previous save; the API also falls back to uploads/documents for legacy rows.
-      const params = new URLSearchParams({
-        FILE_PATH: filePath,
-        FILE_NAME: fileName,
-        REQUEST_NUMBER: requestNumber || ''
-      })
-      return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
-    }
+    const params = new URLSearchParams({
+      FILE_PATH: filePath,
+      FILE_NAME: fileName,
+      REQUEST_NUMBER: requestNumber || ''
+    })
 
-    return `${API_BASE}/uploads/documents/${filePath}`
+    return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
   }
 
   return docs
@@ -84,7 +66,7 @@ export const parseApprovalSteps = (approvalStepsRaw: any): any[] => {
 export const getMyQueueStepStatus = (
   row: any,
   empCode?: string,
-  queueWorkflowStepMasterId?: number | null,
+  queueWorkflowStepTypeId?: number | null,
   approvalStepStatusIds?: ApprovalStepStatusMasterIds
 ): 'in_progress' | 'approved' | 'rejected' | 'pending' => {
   const directStatusId = getApprovalStepStatusMasterId({
@@ -99,8 +81,8 @@ export const getMyQueueStepStatus = (
   const steps = parseApprovalSteps(row?.APPROVAL_STEPS)
   const myQueueSteps = steps.filter((step: any) => {
     if (!step || step.APPROVER_EMPCODE !== empCode) return false
-    if (!queueWorkflowStepMasterId) return true
-    return isWorkflowStepMaster(step, queueWorkflowStepMasterId)
+    if (!queueWorkflowStepTypeId) return true
+    return isWorkflowStepType(step, queueWorkflowStepTypeId)
   })
 
   if (approvalStepStatusIds) {
@@ -128,7 +110,7 @@ export const getNegotiationWorkflowState = (
       actions: [
         {
           key: 'agree',
-          label: 'Approve and Send to Doc Checker',
+          label: workflowStepIds.DOC_CHECK ? 'Approve and Send to Doc Checker' : 'Approve and Continue',
           color: 'success',
           nextStatusId: workflowStepIds.DOC_CHECK,
           isFinalStep: false
@@ -155,7 +137,13 @@ export const getNegotiationWorkflowState = (
           nextStatusId: workflowStepIds.ISSUE_GPR_C,
           isFinalStep: false
         },
-        { key: 'disagree', label: 'Reject', color: 'error', nextStatusId: workflowStepIds.VENDOR_DISAGREED, isFinalStep: true }
+        {
+          key: 'disagree',
+          label: 'Reject',
+          color: 'error',
+          nextStatusId: workflowStepIds.VENDOR_DISAGREED,
+          isFinalStep: true
+        }
       ]
     }
   }
@@ -164,7 +152,13 @@ export const getNegotiationWorkflowState = (
     return {
       isNegotiationStep: true,
       actions: [
-        { key: 'agree', label: 'Approve GPR C', color: 'success', nextStatusId: workflowStepIds.DOC_CHECK, isFinalStep: false },
+        {
+          key: 'agree',
+          label: 'Approve GPR C',
+          color: 'success',
+          nextStatusId: workflowStepIds.DOC_CHECK,
+          isFinalStep: false
+        },
         {
           key: 'disagree',
           label: 'Vendor Disagreed (Close)',

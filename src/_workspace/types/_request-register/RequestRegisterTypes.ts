@@ -182,6 +182,9 @@ export interface RegisterRequestRow {
   PURCHASE_FREQUENCY?: string
   FULL_NAME?: string
   EMPLOYEE_CODE?: string
+  REQUEST_BY_EMPLOYEE?: string
+  REQUEST_BY_EMPLOYEECODE?: string
+  Request_By_EmployeeCode?: string
   DOCUMENTS?: unknown
   DOCUMENTS_COUNT?: number
   GPR_B_FILE_PATH?: string

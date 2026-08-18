@@ -1,9 +1,5 @@
 import { useMemo } from 'react'
-import {
-  isIssueGprBStep,
-  isIssueGprCStep,
-  isPoPicInProgressStep
-} from '@/_workspace/utils/requestWorkflow'
+import { isIssueGprBStep, isIssueGprCStep, isPoPicInProgressStep } from '@/_workspace/utils/requestWorkflow'
 import type { WorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
 
 type ButtonColor = 'success' | 'warning' | 'error' | 'primary' | 'secondary' | 'info'
@@ -40,7 +36,7 @@ export const useApprovalWorkflow = (
         actions: [
           {
             key: 'agree',
-            label: 'Approve and Send to Doc Checker',
+            label: workflowStepIds.DOC_CHECK ? 'Approve and Send to Doc Checker' : 'Approve and Continue',
             color: 'success',
             nextStatusId: workflowStepIds.DOC_CHECK,
             isFinalStep: false
@@ -86,7 +82,7 @@ export const useApprovalWorkflow = (
             key: 'agree',
             label: isRequesterGprCSetupPhase
               ? 'Submit to Requester Head Approval'
-              : directToDocCheckerOnApprove
+              : directToDocCheckerOnApprove && workflowStepIds.DOC_CHECK
                 ? 'Approve and Send to Doc Checker'
                 : 'Approve GPR C',
             color: 'success',

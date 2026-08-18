@@ -44,6 +44,7 @@ import type { CurrencyOption } from '@/_workspace/react-select/async-promise-loa
 import type { CountryOption } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import {
   useSelectionForm,
+  MAX_CRITERIA_FILE_SIZE_MB,
   MAX_CRITERIA_FILES,
   PENDING_UPLOAD_PREFIX,
   getCriteria41ReplacementMessage
@@ -60,6 +61,7 @@ import { ToastMessageError } from '@/components/ToastMessage'
 import { getVendorCodePrefix, isAccountStep } from '@/_workspace/utils/requestWorkflow'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import { buildSelectionSignatureSlots } from '@/_workspace/utils/selectionSignature'
+import { buildWorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
 
 // Re-export types so existing consumers (e.g. GprPdfDocument) keep working
 export type { SelectionFormData, SalesProfitYear, GprCriteria } from './useSelectionForm'
@@ -1019,25 +1021,30 @@ const CriteriaSection = React.memo(
                           })}
 
                           {(row.files || []).length < MAX_CRITERIA_FILES && (
-                            <Button
-                              size='small'
-                              variant='tonal'
-                              color='secondary'
-                              disabled={isViewMode || criteriaUploading[index] || criteriaDeleting[index]}
-                              startIcon={
-                                criteriaUploading[index] ? (
-                                  <CircularProgress size={12} />
-                                ) : (
-                                  <i className='tabler-upload' style={{ fontSize: 13 }} />
-                                )
-                              }
-                              onClick={() => onUploadClick(index)}
-                              sx={{ fontSize: '0.7rem', py: 0.25, alignSelf: 'flex-start' }}
-                            >
-                              {criteriaUploading[index]
-                                ? 'Uploading...'
-                                : `Select File (${(row.files || []).length}/${MAX_CRITERIA_FILES})`}
-                            </Button>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
+                              <Button
+                                size='small'
+                                variant='tonal'
+                                color='secondary'
+                                disabled={isViewMode || criteriaUploading[index] || criteriaDeleting[index]}
+                                startIcon={
+                                  criteriaUploading[index] ? (
+                                    <CircularProgress size={12} />
+                                  ) : (
+                                    <i className='tabler-upload' style={{ fontSize: 13 }} />
+                                  )
+                                }
+                                onClick={() => onUploadClick(index)}
+                                sx={{ fontSize: '0.7rem', py: 0.25, alignSelf: 'flex-start' }}
+                              >
+                                {criteriaUploading[index]
+                                  ? 'Uploading...'
+                                  : `Select File (${(row.files || []).length}/${MAX_CRITERIA_FILES})`}
+                              </Button>
+                              <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.6rem' }}>
+                                Maximum {MAX_CRITERIA_FILE_SIZE_MB} MB per file
+                              </Typography>
+                            </Box>
                           )}
                           {criteriaError[index] && (
                             <Typography variant='caption' color='error' sx={{ fontSize: '0.62rem' }}>
@@ -1354,7 +1361,7 @@ export default function SelectionFormDialong({
   onSaved,
   mode = 'Edit'
 }: SelectionFormDialongProps) {
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
   const approvalSteps = useMemo(() => {
     const rawSteps = rowData?.APPROVAL_STEPS
 
@@ -1369,6 +1376,7 @@ export default function SelectionFormDialong({
 
     return []
   }, [rowData?.APPROVAL_STEPS])
+  const workflowStepIds = useMemo(() => buildWorkflowStepMasterIds(approvalSteps), [approvalSteps])
 
   const isAccountVendorCodeOnlyMode = useMemo(() => {
     const currentStep = approvalSteps.find(

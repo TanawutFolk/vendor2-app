@@ -44,7 +44,7 @@ export interface ActionDialogProps {
 export interface DetailPanelProps {
   data: any
   empCode: string | undefined
-  queueWorkflowStepMasterId?: number | null
+  queueWorkflowStepTypeId?: number | null
   showSelectionSheetReadOnly?: boolean
   onApprove: (actionCode: WorkflowActionCode, approveActionLabel: string) => void
   onReject: (

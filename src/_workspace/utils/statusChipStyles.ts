@@ -1,3 +1,4 @@
+import { alpha, lighten } from '@mui/material/styles'
 import type { SxProps, Theme } from '@mui/material/styles'
 
 type ChipTone = {
@@ -57,18 +58,32 @@ export const getRegionTone = (region: unknown): ChipTone => {
   return REGION_TONES[normalize(region)] || REGION_TONES.local
 }
 
-const chipBaseSx = (tone: ChipTone): Exclude<SxProps<Theme>, readonly unknown[]> => ({
-  bgcolor: tone.bg,
-  color: tone.color,
-  border: '1px solid',
-  borderColor: tone.border,
-  fontWeight: 700,
-  fontSize: '0.72rem',
-  height: 24,
-  '& .MuiChip-label': {
-    px: 1.25
+const getToneAccent = (tone: ChipTone) => {
+  const color = [tone.border, tone.color].find(value => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value))
+
+  return color?.slice(0, 7)
+}
+
+const chipBaseSx = (tone: ChipTone): SxProps<Theme> => theme => {
+  const isDarkMode = theme.palette.mode === 'dark'
+  const accent = getToneAccent(tone) || theme.palette.primary.main
+
+  return {
+    bgcolor: isDarkMode ? alpha(accent, 0.2) : tone.bg,
+    color: isDarkMode ? lighten(accent, 0.24) : tone.color,
+    border: '1px solid',
+    borderColor: isDarkMode ? alpha(accent, 0.58) : tone.border,
+    fontWeight: 700,
+    fontSize: '0.72rem',
+    height: 24,
+    '& .MuiChip-label': {
+      px: 1.25
+    },
+    '& .MuiChip-icon': {
+      color: 'inherit'
+    }
   }
-})
+}
 
 export const getChipSx = (tone: ChipTone, extra?: SxProps<Theme>): SxProps<Theme> => {
   const base = chipBaseSx(tone)

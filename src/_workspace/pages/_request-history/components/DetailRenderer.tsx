@@ -6,6 +6,7 @@ import { DetailCard, EmptyState, ReadOnlyField, RecordCard, SectionHeader } from
 import useRequestStatusOptions from '@/_workspace/react-query/hooks/useRequestStatusOptions'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import { formatFftStatus } from '@/_workspace/utils/fftStatus'
+import { getRequesterEmployeeCode, getRequesterEmployeeName } from '@/_workspace/utils/requesterEmployee'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import StatusTimeline from '../StatusTimeline'
 
@@ -153,6 +154,12 @@ const DetailRenderer = ({ data }: { data: any }) => {
                     label='Submitted Date'
                     value={data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : ''}
                   />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <ReadOnlyField label='Request By Employee Code' value={getRequesterEmployeeCode(data)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <ReadOnlyField label='Request By Employee Name' value={getRequesterEmployeeName(data)} />
                 </Grid>
                 {data.REQUESTER_REMARK && (
                   <Grid item xs={12}>

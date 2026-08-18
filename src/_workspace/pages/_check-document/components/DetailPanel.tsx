@@ -5,6 +5,7 @@ import { DetailCard, EmptyState, ReadOnlyField, RecordCard, SectionHeader } from
 
 import SelectionFormDialong from '@/_workspace/pages/_request-register/modal/SelectionFormDialong'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
+import useWorkflowStepTypeIdentity from '@/_workspace/hooks/useWorkflowStepTypeIdentity'
 import {
   getApproveActionLabel,
   buildActionLogPresentation,
@@ -20,18 +21,23 @@ import {
   getAllowedWorkflowTransitionId
 } from '@/_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@/_workspace/utils/fftStatus'
+import { getRequesterEmployeeCode, getRequesterEmployeeName } from '@/_workspace/utils/requesterEmployee'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import type { DetailPanelProps } from '@/_workspace/types/_check-document/CheckDocumentTypes'
 
 import { buildFileUrls, getNegotiationWorkflowState } from './shared'
 import FileViewerDialog from '../modal/FileViewerDialog'
 import ActionRequiredDetailDialog from '../modal/ActionRequiredDetailDialog'
-import { isApprovalStepStatusMaster, isWorkflowStepMaster } from '@/_workspace/utils/workflowIdentity'
+import {
+  buildWorkflowStepMasterIds,
+  isApprovalStepStatusMaster,
+  isWorkflowStepType
+} from '@/_workspace/utils/workflowIdentity'
 
 const DetailPanel = ({
   data,
   empCode,
-  queueWorkflowStepMasterId,
+  queueWorkflowStepTypeId,
   showSelectionSheetReadOnly = false,
   onApprove,
   onReject,
@@ -43,7 +49,8 @@ const DetailPanel = ({
   const [actionRequiredDialogOpen, setActionRequiredDialogOpen] = useState(false)
   const [selectedActionRequired, setSelectedActionRequired] = useState<any | null>(null)
   const [selectionFormSavedInSession, setSelectionFormSavedInSession] = useState(false)
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
+  const { workflowStepTypeIds } = useWorkflowStepTypeIdentity()
   if (!data) return null
 
   const files = buildFileUrls(data?.DOCUMENTS, String(data?.REQUEST_NUMBER || ''))
@@ -56,6 +63,7 @@ const DetailPanel = ({
   })()
     .filter(Boolean)
     .sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
+  const requestWorkflowStepIds = buildWorkflowStepMasterIds(approvalSteps)
 
   const logs: any[] = (() => {
     try {
@@ -83,17 +91,17 @@ const DetailPanel = ({
   const isCurrentPicStep = !!currentStep && isPicStep(currentStep)
   const isPicOwnedNegotiationStep =
     !!currentStep &&
-    (isPoPicInProgressStep(currentStep, workflowStepIds) ||
-      isIssueGprBStep(currentStep, workflowStepIds) ||
-      isIssueGprCStep(currentStep, workflowStepIds) ||
-      isVendorDisagreedStep(currentStep, workflowStepIds))
+    (isPoPicInProgressStep(currentStep, requestWorkflowStepIds) ||
+      isIssueGprBStep(currentStep, requestWorkflowStepIds) ||
+      isIssueGprCStep(currentStep, requestWorkflowStepIds) ||
+      isVendorDisagreedStep(currentStep, requestWorkflowStepIds))
   const isCurrentStepMine =
     !!currentStep &&
     (currentStep.APPROVER_EMPCODE === empCode ||
       ((isCurrentPicStep || isPicOwnedNegotiationStep) && data.ASSIGN_TO === empCode))
-  const isAccountRegisterQueue = queueWorkflowStepMasterId === workflowStepIds.ACCOUNT_REGISTERED
+  const isAccountRegisterQueue = queueWorkflowStepTypeId === workflowStepTypeIds.ACCOUNT_REGISTERED
   const isCurrentStepMatchingQueue =
-    !queueWorkflowStepMasterId || isWorkflowStepMaster(currentStep, queueWorkflowStepMasterId)
+    !queueWorkflowStepTypeId || isWorkflowStepType(currentStep, queueWorkflowStepTypeId)
   const hasVendorRequested =
     !!currentStep &&
     logs.some(
@@ -101,8 +109,8 @@ const DetailPanel = ({
         String(l.REQUEST_APPROVAL_STEP_ID || '') === String(currentStep.REQUEST_APPROVAL_STEP_ID || '') &&
         l.ACTION_TYPE === 'vendor_requested'
     )
-  const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested, workflowStepIds)
-  const rejectButtonLabel = getRejectActionLabel(currentStep, workflowStepIds)
+  const approveButtonLabel = getApproveActionLabel(currentStep, hasVendorRequested, requestWorkflowStepIds)
+  const rejectButtonLabel = getRejectActionLabel(currentStep, requestWorkflowStepIds)
   const actionRequiredSetup = (() => {
     try {
       return typeof data.ACTION_REQUIRED_JSON === 'string'
@@ -133,7 +141,10 @@ const DetailPanel = ({
       return false
     }
   })()
-  const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(currentStep, workflowStepIds)
+  const { isNegotiationStep, actions: negotiationActions } = getNegotiationWorkflowState(
+    currentStep,
+    requestWorkflowStepIds
+  )
   const agreeAction = negotiationActions.find(action => action.key === 'agree')
   const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
   const renderDisagreeFirst = Boolean(
@@ -255,6 +266,12 @@ const DetailPanel = ({
                 label='Submitted Date'
                 value={data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : ''}
               />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <ReadOnlyField label='Request By Employee Code' value={getRequesterEmployeeCode(data)} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <ReadOnlyField label='Request By Employee Name' value={getRequesterEmployeeName(data)} />
             </Grid>
             {data.REQUESTER_REMARK && (
               <Grid item xs={12}>
@@ -523,7 +540,7 @@ const DetailPanel = ({
                       fontSize: '0.68rem',
                       height: 22,
                       width: 'fit-content',
-                      '& .MuiChip-icon': { color: stCfg.tone.color }
+                      '& .MuiChip-icon': { color: 'inherit' }
                     })}
                   />
                   <Typography variant='body2' color='text.secondary'>

@@ -5,17 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 
 // MUI Imports
-import {
-  Grid,
-  Box,
-  Typography,
-  Card,
-  CardHeader,
-  Chip,
-  CircularProgress,
-  IconButton,
-  CardContent
-} from '@mui/material'
+import { Grid, Box, Typography, Card, CardHeader, Chip, CircularProgress, IconButton, CardContent } from '@mui/material'
 
 // AG Grid Imports
 import type { ColDef, IServerSideDatasource, IServerSideGetRowsRequest } from 'ag-grid-community'
@@ -178,7 +168,7 @@ const DetailRenderer = (props: any) => {
     <DetailPanel
       data={detailData}
       empCode={props.context.empCode}
-      queueWorkflowStepMasterId={props.context.queueWorkflowStepMasterId}
+      queueWorkflowStepTypeId={props.context.queueWorkflowStepTypeId}
       showSelectionSheetReadOnly={props.context.showSelectionSheetReadOnly}
       onApprove={(actionCode: WorkflowActionCode, actionLabel: string) =>
         props.context.onApprove(detailData, actionCode, actionLabel)
@@ -193,7 +183,7 @@ const DetailRenderer = (props: any) => {
 }
 interface Props {
   pageTitle: string
-  queueWorkflowStepMasterId?: number | null
+  queueWorkflowStepTypeId?: number | null
   accentColor?: string
   showSelectionSheetReadOnly?: boolean
 }
@@ -202,14 +192,14 @@ const buildParamForSearch = (
   filters: FormDataPage['searchFilters'],
   request: IServerSideGetRowsRequest,
   empCode?: string,
-  queueWorkflowStepMasterId?: number | null
+  queueWorkflowStepTypeId?: number | null
 ) => {
   const { startRow, endRow, sortModel } = request
   const limit = (endRow ?? 50) - (startRow ?? 0)
 
   return {
     APPROVER_EMPCODE: empCode,
-    QUEUE_WORKFLOW_STEP_MASTER_ID: queueWorkflowStepMasterId,
+    QUEUE_WORKFLOW_STEP_TYPE_ID: queueWorkflowStepTypeId,
     SEARCHFILTERS: [
       { id: 'COMPANY_NAME', value: filters.vendorName || null },
       { id: 'REQUEST_BY_EMPLOYEECODE', value: filters.submittedBy || null },
@@ -226,7 +216,7 @@ const buildParamForSearch = (
 
 export default function ApprovalPageContent({
   pageTitle,
-  queueWorkflowStepMasterId,
+  queueWorkflowStepTypeId,
   showSelectionSheetReadOnly = false
 }: Props) {
   // Context
@@ -259,7 +249,7 @@ export default function ApprovalPageContent({
   const datasource = useMemo<IServerSideDatasource>(
     () => ({
       getRows: async params => {
-        if (!empCode || !queueWorkflowStepMasterId) {
+        if (!empCode || !queueWorkflowStepTypeId) {
           params.success({ rowData: [], rowCount: 0 })
           return
         }
@@ -268,7 +258,7 @@ export default function ApprovalPageContent({
             getValues('searchFilters'),
             params.request,
             empCode,
-            queueWorkflowStepMasterId
+            queueWorkflowStepTypeId
           )
           const res = await ApprovalQueueServices.getAll(payload)
           if (res.data?.Status) {
@@ -289,7 +279,7 @@ export default function ApprovalPageContent({
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [empCode, getValues, queueWorkflowStepMasterId]
+    [empCode, getValues, queueWorkflowStepTypeId]
   )
 
   const openDetailDialog = useCallback((row?: any | null) => {
@@ -359,7 +349,7 @@ export default function ApprovalPageContent({
           const myStepStatus = getMyQueueStepStatus(
             params.data,
             empCode,
-            queueWorkflowStepMasterId,
+            queueWorkflowStepTypeId,
             approvalStepStatusIds
           )
 
@@ -400,15 +390,14 @@ export default function ApprovalPageContent({
             <Chip
               label={`${count} file${count > 1 ? 's' : ''}`}
               size='small'
-              icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
+              color='info'
+              variant='tonal'
+              icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
               sx={{
-                bgcolor: '#1976d220',
-                color: '#1976d2',
-                border: '1px solid #1976d240',
                 fontWeight: 700,
                 fontSize: '0.72rem',
                 height: 24,
-                '& .MuiChip-icon': { color: '#1976d2' }
+                '& .MuiChip-icon': { color: 'inherit' }
               }}
             />
           )
@@ -421,7 +410,7 @@ export default function ApprovalPageContent({
         valueFormatter: (p: any) => (p.value ? new Date(p.value).toLocaleDateString('th-TH') : '-')
       }
     ],
-    [approvalStepStatusIds, empCode, queueWorkflowStepMasterId, openDetailDialog]
+    [approvalStepStatusIds, empCode, queueWorkflowStepTypeId, openDetailDialog]
   )
 
   const handleActionSuccess = useCallback(() => {
@@ -436,12 +425,15 @@ export default function ApprovalPageContent({
   const gridContext = useMemo(
     () => ({
       empCode,
-      queueWorkflowStepMasterId,
+      queueWorkflowStepTypeId,
       showSelectionSheetReadOnly,
       onApprove: (data: any, actionCode: WorkflowActionCode, actionLabel: string) => {
         const workflowTransitionId = getAllowedWorkflowTransitionId(data?.ALLOWED_ACTIONS, actionCode)
         if (!workflowTransitionId) {
-          ToastMessageError({ title: 'Workflow Action', message: 'This action is no longer available. Please refresh.' })
+          ToastMessageError({
+            title: 'Workflow Action',
+            message: 'This action is no longer available. Please refresh.'
+          })
           return
         }
         setSelectedRequestId(getRequestIdFromRow(data) || null)
@@ -458,14 +450,13 @@ export default function ApprovalPageContent({
         setActionMode('approve')
         setActionDialogOpen(true)
       },
-      onReject: (
-        data: any,
-        actionLabel: string,
-        actionCode: 'DISAGREE' | 'REJECT' | 'RECHECK' = 'REJECT'
-      ) => {
+      onReject: (data: any, actionLabel: string, actionCode: 'DISAGREE' | 'REJECT' | 'RECHECK' = 'REJECT') => {
         const workflowTransitionId = getAllowedWorkflowTransitionId(data?.ALLOWED_ACTIONS, actionCode)
         if (!workflowTransitionId) {
-          ToastMessageError({ title: 'Workflow Action', message: 'This action is no longer available. Please refresh.' })
+          ToastMessageError({
+            title: 'Workflow Action',
+            message: 'This action is no longer available. Please refresh.'
+          })
           return
         }
         setSelectedRequestId(getRequestIdFromRow(data) || null)
@@ -485,7 +476,7 @@ export default function ApprovalPageContent({
       },
       onRefresh: handleActionSuccess
     }),
-    [empCode, queueWorkflowStepMasterId, showSelectionSheetReadOnly, handleActionSuccess]
+    [empCode, queueWorkflowStepTypeId, showSelectionSheetReadOnly, handleActionSuccess]
   )
 
   const searchResultDataItem = useMemo(

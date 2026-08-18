@@ -28,6 +28,7 @@ import {
   getAllowedWorkflowTransitionId
 } from '@/_workspace/utils/requestWorkflow'
 import { formatFftStatus } from '@/_workspace/utils/fftStatus'
+import { getRequesterEmployeeCode, getRequesterEmployeeName } from '@/_workspace/utils/requesterEmployee'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import { DetailCard, EmptyState, ReadOnlyField, RecordCard, SectionHeader } from '@components/detail-view'
 import type { DetailPanelProps } from '@/_workspace/types/_request-register/RequestRegisterTypes'
@@ -45,7 +46,7 @@ import EditRequestDialog from '../modal/EditRequestDialog'
 import RegisterRequestServices from '@/_workspace/services/_register-request/RegisterRequestServices'
 import { useFindVendorDetail } from '@/_workspace/react-query/hooks/useFindVendor'
 import FindVendorServices from '@/_workspace/services/_find-vendor/FindVendorServices'
-import { isApprovalStepStatusMaster } from '@/_workspace/utils/workflowIdentity'
+import { buildWorkflowStepMasterIds, isApprovalStepStatusMaster } from '@/_workspace/utils/workflowIdentity'
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchVendorTypes'
 import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchCountries'
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/find-vendor/fetchProductGroups'
@@ -134,7 +135,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
   const [gprBFileSession, setGprBFileSession] = useState<{ path: string; name: string; size?: number } | null>(null)
   const [gprBFileError, setGprBFileError] = useState<string | null>(null)
   const [gprBPendingFile, setGprBPendingFile] = useState<File | null>(null)
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
   const user = getUserData()
   const files = buildFileUrls(data?.DOCUMENTS, String(data?.REQUEST_NUMBER || ''))
   useEffect(() => {
@@ -148,6 +149,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
   const approvalSteps: any[] = safeParseJSON<any[]>(data.APPROVAL_STEPS, [])
     .filter(Boolean)
     .sort((a: any, b: any) => a.STEP_ORDER - b.STEP_ORDER)
+  const workflowStepIds = buildWorkflowStepMasterIds(approvalSteps)
 
   const currentStep = approvalSteps.find((step: any) =>
     isApprovalStepStatusMaster(step, approvalStepStatusIds.IN_PROGRESS)
@@ -458,6 +460,12 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                 value={data.CREATE_DATE ? new Date(data.CREATE_DATE).toLocaleDateString('th-TH') : ''}
               />
             </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <ReadOnlyField label='Request By Employee Code' value={getRequesterEmployeeCode(data)} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <ReadOnlyField label='Request By Employee Name' value={getRequesterEmployeeName(data)} />
+            </Grid>
             {data.REQUESTER_REMARK && (
               <Grid item xs={12}>
                 <ReadOnlyField label='Requester Remark' value={data.REQUESTER_REMARK} multiline />
@@ -739,7 +747,7 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                           fontSize: '0.68rem',
                           height: 22,
                           width: 'fit-content',
-                          '& .MuiChip-icon': { color: stCfg.tone.color }
+                          '& .MuiChip-icon': { color: 'inherit' }
                         })}
                       />
                       <Typography variant='body2' color='text.secondary'>

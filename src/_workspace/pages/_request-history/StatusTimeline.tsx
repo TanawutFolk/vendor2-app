@@ -1,7 +1,7 @@
 import { Box, Typography, Chip, Avatar } from '@mui/material'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
-import type { ApprovalStepStatusMasterIds } from '@/_workspace/utils/workflowIdentity'
+import { buildWorkflowStepMasterIds, type ApprovalStepStatusMasterIds } from '@/_workspace/utils/workflowIdentity'
 
 // Types
 import type {
@@ -165,7 +165,7 @@ const BranchStep = ({ step, isLast }: { step: RegisterStep; isLast: boolean }) =
               fontWeight: 600,
               fontSize: '0.68rem',
               height: 20,
-              '& .MuiChip-icon': { color: tone.color }
+              '& .MuiChip-icon': { color: 'inherit' }
             })}
           />
         </Box>
@@ -189,7 +189,8 @@ interface Props {
 }
 
 const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
+  const workflowStepIds = buildWorkflowStepMasterIds(approvalSteps || [])
   // If real approval steps exist, map them to RegisterStep format
   const effectiveSteps: RegisterStep[] =
     approvalSteps && approvalSteps.length > 0
@@ -225,12 +226,8 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
               (id): id is number => id !== null
             )
           )
-          const branchChildren = mappedSteps.filter(s =>
-            disagreedStepIds.has(Number(s.workflowStepMasterId || 0))
-          )
-          const topLevelSteps = mappedSteps.filter(
-            s => !disagreedStepIds.has(Number(s.workflowStepMasterId || 0))
-          )
+          const branchChildren = mappedSteps.filter(s => disagreedStepIds.has(Number(s.workflowStepMasterId || 0)))
+          const topLevelSteps = mappedSteps.filter(s => !disagreedStepIds.has(Number(s.workflowStepMasterId || 0)))
           const poPicInProgressStep = topLevelSteps.find(
             s => Number(s.workflowStepMasterId || 0) === workflowStepIds.PO_PIC_IN_PROGRESS
           )
@@ -316,7 +313,7 @@ const StatusTimeline = ({ steps, approvalSteps, approvalLogs }: Props) => {
                     sx={getChipSx(tone, {
                       fontWeight: 600,
                       fontSize: '0.72rem',
-                      '& .MuiChip-icon': { color: tone.color }
+                      '& .MuiChip-icon': { color: 'inherit' }
                     })}
                   />
                 </Box>

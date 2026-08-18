@@ -81,6 +81,7 @@
     "accRegister": "Account Register Vendor Code",
     "approvalGprC": "Approval GPR C",
     "blackList": "blacklist",
-    "reRegister": "Re-Register"
+    "reRegister": "Re-Register",
+    "approvalFlow": "Approval Flow Setting"
   }
 }

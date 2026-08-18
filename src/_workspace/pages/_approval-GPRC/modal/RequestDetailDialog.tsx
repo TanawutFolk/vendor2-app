@@ -23,6 +23,7 @@ import { requestDetailQueryOptions } from '@/_workspace/react-query/hooks/useReg
 import RegisterRequestServices from '@/_workspace/services/_register-request/RegisterRequestServices'
 import { formatFftStatus } from '@/_workspace/utils/fftStatus'
 import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
+import { getRequesterEmployeeCode, getRequesterEmployeeName } from '@/_workspace/utils/requesterEmployee'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import type { ApprovalStepStatusMasterIds } from '@/_workspace/utils/workflowIdentity'
 import SelectionFormDialong from '@/_workspace/pages/_request-register/modal/SelectionFormDialong'
@@ -96,17 +97,14 @@ const formatDate = (value: unknown, withTime = false) => {
   return withTime ? date.toLocaleString('th-TH') : date.toLocaleDateString('th-TH')
 }
 
-// Registration documents now live in the request's 02.Request Documents network folder and are
-// streamed via the managed download route; legacy bare-filename paths still fall back to /uploads.
-const isNetworkStoredPath = (filePath: string) =>
-  filePath.includes('02.Request Documents') || filePath.includes('\\') || /^[a-zA-Z]:[\\/]/.test(filePath)
+const buildFileUrl = (filePath: string, fileName = '', requestNumber = '') => {
+  const params = new URLSearchParams({
+    FILE_PATH: filePath,
+    FILE_NAME: fileName,
+    REQUEST_NUMBER: requestNumber
+  })
 
-const buildFileUrl = (filePath: string, fileName = '') => {
-  if (isNetworkStoredPath(filePath)) {
-    const params = new URLSearchParams({ FILE_PATH: filePath, FILE_NAME: fileName })
-    return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
-  }
-  return `${API_BASE}/uploads/documents/${filePath}`
+  return `${API_BASE}/register-request/downloadSelectionDocument?${params.toString()}`
 }
 
 const getFileIcon = (name: string) => {
@@ -288,6 +286,7 @@ export default function RequestDetailDialog({
         .sort((a, b) => Number(a.STEP_ORDER || 0) - Number(b.STEP_ORDER || 0)),
     [gprCFlowQuery.data]
   )
+  const requestNumber = getValue(detail, fallback, 'request_number', 'REQUEST_NUMBER')
   const registerDocuments = useMemo(() => {
     const fileMap = new Map<string, FileItem>()
     const documents = safeParseArray<Record<string, unknown>>(detail?.DOCUMENTS ?? fallback?.DOCUMENTS)
@@ -309,8 +308,12 @@ export default function RequestDetailDialog({
   // Map the attached files to the { name, url } shape the file viewer expects. Memoized so the
   // viewer's selection isn't reset while the user browses between files.
   const previewFiles = useMemo(
-    () => registerDocuments.map(file => ({ name: file.name, url: buildFileUrl(file.path, file.name) })),
-    [registerDocuments]
+    () =>
+      registerDocuments.map(file => ({
+        name: file.name,
+        url: buildFileUrl(file.path, file.name, requestNumber !== '-' ? requestNumber : '')
+      })),
+    [registerDocuments, requestNumber]
   )
 
   const openPreview = (index: number) => {
@@ -318,7 +321,6 @@ export default function RequestDetailDialog({
     setPreviewOpen(true)
   }
 
-  const requestNumber = getValue(detail, fallback, 'request_number', 'REQUEST_NUMBER')
   const requestStatus = getValue(detail, fallback, 'request_status', 'REQUEST_STATUS')
   const companyName = getValue(detail, fallback, 'company_name', 'COMPANY_NAME')
   const vendorRegion = getValue(detail, fallback, 'vendor_region', 'VENDOR_REGION')
@@ -400,10 +402,8 @@ export default function RequestDetailDialog({
     { label: 'Purchase Frequency', value: getValue(detail, fallback, 'purchase_frequency', 'PURCHASE_FREQUENCY') },
     { label: 'Assigned To (PIC)', value: getValue(detail, fallback, 'assign_to', 'ASSIGN_TO') },
     { label: 'Submitted Date', value: formatDate(getValue(detail, fallback, 'create_date', 'CREATE_DATE')) },
-    {
-      label: 'Requester',
-      value: getValue(detail, fallback, 'FULL_NAME', 'REQUESTER_NAME', 'Request_By_EmployeeCode', 'EMPLOYEE_CODE')
-    }
+    { label: 'Request By Employee Code', value: getRequesterEmployeeCode(detail, fallback) },
+    { label: 'Request By Employee Name', value: getRequesterEmployeeName(detail, fallback) }
   ]
 
   const vendorInfoItems = [
@@ -703,7 +703,7 @@ export default function RequestDetailDialog({
                                   fontSize: '0.68rem',
                                   height: 22,
                                   width: 'fit-content',
-                                  '& .MuiChip-icon': { color: statusCfg.tone.color }
+                                  '& .MuiChip-icon': { color: 'inherit' }
                                 })}
                               />
                               <Typography variant='body2' color='text.secondary'>

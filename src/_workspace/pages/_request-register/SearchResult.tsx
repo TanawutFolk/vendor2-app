@@ -319,15 +319,14 @@ export default function SearchResult() {
             <Chip
               label={`${count} file${count > 1 ? 's' : ''}`}
               size='small'
-              icon={<i className='tabler-paperclip' style={{ fontSize: 13, color: '#1976d2' }} />}
+              color='info'
+              variant='tonal'
+              icon={<i className='tabler-paperclip' style={{ fontSize: 13 }} />}
               sx={{
-                bgcolor: '#1976d220',
-                color: '#1976d2',
-                border: '1px solid #1976d240',
                 fontWeight: 700,
                 fontSize: '0.72rem',
                 height: 24,
-                '& .MuiChip-icon': { color: '#1976d2' }
+                '& .MuiChip-icon': { color: 'inherit' }
               }}
             />
           )

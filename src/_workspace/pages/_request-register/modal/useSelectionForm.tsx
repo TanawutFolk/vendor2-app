@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { pdf } from '@react-pdf/renderer'
@@ -22,6 +22,7 @@ import {
 } from '@/_workspace/react-query/hooks/useRegisterRequest'
 import { isVendorCodeComplete } from '@/_workspace/utils/requestWorkflow'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
+import { buildWorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,6 +134,8 @@ export const CRITERIA_MASTER: Pick<GprCriteria, 'no' | 'detail' | 'criteria'>[] 
 
 export const PENDING_UPLOAD_PREFIX = '__pending__/'
 export const MAX_CRITERIA_FILES = 3
+export const MAX_CRITERIA_FILE_SIZE_MB = 50
+export const MAX_CRITERIA_FILE_SIZE_BYTES = MAX_CRITERIA_FILE_SIZE_MB * 1024 * 1024
 export const CRITERIA_41_REPLACEMENT_MESSAGE =
   'Document 4.1 "Compliant of the law" is missing. Document 4.11 "Advised by Customer, Parent Company or Manager up" is required as a substitute before sending the request to the next step. You may save the form now.'
 
@@ -422,7 +425,24 @@ export const useSelectionForm = ({
 }: UseSelectionFormArgs) => {
   const isViewMode = mode === 'View'
   const user = getUserData()
-  const { workflowStepIds, approvalStepStatusIds } = useWorkflowIdentity()
+  const { approvalStepStatusIds } = useWorkflowIdentity()
+  const workflowStepIds = useMemo(
+    () =>
+      buildWorkflowStepMasterIds(
+        (() => {
+          try {
+            const approvalSteps =
+              typeof rowData?.APPROVAL_STEPS === 'string'
+                ? JSON.parse(rowData.APPROVAL_STEPS)
+                : rowData?.APPROVAL_STEPS || []
+            return Array.isArray(approvalSteps) ? approvalSteps : []
+          } catch {
+            return []
+          }
+        })()
+      ),
+    [rowData?.APPROVAL_STEPS]
+  )
   const methods = useForm<SelectionFormData>({ defaultValues: buildDefault(rowData) })
   const { reset, getValues, setValue } = methods
   const saveSelectionMutation = useSaveSelectionFormMutation()
@@ -589,6 +609,18 @@ export const useSelectionForm = ({
       event.target.value = ''
       const currentRow = getValues(`criteria.${index}` as any) as GprCriteria | undefined
       const currentFiles = Array.isArray(currentRow?.files) ? currentRow.files : []
+
+      const oversizedFiles = selectedFiles.filter(file => file.size > MAX_CRITERIA_FILE_SIZE_BYTES)
+      if (oversizedFiles.length > 0) {
+        const oversizedFileNames = oversizedFiles
+          .map(file => `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+          .join(', ')
+        setCriteriaError(prev => ({
+          ...prev,
+          [index]: `Each file must be ${MAX_CRITERIA_FILE_SIZE_MB} MB or smaller. Too large: ${oversizedFileNames}`
+        }))
+        return
+      }
 
       if (currentFiles.length + selectedFiles.length > MAX_CRITERIA_FILES) {
         setCriteriaError(prev => ({
@@ -839,13 +871,7 @@ export const useSelectionForm = ({
         UPDATE_BY: user?.EMPLOYEE_CODE || ''
       })
     },
-    [
-      resolvedRequestId,
-      rowData?.VENDOR_REGION,
-      saveAccountVendorCodeMutation,
-      setValue,
-      user?.EMPLOYEE_CODE
-    ]
+    [resolvedRequestId, rowData?.VENDOR_REGION, saveAccountVendorCodeMutation, setValue, user?.EMPLOYEE_CODE]
   )
 
   const handleSave = useCallback(async () => {
@@ -895,7 +921,9 @@ export const useSelectionForm = ({
         message:
           error?.response?.data?.Message ||
           error?.message ||
-          (accountVendorCodeOnly ? 'Failed to save Vendor Code' : 'Failed to save Supplier / Outsourcing Selection Sheet')
+          (accountVendorCodeOnly
+            ? 'Failed to save Vendor Code'
+            : 'Failed to save Supplier / Outsourcing Selection Sheet')
       })
     } finally {
       setSaving(false)

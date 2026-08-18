@@ -118,6 +118,12 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
         label: dictionary['navigation'].blackList,
         icon: 'tabler-user-x',
         href: '/blacklist'
+      },
+      {
+        id: 552,
+        label: dictionary['navigation'].approvalFlow,
+        icon: 'tabler-arrows-right-left',
+        href: '/approval-flow'
       }
     ]
   }

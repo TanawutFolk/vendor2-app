@@ -5,30 +5,20 @@ import type { SlideProps } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import DialogCloseButton from '@components/dialogs/DialogCloseButton'
-import {
-  requestDetailQueryOptions,
-  REQUEST_DETAIL_QUERY_KEY
-} from '@/_workspace/react-query/hooks/useRegisterRequest'
+import { requestDetailQueryOptions, REQUEST_DETAIL_QUERY_KEY } from '@/_workspace/react-query/hooks/useRegisterRequest'
 import type { WorkflowActionCode } from '@/_workspace/types/_check-document/CheckDocumentTypes'
 import DetailPanel from '../components/DetailPanel'
 
-const Transition = forwardRef(function Transition(
-  props: SlideProps & { children?: ReactElement },
-  ref: Ref<unknown>
-) {
+const Transition = forwardRef(function Transition(props: SlideProps & { children?: ReactElement }, ref: Ref<unknown>) {
   return <Slide direction='down' ref={ref} {...props} />
 })
 
 export interface ApprovalDetailDialogContext {
   empCode: string
-  queueWorkflowStepMasterId?: number | null
+  queueWorkflowStepTypeId?: number | null
   showSelectionSheetReadOnly?: boolean
   onApprove: (data: Record<string, unknown>, actionCode: WorkflowActionCode, actionLabel: string) => void
-  onReject: (
-    data: Record<string, unknown>,
-    actionLabel: string,
-    actionCode?: 'DISAGREE' | 'REJECT' | 'RECHECK'
-  ) => void
+  onReject: (data: Record<string, unknown>, actionLabel: string, actionCode?: 'DISAGREE' | 'REJECT' | 'RECHECK') => void
   onRefresh: () => void
 }
 
@@ -68,7 +58,7 @@ export default function RequestDetailDialog({
       onClose={(_event, reason) => {
         if (reason !== 'backdropClick') onClose()
       }}
-     TransitionComponent={Transition}
+      TransitionComponent={Transition}
       keepMounted
       scroll='paper'
       sx={{
@@ -101,7 +91,7 @@ export default function RequestDetailDialog({
             <DetailPanel
               data={detailData}
               empCode={context.empCode}
-              queueWorkflowStepMasterId={context.queueWorkflowStepMasterId}
+              queueWorkflowStepTypeId={context.queueWorkflowStepTypeId}
               showSelectionSheetReadOnly={context.showSelectionSheetReadOnly}
               onApprove={(actionCode, actionLabel) => context.onApprove(detailData, actionCode, actionLabel)}
               onReject={(actionLabel, actionCode) => context.onReject(detailData, actionLabel, actionCode)}
