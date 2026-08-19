@@ -945,7 +945,7 @@ export default function GprCNotificationDialog({ open, rowData, onClose, onSaved
       </DialogContent>
       <DialogActions
         sx={{
-          justifyContent: 'flex-start',
+          justifyContent: 'flex-end',
           px: 4,
           py: 3,
           gap: 2,

@@ -230,21 +230,20 @@ const ApprovalFlowEditor = () => {
               </Grid>
             </CardContent>
             <Divider />
-            <Box sx={{ p: 4, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
-              {formState.isDirty && (
-                <Typography variant='body2' color='warning.main' sx={{ mr: 'auto' }}>
-                  You have unsaved changes.
-                </Typography>
-              )}
+            <Box sx={{ p: 4, display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 2 }}>
               <LoadingButton
                 variant='contained'
                 loading={saveSettingMutation.isPending}
                 disabled={!formState.isDirty}
-                startIcon={<i className='tabler-device-floppy' />}
                 onClick={requestSave}
               >
                 Save Changes
               </LoadingButton>
+              {formState.isDirty && (
+                <Typography variant='body2' color='warning.main'>
+                  You have unsaved changes.
+                </Typography>
+              )}
             </Box>
           </Card>
         </Grid>
