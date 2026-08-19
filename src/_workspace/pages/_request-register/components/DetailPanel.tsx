@@ -381,6 +381,10 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
   const disagreeAction = negotiationActions.find(action => action.key === 'disagree')
   const shouldShowNegotiationApprove = !(isPoPicInProgressStep(currentStep, workflowStepIds) && isGprBRequired)
   const shouldShowNegotiationDisagree = !(isPoPicInProgressStep(currentStep, workflowStepIds) && !isGprBRequired)
+  const showPoPicReject =
+    everRequestedVendor &&
+    isPoPicInProgressStep(currentStep, workflowStepIds) &&
+    isWorkflowActionAllowed('REJECT')
   const renderDisagreeFirst = Boolean(
     disagreeAction && !disagreeAction.label.toLowerCase().includes('vendor disagreed')
   )
@@ -1341,6 +1345,18 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                   onClick={() => onApprove('DISAGREE', disagreeAction.label)}
                 >
                   {disagreeAction.label}
+                </Button>
+              )}
+              {showPoPicReject && (
+                <Button
+                  variant='contained'
+                  color='error'
+                  fullWidth
+                  startIcon={<i className='tabler-circle-x' style={{ fontSize: 18 }} />}
+                  disabled={!isWorkflowActionAllowed('REJECT')}
+                  onClick={() => onReject('Reject', 'REJECT')}
+                >
+                  Reject
                 </Button>
               )}
             </>
