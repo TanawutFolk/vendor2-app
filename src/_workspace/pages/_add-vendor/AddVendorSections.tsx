@@ -559,6 +559,8 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
               <AsyncSelectCustom<VendorTypeOption>
                 {...field}
                 label='Vendor Type'
+                defaultOptions
+                cacheOptions
                 loadOptions={inputValue => fetchVendorTypes(inputValue)}
                 isClearable
                 isDisabled={isDisabled}
@@ -566,7 +568,10 @@ export const SectionProfile = ({ isDisabled }: SectionDisabledProps) => {
                 classNamePrefix='select'
                 getOptionLabel={option => option.BUSINESS_CATEGORY_NAME}
                 getOptionValue={option => option.BUSINESS_CATEGORY_ID.toString()}
-                {...(errors.vendor_type && { error: true, helperText: 'Vendor Type is required' })}
+                {...(errors.vendor_type && {
+                  error: true,
+                  helperText: 'Vendor Type is required'
+                })}
               />
             )}
           />
