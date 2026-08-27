@@ -1521,7 +1521,6 @@ export default function SelectionFormDialong({
           multiple
           ref={fileInputRef}
           style={{ display: 'none' }}
-          accept='.pdf,.doc,.docx,.jpg,.jpeg,.png'
           onChange={handleFileChange}
         />
 
