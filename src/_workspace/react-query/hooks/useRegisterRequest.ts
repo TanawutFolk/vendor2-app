@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import RegisterRequestServices from '@/_workspace/services/_register-request/RegisterRequestServices'
 import ApprovalQueueServices from '@/_workspace/services/_approval-queue/ApprovalQueueServices'
 import AccRegisterServices from '@/_workspace/services/_Acc-register/AccRegisterServices'
@@ -118,6 +118,22 @@ export const useSaveAccountVendorCodeMutation = (onSuccess?: any, onError?: any)
     onError
   })
 }
+
+// Live PRONES check while Account types the Vendor Code. A failed check (Status false) is a normal answer whose
+// Message is shown under the field; refetching on window focus re-checks after Account comes back from PRONES.
+export const useCheckVendorCode = (requestId: number | undefined, vendorCode: string, enabled: boolean) =>
+  useQuery({
+    queryKey: [PREFIX_QUERY_KEY, 'checkVendorCode', requestId, vendorCode],
+    queryFn: async () => {
+      const response = await RegisterRequestServices.checkVendorCode({
+        REQUEST_REGISTER_VENDOR_ID: requestId,
+        VENDOR_CODE: vendorCode
+      })
+      return response.data
+    },
+    enabled: enabled && !!requestId && !!vendorCode,
+    retry: false
+  })
 
 export const useAddDocumentMutation = (onSuccess?: any, onError?: any) => {
   return useMutation({

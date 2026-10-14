@@ -58,7 +58,9 @@ import type {
 import FileViewerDialog from './FileViewerDialog'
 import { buildSelectionFileUrl } from '../components/shared'
 import { ToastMessageError } from '@/components/ToastMessage'
-import { getVendorCodePrefix, isAccountStep } from '@/_workspace/utils/requestWorkflow'
+import { getVendorCodePrefix, isAccountStep, isVendorCodeComplete } from '@/_workspace/utils/requestWorkflow'
+import { useCheckVendorCode } from '@/_workspace/react-query/hooks/useRegisterRequest'
+import { useDebounce } from 'react-use'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import { buildSelectionSignatureSlots } from '@/_workspace/utils/selectionSignature'
 import { buildWorkflowStepMasterIds } from '@/_workspace/utils/workflowIdentity'
@@ -335,7 +337,7 @@ const resetTransform = (element: Element) => {
   }
 }
 
-const applyTranslateX = (element: Element, offsetX: number) => {
+const applyTranslate = (element: Element, offsetX: number, offsetY = 0) => {
   const svgElement = element as SVGGraphicsElement
   let baseTransform = element.getAttribute('data-base-transform')
 
@@ -344,7 +346,7 @@ const applyTranslateX = (element: Element, offsetX: number) => {
     element.setAttribute('data-base-transform', baseTransform)
   }
 
-  svgElement.setAttribute('transform', `${baseTransform} translate(${offsetX}, 0)`.trim())
+  svgElement.setAttribute('transform', `${baseTransform} translate(${offsetX}, ${offsetY})`.trim())
 }
 
 const getVisibleBounds = (element: Element) => {
@@ -352,7 +354,11 @@ const getVisibleBounds = (element: Element) => {
   return rect.width > 0 && rect.height > 0 ? rect : null
 }
 
-const findFirstVisibleMarker = (groups: Element[]) => {
+const getCenterX = (rect: DOMRect) => rect.left + rect.width / 2
+
+const MARGIN_LABEL_GAP = 4
+
+const getVisibleMarkers = (groups: Element[]) => {
   const markerSelectors = [
     '.apexcharts-series-markers .apexcharts-marker',
     '.apexcharts-series-markers circle',
@@ -360,17 +366,54 @@ const findFirstVisibleMarker = (groups: Element[]) => {
   ]
 
   for (const selector of markerSelectors) {
-    const marker = groups
+    const markers = groups
       .flatMap(group => Array.from(group.querySelectorAll(selector)))
-      .find(element => getVisibleBounds(element))
+      .map(element => ({ element, rect: getVisibleBounds(element) }))
+      .filter((marker): marker is { element: Element; rect: DOMRect } => marker.rect !== null)
 
-    if (marker) return marker
+    if (markers.length > 0) return markers
   }
 
-  return undefined
+  return []
 }
 
-const alignMarginLineToNetProfitBars = (chartContext?: any) => {
+const findNearestMarker = (markers: ReturnType<typeof getVisibleMarkers>, centerX: number) =>
+  markers.reduce<(typeof markers)[number] | undefined>(
+    (nearest, marker) =>
+      !nearest || Math.abs(getCenterX(marker.rect) - centerX) < Math.abs(getCenterX(nearest.rect) - centerX)
+        ? marker
+        : nearest,
+    undefined
+  )
+
+// A negative Net Profit bar grows downward, so its margin label sits under the marker instead of on the bar.
+const moveMarginLabelsBelowMarkers = (
+  marginGroups: Element[],
+  marginLabelGroups: Element[],
+  belowPointIndexes: number[]
+) => {
+  if (belowPointIndexes.length === 0) return
+
+  const markers = getVisibleMarkers(marginGroups)
+  const labels = marginLabelGroups.flatMap(group => Array.from(group.querySelectorAll('text.apexcharts-datalabel')))
+
+  labels.forEach(label => {
+    const labelRect = getVisibleBounds(label)
+    if (!labelRect) return
+
+    const marker = findNearestMarker(markers, getCenterX(labelRect))
+    if (!marker || !belowPointIndexes.includes(Number(marker.element.getAttribute('rel')))) return
+
+    const background = label.previousElementSibling?.tagName.toLowerCase() === 'rect' ? label.previousElementSibling : null
+    const labelParts = background ? [background, label] : [label]
+    const labelTop = Math.min(...labelParts.map(part => getVisibleBounds(part)?.top ?? labelRect.top))
+    const offsetY = marker.rect.bottom + MARGIN_LABEL_GAP - labelTop
+
+    if (Number.isFinite(offsetY)) labelParts.forEach(part => applyTranslate(part, 0, offsetY))
+  })
+}
+
+const alignMarginLineToNetProfitBars = (chartContext?: any, belowLabelPointIndexes: number[] = []) => {
   const root = chartContext?.el as HTMLElement | undefined
   if (!root) return
 
@@ -384,23 +427,20 @@ const alignMarginLineToNetProfitBars = (chartContext?: any) => {
     const targetGroups = [...marginGroups, ...marginLabelGroups]
 
     targetGroups.forEach(resetTransform)
+    marginLabelGroups.forEach(group => group.querySelectorAll('[data-base-transform]').forEach(resetTransform))
 
-    const netProfitBars = Array.from(netProfitGroup?.querySelectorAll('path, rect') || []).filter(element =>
-      getVisibleBounds(element)
-    )
-    const marginMarker = findFirstVisibleMarker(marginGroups)
+    // Pair a bar with the marker of its own year (nearest x), so a zero-height bar in an earlier year can't skew the shift.
+    const netProfitBar = Array.from(netProfitGroup?.querySelectorAll('path, rect') || [])
+      .map(element => getVisibleBounds(element))
+      .find((rect): rect is DOMRect => rect !== null)
+    const marginMarker = netProfitBar ? findNearestMarker(getVisibleMarkers(marginGroups), getCenterX(netProfitBar)) : undefined
+    const offsetX = netProfitBar && marginMarker ? getCenterX(netProfitBar) - getCenterX(marginMarker.rect) : 0
 
-    const firstNetProfitBar = netProfitBars[0]
-    if (!firstNetProfitBar || !marginMarker) return
+    if (Number.isFinite(offsetX) && Math.abs(offsetX) >= 0.5) {
+      targetGroups.forEach(group => applyTranslate(group, offsetX))
+    }
 
-    const barRect = getVisibleBounds(firstNetProfitBar)
-    const markerRect = getVisibleBounds(marginMarker)
-    if (!barRect || !markerRect) return
-
-    const offsetX = barRect.left + barRect.width / 2 - (markerRect.left + markerRect.width / 2)
-
-    if (!Number.isFinite(offsetX) || Math.abs(offsetX) < 0.5) return
-    targetGroups.forEach(group => applyTranslateX(group, offsetX))
+    moveMarginLabelsBelowMarkers(marginGroups, marginLabelGroups, belowLabelPointIndexes)
   })
 }
 
@@ -415,6 +455,19 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
     [salesProfit]
   )
 
+  // The margin marker sits on the tip of the Net Profit bar, so the line plots Net Profit amounts
+  // on the shared amount axis; the % itself is shown through the data label and tooltip.
+  const marginPointAmounts = useMemo(
+    () =>
+      salesProfit.map((item, index) => (marginPercents[index] === null ? null : parseFinancialNumber(item?.net_profit))),
+    [salesProfit, marginPercents]
+  )
+
+  const negativeMarginPointIndexes = useMemo(
+    () => marginPointAmounts.flatMap((amount, index) => (amount !== null && amount < 0 ? [index] : [])),
+    [marginPointAmounts]
+  )
+
   const chartAmountBounds = useMemo(() => {
     const amounts = salesProfit.flatMap(item => [
       parseFinancialNumber(item?.total_revenue),
@@ -425,15 +478,24 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
     const maxAbsoluteAmount = Math.max(Math.abs(minAmount), Math.abs(maxAmount))
 
     if (maxAbsoluteAmount <= 0) {
-      return { min: 0, max: undefined, scale: undefined }
+      return { min: 0, max: undefined, tickAmount: undefined }
     }
 
-    const magnitude = Math.pow(10, Math.max(0, Math.floor(Math.log10(maxAbsoluteAmount)) - 1))
-    const min = minAmount < 0 ? Math.floor(minAmount / magnitude) * magnitude : 0
-    const max = maxAmount > 0 ? Math.ceil(maxAmount / magnitude) * magnitude : 0
+    // Leave room for the margin label above the highest marker and below the lowest (negative) one.
+    const labeledAmounts = marginPointAmounts.filter((amount): amount is number => amount !== null)
+    const labelHeadroom = (maxAmount - minAmount) * 0.12
+    const paddedMin = minAmount < 0 ? Math.min(minAmount, ...labeledAmounts.map(amount => amount - labelHeadroom)) : 0
+    const paddedMax = Math.max(maxAmount, ...labeledAmounts.map(amount => amount + labelHeadroom))
 
-    return { min, max, scale: Math.max(Math.abs(min), Math.abs(max)) }
-  }, [salesProfit])
+    // Round to a 1/2/2.5/5 step so a range crossing zero still gets readable ticks (e.g. -40,000 / -20,000 / 0).
+    const rawStep = (paddedMax - paddedMin) / 7
+    const stepMagnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
+    const step = [1, 2, 2.5, 5, 10].map(factor => factor * stepMagnitude).find(candidate => candidate >= rawStep) || rawStep
+    const min = Math.floor(paddedMin / step) * step
+    const max = Math.ceil(paddedMax / step) * step
+
+    return { min, max, tickAmount: Math.round((max - min) / step) }
+  }, [salesProfit, marginPointAmounts])
 
   const chartSeries = useMemo(
     () => [
@@ -446,13 +508,10 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
       {
         name: 'Net Profit Margin %',
         type: 'line',
-        data: salesProfit.map(item => {
-          const revenue = parseFinancialNumber(item?.total_revenue)
-          return revenue > 0 ? parseFinancialNumber(item?.net_profit) : null
-        })
+        data: marginPointAmounts
       }
     ],
-    [salesProfit]
+    [salesProfit, marginPointAmounts]
   )
 
   const chartOptions = useMemo(
@@ -467,9 +526,12 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
         background: 'transparent',
         parentHeightOffset: 0,
         events: {
-          mounted: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext),
-          updated: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext),
-          animationEnd: (chartContext: any, config: any) => alignMarginLineToNetProfitBars(config?.ctx || chartContext)
+          mounted: (chartContext: any, config: any) =>
+            alignMarginLineToNetProfitBars(config?.ctx || chartContext, negativeMarginPointIndexes),
+          updated: (chartContext: any, config: any) =>
+            alignMarginLineToNetProfitBars(config?.ctx || chartContext, negativeMarginPointIndexes),
+          animationEnd: (chartContext: any, config: any) =>
+            alignMarginLineToNetProfitBars(config?.ctx || chartContext, negativeMarginPointIndexes)
         }
       },
       plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
@@ -503,6 +565,7 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
           seriesName: 'Total Revenue',
           min: chartAmountBounds.min,
           max: chartAmountBounds.max,
+          tickAmount: chartAmountBounds.tickAmount,
           title: { text: `Amount (${currency})` },
           labels: { formatter: (value: number) => value.toLocaleString() }
         },
@@ -510,21 +573,15 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
           seriesName: 'Net Profit',
           min: chartAmountBounds.min,
           max: chartAmountBounds.max,
+          tickAmount: chartAmountBounds.tickAmount,
           show: false
         },
         {
-          opposite: true,
           seriesName: 'Net Profit Margin %',
           min: chartAmountBounds.min,
           max: chartAmountBounds.max,
-          tickAmount: 5,
-          title: { text: '% Margin' },
-          labels: {
-            formatter: (value: number) => {
-              if (!chartAmountBounds.scale) return '-'
-              return formatMarginPercent((value / chartAmountBounds.scale) * 100)
-            }
-          }
+          tickAmount: chartAmountBounds.tickAmount,
+          show: false
         }
       ],
       colors: ['#7367F0', '#28C76F', '#FF9F43'],
@@ -542,7 +599,7 @@ const FinancialSection = React.memo(({ mode = 'Edit' }: { mode?: SelectionFormMo
       },
       grid: { borderColor: '#f0f0f0', padding: { left: 0, right: 0, top: 0, bottom: 0 } }
     }),
-    [salesProfit, currency, marginPercents, chartAmountBounds]
+    [salesProfit, currency, marginPercents, chartAmountBounds, negativeMarginPointIndexes]
   )
 
   const chartKey = useMemo(
@@ -1147,15 +1204,26 @@ const todayInputValue = () => {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
+type VendorCodeCheckTone = 'checking' | 'success' | 'warning' | 'error'
+
+const VENDOR_CODE_CHECK_STYLE: Record<VendorCodeCheckTone, { color: string; icon?: string }> = {
+  checking: { color: 'text.secondary' },
+  success: { color: 'success.main', icon: 'tabler-circle-check' },
+  warning: { color: 'warning.main', icon: 'tabler-alert-triangle' },
+  error: { color: 'error.main', icon: 'tabler-alert-circle' }
+}
+
 const SuggestionSection = React.memo(
   ({
     accountVendorCodeOnly = false,
     mode = 'Edit',
+    requestId,
     signatures = [],
     vendorRegion = ''
   }: {
     accountVendorCodeOnly?: boolean
     mode?: SelectionFormMode
+    requestId?: number
     signatures?: SignatureSlot[]
     vendorRegion?: string
   }) => {
@@ -1179,6 +1247,41 @@ const SuggestionSection = React.memo(
         setValue('vendor_code_selector', vendorCodePrefix, { shouldDirty: true })
       }
     }, [getValues, pinCompletionDateToToday, setValue, vendorCodePrefix])
+
+    // While Account types, check the code against PRONES (debounced). Save and Approve re-check on the server.
+    const vendorCodeInput = useWatch({ control, name: 'vendor_code_selector' })
+    const normalizedVendorCode = String(vendorCodeInput || '')
+      .trim()
+      .toUpperCase()
+    const [debouncedVendorCode, setDebouncedVendorCode] = useState(normalizedVendorCode)
+
+    useDebounce(() => setDebouncedVendorCode(normalizedVendorCode), 500, [normalizedVendorCode])
+
+    const isVendorCodeReady = pinCompletionDateToToday && isVendorCodeComplete(normalizedVendorCode, vendorRegion)
+    const isVendorCodeSettled = debouncedVendorCode === normalizedVendorCode
+    const vendorCodeCheck = useCheckVendorCode(requestId, debouncedVendorCode, isVendorCodeReady && isVendorCodeSettled)
+
+    const vendorCodeCheckStatus = ((): { tone: VendorCodeCheckTone; text: string } | null => {
+      if (!isVendorCodeReady) return null
+      if (!isVendorCodeSettled || vendorCodeCheck.isFetching) {
+        return { tone: 'checking', text: 'Checking Vendor Code with PRONES...' }
+      }
+      if (vendorCodeCheck.isError) {
+        return { tone: 'error', text: 'Cannot verify Vendor Code with PRONES right now. Please try again later.' }
+      }
+
+      const response = vendorCodeCheck.data
+      if (!response) return null
+      if (!response.Status) return { tone: 'error', text: response.Message || 'Vendor Code could not be verified.' }
+
+      const { PRONES_VENDOR_NAME, COMPANY_NAME, IS_NAME_MATCHED } = response.ResultOnDb
+      return IS_NAME_MATCHED
+        ? { tone: 'success', text: `Found in PRONES: ${PRONES_VENDOR_NAME}` }
+        : {
+            tone: 'warning',
+            text: `PRONES name "${PRONES_VENDOR_NAME}" differs from "${COMPANY_NAME}". Please confirm it is the same vendor.`
+          }
+    })()
 
     return (
       <>
@@ -1330,6 +1433,30 @@ const SuggestionSection = React.memo(
                   fullWidth
                   label='Vendor Code'
                   disabled={isViewMode}
+                  error={vendorCodeCheckStatus?.tone === 'error'}
+                  helperText={
+                    vendorCodeCheckStatus && (
+                      <Box
+                        component='span'
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          color: VENDOR_CODE_CHECK_STYLE[vendorCodeCheckStatus.tone].color
+                        }}
+                      >
+                        {vendorCodeCheckStatus.tone === 'checking' ? (
+                          <CircularProgress size={10} color='inherit' />
+                        ) : (
+                          <i
+                            className={VENDOR_CODE_CHECK_STYLE[vendorCodeCheckStatus.tone].icon}
+                            style={{ fontSize: 14, flexShrink: 0 }}
+                          />
+                        )}
+                        {vendorCodeCheckStatus.text}
+                      </Box>
+                    )
+                  }
                   {...register('vendor_code_selector')}
                 />
               </Grid>
@@ -1570,6 +1697,7 @@ export default function SelectionFormDialong({
               <SuggestionSection
                 accountVendorCodeOnly={isAccountVendorCodeOnlyMode}
                 mode={mode}
+                requestId={rowData?.REQUEST_REGISTER_VENDOR_ID}
                 signatures={signatureSlots}
                 vendorRegion={rowData?.VENDOR_REGION}
               />

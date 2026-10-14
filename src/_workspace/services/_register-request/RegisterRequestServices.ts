@@ -2,7 +2,11 @@ import RegisterRequestAPI from '@/_workspace/api/_register-request/RegisterReque
 import axiosRequest from '@/libs/axios/axiosRequest'
 import { AxiosResponse } from 'axios'
 import type { AuditFields } from '@/_workspace/types/AuditFields'
-import type { CurrencyI, SelectionBusinessCategoryI } from '@/_workspace/types/_request-register/RequestRegisterTypes'
+import type {
+  CurrencyI,
+  SelectionBusinessCategoryI,
+  VendorCodeCheckI
+} from '@/_workspace/types/_request-register/RequestRegisterTypes'
 import type { GprCProductMainI, GprCSectionI } from '@/_workspace/types/_request-history/RequestHistoryTypes'
 
 const APPROVAL_QUEUE_ROOT_URL = 'approval-queue'
@@ -176,6 +180,15 @@ export default class RegisterRequestServices {
   static saveSelectionForm(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<any>>> {
     return axiosRequest<RegisterRequestResponseI<any>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/saveSelectionForm`,
+      data,
+      method: 'POST'
+    })
+  }
+
+  // Verify the Account-entered Vendor Code against PRONES (exists, not used by another vendor)
+  static checkVendorCode(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<VendorCodeCheckI>>> {
+    return axiosRequest<RegisterRequestResponseI<VendorCodeCheckI>>({
+      url: `${RegisterRequestAPI.API_ROOT_URL}/checkVendorCode`,
       data,
       method: 'POST'
     })
