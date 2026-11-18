@@ -69,7 +69,7 @@ const buildParamForSearch = (filters: FormDataPage['searchFilters'], request: IS
 
   return {
     SEARCHFILTERS: [
-      { id: 'company_name', value: filters.vendorName || null },
+      { id: 'COMPANY_NAME', value: filters.vendorName || null },
       buildRequestStatusFilter(filters.overallStatus)
     ].filter(item => item.value !== null && item.value !== ''),
     COLUMNFILTERS: [],
