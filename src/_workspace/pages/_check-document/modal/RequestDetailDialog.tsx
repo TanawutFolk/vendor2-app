@@ -40,7 +40,11 @@ export default function RequestDetailDialog({
   const queryClient = useQueryClient()
   const detailQuery = useQuery({
     ...requestDetailQueryOptions(requestId ?? 0),
-    enabled: open && !!requestId
+    enabled: open && !!requestId,
+    // The same request detail is cached by every approval page, Request Register, Request History and GPR C.
+    // Some of them change the workflow without clearing that copy (GPR C approvals, Task Manager reassign,
+    // another tab), so re-read it on every open instead of trusting a copy up to 30 s old.
+    staleTime: 0
   })
   const detailData = (detailQuery.data ?? null) as Record<string, unknown> | null
 
@@ -97,6 +101,7 @@ export default function RequestDetailDialog({
               onReject={(actionLabel, actionCode) => context.onReject(detailData, actionLabel, actionCode)}
               onRefresh={context.onRefresh}
               onDetailRefresh={refreshDetail}
+              isRefreshing={detailQuery.isFetching}
             />
           )
         )}

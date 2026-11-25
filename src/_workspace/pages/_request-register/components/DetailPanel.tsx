@@ -755,7 +755,10 @@ const DetailPanel = ({ data: rawData, onApprove, onReject, onEmailSent, onComple
                         })}
                       />
                       <Typography variant='body2' color='text.secondary'>
-                        {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
+                        {/* A Waiting task has not run yet: its UPDATE_DATE is only when it was created or reset. */}
+                        {s.UPDATE_DATE && Number(s.M_APPROVAL_STEP_STATUS_ID) !== approvalStepStatusIds.PENDING
+                          ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH')
+                          : '-'}
                       </Typography>
                     </Box>
                   )

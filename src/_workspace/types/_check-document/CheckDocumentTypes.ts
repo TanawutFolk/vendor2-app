@@ -56,4 +56,7 @@ export interface DetailPanelProps {
   // this request's detail in place without closing the detail dialog, unlike
   // onRefresh which is for terminal actions (approve/reject/complete).
   onDetailRefresh?: () => void
+  // True while the latest detail is being re-read: the shown data may be out of date, so the
+  // workflow buttons are held back until it arrives.
+  isRefreshing?: boolean
 }

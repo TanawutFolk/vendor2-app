@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Typography, Chip, Grid, Button } from '@mui/material'
+import { Box, Typography, Chip, Grid, Button, CircularProgress } from '@mui/material'
 
 import { DetailCard, EmptyState, ReadOnlyField, RecordCard, SectionHeader } from '@components/detail-view'
 
@@ -42,7 +42,8 @@ const DetailPanel = ({
   onApprove,
   onReject,
   onRefresh,
-  onDetailRefresh
+  onDetailRefresh,
+  isRefreshing = false
 }: DetailPanelProps) => {
   const [fileDialogOpen, setFileDialogOpen] = useState(false)
   const [selectionFormOpen, setSelectionFormOpen] = useState(false)
@@ -544,7 +545,10 @@ const DetailPanel = ({
                     })}
                   />
                   <Typography variant='body2' color='text.secondary'>
-                    {s.UPDATE_DATE ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH') : '-'}
+                    {/* A Waiting task has not run yet: its UPDATE_DATE is only when it was created or reset. */}
+                    {s.UPDATE_DATE && Number(s.M_APPROVAL_STEP_STATUS_ID) !== approvalStepStatusIds.PENDING
+                      ? new Date(s.UPDATE_DATE).toLocaleDateString('th-TH')
+                      : '-'}
                   </Typography>
                 </Box>
               )
@@ -553,7 +557,16 @@ const DetailPanel = ({
         </Box>
       )}
 
-      {isActionable && !isAccountRegisterQueue && (
+      {isRefreshing && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mt: 2, py: 1.5 }}>
+          <CircularProgress size={18} />
+          <Typography variant='body2' color='text.secondary'>
+            Loading the latest request status...
+          </Typography>
+        </Box>
+      )}
+
+      {!isRefreshing && isActionable && !isAccountRegisterQueue && (
         <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
           {isNegotiationStep && agreeAction && disagreeAction && (
             <>
@@ -666,7 +679,7 @@ const DetailPanel = ({
         </Box>
       )}
 
-      {isActionable && isAccountRegisterQueue && (
+      {!isRefreshing && isActionable && isAccountRegisterQueue && (
         <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
           <Button
             variant='contained'
