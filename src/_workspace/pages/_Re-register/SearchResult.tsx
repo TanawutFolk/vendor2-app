@@ -39,7 +39,7 @@ import useDxServerSideGrid from '@/_workspace/hooks/useDxServerSideGrid'
 import { ToastMessageError } from '@/components/ToastMessage'
 import { getChipSx, getRegionTone } from '@/_workspace/utils/statusChipStyles'
 import ActionCellRenderer from '@/_workspace/components/vendor/components/ActionCellRenderer'
-import { VendorStatusCellRenderer } from '@/_workspace/components/vendor/components/fftStatus'
+import { ActiveStatusCellRenderer, VendorStatusCellRenderer } from '@/_workspace/components/vendor/components/fftStatus'
 import EditVendorModal from '@/_workspace/components/vendor/modal/EditVendorModal'
 import RegisterConfirmModal from '@/_workspace/components/vendor/modal/register-request/RegisterConfirmModal'
 import VendorDetailsModal from '@/_workspace/components/vendor/modal/VendorDetailsModal'
@@ -54,10 +54,16 @@ import type { VendorRow, SortColumnState } from '@/_workspace/types/_Re-register
 import { fetchVendorTypes } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchVendorTypes'
 import { fetchCountries } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchCountries'
 import { fetchProductGroups } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProductGroups'
+import { fetchProvinces } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProvinces'
+
+// Inactive vendors (INUSE = 0, e.g. PRONES I_DL_TYPE 'XX') cannot be sent for Re-register; the API rejects them too.
+const INACTIVE_RE_REGISTER_MESSAGE = 'Inactive vendors cannot be re-registered'
+const isInactiveVendor = (data?: { INUSE?: unknown }) => Number(data?.INUSE ?? 1) !== 1
 
 const buildVendorSearchFilters = (filters: FormDataPage['searchFilters']) => [
   { id: 'global_search', value: filters?.globalSearch || '' },
   { id: 'COMPANY_NAME', value: filters?.companyName || '' },
+  { id: 'COUNTRY', value: filters?.country || '' },
   { id: 'MASTER_VENDOR_TYPES_ID', value: filters?.vendorTypeId?.BUSINESS_CATEGORY_ID || null },
   { id: 'PROVINCE', value: filters?.province?.PROVINCE || '' },
   { id: 'MASTER_PRODUCT_GROUPS_ID', value: filters?.productGroupId?.MASTER_PRODUCT_GROUPS_ID || null },
@@ -266,7 +272,11 @@ function SearchResult() {
   }, [])
 
   const handleReRegisterAction = useCallback(
-    (vendorId: number) => {
+    (vendorId: number, data?: VendorRow) => {
+      if (isInactiveVendor(data)) {
+        ToastMessageError({ title: 'Re-register', message: INACTIVE_RE_REGISTER_MESSAGE })
+        return
+      }
       handleOpenReRegisterModal(vendorId)
     },
     [handleOpenReRegisterModal]
@@ -329,7 +339,10 @@ function SearchResult() {
           registerColor: 'primary',
           registerTitle: 'Send Re-register Request',
           canRegister: (data: VendorRow) => isVendorStatusMaster(data, vendorStatusIds.REGISTERED),
-          registerDisabled: (data: VendorRow) => creatingVendorId === Number(data.VENDORS_ID || 0)
+          registerDisabled: (data: VendorRow) =>
+            isInactiveVendor(data) || creatingVendorId === Number(data.VENDORS_ID || 0),
+          registerDisabledReason: (data: VendorRow) =>
+            isInactiveVendor(data) ? INACTIVE_RE_REGISTER_MESSAGE : undefined
         },
         sortable: false,
         filter: false,
@@ -387,7 +400,14 @@ function SearchResult() {
       },
       { field: 'CONTACT_NAME', headerName: 'Contact Name', width: 180 },
       { field: 'TEL_PHONE', headerName: 'Tel. Contact', width: 125 },
-      { field: 'EMAIL', headerName: 'Email Contact', width: 250 }
+      { field: 'EMAIL', headerName: 'Email Contact', width: 250 },
+      {
+        field: 'INUSE_LABEL',
+        headerName: 'Active / Inactive',
+        width: 140,
+        cellRenderer: ActiveStatusCellRenderer,
+        cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
+      }
     ],
     [
       creatingVendorId,
@@ -480,6 +500,7 @@ function SearchResult() {
             fetchVendorTypes={fetchVendorTypes}
             fetchCountries={fetchCountries}
             fetchProductGroups={fetchProductGroups}
+            fetchProvinces={fetchProvinces}
             onSuccess={handleEditSuccess}
           />
         ) : null}

@@ -41,7 +41,7 @@ import useDxServerSideGrid from '@/_workspace/hooks/useDxServerSideGrid'
 
 // Custom Cell Renderers
 import ActionCellRenderer from '@/_workspace/components/vendor/components/ActionCellRenderer'
-import { VendorStatusCellRenderer } from '@/_workspace/components/vendor/components/fftStatus'
+import { ActiveStatusCellRenderer, VendorStatusCellRenderer } from '@/_workspace/components/vendor/components/fftStatus'
 import EmailCellRenderer from './components/EmailCellRenderer'
 import VendorDetailsModal from '@/_workspace/components/vendor/modal/VendorDetailsModal'
 import EditVendorModal from '@/_workspace/components/vendor/modal/EditVendorModal'
@@ -409,6 +409,13 @@ function SearchResult() {
         headerName: 'Email Contact',
         width: 250,
         cellRenderer: EmailCellRenderer
+      },
+      {
+        field: 'INUSE_LABEL',
+        headerName: 'Active / Inactive',
+        width: 140,
+        cellRenderer: ActiveStatusCellRenderer,
+        cellStyle: { display: 'flex', justifyContent: 'center', alignItems: 'center' }
       }
     ],
     [handleEditClick, handleRegisterClick, handleVendorEditClick, canEditVendor, vendorStatusIds]

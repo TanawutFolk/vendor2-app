@@ -23,6 +23,8 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
     ? (params.canRegister?.(params.data) ?? (!isAlreadyRegistered && !isInProgress && !isCannotRegister))
     : false
   const isRegisterDisabled = params.data ? (params.registerDisabled?.(params.data) ?? false) : false
+  const registerDisabledReason =
+    isRegisterDisabled && params.data ? params.registerDisabledReason?.(params.data) : undefined
 
   // Callers may restrict which vendors are editable (find-vendor allows only "Not Registered").
   // Defaults to editable so existing callers keep their behaviour.
@@ -118,7 +120,7 @@ export default function ActionCellRenderer(params: ActionCellRendererProps) {
       }}
     >
       {canShowRegister ? (
-        <Tooltip title={params.registerTitle ?? 'Send Register Request'}>
+        <Tooltip title={registerDisabledReason ?? params.registerTitle ?? 'Send Register Request'}>
           <span style={{ display: 'flex', width: 32, height: 32 }}>
             <IconButton
               onClick={onRegister}

@@ -13,10 +13,12 @@ export const editVendorSchema = z
     province: z.string().nullable().optional(),
     postal_code: z.string().nullable().optional(),
     country: z.string().nullable().optional(),
-    website: z.string().nullable().optional(),
-    tel_center: z.string().nullable().optional(),
+    // Max lengths match the update-comprehensive API schemas (find-vendor and re-register),
+    // so an over-long value shows here instead of failing with 400 Bad Request.
+    website: z.string().max(200, 'Website must be at most 200 characters').nullable().optional(),
+    tel_center: z.string().max(30, 'Tel Company must be at most 30 characters').nullable().optional(),
     emailmain: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
-    address: z.string().nullable().optional(),
+    address: z.string().max(500, 'Address must be at most 500 characters').nullable().optional(),
     INUSE: z.coerce.number().nullable().optional(), // 1=Active, 0=Inactive
     contacts: z
       .array(

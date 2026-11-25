@@ -203,6 +203,8 @@ export interface ActionCellRendererProps extends ICellRendererParams<VendorActio
   onVendorDeleteClick?: (vendorId: number, data: VendorActionRow) => void
   canRegister?: (data: VendorActionRow) => boolean
   registerDisabled?: (data: VendorActionRow) => boolean
+  /** Tooltip shown instead of registerTitle while the register button is disabled for this row. */
+  registerDisabledReason?: (data: VendorActionRow) => string | undefined
   /** Restrict which vendors can be edited. Defaults to all of them. */
   canEdit?: (data: VendorActionRow) => boolean
   /** Tooltip/toast shown when canEdit returns false. */
@@ -284,6 +286,8 @@ export type VendorProfileSectionProps = {
   originalData: VendorComprehensiveI | null
   fetchVendorTypes: (inputValue: string) => Promise<BusinessCategoryI[]>
   fetchCountries: (inputValue: string) => Promise<CountryI[]>
+  // Optional: when given, Province is a dropdown loaded from the API; otherwise it stays a text field.
+  fetchProvinces?: (inputValue: string) => Promise<ProvinceI[]>
 }
 
 export interface EditVendorModalProps {
@@ -297,6 +301,7 @@ export interface EditVendorModalProps {
   fetchVendorTypes: (inputValue: string) => Promise<BusinessCategoryI[]>
   fetchCountries: (inputValue: string) => Promise<CountryI[]>
   fetchProductGroups: (inputValue: string) => Promise<ProductGroupI[]>
+  fetchProvinces?: (inputValue: string) => Promise<ProvinceI[]>
   onSuccess?: () => void
 }
 

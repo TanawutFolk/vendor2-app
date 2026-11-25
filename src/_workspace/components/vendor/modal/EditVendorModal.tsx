@@ -53,6 +53,7 @@ const EditVendorModal = ({
   fetchVendorTypes,
   fetchCountries,
   fetchProductGroups,
+  fetchProvinces,
   onSuccess: onSaveSuccess
 }: EditVendorModalProps) => {
   const { vendorStatusIds } = useVendorStatusIdentity()
@@ -169,6 +170,7 @@ const EditVendorModal = ({
                   originalData={originalData}
                   fetchVendorTypes={fetchVendorTypes}
                   fetchCountries={fetchCountries}
+                  fetchProvinces={fetchProvinces}
                 />
 
                 <ContactsSection

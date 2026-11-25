@@ -33,10 +33,12 @@ const NavbarContent = () => {
       <div className='flex items-center gap-4'>
         <NavToggle />
         {belowMdScreen === false &&
-        (import.meta.env.VITE_ENV_NAME === 'DEV' || import.meta.env.VITE_ENV_NAME === 'SIT') ? (
+        ['DEV', 'SIT', 'UAT'].includes(import.meta.env.VITE_ENV_NAME as string) ? (
           <div className='flex items-center gap-4'>
             <div className='flex justify-between items-center gap-4 is-full flex-wrap'>
-              <Typography color='error.main'>{`Status : Testing (ใช้สำหรับ ทดสอบการใช้งาน เท่านั้น)`}</Typography>
+              <Typography sx={{ color: import.meta.env.VITE_STATUS_COLOR || 'error.main' }}>
+                {`Status : ${import.meta.env.VITE_ENV_NAME} (ใช้สำหรับ ทดสอบการใช้งาน เท่านั้น)`}
+              </Typography>
             </div>
           </div>
         ) : null}

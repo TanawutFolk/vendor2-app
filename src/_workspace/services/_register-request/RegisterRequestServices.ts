@@ -5,7 +5,8 @@ import type { AuditFields } from '@/_workspace/types/AuditFields'
 import type {
   CurrencyI,
   SelectionBusinessCategoryI,
-  VendorCodeCheckI
+  VendorCodeCheckI,
+  VendorCodeGenerateI
 } from '@/_workspace/types/_request-register/RequestRegisterTypes'
 import type { GprCProductMainI, GprCSectionI } from '@/_workspace/types/_request-history/RequestHistoryTypes'
 
@@ -189,6 +190,15 @@ export default class RegisterRequestServices {
   static checkVendorCode(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<VendorCodeCheckI>>> {
     return axiosRequest<RegisterRequestResponseI<VendorCodeCheckI>>({
       url: `${RegisterRequestAPI.API_ROOT_URL}/checkVendorCode`,
+      data,
+      method: 'POST'
+    })
+  }
+
+  // Suggest the next Vendor Code from the codes already in PRONES (Account still keys it into PRONES)
+  static generateVendorCode(data: Record<string, unknown>): Promise<AxiosResponse<RegisterRequestResponseI<VendorCodeGenerateI>>> {
+    return axiosRequest<RegisterRequestResponseI<VendorCodeGenerateI>>({
+      url: `${RegisterRequestAPI.API_ROOT_URL}/generateVendorCode`,
       data,
       method: 'POST'
     })

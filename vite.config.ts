@@ -1,8 +1,21 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'fs'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
+  // `bun run` preloads .env.development into process.env, and Vite lets process.env win over .env.<mode>,
+  // so sit/uat/production would keep the DEV values. Drop those preloaded keys so .env.<mode> is used instead.
+  if (mode !== 'development') {
+    const devEnvPath = path.resolve(process.cwd(), '.env.development')
+
+    if (fs.existsSync(devEnvPath)) {
+      for (const [, key] of fs.readFileSync(devEnvPath, 'utf8').matchAll(/^\s*(VITE_\w+)\s*=/gm)) {
+        delete process.env[key]
+      }
+    }
+  }
+
   const env = loadEnv(mode, process.cwd(), 'VITE_')
 
   console.log('------------------------------------')

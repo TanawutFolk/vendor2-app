@@ -77,12 +77,17 @@ const ThemeProvider = (props: Props) => {
     }
   }
 
+  // Optional per-environment page background (.env.sit / .env.uat); falls back to the theme default when unset
+  const bgColorLight = import.meta.env.VITE_BG_COLOR as string | undefined
+  const bgColorDark = import.meta.env.VITE_BG_COLOR_DARK as string | undefined
+
   // Merge the primary color scheme override with the core theme
   const theme = useMemo(() => {
     const newColorScheme = {
       colorSchemes: {
         light: {
           palette: {
+            ...(bgColorLight && { background: { default: bgColorLight } }),
             primary: {
               main: settings.primaryColor,
               light: lighten(settings.primaryColor as string, 0.2),
@@ -98,6 +103,7 @@ const ThemeProvider = (props: Props) => {
         },
         dark: {
           palette: {
+            ...(bgColorDark && { background: { default: bgColorDark } }),
             primary: {
               main: settings.primaryColor,
               light: lighten(settings.primaryColor as string, 0.2),
@@ -119,7 +125,7 @@ const ThemeProvider = (props: Props) => {
     return extendTheme(coreTheme)
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.primaryColor, settings.skin, currentMode])
+  }, [settings.primaryColor, settings.skin, currentMode, bgColorLight, bgColorDark])
 
   return (
     // <AppRouterCacheProvider

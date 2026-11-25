@@ -157,7 +157,7 @@ function SearchFilters() {
                       {...field}
                       fullWidth
                       label='Global Search'
-                      placeholder='Search by Company Name, Vendor Code, etc.'
+                      placeholder='Search by Vendor Name, Vendor Code, etc.'
                       autoComplete='off'
                     />
                   )}
@@ -178,7 +178,7 @@ function SearchFilters() {
                     <CustomTextField
                       {...field}
                       fullWidth
-                      label='Company Name'
+                      label='Vendor Name'
                       placeholder='Enter ...'
                       autoComplete='off'
                     />

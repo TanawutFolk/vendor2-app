@@ -119,6 +119,17 @@ export const useSaveAccountVendorCodeMutation = (onSuccess?: any, onError?: any)
   })
 }
 
+export const useGenerateVendorCodeMutation = () =>
+  useMutation({
+    mutationFn: async (requestId: number) => {
+      const response = await RegisterRequestServices.generateVendorCode({ REQUEST_REGISTER_VENDOR_ID: requestId })
+      if (!response.data?.Status) {
+        throw new Error(response.data?.Message || 'Failed to generate Vendor Code')
+      }
+      return response.data.ResultOnDb
+    }
+  })
+
 // Live PRONES check while Account types the Vendor Code. A failed check (Status false) is a normal answer whose
 // Message is shown under the field; refetching on window focus re-checks after Account comes back from PRONES.
 export const useCheckVendorCode = (requestId: number | undefined, vendorCode: string, enabled: boolean) =>

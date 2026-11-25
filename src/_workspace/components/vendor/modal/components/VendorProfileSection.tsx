@@ -7,9 +7,15 @@ import AsyncSelectCustom from '@components/react-select/AsyncSelectCustom'
 import type { EditVendorSchemaType } from '../validateSchema'
 import SectionHeader from './SectionHeader'
 import type { VendorProfileSectionProps } from '@/_workspace/types/vendor/VendorTypes'
-import type { BusinessCategoryI, CountryI } from '@/_workspace/types/vendor/VendorTypes'
+import type { BusinessCategoryI, CountryI, ProvinceI } from '@/_workspace/types/vendor/VendorTypes'
 
-const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fetchCountries }: VendorProfileSectionProps) => {
+const VendorProfileSection = ({
+  editingMode,
+  originalData,
+  fetchVendorTypes,
+  fetchCountries,
+  fetchProvinces
+}: VendorProfileSectionProps) => {
   const {
     control,
     setValue,
@@ -195,19 +201,40 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                 <Controller
                   name='province'
                   control={control}
-                  render={({ field }) => (
-                    <CustomTextField
-                      {...field}
-                      fullWidth
-                      label='Province'
-                      value={field.value || ''}
-                      size='small'
-                      error={!!errors.province}
-                      helperText={errors.province?.message}
-                      disabled={editingMode === 'view'}
-                      InputProps={{ readOnly: editingMode === 'view' }}
-                    />
-                  )}
+                  render={({ field }) =>
+                    fetchProvinces && editingMode !== 'view' ? (
+                      // Same dropdown as Add Vendor; a saved value missing from the list is still shown.
+                      <AsyncSelectCustom<ProvinceI>
+                        label='Province'
+                        name={field.name}
+                        loadOptions={(inputValue: string) => fetchProvinces(inputValue)}
+                        value={field.value ? { PROVINCE: field.value } : null}
+                        onChange={val => field.onChange(val?.PROVINCE || '')}
+                        onBlur={field.onBlur}
+                        getOptionLabel={option => option.PROVINCE}
+                        getOptionValue={option => option.PROVINCE}
+                        defaultOptions
+                        cacheOptions
+                        isClearable
+                        placeholder='Select province...'
+                        classNamePrefix='select'
+                        error={!!errors.province}
+                        helperText={errors.province?.message}
+                      />
+                    ) : (
+                      <CustomTextField
+                        {...field}
+                        fullWidth
+                        label='Province'
+                        value={field.value || ''}
+                        size='small'
+                        error={!!errors.province}
+                        helperText={errors.province?.message}
+                        disabled={editingMode === 'view'}
+                        InputProps={{ readOnly: editingMode === 'view' }}
+                      />
+                    )
+                  }
                 />
               </Grid>
               <Grid item xs={6} md={3}>
@@ -246,6 +273,7 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                   helperText={errors.website?.message}
                   disabled={editingMode === 'view'}
                   InputProps={{ readOnly: editingMode === 'view' }}
+                  inputProps={{ maxLength: 200 }}
                 />
               )}
             />
@@ -265,6 +293,7 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                   helperText={errors.tel_center?.message}
                   disabled={editingMode === 'view'}
                   InputProps={{ readOnly: editingMode === 'view' }}
+                  inputProps={{ maxLength: 30 }}
                 />
               )}
             />
@@ -306,6 +335,7 @@ const VendorProfileSection = ({ editingMode, originalData, fetchVendorTypes, fet
                   helperText={errors.address?.message}
                   disabled={editingMode === 'view'}
                   InputProps={{ readOnly: editingMode === 'view' }}
+                  inputProps={{ maxLength: 500 }}
                 />
               )}
             />

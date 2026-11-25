@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { createTheme } from '@mui/material/styles'
 import type { SxProps, Theme } from '@mui/material/styles'
 
-import { getChipSx, getReadableStatusTone } from './statusChipStyles'
+import { getActiveTone, getChipSx, getReadableStatusTone } from './statusChipStyles'
 
 const resolveBaseStyle = (sx: SxProps<Theme>, theme: Theme) => {
   const base = Array.isArray(sx) ? sx[0] : sx
@@ -33,5 +33,11 @@ describe('statusChipStyles', () => {
     expect(style.color).not.toBe(tone.color)
     expect(style.borderColor).not.toBe(tone.border)
     expect(style['& .MuiChip-icon']).toEqual({ color: 'inherit' })
+  })
+
+  test('colors the vendor Active / Inactive chip green and grey', () => {
+    expect(getActiveTone('Active').color).toBe('#087B55')
+    expect(getActiveTone('Inactive').color).toBe('#344054')
+    expect(getActiveTone('INACTIVE').color).toBe('#344054')
   })
 })

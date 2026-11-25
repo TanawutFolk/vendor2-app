@@ -58,6 +58,15 @@ export const getRegionTone = (region: unknown): ChipTone => {
   return REGION_TONES[normalize(region)] || REGION_TONES.local
 }
 
+const ACTIVE_TONES: Record<'active' | 'inactive', ChipTone> = {
+  active: { bg: '#D6F4E6', color: '#087B55', border: '#5AD6A3' },
+  inactive: { bg: '#E4E7EC', color: '#344054', border: '#98A2B3' }
+}
+
+// Tone for the vendor Active / Inactive (vendors.INUSE) chip.
+export const getActiveTone = (label: unknown): ChipTone =>
+  normalize(label) === 'inactive' ? ACTIVE_TONES.inactive : ACTIVE_TONES.active
+
 const getToneAccent = (tone: ChipTone) => {
   const color = [tone.border, tone.color].find(value => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value))
 

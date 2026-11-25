@@ -64,6 +64,7 @@ const InnerApp = () => {
                 searchFiltersData={{
                   globalSearch: getValues('searchFilters.globalSearch'),
                   companyName: getValues('searchFilters.companyName'),
+                  country: getValues('searchFilters.country'),
                   vendorTypeId: getValues('searchFilters.vendorTypeId'),
                   province: getValues('searchFilters.province'),
                   productGroupId: getValues('searchFilters.productGroupId'),

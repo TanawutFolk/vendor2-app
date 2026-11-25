@@ -18,6 +18,7 @@ import {
   FormLabel,
   Grid,
   IconButton,
+  InputAdornment,
   Paper,
   Slide,
   Table,
@@ -57,9 +58,9 @@ import type {
 } from './useSelectionForm'
 import FileViewerDialog from './FileViewerDialog'
 import { buildSelectionFileUrl } from '../components/shared'
-import { ToastMessageError } from '@/components/ToastMessage'
+import { ToastMessageError, ToastMessageSuccess } from '@/components/ToastMessage'
 import { getVendorCodePrefix, isAccountStep, isVendorCodeComplete } from '@/_workspace/utils/requestWorkflow'
-import { useCheckVendorCode } from '@/_workspace/react-query/hooks/useRegisterRequest'
+import { useCheckVendorCode, useGenerateVendorCodeMutation } from '@/_workspace/react-query/hooks/useRegisterRequest'
 import { useDebounce } from 'react-use'
 import useWorkflowIdentity from '@/_workspace/hooks/useWorkflowIdentity'
 import { buildSelectionSignatureSlots } from '@/_workspace/utils/selectionSignature'
@@ -1204,12 +1205,11 @@ const todayInputValue = () => {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-type VendorCodeCheckTone = 'checking' | 'success' | 'warning' | 'error'
+type VendorCodeCheckTone = 'checking' | 'success' | 'error'
 
 const VENDOR_CODE_CHECK_STYLE: Record<VendorCodeCheckTone, { color: string; icon?: string }> = {
   checking: { color: 'text.secondary' },
   success: { color: 'success.main', icon: 'tabler-circle-check' },
-  warning: { color: 'warning.main', icon: 'tabler-alert-triangle' },
   error: { color: 'error.main', icon: 'tabler-alert-circle' }
 }
 
@@ -1261,6 +1261,25 @@ const SuggestionSection = React.memo(
     const isVendorCodeSettled = debouncedVendorCode === normalizedVendorCode
     const vendorCodeCheck = useCheckVendorCode(requestId, debouncedVendorCode, isVendorCodeReady && isVendorCodeSettled)
 
+    // Suggest the next code from PRONES. The live check then says "not found in PRONES" until Account keys the
+    // vendor into PRONES with this code; coming back to this tab re-checks it (refetch on window focus).
+    const generateVendorCodeMutation = useGenerateVendorCodeMutation()
+
+    const handleGenerateVendorCode = async () => {
+      if (!requestId) return
+
+      try {
+        const generated = await generateVendorCodeMutation.mutateAsync(requestId)
+
+        setValue('vendor_code_selector', generated.VENDOR_CODE, { shouldDirty: true })
+        ToastMessageSuccess({
+          message: `Vendor Code ${generated.VENDOR_CODE} generated (last code: ${generated.LAST_VENDOR_CODE || '-'}). Create the vendor in PRONES with this code, then Save.`
+        })
+      } catch (error) {
+        ToastMessageError({ message: error instanceof Error ? error.message : 'Failed to generate Vendor Code' })
+      }
+    }
+
     const vendorCodeCheckStatus = ((): { tone: VendorCodeCheckTone; text: string } | null => {
       if (!isVendorCodeReady) return null
       if (!isVendorCodeSettled || vendorCodeCheck.isFetching) {
@@ -1274,13 +1293,9 @@ const SuggestionSection = React.memo(
       if (!response) return null
       if (!response.Status) return { tone: 'error', text: response.Message || 'Vendor Code could not be verified.' }
 
-      const { PRONES_VENDOR_NAME, COMPANY_NAME, IS_NAME_MATCHED } = response.ResultOnDb
-      return IS_NAME_MATCHED
-        ? { tone: 'success', text: `Found in PRONES: ${PRONES_VENDOR_NAME}` }
-        : {
-            tone: 'warning',
-            text: `PRONES name "${PRONES_VENDOR_NAME}" differs from "${COMPANY_NAME}". Please confirm it is the same vendor.`
-          }
+      // Only the code is checked; the PRONES name is shown so Account can see which vendor the code belongs to.
+      const { PRONES_VENDOR_NAME } = response.ResultOnDb
+      return { tone: 'success', text: PRONES_VENDOR_NAME ? `Found in PRONES: ${PRONES_VENDOR_NAME}` : 'Found in PRONES' }
     })()
 
     return (
@@ -1456,6 +1471,32 @@ const SuggestionSection = React.memo(
                         {vendorCodeCheckStatus.text}
                       </Box>
                     )
+                  }
+                  InputProps={
+                    pinCompletionDateToToday
+                      ? {
+                          endAdornment: (
+                            <InputAdornment position='end'>
+                              <Tooltip title='Generate the next Vendor Code from PRONES'>
+                                <span>
+                                  <IconButton
+                                    size='small'
+                                    aria-label='Generate Vendor Code'
+                                    onClick={handleGenerateVendorCode}
+                                    disabled={!requestId || generateVendorCodeMutation.isPending}
+                                  >
+                                    {generateVendorCodeMutation.isPending ? (
+                                      <CircularProgress size={16} color='inherit' />
+                                    ) : (
+                                      <i className='tabler-wand' style={{ fontSize: 18 }} />
+                                    )}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </InputAdornment>
+                          )
+                        }
+                      : undefined
                   }
                   {...register('vendor_code_selector')}
                 />

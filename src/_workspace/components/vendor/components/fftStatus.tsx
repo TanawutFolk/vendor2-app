@@ -8,7 +8,7 @@ import {
   normalizeVendorStatusCode,
   VENDOR_STATUS_CODE
 } from '@/_workspace/utils/fftStatus'
-import { getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
+import { getActiveTone, getChipSx, getReadableStatusTone } from '@/_workspace/utils/statusChipStyles'
 import type { FftStatusChipProps, VendorStatusChipProps } from '@/_workspace/types/vendor/VendorTypes'
 
 // FFT Status configuration (for numeric values 0/1/2)
@@ -58,6 +58,21 @@ export const VendorStatusCellRenderer = (props: ICellRendererParams) => {
       value={props.data?.VENDOR_STATUS_CODE ?? props.value}
       label={props.data?.VENDOR_STATUS_LABEL}
       variant='tonal'
+    />
+  )
+}
+
+// Active / Inactive (vendors.INUSE) chip. The API sends INUSE_LABEL so the Excel export shows the same text.
+export const ActiveStatusCellRenderer = (props: ICellRendererParams) => {
+  const isActive = Number(props.data?.INUSE ?? 1) === 1
+  const label = props.value || (isActive ? 'Active' : 'Inactive')
+
+  return (
+    <Chip
+      label={label}
+      size='small'
+      color={isActive ? 'success' : 'default'}
+      sx={getChipSx(getActiveTone(label), { height: 22 })}
     />
   )
 }

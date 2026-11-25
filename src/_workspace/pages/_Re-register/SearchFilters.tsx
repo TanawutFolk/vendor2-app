@@ -28,6 +28,10 @@ import {
   type VendorTypeOption
 } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchVendorTypes'
 import {
+  fetchCountries,
+  type CountryOption
+} from '@/_workspace/react-select/async-promise-load-options/re-register/fetchCountries'
+import {
   fetchProvinces,
   type ProvinceOption
 } from '@/_workspace/react-select/async-promise-load-options/re-register/fetchProvinces'
@@ -63,6 +67,7 @@ function SearchFilters() {
     setValue('searchFilters', {
       globalSearch: '',
       companyName: '',
+      country: '',
       vendorTypeId: null,
       province: null,
       productGroupId: null,
@@ -97,6 +102,7 @@ function SearchFilters() {
         searchFilters: {
           globalSearch: getValues('searchFilters.globalSearch'),
           companyName: getValues('searchFilters.companyName'),
+          country: getValues('searchFilters.country'),
           vendorTypeId: getValues('searchFilters.vendorTypeId'),
           province: getValues('searchFilters.province'),
           productGroupId: getValues('searchFilters.productGroupId'),
@@ -151,7 +157,7 @@ function SearchFilters() {
                       {...field}
                       fullWidth
                       label='Global Search'
-                      placeholder='Search by Company Name, Vendor Code, etc.'
+                      placeholder='Search by Vendor Name, Vendor Code, etc.'
                       autoComplete='off'
                     />
                   )}
@@ -172,9 +178,30 @@ function SearchFilters() {
                     <CustomTextField
                       {...field}
                       fullWidth
-                      label='Company Name'
+                      label='Vendor Name'
                       placeholder='Enter ...'
                       autoComplete='off'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4} lg={3}>
+                <Controller
+                  name='searchFilters.country'
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelectCustom<CountryOption>
+                      defaultOptions
+                      cacheOptions
+                      loadOptions={(inputValue: string) => fetchCountries(inputValue)}
+                      isClearable
+                      label='Country'
+                      placeholder='Select ...'
+                      classNamePrefix='select'
+                      value={field.value ? { INFO_COUNTRY_ID: 0, INFO_COUNTRY_NAME: field.value } : null}
+                      onChange={value => field.onChange(value?.INFO_COUNTRY_NAME || '')}
+                      getOptionLabel={option => option.INFO_COUNTRY_NAME}
+                      getOptionValue={option => option.INFO_COUNTRY_NAME}
                     />
                   )}
                 />

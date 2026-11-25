@@ -10,6 +10,7 @@ import { normalizeStatusMasterOption } from '@/_workspace/types/StatusMasterType
 const searchFiltersSchema = z.object({
   globalSearch: z.string(),
   companyName: z.string(),
+  country: z.string(),
   vendorTypeId: z
     .object({
       BUSINESS_CATEGORY_ID: z.number(),
@@ -95,6 +96,7 @@ export const fetchDefaultValues = async (MENU_ID: number): Promise<FormDataPage>
             result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.globalSearch || '',
           companyName:
             result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.companyName || '',
+          country: result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.country || '',
           vendorTypeId:
             result?.data?.ResultOnDb?.[0]?.USER_PROFILE_SETTING_PROGRAM_DATA?.searchFilters.vendorTypeId
               ?.BUSINESS_CATEGORY_ID
@@ -130,6 +132,7 @@ export const fetchDefaultValues = async (MENU_ID: number): Promise<FormDataPage>
           // TODO: Can change this value
           globalSearch: '',
           companyName: '',
+          country: '',
           vendorTypeId: null,
           province: null,
           productGroupId: null,

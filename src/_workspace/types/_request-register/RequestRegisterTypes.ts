@@ -229,12 +229,16 @@ export interface DetailPanelProps {
   onCompleted?: () => void
 }
 
-// Result of verifying the Account-entered Vendor Code against PRONES
+// Result of verifying the Account-entered Vendor Code against PRONES (only the code is checked; the name is display only)
 export interface VendorCodeCheckI {
   VENDOR_CODE: string
   PRONES_VENDOR_NAME: string
-  COMPANY_NAME: string
-  IS_NAME_MATCHED: boolean
+}
+
+// Next Vendor Code suggested from PRONES (prefix + name letters + running number of the first letter)
+export interface VendorCodeGenerateI {
+  VENDOR_CODE: string
+  LAST_VENDOR_CODE: string
 }
 
 export interface GprPdfDocumentProps {

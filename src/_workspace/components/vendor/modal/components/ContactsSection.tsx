@@ -104,6 +104,7 @@ const ContactsSection = ({ editingMode, contactFields, removeContact, appendCont
                       size='small'
                       disabled={editingMode === 'view'}
                       InputProps={{ readOnly: editingMode === 'view' }}
+                      inputProps={{ maxLength: 30 }}
                     />
                   )}
                 />
@@ -149,6 +150,7 @@ const ContactsSection = ({ editingMode, contactFields, removeContact, appendCont
                       size='small'
                       disabled={editingMode === 'view'}
                       InputProps={{ readOnly: editingMode === 'view' }}
+                      inputProps={{ maxLength: 50 }}
                     />
                   )}
                 />
